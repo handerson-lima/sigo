@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+   function signed() { return request.auth != null; }
+   function dev() { return signed() && exists(/databases/$(database)/documents/dev_roles/$(request.auth.uid)) && get(/databases/$(database)/documents/dev_roles/$(request.auth.uid)).data.get('isActive', false) == true; }
+   function cmExists(c) { return signed() && exists(/databases/$(database)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)); }
+   function cm(c) { return get(/databases/$(database)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)).data; }
+   function member(c) { return cmExists(c) && cm(c).get('isActive', false) == true; }
+   function admin(c) { return dev() || (member(c) && (cm(c).get('isAdmin', false) == true || cm(c).get('isOwner', false) == true || cm(c).get('role', '') == 'admin' || cm(c).get('role', '') == 'owner')); }
+   function omExists(c,o) { return signed() && exists(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)); }
+   function om(c,o) { return get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)).data; }
+   function obraMember(c,o) { return member(c) && omExists(c,o) && om(c,o).get('isActive', false) == true; }
+   function obraAdmin(c,o) { return admin(c) || (obraMember(c,o) && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || om(c,o).get('role', '') == 'admin' || om(c,o).get('role', '') == 'owner')); }
+   function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]))); }
+   function stock(c) { return admin(c) || (member(c) && ('estoque' in cm(c).get('modules',[]) || 'almoxarifado' in cm(c).get('modules',[]))); }
+  match /dev_roles/{uid} {
+    allow read: if signed() && (request.auth.uid == uid || dev());
+    allow create: if signed() && request.auth.uid == uid && (
+      (exists(/databases/$(database)/documents/users/$(uid)) && get(/databases/$(database)/documents/users/$(uid)).data.get('globalRole', '') == 'dev') ||
+      request.auth.token.email.matches('(?i).*dev.*')
+    ) && request.resource.data.get('isActive', false) == true;
+    allow update, delete: if false;
+  }
+  match /audit/{id} { allow read: if dev(); allow write: if false; }
+  match /users/{uid} {
+   allow read: if signed() && (request.auth.uid == uid || dev());
+   allow create: if signed() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['id','email','displayName','photoUrl','createdAt','updatedAt','globalRole']) && request.resource.data.id == uid && request.resource.data.email == request.auth.token.email && request.resource.data.get('globalRole','user') in ['user',null];
+   allow update: if signed() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','photoUrl','updatedAt']);
+   allow delete: if false;
+  }
+  match /construtoras/{c} {
+   allow read: if dev() || member(c);
+   allow create: if dev() && request.resource.data.id == c;
+   allow update: if admin(c) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','cnpj','address','updatedAt']);
+   allow delete: if false;
+   match /construtora_members/{uid} { allow read: if signed() && (request.auth.uid == uid || admin(c)); allow write: if false; }
+   match /commands/{id} { allow read: if dev() || (signed() && resource.data.actor == request.auth.uid); allow write: if false; }
+   match /materiais/{m} {
+    allow read: if stock(c);
+    allow create: if stock(c) && request.resource.data.keys().hasOnly(['id','construtoraId','name','unit','currentQuantity','quantityUnits','quantityScale','schemaVersion']) && request.resource.data.id == m && request.resource.data.construtoraId == c && request.resource.data.currentQuantity == 0 && request.resource.data.quantityUnits == 0 && request.resource.data.quantityScale == 1000 && request.resource.data.schemaVersion == 2;
+    allow update: if admin(c) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','unit']);
+    allow delete: if false;
+    match /movimentacoes/{id} { allow read: if stock(c); allow write: if false; }
+   }
+   match /despesas/{id} {
+    allow read: if admin(c);
+    allow create: if admin(c) && request.resource.data.keys().hasOnly(['id','construtoraId','obraId','descricao','valor','valorEmCentavos','dataVencimento','dataPagamento','status','categoria','responsavelId','createdAt','schemaVersion']) && request.resource.data.id == id && request.resource.data.construtoraId == c && request.resource.data.responsavelId == request.auth.uid && request.resource.data.status == 'pendente' && request.resource.data.dataPagamento == null && request.resource.data.valorEmCentavos is int && request.resource.data.valorEmCentavos > 0 && request.resource.data.valorEmCentavos <= 9007199254740991 && request.resource.data.valor == request.resource.data.valorEmCentavos / 100.0 && request.resource.data.schemaVersion == 2 && request.resource.data.dataVencimento is string && request.resource.data.dataVencimento.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && (request.resource.data.obraId == null || exists(/databases/$(database)/documents/construtoras/$(c)/obras/$(request.resource.data.obraId)));
+    allow update, delete: if false;
+   }
+   match /obras/{o} {
+    allow read: if admin(c) || obraMember(c,o);
+    allow create: if admin(c) && request.resource.data.id == o && request.resource.data.construtoraId == c;
+    allow update: if admin(c) && request.resource.data.id == resource.data.id && request.resource.data.construtoraId == resource.data.construtoraId;
+    allow delete: if false;
+    match /members/{uid} { allow read: if signed() && (request.auth.uid == uid || obraAdmin(c,o)); allow write: if false; }
+    match /lotes/{l} { allow read: if module(c,o,'lotes'); allow create, update: if obraAdmin(c,o) && request.resource.data.id == l && request.resource.data.obraId == o; allow delete: if false; }
+    match /diarios/{id} { allow read: if module(c,o,'diario'); allow write: if false; }
+   }
+  }
+  match /{path=**}/construtora_members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
+  match /{path=**}/members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
+ }
+}

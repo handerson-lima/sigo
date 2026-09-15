@@ -1,0 +1,140 @@
+# SIGO — acompanhamento reconciliado com o código em 2026-09-15
+# generated: 09-14-2026 16:15
+# project: obras
+# tracking_system: file-system
+# IDs históricos preservados; docs/stories não existe no workspace atual.
+
+generated: 09-14-2026 16:15
+last_updated: 2026-09-15
+project: obras
+project_key: SIGO
+tracking_system: file-system
+story_location: "docs/task.md"
+
+# review = código encontrado, aceite ainda pendente; não autoriza novas correções.
+# backlog = não concluído; itens legados devem usar o escopo documental atualizado.
+approval:
+  planning_update: requested_by_user
+  preserve_global_dev: confirmed_by_user
+  correction_plan: approved_by_user
+  proposal: "docs/plano-de-correcao-2026-09-15.md"
+  production_deployment: not_authorized_by_this_plan
+
+observed_baseline:
+  evidence_date: 2026-09-15
+  flutter_analyze: "9 infos; sem erros de análise; exit code 1"
+  functions_typecheck: "tsc --noEmit passou"
+  flutter_test: "falhou: teste padrão, sem ProviderScope"
+  production_state: "não consultado"
+  note: "Status reflete código local; não é confirmação de deploy ou aceite."
+
+development_status:
+  epic-0: backlog
+  0-1-registrar-decisoes: backlog
+  0-2-definir-politica: backlog
+  0-3-aprovar-termos: backlog
+  0-4-matriz-acesso: backlog
+  epic-0-retrospective: optional
+
+  epic-1: in-progress
+  1-1-projeto-flutter: review
+  1-2-configurar-firebase: review
+  1-3-colecao-users: review
+  1-4-subcolecao-members: review
+  1-5-descoberta-obras: review
+  1-6-fluxo-login: review
+  1-7-selecao-obra: review
+  1-8-recalculo-modulos: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-service-worker-pwa: backlog
+  2-2-cache-aplicativo: backlog
+  2-3-indexeddb: backlog
+  2-4-fila-sincronizacao: backlog
+  2-5-armazenamento-local-blobs: backlog
+  2-6-particionar-cache: backlog
+  2-7-isolar-operacoes: backlog
+  2-8-sync-engine: backlog
+  2-9-endpoints-transacionais: backlog
+  2-10-idempotencia: backlog
+  2-11-executar-autorizacao: backlog
+  2-12-indicador-sincronizacao: backlog
+  2-13-sistema-carimbo: backlog
+  2-14-versionamento-migracao: backlog
+  epic-2-retrospective: optional
+
+  epic-2-5: backlog
+  2-5-1-firestore-rules: backlog
+  2-5-2-storage-rules: backlog
+  2-5-3-validar-membership: backlog
+  2-5-4-revalidacao-autorizacao: backlog
+  2-5-5-testes-seguranca: backlog
+  epic-2-5-retrospective: optional
+
+  epic-3: in-progress
+  3-1-crud-projetos-lotes: review
+  3-2-estoque-recebimento: backlog
+  3-3-estoque-saida: backlog
+  3-4-estoque-ajustes: backlog
+  3-5-estoque-estorno: backlog
+  3-6-estoque-rateio: backlog
+  3-7-monetario-centavos: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-rh-cadastro: backlog
+  4-2-rh-chamada: backlog
+  4-3-rh-custos: backlog
+  4-4-rh-validar-invariantes: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-modulo-epi: backlog
+  5-2-modulo-validacao: backlog
+  5-3-modulo-adm: backlog
+  5-4-fornecedores: backlog
+  5-5-parcelas-recebimento: backlog
+  5-6-visao-360-custos: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-testes-offline: backlog
+  6-2-testes-integridade: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-responsividade: backlog
+  epic-7-retrospective: optional
+
+# Os títulos históricos não impõem caminhos projects/ ou proibição de dev global.
+legacy_scope_mapping:
+  "1-4-subcolecao-members": "construtoras/{cId}/obras/{oId}/members/{uid}"
+  "1-5-descoberta-obras": "Validar queries atuais de construtora_members e members"
+  "2-11-executar-autorizacao": "C1: exceção dev global confiável preservada"
+  "3-2-estoque-recebimento": "Backlog: compra/NF completa; entrada simples já tem código"
+  "3-3-estoque-saida": "Parcial: saída central existe; C4 estabiliza; custos completos são futuros"
+  "5-3-modulo-adm": "Financeiro básico existe; documentação e visão 360 continuam backlog"
+
+additional_observed_features:
+  dev_panel: "implementado; correção C1 pendente"
+  central_inventory: "implementado parcialmente; correção C4 pendente"
+  expenses: "implementado parcialmente; correção C3 pendente"
+  daily_reports: "implementado parcialmente; correção C5 pendente"
+
+correction_backlog:
+  C0-validacao-inventario: in-progress
+  C1-autorizacao-dev: backlog
+  C2-arquivos: backlog
+  C3-financeiro: backlog
+  C4-estoque: backlog
+  C5-diario-pwa: backlog
+  C6-aceite-integrado: backlog
+
+execution_order: [C0, C1, C2, C3, C4, C5, C6]
+
+action_items:
+  - "Usuário aprovar ou ajustar C0–C6 e matriz de acesso proposta."
+  - "Identificar devs legítimos antes da migração de privilégios; não confiar em autoatribuições."
+  - "Aceitar funcionalidades apenas com evidências; não inferir conclusão pela presença de tela."
+  - "Preparar migrações/implantação separadamente; nenhuma executada nesta atualização."

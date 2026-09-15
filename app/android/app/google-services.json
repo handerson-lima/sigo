@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "142690913323",
+    "project_id": "sigo-c2eb2",
+    "storage_bucket": "sigo-c2eb2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:142690913323:android:659c4ebc0b6a87fda42e6e",
+        "android_client_info": {
+          "package_name": "br.com.sigo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOJuqK555PjQkl4RoUkJnwsrwbrjvGrQA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 2,
+  "mode": "demo-applied",
+  "totals": {
+    "legacyRoundedCents": 101,
+    "newCents": 101
+  },
+  "roundings": [
+    {
+      "path": "construtoras/A/despesas/d1",
+      "legacy": 1.005,
+      "cents": 101
+    }
+  ],
+  "review": [
+    {
+      "path": "construtoras/B/construtora_members/u",
+      "reason": "isActive ausente: falha fechada; autorização explícita necessária"
+    },
+    {
+      "path": "construtoras/B/construtora_members/u",
+      "reason": "modules ausente: nenhum módulo central concedido automaticamente"
+    },
+    {
+      "path": "construtoras/A/despesas/invalid",
+      "reason": "Decimal inválido"
+    },
+    {
+      "path": "construtoras/A/obras/O/diarios/d",
+      "reason": "Pendência legada depende dos bytes no dispositivo de origem; nunca limpar por migração"
+    }
+  ],
+  "devCandidates": [
+    {
+      "uid": "forged",
+      "legacyRole": "dev",
+      "claims": {
+        "role": "admin",
+        "construtoraId": "A"
+      }
+    }
+  ],
+  "verifiedDevs": [],
+  "files": [
+    {
+      "document": "construtoras/A/obras/O/diarios/d",
+      "object": "construtoras/A/obras/O/diarios/d/photo",
+      "hasToken": false,
+      "requiredAction": "Verificar objeto e leitor privado; converter referência e só então revogar token. Rules não revogam URLs existentes.",
+      "result": "referência privada verificada; tokens removidos pela API administrativa do emulador"
+    }
+  ],
+  "changes": [
+    {
+      "path": "construtoras/A/despesas/d1",
+      "beforeHash": "c6d19656eb1415cd52d31a88c9047ba3a4148014dce29c46345881ceffd5e990",
+      "patch": {
+        "valorEmCentavos": 101,
+        "schemaVersion": 2,
+        "dataVencimento": "2026-09-15",
+        "createdAt": {
+          "timestamp": "2026-09-01T12:00:00.000Z"
+        }
+      }
+    },
+    {
+      "path": "construtoras/A/materiais/m1",
+      "beforeHash": "6cebb558f4d4ed4d7b9545ff3b8d7b2bcb94eeb9f978839242b25326a6923915",
+      "patch": {
+        "quantityUnits": 12345,
+        "quantityScale": 1000,
+        "schemaVersion": 2
+      },
+      "opening": {
+        "id": "migration_opening_v2",
+        "commandType": "abertura",
+        "type": "entrada",
+        "quantity": 0,
+        "quantityUnits": 0,
+        "deltaUnits": 0,
+        "openingBalanceUnits": 12345,
+        "quantityScale": 1000,
+        "observacao": "Abertura reconciliada com saldo legado; não representa histórico anterior",
+        "evidence": "ensaio-c0-c6-fixture-v1"
+      }
+    },
+    {
+      "path": "construtoras/A/construtora_members/u",
+      "beforeHash": "7c8e2cf83928e17dc56b790c960b5b86d0972fb67b37da617f81b992473554e9",
+      "patch": {
+        "modules": [
+          "estoque"
+        ],
+        "schemaVersion": 2
+      }
+    }
+  ]
+}

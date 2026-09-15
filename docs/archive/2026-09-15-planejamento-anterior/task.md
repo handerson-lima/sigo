@@ -1,0 +1,120 @@
+# Tarefas de Implementação: SIGO
+
+- [ ] **Fase 0: Contratos, Políticas e Governança**
+  - [ ] Registrar como decisões aprovadas as políticas de ajustes, estornos, frete/despesas, fornecedores por organização, parcelamento e invalidação de cache.
+  - [ ] Definir política versionada de custo de mão de obra, precisão monetária, escalas de quantidade e arredondamento.
+  - [ ] Aprovar com as áreas jurídica, trabalhista e de privacidade o termo de EPI, as evidências exigidas, as bases legais e os prazos de retenção.
+  - [ ] Definir matriz de acesso a CPF, salários, documentos, localização e assinaturas.
+
+- [ ] **Fase 1: Configuração Inicial e Autenticação (RBAC)**
+  - [ ] Criar projeto Flutter web/mobile-first (MVVM ou Clean Architecture).
+  - [ ] Configurar Firebase (Auth, Firestore, Storage) e interligar com o Flutter.
+  - [ ] Criar coleção `users` (dados globais).
+  - [ ] Criar a subcoleção determinística `projects/{projectId}/members/{userId}` (Única fonte de verdade para autorização multiobra; NÃO criar coleção top-level `project_memberships` paralela).
+  - [ ] Implementar descoberta de obras via `collectionGroup("members")`, filtrada pelo UID autenticado e coberta por índice e Security Rules.
+  - [ ] Implementar fluxo de login e carregamento de memberships ativas.
+  - [ ] Implementar seleção de obra (contexto `activeProjectId`) e carregamento de Dashboard condicional ao array `allowedModules` da obra selecionada.
+  - [ ] Garantir recálculo de módulos e layout imediato na troca de obra.
+
+- [ ] **Fase 2: Arquitetura PWA e Sincronização (Offline-First Web)**
+  - [ ] Implementar Service Worker e `manifest.json` para instalação como PWA (Progressive Web App).
+  - [ ] Garantir cache do aplicativo (shell, assets) separadamente dos dados de negócio.
+  - [ ] Criar repositório de persistência local baseada em web (IndexedDB) para cache de dados.
+  - [ ] Implementar fila de sincronização (`local_sync_queue`) no IndexedDB.
+  - [ ] Implementar armazenamento local para blobs (arquivos de mídia/anexos pendentes).
+  - [ ] Particionar cache por usuário, obra e módulo e implementar limpeza segura no logout, troca de conta e revogação confirmada.
+  - [ ] Isolar operações `authorization_rejected` e anexos para revisão administrativa conforme política de retenção.
+  - [ ] Construir o **Sync Engine**:
+    - [ ] Detector de conectividade real (latência vs `navigator.onLine`).
+    - [ ] Tratamento da operação lógica completa de upload e sincronização (a operação só é concluída quando todos os seus componentes estiverem confirmados).
+    - [ ] Lógica de retry em falhas transitórias.
+    - [ ] Tratamento de Idempotência e resolução de conflitos.
+    - [ ] Padronizar estados persistidos: `pending`, `syncing`, `synced`, `failed`, `conflict`, `authorization_rejected`.
+  - [ ] Implementar endpoints transacionais em Cloud Functions ou Cloud Run para comandos críticos.
+  - [ ] Criar registro idempotente de `operationId` e garantir retorno estável em retries.
+  - [ ] Executar autorização, custo médio, estoque e geração financeira exclusivamente no backend transacional.
+  - [ ] Desenvolver indicador de sincronização na UI (`Online`, `Offline pendente`, `Sincronizando`, `Falha`).
+  - [ ] Implementar sistema de carimbo (Watermark) de GPS/Data/Hora nas fotos tiradas no browser.
+  - [ ] **Versionamento e Migração:**
+    - [ ] Implementar versionamento do schema IndexedDB.
+    - [ ] Implementar rotinas de migrations.
+    - [ ] Testar upgrade de versão com operações pendentes.
+    - [ ] Testar upgrade de versão com anexos pendentes.
+- [ ] **Fase 2.5: Segurança e Isolamento Multiobra**
+  - [ ] Planejar e implementar Firestore Security Rules por obra e módulo (`projects/{projectId}/members/{request.auth.uid}`).
+  - [ ] Planejar e implementar Firebase Storage Security Rules por obra e módulo.
+  - [ ] Validar membership no backend em operações críticas.
+  - [ ] Testar revalidação de autorização durante sincronização (`authorization_rejected`).
+  - [ ] Testes práticos de tentativa de acesso a dados de outra obra.
+  - [ ] Testar manipulação de projectId/lotId/documentId.
+  - [ ] Testar usuário autenticado sem membership na obra.
+  - [ ] Testar usuário com membership inativo.
+  - [ ] Testar usuário com acesso à obra, mas sem acesso ao módulo específico.
+  - [ ] Testar consulta `collectionGroup("members")` sem exposição de vínculos de terceiros.
+  - [ ] Garantir que objetos do Storage sejam privados e acessados somente por referência ou URL temporária autorizada.
+  - [ ] Implementar trilha de auditoria append-only para operações críticas, sem payloads sensíveis em logs técnicos.
+  - [ ] Validar isolamento local em dispositivo compartilhado, logout, troca de conta e revogação.
+
+- [ ] **Fase 3: Módulos Core - Estoque e Gestão por Lotes**
+  - [ ] CRUD de Projetos e Lotes.
+  - [ ] Módulo Estoque: Recebimento no Almoxarifado Central (upload de fotos NF).
+  - [ ] Módulo Estoque: Saída via requisição por Lote.
+  - [ ] Implementar ajustes com justificativa e foto obrigatórias; ajuste positivo exige custo informado e aprovação.
+  - [ ] Implementar estorno por movimentação inversa, preservando a original.
+  - [ ] Implementar rateio de frete, descontos, despesas e tributos conforme política da V1.
+  - [ ] Persistir valores monetários em centavos e quantidades com escala explícita.
+
+- [ ] **Fase 4: Módulos Core - RH e Custos**
+  - [ ] Módulo RH: Cadastro de Funcionários (Regimes, Salários Base e Encargos) e Equipes.
+  - [ ] Módulo RH: Lista de Chamada Diária (Alocação persistente "Lote Atual" e sistema de rateio % entre Lotes).
+  - [ ] Engine de Custos no backend usando política versionada da obra, snapshot histórico, escala e arredondamento definidos.
+  - [ ] Validar invariantes de presença, meio período, ausência, soma das alocações e retificações.
+
+- [ ] **Fase 5: Módulos Complementares**
+  - [ ] Módulo EPI: eventos de entrega/troca/devolução/baixa, catálogo e CA, versão do termo, método de confirmação, assinatura, integridade e auditoria.
+  - [ ] Módulo Validação: templates versionados, respostas, dependências, reprovação, correção/reabertura, assinatura e fotos privadas.
+  - [ ] Módulo ADM/Financeiro: Upload de PDFs, contas a pagar e Visão 360º de despesas do Lote.
+  - [ ] Implementar fornecedores compartilhados por organização com autorização derivada da obra ativa.
+  - [ ] Implementar uma ou mais parcelas por recebimento, garantindo soma do total e unicidade por número da parcela.
+  - [ ] Separar na Visão 360 custos apropriados, despesas diretas, compromissos globais e rateios gerenciais.
+
+- [ ] **Fase 6: Matriz de Testes Offline-First (Validação Arquitetural)**
+  - [ ] 1. Iniciar operação sem internet.
+  - [ ] 2. Perder conexão durante upload.
+  - [ ] 3. Servidor gravar, mas cliente não receber confirmação.
+  - [ ] 4. Fechar e reabrir PWA com fila pendente.
+  - [ ] 5. Atualizar PWA com fila pendente.
+  - [ ] 6. Reiniciar dispositivo.
+  - [ ] 7. Executar retry da mesma operação.
+  - [ ] 8. Dois dispositivos movimentarem o mesmo item de estoque.
+  - [ ] 9. Sessão expirar enquanto usuário está offline.
+  - [ ] 10. Permissão ser removida antes da sincronização.
+  - [ ] 11. Storage falhar e Firestore continuar acessível.
+  - [ ] 12. Firestore falhar e Storage continuar acessível.
+  - [ ] 13. Armazenamento local próximo do limite.
+  - [ ] 14. Anexo falhar após outros anexos terem sido enviados.
+  - [ ] 15. Conflito permanecer sem ser resolvido.
+  - [ ] 16. Migration do IndexedDB com dados pendentes.
+  - [ ] **Testes de Integridade de Estoque e Custos:**
+    - [ ] Duas saídas concorrentes para o mesmo item.
+    - [ ] Entrada concorrente com saída.
+    - [ ] Retry após servidor já ter confirmado a movimentação.
+    - [ ] Recebimento de NF com múltiplos materiais.
+    - [ ] Recebimento offline (existir somente localmente antes da confirmação).
+    - [ ] Recebimento com anexo (foto da NF) falhando.
+    - [ ] Status `pending` não aparecer como estado oficial de negócio do recebimento.
+    - [ ] Soma dos itens (`itemsAmount`) diferente do total da NF (`totalAmount`) devido a frete/despesas adicionais.
+    - [ ] Alteração do custo médio após saída histórica (garantir que saída antiga mantenha snapshot).
+    - [ ] Tentativa de gerar saldo negativo.
+    - [ ] Ajuste negativo de estoque com motivo obrigatório, preservando snapshot de custo.
+    - [ ] Ajuste positivo garantindo que não seja aceito silenciosamente com custo zero.
+    - [ ] Devolução vinculada à saída original, preservando o custo histórico.
+    - [ ] Estorno/reversal de transação confirmada (diferenciado de devolução física).
+    - [ ] Conta a Pagar não duplicada em caso de retry.
+    - [ ] Movimentação não duplicada em caso de retry.
+    - [ ] Usuário sem acesso ao módulo tentando sincronizar.
+    - [ ] Troca de obra durante operação pendente (Garantir isolamento do `projectId`).
+    - [ ] Entrada em uma obra NUNCA afetar saldo de outra obra.
+
+- [ ] **Fase 7: Polimento e Testes Finais**
+  - [ ] Validação de responsividade do Layout (Celular vs Desktop).

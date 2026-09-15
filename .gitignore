@@ -1,0 +1,72 @@
+# ==============================================================================
+# SIGO — .gitignore Raiz
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Credenciais, Chaves e Segredos (CRÍTICO)
+# ------------------------------------------------------------------------------
+*serviceAccountKey*.json
+*service-account*.json
+*.pem
+*.key
+*.cert
+*.p12
+*.env
+*.env.*
+!.env.example
+
+# ------------------------------------------------------------------------------
+# 2. Node.js e Cloud Functions
+# ------------------------------------------------------------------------------
+node_modules/
+functions/node_modules/
+functions/lib/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+functions/serviceAccountKey.json
+
+# ------------------------------------------------------------------------------
+# 3. Logs e Arquivos Temporários
+# ------------------------------------------------------------------------------
+*.log
+*-log.txt
+firestore-debug.log
+firepit-log.txt
+.tmp.*
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+*.swp
+*.swo
+
+# ------------------------------------------------------------------------------
+# 4. Flutter e Dart
+# ------------------------------------------------------------------------------
+.dart_tool/
+.pub-cache/
+.pub/
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.pub-cache/
+app/.pub/
+app/build/
+app/coverage/
+app/.widget_preview/
+app/app.*.symbols
+app/app.*.map.json
+app/android/app/debug
+app/android/app/profile
+app/android/app/release
+
+# ------------------------------------------------------------------------------
+# 5. IDEs e Editores
+# ------------------------------------------------------------------------------
+.idea/
+.vscode/
+.adal/
+*.iml
+*.ipr
+*.iws

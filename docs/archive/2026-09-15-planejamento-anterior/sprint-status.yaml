@@ -1,0 +1,93 @@
+# Sprint Status Template
+# generated: 09-14-2026 16:15
+# project: obras
+# tracking_system: file-system
+# story_location: "docs/stories"
+
+generated: 09-14-2026 16:15
+last_updated: 09-14-2026 16:15
+project: obras
+project_key: SIGO
+tracking_system: file-system
+story_location: "docs/stories"
+
+development_status:
+  epic-0: backlog
+  0-1-registrar-decisoes: backlog
+  0-2-definir-politica: backlog
+  0-3-aprovar-termos: backlog
+  0-4-matriz-acesso: backlog
+  epic-0-retrospective: optional
+
+  epic-1: backlog
+  1-1-projeto-flutter: backlog
+  1-2-configurar-firebase: backlog
+  1-3-colecao-users: backlog
+  1-4-subcolecao-members: backlog
+  1-5-descoberta-obras: backlog
+  1-6-fluxo-login: backlog
+  1-7-selecao-obra: backlog
+  1-8-recalculo-modulos: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-service-worker-pwa: backlog
+  2-2-cache-aplicativo: backlog
+  2-3-indexeddb: backlog
+  2-4-fila-sincronizacao: backlog
+  2-5-armazenamento-local-blobs: backlog
+  2-6-particionar-cache: backlog
+  2-7-isolar-operacoes: backlog
+  2-8-sync-engine: backlog
+  2-9-endpoints-transacionais: backlog
+  2-10-idempotencia: backlog
+  2-11-executar-autorizacao: backlog
+  2-12-indicador-sincronizacao: backlog
+  2-13-sistema-carimbo: backlog
+  2-14-versionamento-migracao: backlog
+  epic-2-retrospective: optional
+
+  epic-2-5: backlog
+  2-5-1-firestore-rules: backlog
+  2-5-2-storage-rules: backlog
+  2-5-3-validar-membership: backlog
+  2-5-4-revalidacao-autorizacao: backlog
+  2-5-5-testes-seguranca: backlog
+  epic-2-5-retrospective: optional
+
+  epic-3: backlog
+  3-1-crud-projetos-lotes: backlog
+  3-2-estoque-recebimento: backlog
+  3-3-estoque-saida: backlog
+  3-4-estoque-ajustes: backlog
+  3-5-estoque-estorno: backlog
+  3-6-estoque-rateio: backlog
+  3-7-monetario-centavos: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-rh-cadastro: backlog
+  4-2-rh-chamada: backlog
+  4-3-rh-custos: backlog
+  4-4-rh-validar-invariantes: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-modulo-epi: backlog
+  5-2-modulo-validacao: backlog
+  5-3-modulo-adm: backlog
+  5-4-fornecedores: backlog
+  5-5-parcelas-recebimento: backlog
+  5-6-visao-360-custos: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-testes-offline: backlog
+  6-2-testes-integridade: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-responsividade: backlog
+  epic-7-retrospective: optional
+
+action_items: []
