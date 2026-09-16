@@ -47,7 +47,7 @@ development_status:
   1-5-descoberta-obras: review
   1-6-fluxo-login: review
   1-7-selecao-obra: review
-  1-8-recalculo-modulos: backlog
+  1-8-recalculo-modulos: ready-for-dev
   epic-1-retrospective: optional
 
   epic-2: backlog
