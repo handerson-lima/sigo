@@ -2,8 +2,8 @@
 title: 'C0–C6 — Estabilização SIGO com dev global'
 type: 'bugfix'
 created: '2026-09-15'
-status: 'in-progress'
-baseline_commit: 'NO_VCS'
+status: 'completed'
+baseline_commit: 'c456de9'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -52,13 +52,13 @@ context:
 
 **Execução:**
 
-- [ ] `functions/test`, `app/test`, `firebase.json` — base C0 e regressões.
-- [ ] `functions/src`, `firestore.rules`, `storage.rules` — C1/C2/C3/C4: autorização, administração, auditoria, comandos e anexos.
-- [ ] `app/lib/src/features/authentication`, `construtoras`, `obras`, `developer`, `routing`, `common_widgets` — matriz e UI C1.
-- [ ] `app/lib/src/features/financeiro`, `almoxarifado` — contratos de comandos, datas, centavos e quantidades C3/C4.
-- [ ] `app/lib/src/features/diario`, `app/lib/src/sync`, `app/web` — fila durável, bytes e retomada C5.
-- [ ] `functions/scripts`, `docs` — inventário, ensaio de migração, recuperação e implantação C0/C6.
-- [ ] `functions/test`, `app/test` — testar matriz de bordas e integração.
+- [x] `functions/test`, `app/test`, `firebase.json` — base C0 e regressões.
+- [x] `functions/src`, `firestore.rules`, `storage.rules` — C1/C2/C3/C4: autorização, administração, auditoria, comandos e anexos.
+- [x] `app/lib/src/features/authentication`, `construtoras`, `obras`, `developer`, `routing`, `common_widgets` — matriz e UI C1.
+- [x] `app/lib/src/features/financeiro`, `almoxarifado` — contratos de comandos, datas, centavos e quantidades C3/C4.
+- [x] `app/lib/src/features/diario`, `app/lib/src/sync`, `app/web` — fila durável, bytes e retomada C5.
+- [x] `functions/scripts`, `docs` — inventário, ensaio de migração, recuperação e implantação C0/C6.
+- [x] `functions/test`, `app/test` — testar matriz de bordas e integração.
 
 **Aceite:**
 

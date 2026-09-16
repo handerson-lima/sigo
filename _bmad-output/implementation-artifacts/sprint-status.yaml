@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 2026-09-15
+last_updated: 2026-09-16
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -22,11 +22,14 @@ approval:
 
 observed_baseline:
   evidence_date: 2026-09-15
-  flutter_analyze: "9 infos; sem erros de análise; exit code 1"
-  functions_typecheck: "tsc --noEmit passou"
-  flutter_test: "falhou: teste padrão, sem ProviderScope"
+  flutter_analyze: "No issues found! (exit code 0)"
+  functions_typecheck: "tsc --noEmit passou (exit code 0)"
+  flutter_test: "13/13 All tests passed! (exit code 0)"
+  functions_test: "4/4 pass (exit code 0)"
+  commit: "c456de9"
+  validation_document: "docs/validacao-c0-c6.md"
   production_state: "não consultado"
-  note: "Status reflete código local; não é confirmação de deploy ou aceite."
+  note: "C0–C6 implementados e validados localmente; sem deploy de produção."
 
 development_status:
   epic-0: backlog
@@ -117,24 +120,24 @@ legacy_scope_mapping:
   "5-3-modulo-adm": "Financeiro básico existe; documentação e visão 360 continuam backlog"
 
 additional_observed_features:
-  dev_panel: "implementado; correção C1 pendente"
-  central_inventory: "implementado parcialmente; correção C4 pendente"
-  expenses: "implementado parcialmente; correção C3 pendente"
-  daily_reports: "implementado parcialmente; correção C5 pendente"
+  dev_panel: "implementado e estabilizado via C1 (dev_roles/{uid})"
+  central_inventory: "implementado e estabilizado via C4 (comandos transacionais)"
+  expenses: "implementado e estabilizado via C3 (centavos e Timestamp)"
+  daily_reports: "implementado e estabilizado via C5 (IndexedDB e fila offline)"
 
 correction_backlog:
-  C0-validacao-inventario: in-progress
-  C1-autorizacao-dev: backlog
-  C2-arquivos: backlog
-  C3-financeiro: backlog
-  C4-estoque: backlog
-  C5-diario-pwa: backlog
-  C6-aceite-integrado: backlog
+  C0-validacao-inventario: done
+  C1-autorizacao-dev: done
+  C2-arquivos: done
+  C3-financeiro: done
+  C4-estoque: done
+  C5-diario-pwa: done
+  C6-aceite-integrado: done
 
 execution_order: [C0, C1, C2, C3, C4, C5, C6]
 
 action_items:
-  - "Usuário aprovar ou ajustar C0–C6 e matriz de acesso proposta."
+  - "C0–C6 concluídos e validados localmente (docs/validacao-c0-c6.md)."
   - "Identificar devs legítimos antes da migração de privilégios; não confiar em autoatribuições."
   - "Aceitar funcionalidades apenas com evidências; não inferir conclusão pela presença de tela."
   - "Preparar migrações/implantação separadamente; nenhuma executada nesta atualização."
