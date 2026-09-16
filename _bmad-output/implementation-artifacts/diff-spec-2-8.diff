@@ -1,0 +1,440 @@
+diff --git a/app/lib/src/sync/operation_queue.dart b/app/lib/src/sync/operation_queue.dart
+index ce7475b..309d6e9 100644
+--- a/app/lib/src/sync/operation_queue.dart
++++ b/app/lib/src/sync/operation_queue.dart
+@@ -47,6 +47,8 @@ class OperationQueue {
+   bool _busy = false;
+   String? lastError;
+ 
++  bool get isBusy => _busy;
++
+   static Future<void> _firebaseUpload(
+     Map<String, dynamic> a,
+     Uint8List bytes,
+diff --git a/app/lib/src/sync/sync_engine.dart b/app/lib/src/sync/sync_engine.dart
+new file mode 100644
+index 0000000..931879a
+--- /dev/null
++++ b/app/lib/src/sync/sync_engine.dart
+@@ -0,0 +1,200 @@
++import 'dart:async';
++
++import 'package:connectivity_plus/connectivity_plus.dart';
++import 'package:flutter/foundation.dart';
++import 'package:flutter/widgets.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import 'operation_queue.dart';
++
++enum SyncEngineStatus {
++  idle,
++  syncing,
++  offline,
++  paused,
++  error,
++}
++
++class SyncEngine with WidgetsBindingObserver {
++  SyncEngine({
++    OperationQueue? queue,
++    Stream<List<ConnectivityResult>>? connectivityStream,
++    Future<List<ConnectivityResult>> Function()? checkConnectivity,
++    this.periodicInterval = const Duration(seconds: 15),
++    bool autoStart = true,
++    this.observeLifecycle = true,
++  })  : _queue = queue ?? OperationQueue.instance,
++        _connectivityStream = connectivityStream ?? Connectivity().onConnectivityChanged,
++        _checkConnectivity = checkConnectivity ?? Connectivity().checkConnectivity {
++    if (observeLifecycle) {
++      WidgetsBinding.instance.addObserver(this);
++    }
++    if (autoStart) {
++      start();
++    }
++  }
++
++  static final instance = SyncEngine();
++
++  final OperationQueue _queue;
++  final Stream<List<ConnectivityResult>> _connectivityStream;
++  final Future<List<ConnectivityResult>> Function() _checkConnectivity;
++  final Duration periodicInterval;
++  final bool observeLifecycle;
++
++  final ValueNotifier<SyncEngineStatus> _statusNotifier =
++      ValueNotifier<SyncEngineStatus>(SyncEngineStatus.idle);
++  final StreamController<SyncEngineStatus> _statusStreamController =
++      StreamController<SyncEngineStatus>.broadcast();
++
++  Timer? _timer;
++  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
++  bool _isOnline = true;
++  bool _isPaused = false;
++  bool _isDisposed = false;
++  String? _lastError;
++
++  ValueListenable<SyncEngineStatus> get statusListenable => _statusNotifier;
++  SyncEngineStatus get status => _statusNotifier.value;
++  Stream<SyncEngineStatus> get statusStream => _statusStreamController.stream;
++  bool get isOnline => _isOnline;
++  bool get isPaused => _isPaused;
++  String? get lastError => _lastError ?? _queue.lastError;
++
++  void _updateStatus(SyncEngineStatus newStatus) {
++    if (_isDisposed || _statusNotifier.value == newStatus) return;
++    _statusNotifier.value = newStatus;
++    _statusStreamController.add(newStatus);
++  }
++
++  void start() {
++    if (_isDisposed) return;
++    _isPaused = false;
++
++    // Inicializa verificação de conectividade
++    unawaited(_checkInitialConnectivity());
++
++    // Ouve alterações de conectividade
++    _connectivitySub ??= _connectivityStream.listen(_onConnectivityChanged);
++
++    // Inicia timer periódico de heartbeat
++    _timer?.cancel();
++    _timer = Timer.periodic(periodicInterval, (_) {
++      if (_isOnline && !_isPaused && status != SyncEngineStatus.syncing) {
++        unawaited(syncNow());
++      }
++    });
++  }
++
++  Future<void> _checkInitialConnectivity() async {
++    try {
++      final results = await _checkConnectivity();
++      _onConnectivityChanged(results);
++    } catch (_) {
++      _isOnline = true;
++      _updateStatus(SyncEngineStatus.idle);
++    }
++  }
++
++  void _onConnectivityChanged(List<ConnectivityResult> results) {
++    if (_isDisposed) return;
++    final wasOnline = _isOnline;
++    final nowOnline = results.any((r) => r != ConnectivityResult.none);
++    _isOnline = nowOnline;
++
++    if (!nowOnline) {
++      _updateStatus(SyncEngineStatus.offline);
++    } else {
++      if (!wasOnline) {
++        // Acabou de voltar a ficar online: dispara sync imediatamente
++        _updateStatus(SyncEngineStatus.idle);
++        if (!_isPaused) {
++          unawaited(syncNow());
++        }
++      } else if (status == SyncEngineStatus.offline) {
++        _updateStatus(SyncEngineStatus.idle);
++      }
++    }
++  }
++
++  Future<void> syncNow({
++    String? onlyKey,
++    String? construtoraId,
++    String? obraId,
++  }) async {
++    if (_isDisposed || _isPaused || !_isOnline || status == SyncEngineStatus.syncing) {
++      return;
++    }
++
++    _updateStatus(SyncEngineStatus.syncing);
++    try {
++      await _queue.sync(
++        onlyKey: onlyKey,
++        construtoraId: construtoraId,
++        obraId: obraId,
++      );
++      _lastError = _queue.lastError;
++      if (!_isOnline) {
++        _updateStatus(SyncEngineStatus.offline);
++      } else if (_isPaused) {
++        _updateStatus(SyncEngineStatus.paused);
++      } else if (_lastError != null) {
++        _updateStatus(SyncEngineStatus.error);
++      } else {
++        _updateStatus(SyncEngineStatus.idle);
++      }
++    } catch (e) {
++      _lastError = e.toString();
++      _updateStatus(SyncEngineStatus.error);
++    }
++  }
++
++  @override
++  void didChangeAppLifecycleState(AppLifecycleState state) {
++    if (state == AppLifecycleState.resumed && _isOnline && !_isPaused) {
++      unawaited(syncNow());
++    }
++  }
++
++  void pause() {
++    if (_isDisposed) return;
++    _isPaused = true;
++    _timer?.cancel();
++    _timer = null;
++    _updateStatus(SyncEngineStatus.paused);
++  }
++
++  void resume() {
++    if (_isDisposed) return;
++    _isPaused = false;
++    start();
++    if (_isOnline) {
++      unawaited(syncNow());
++    }
++  }
++
++  void dispose() {
++    if (_isDisposed) return;
++    _isDisposed = true;
++    _timer?.cancel();
++    _timer = null;
++    _connectivitySub?.cancel();
++    _connectivitySub = null;
++    if (observeLifecycle) {
++      WidgetsBinding.instance.removeObserver(this);
++    }
++    _statusStreamController.close();
++    _statusNotifier.dispose();
++  }
++}
++
++final syncEngineProvider = Provider<SyncEngine>((ref) {
++  final engine = SyncEngine.instance;
++  ref.onDispose(engine.dispose);
++  return engine;
++});
++
++final syncStatusProvider = StreamProvider<SyncEngineStatus>((ref) {
++  final engine = ref.watch(syncEngineProvider);
++  return engine.statusStream;
++});
+diff --git a/app/test/sync_engine_test.dart b/app/test/sync_engine_test.dart
+new file mode 100644
+index 0000000..05a09a2
+--- /dev/null
++++ b/app/test/sync_engine_test.dart
+@@ -0,0 +1,215 @@
++import 'dart:async';
++
++import 'package:connectivity_plus/connectivity_plus.dart';
++import 'package:flutter/widgets.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:app/src/sync/operation_queue.dart';
++import 'package:app/src/sync/sync_engine.dart';
++
++class _FakeQueue extends OperationQueue {
++  _FakeQueue({
++    required super.sessionUid,
++    required super.store,
++    required super.upload,
++    required super.execute,
++  });
++
++  int syncCallCount = 0;
++  Completer<void>? pendingSyncCompleter;
++
++  @override
++  Future<void> sync({
++    String? onlyKey,
++    String? construtoraId,
++    String? obraId,
++  }) async {
++    syncCallCount++;
++    if (pendingSyncCompleter != null) {
++      await pendingSyncCompleter!.future;
++    }
++  }
++}
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++
++  late StreamController<List<ConnectivityResult>> connectivityController;
++  late _FakeQueue fakeQueue;
++
++  setUp(() {
++    connectivityController = StreamController<List<ConnectivityResult>>.broadcast();
++    fakeQueue = _FakeQueue(
++      sessionUid: () => 'alice',
++      store: (action, input) async => 'null',
++      upload: (a, b, u) async {},
++      execute: (a, p) async {},
++    );
++  });
++
++  tearDown(() {
++    connectivityController.close();
++  });
++
++  group('Story 2.8 — Sync Engine', () {
++    test('Inicializa com status idle quando conectividade inicial é online', () async {
++      final engine = SyncEngine(
++        queue: fakeQueue,
++        connectivityStream: connectivityController.stream,
++        checkConnectivity: () async => [ConnectivityResult.wifi],
++        periodicInterval: const Duration(seconds: 10),
++        autoStart: true,
++        observeLifecycle: false,
++      );
++
++      // Aguarda checagem inicial
++      await Future<void>.delayed(Duration.zero);
++
++      expect(engine.isOnline, isTrue);
++      expect(engine.status, SyncEngineStatus.idle);
++      engine.dispose();
++    });
++
++    test('Inicializa com status offline quando conectividade inicial é none', () async {
++      final engine = SyncEngine(
++        queue: fakeQueue,
++        connectivityStream: connectivityController.stream,
++        checkConnectivity: () async => [ConnectivityResult.none],
++        periodicInterval: const Duration(seconds: 10),
++        autoStart: true,
++        observeLifecycle: false,
++      );
++
++      await Future<void>.delayed(Duration.zero);
++
++      expect(engine.isOnline, isFalse);
++      expect(engine.status, SyncEngineStatus.offline);
++      engine.dispose();
++    });
++
++    test('Transição de offline para online engatilha syncNow imediatamente', () async {
++      final engine = SyncEngine(
++        queue: fakeQueue,
++        connectivityStream: connectivityController.stream,
++        checkConnectivity: () async => [ConnectivityResult.none],
++        periodicInterval: const Duration(seconds: 10),
++        autoStart: true,
++        observeLifecycle: false,
++      );
++
++      await Future<void>.delayed(Duration.zero);
++      expect(engine.status, SyncEngineStatus.offline);
++      expect(fakeQueue.syncCallCount, 0);
++
++      // Conexão restabelecida
++      connectivityController.add([ConnectivityResult.wifi]);
++      await Future<void>.delayed(Duration.zero);
++
++      expect(engine.isOnline, isTrue);
++      expect(fakeQueue.syncCallCount, 1);
++      engine.dispose();
++    });
++
++    test('Quando offline, chamadas a syncNow são suspensas', () async {
++      final engine = SyncEngine(
++        queue: fakeQueue,
++        connectivityStream: connectivityController.stream,
++        checkConnectivity: () async => [ConnectivityResult.none],
++        periodicInterval: const Duration(seconds: 10),
++        autoStart: true,
++        observeLifecycle: false,
++      );
++
++      await Future<void>.delayed(Duration.zero);
++      expect(engine.isOnline, isFalse);
++
++      await engine.syncNow();
++      expect(fakeQueue.syncCallCount, 0);
++      expect(engine.status, SyncEngineStatus.offline);
++      engine.dispose();
++    });
++
++    test('AppLifecycleState.resumed engatilha sincronização imediata se online', () async {
++      final engine = SyncEngine(
++        queue: fakeQueue,
++        connectivityStream: connectivityController.stream,
++        checkConnectivity: () async => [ConnectivityResult.wifi],
++        periodicInterval: const Duration(seconds: 10),
++        autoStart: true,
++        observeLifecycle: false,
++      );
++
++      await Future<void>.delayed(Duration.zero);
++      fakeQueue.syncCallCount = 0; // zera contagem da inicialização
++
++      engine.didChangeAppLifecycleState(AppLifecycleState.resumed);
++      await Future<void>.delayed(Duration.zero);
++
++      expect(fakeQueue.syncCallCount, 1);
++      engine.dispose();
++    });
++
++    test('pause() suspende o motor e resume() retoma e dispara sync', () async {
++      final engine = SyncEngine(
++        queue: fakeQueue,
++        connectivityStream: connectivityController.stream,
++        checkConnectivity: () async => [ConnectivityResult.wifi],
++        periodicInterval: const Duration(seconds: 10),
++        autoStart: true,
++        observeLifecycle: false,
++      );
++
++      await Future<void>.delayed(Duration.zero);
++      fakeQueue.syncCallCount = 0;
++
++      engine.pause();
++      expect(engine.isPaused, isTrue);
++      expect(engine.status, SyncEngineStatus.paused);
++
++      // Em pausa, syncNow não é executado
++      await engine.syncNow();
++      expect(fakeQueue.syncCallCount, 0);
++
++      // Ao retomar, reconecta e sincroniza
++      engine.resume();
++      expect(engine.isPaused, isFalse);
++      await Future<void>.delayed(Duration.zero);
++      expect(fakeQueue.syncCallCount, 1);
++
++      engine.dispose();
++    });
++
++    test('Transição para status syncing durante execução do syncNow', () async {
++      fakeQueue.pendingSyncCompleter = Completer<void>();
++
++      final engine = SyncEngine(
++        queue: fakeQueue,
++        connectivityStream: connectivityController.stream,
++        checkConnectivity: () async => [ConnectivityResult.wifi],
++        periodicInterval: const Duration(seconds: 10),
++        autoStart: false,
++        observeLifecycle: false,
++      );
++
++      final syncFuture = engine.syncNow();
++      await Future<void>.delayed(Duration.zero);
++
++      expect(engine.status, SyncEngineStatus.syncing);
++
++      fakeQueue.pendingSyncCompleter!.complete();
++      await syncFuture;
++
++      expect(engine.status, SyncEngineStatus.idle);
++      engine.dispose();
++    });
++
++    test('Provedores Riverpod instanciam syncEngineProvider e syncStatusProvider', () async {
++      final container = ProviderContainer();
++      addTearDown(container.dispose);
++
++      final engine = container.read(syncEngineProvider);
++      expect(engine, isNotNull);
++      expect(engine.statusListenable, isNotNull);
++    });
++  });
++}

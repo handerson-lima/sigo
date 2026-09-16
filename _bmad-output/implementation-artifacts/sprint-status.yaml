@@ -58,7 +58,7 @@ development_status:
   2-5-armazenamento-local-blobs: done
   2-6-particionar-cache: done
   2-7-isolar-operacoes: done
-  2-8-sync-engine: in-progress
+  2-8-sync-engine: review
   2-9-endpoints-transacionais: backlog
   2-10-idempotencia: backlog
   2-11-executar-autorizacao: backlog

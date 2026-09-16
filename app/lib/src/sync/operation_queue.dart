@@ -47,6 +47,8 @@ class OperationQueue {
   bool _busy = false;
   String? lastError;
 
+  bool get isBusy => _busy;
+
   static Future<void> _firebaseUpload(
     Map<String, dynamic> a,
     Uint8List bytes,
