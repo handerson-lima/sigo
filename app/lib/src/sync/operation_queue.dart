@@ -114,6 +114,15 @@ class OperationQueue {
     }
   }
 
+  Future<int> get pendingCount async =>
+      (await list()).where((e) => e['state'] == 'pending' || e['state'] == 'syncing').length;
+
+  Future<int> get failedCount async =>
+      (await list()).where((e) => e['state'] == 'failed' || e['state'] == 'authorization_rejected' || e['state'] == 'conflict').length;
+
+  Future<int> get syncedCount async =>
+      (await list()).where((e) => e['state'] == 'synced').length;
+
   Future<void> enqueue(
     String action,
     Map<String, dynamic> payload, {
@@ -195,6 +204,9 @@ class OperationQueue {
             throw StateError('Conta alterada. Operação preservada.');
           }
           await execute(row['action'], {...payload, 'actorUid': user});
+          if (sessionUid() != user) {
+            throw StateError('Conta alterada. Operação preservada.');
+          }
         } catch (e) {
           error = e.toString();
           state = 'failed';

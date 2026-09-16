@@ -1,0 +1,43 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index fecb048..67d969b 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -54,7 +54,7 @@ development_status:
+   2-1-service-worker-pwa: done
+   2-2-cache-aplicativo: done
+   2-3-indexeddb: done
+-  2-4-fila-sincronizacao: backlog
++  2-4-fila-sincronizacao: review
+   2-5-armazenamento-local-blobs: backlog
+   2-6-particionar-cache: backlog
+   2-7-isolar-operacoes: backlog
+diff --git a/app/lib/src/sync/operation_queue.dart b/app/lib/src/sync/operation_queue.dart
+index de13184..b89bee1 100644
+--- a/app/lib/src/sync/operation_queue.dart
++++ b/app/lib/src/sync/operation_queue.dart
+@@ -114,6 +114,15 @@ class OperationQueue {
+     }
+   }
+ 
++  Future<int> get pendingCount async =>
++      (await list()).where((e) => e['state'] == 'pending' || e['state'] == 'syncing').length;
++
++  Future<int> get failedCount async =>
++      (await list()).where((e) => e['state'] == 'failed' || e['state'] == 'authorization_rejected' || e['state'] == 'conflict').length;
++
++  Future<int> get syncedCount async =>
++      (await list()).where((e) => e['state'] == 'synced').length;
++
+   Future<void> enqueue(
+     String action,
+     Map<String, dynamic> payload, {
+@@ -195,6 +204,9 @@ class OperationQueue {
+             throw StateError('Conta alterada. Operação preservada.');
+           }
+           await execute(row['action'], {...payload, 'actorUid': user});
++          if (sessionUid() != user) {
++            throw StateError('Conta alterada. Operação preservada.');
++          }
+         } catch (e) {
+           error = e.toString();
+           state = 'failed';
