@@ -55,7 +55,7 @@ development_status:
   2-2-cache-aplicativo: done
   2-3-indexeddb: done
   2-4-fila-sincronizacao: done
-  2-5-armazenamento-local-blobs: review
+  2-5-armazenamento-local-blobs: done
   2-6-particionar-cache: backlog
   2-7-isolar-operacoes: backlog
   2-8-sync-engine: backlog
