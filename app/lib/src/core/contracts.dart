@@ -5,6 +5,12 @@ String normalizeModule(String value) => switch (value) {
   'almoxarifado' => 'estoque',
   _ => value,
 };
+
+List<String> normalizeRawModules(dynamic modules, [dynamic fallback]) {
+  final raw = (modules is List && modules.isNotEmpty) ? modules : fallback;
+  final list = raw is List ? raw : <dynamic>[];
+  return list.whereType<String>().map(normalizeModule).toList();
+}
 DateTime readDate(dynamic value) {
   if (value is Timestamp) return value.toDate();
   if (value is DateTime) return value;

@@ -2,7 +2,7 @@
 title: 'Story 1.8 — Recálculo de Módulos e Layout Imediato na Troca de Obra'
 type: 'feature'
 created: '2026-09-16'
-status: 'in-review'
+status: 'done'
 baseline_commit: '9e09709bb983d1b2eed9d01e21e08ee7f3229cba'
 route: 'dispatch'
 review_loop_iteration: 1
@@ -90,6 +90,33 @@ context:
 | findsNWidgets(2) correto | blind-hunter | false | — | Sidebar + dashboard card = 2 widgets |
 | Expanded + TextOverflow implementado | blind-hunter | false | — | Código já contém Expanded com TextOverflow.ellipsis |
 | module! fragility guardado | edge-case-hunter | false | — | Guardado por `module != null` na linha 63 |
+| acceptance-auditor 2026-09-16 sem violacoes — apto a aprovar | acceptance-auditor | false | — | Diff vs spec 1.8: 2 ACs + Always/Never + 5 cenarios I/O atendidos; patches do triage ja aplicados em codigo (`whereType<String>`, admin apos branch obraId, testes); sem retrabalho bloqueante, manter `in-review` |
+
+### Re-review (2026-09-16 pos-patch)
+
+- Acceptance-auditor: sem violacoes bloqueantes (2 ACs + 5 I/O + Always/Never atendidos).
+- Aplicados: teste manual antigo migrado para `normalizeRawModules`; positivo central `modules`; `SigoTopBar` com `activeRoute` explicito divergente do router.
+- Limitacao conhecida: provider real `allowedModules`/admin positivo via `obraDoc` exige `User` Firebase fake — coberto por unit `normalizeRawModules` + mocks de `AccessGuard`; integração real diferida.
+- Status mantido `done`; `flutter analyze` limpo; `flutter test` 28/28.
+
+### Review Findings (code review 2026-09-16)
+
+- [x] [Review][Patch] Guard construtora-level usa `m.toString()` e `as List?` sem checar tipo [app/lib/src/common_widgets/access_guard.dart:64]
+- [x] [Review][Patch] Provider ignora `allowedModules` quando `modules==[]` e quebra em doc malformado [app/lib/src/features/obras/presentation/current_permissions_provider.dart:69]
+- [x] [Review][Patch] Testes de `allowedModules`/admin positivo não exercitam provider real [app/test/widget_test.dart:311]
+- [x] [Review][Defer] ObraSwitcher sem feedback de loading/erro; hint genérico; ids duplicados; overflow [app/lib/src/common_widgets/sigo_top_bar.dart:125] — deferred: UI polish pré-existente, fora dos ACs
+- [x] [Review][Defer] Financeiro inconsistente entre caminho obraId/null [app/lib/src/common_widgets/access_guard.dart:61] — deferred: pré-existente, não causado por esta story
+- [x] [Review][Defer] Normalização sem trim/lowercase; campos não-lista [app/lib/src/core/contracts.dart:3] — deferred: spec exige só aliases exatos
+- [x] [Review][Defer] Flash/skeleton em sidebar/dashboard durante loading [app/lib/src/common_widgets/sigo_sidebar.dart:31] — deferred: rota protegida por AccessGuard com spinner; UI-only
+- [x] [Review][Defer] obraDoc nulo tratado como ativo [app/lib/src/features/obras/presentation/current_permissions_provider.dart:47] — deferred: fallback intencional documentado; AccessGuard cobre
+
+Rejected:
+- false: onChanged descarta sub-rota — spec exige navegar para raiz `/construtora/{cId}/obra/{oIdB}` fail-closed
+- false: card Diario sem `isActive` — `data()` já retorna AccessDenied se `!isActive`
+- false: sem card Estoque — ACs cobrem só diario/lotes; estoque fora do escopo 1.8
+- false: `rdo` negado inconsistente — ambos os lados normalizam via `normalizeModule`
+- false: flash provider como denied — AccessGuard já mostra spinner em `cm.isLoading` antes do branch obra
+- false: tracking de diferidos sem reprodução — fix seria editar spec
 
 ## Design Notes
 

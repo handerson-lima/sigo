@@ -58,12 +58,14 @@ class AccessGuard extends ConsumerWidget {
       return child;
     }
     if (admin) return child;
+    final centralModules = normalizeRawModules(
+      member?['modules'],
+      member?['allowedModules'],
+    );
     if (adminOnly ||
         module == 'financeiro' ||
         module != null &&
-            !((member?['modules'] ?? member?['allowedModules']) as List? ?? [])
-                .map((m) => normalizeModule(m.toString()))
-                .contains(normalizeModule(module!))) {
+            !centralModules.contains(normalizeModule(module!))) {
       return const AccessDeniedScreen();
     }
     return child;

@@ -47,7 +47,7 @@ development_status:
   1-5-descoberta-obras: review
   1-6-fluxo-login: review
   1-7-selecao-obra: review
-  1-8-recalculo-modulos: review
+  1-8-recalculo-modulos: done
   epic-1-retrospective: optional
 
   epic-2: backlog
@@ -67,13 +67,11 @@ development_status:
   2-14-versionamento-migracao: backlog
   epic-2-retrospective: optional
 
-  epic-2-5: backlog
   2-5-1-firestore-rules: backlog
   2-5-2-storage-rules: backlog
   2-5-3-validar-membership: backlog
   2-5-4-revalidacao-autorizacao: backlog
   2-5-5-testes-seguranca: backlog
-  epic-2-5-retrospective: optional
 
   epic-3: in-progress
   3-1-crud-projetos-lotes: review
@@ -137,7 +135,19 @@ correction_backlog:
 execution_order: [C0, C1, C2, C3, C4, C5, C6]
 
 action_items:
-  - "C0–C6 concluídos e validados localmente (docs/validacao-c0-c6.md)."
-  - "Identificar devs legítimos antes da migração de privilégios; não confiar em autoatribuições."
-  - "Aceitar funcionalidades apenas com evidências; não inferir conclusão pela presença de tela."
-  - "Preparar migrações/implantação separadamente; nenhuma executada nesta atualização."
+  - epic: 0
+    action: "C0-C6 concluidos e validados localmente (docs/validacao-c0-c6.md)."
+    owner: "maranduteam"
+    status: done
+  - epic: 1
+    action: "Identificar devs legitimos antes da migracao de privilegios; nao confiar em autoatribuicoes."
+    owner: "maranduteam"
+    status: open
+  - epic: 1
+    action: "Aceitar funcionalidades apenas com evidencias; nao inferir conclusao pela presenca de tela."
+    owner: "maranduteam"
+    status: open
+  - epic: 1
+    action: "Preparar migracoes/implantacao separadamente; nenhuma executada nesta atualizacao."
+    owner: "maranduteam"
+    status: open

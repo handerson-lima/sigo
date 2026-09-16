@@ -66,11 +66,14 @@ final currentPermissionsProvider = StreamProvider.autoDispose
       ).map((doc) {
         if (doc?['isActive'] != true) return null;
         final data = Map<String, dynamic>.from(doc!);
-        final rawModules = data['modules'] ?? data['allowedModules'];
-        data['modules'] = (rawModules as List? ?? [])
-            .whereType<String>()
-            .map(normalizeModule)
-            .toList();
-        return ObraMember.fromJson(data);
+        data['modules'] = normalizeRawModules(
+          data['modules'],
+          data['allowedModules'],
+        );
+        try {
+          return ObraMember.fromJson(data);
+        } catch (_) {
+          return null;
+        }
       });
     });

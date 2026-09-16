@@ -50,6 +50,14 @@ Requisitos anteriores permanecem [arquivados](../../docs/archive/2026-09-15-plan
   summary: dashboard isActive sem teste de widget
   evidence: Guarda UI-only; rota protegida por AccessGuard
 
+## Deferred from: code review of spec-1-8-recalculo-modulos.md (2026-09-16)
+
+- ObraSwitcher sem feedback de loading/erro; hint generico; ids duplicados; overflow — UI polish pre-existente, fora dos ACs
+- Financeiro inconsistente entre caminho obraId/null — pre-existente, nao causado por esta story
+- Normalizacao sem trim/lowercase; campos nao-lista — spec exige so aliases exatos
+- Flash/skeleton em sidebar/dashboard durante loading — rota protegida por AccessGuard com spinner; UI-only
+- obraDoc nulo tratado como ativo — fallback intencional documentado; AccessGuard cobre
+
 ## Implantação
 
 Nenhuma migração, publicação ou alteração de dados de produção foi executada nesta atualização documental. Preparar resultado concreto, simulação e recuperação antes de solicitar implantação.

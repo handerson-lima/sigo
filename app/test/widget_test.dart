@@ -1,5 +1,6 @@
 import 'package:app/main.dart';
 import 'package:app/src/common_widgets/access_guard.dart';
+import 'package:app/src/common_widgets/sigo_top_bar.dart';
 import 'package:app/src/core/contracts.dart';
 import 'package:app/src/features/authentication/data/auth_repository.dart';
 import 'package:app/src/features/authentication/data/user_repository.dart';
@@ -348,6 +349,128 @@ void main() {
   );
 
   testWidgets(
+    'AccessGuard construtora-level module check with allowedModules fallback',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'allowedModules': ['diario'],
+              }),
+            ),
+          ],
+          child: const MaterialApp(
+            home: AccessGuard(
+              construtoraId: 'c1',
+              obraId: null,
+              module: 'diario',
+              child: Text('allowed via fallback'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('allowed via fallback'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'SigoSidebar nav items hidden for inactive obra',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final router = GoRouter(
+        initialLocation: '/construtora/c1/obra/obraA',
+        routes: [
+          GoRoute(
+            path: '/construtora/:cId/obra/:oId',
+            builder: (context, state) {
+              final cId = state.pathParameters['cId']!;
+              final oId = state.pathParameters['oId']!;
+              return ObraDashboardScreen(construtoraId: cId, obraId: oId);
+            },
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            currentPermissionsProvider(
+              (construtoraId: 'c1', obraId: 'obraA'),
+            ).overrideWith((ref) => Stream.value(null)),
+            obraLotesProvider((construtoraId: 'c1', obraId: 'obraA'))
+                .overrideWith((ref) => Stream.value(<Lote>[])),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('Lotes e Setores'), findsNothing);
+      expect(find.text('Diário de Obra'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'SigoSidebar normaliza modulos legados e exibe item correto',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final router = GoRouter(
+        initialLocation: '/construtora/c1/obra/obraA',
+        routes: [
+          GoRoute(
+            path: '/construtora/:cId/obra/:oId',
+            builder: (context, state) {
+              final cId = state.pathParameters['cId']!;
+              final oId = state.pathParameters['oId']!;
+              return ObraDashboardScreen(construtoraId: cId, obraId: oId);
+            },
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            currentPermissionsProvider(
+              (construtoraId: 'c1', obraId: 'obraA'),
+            ).overrideWith(
+              (ref) => Stream.value(
+                ObraMember(
+                  userId: 'u1',
+                  isActive: true,
+                  isAdmin: false,
+                  modules: ['rdo'],
+                  joinedAt: DateTime(2025),
+                ),
+              ),
+            ),
+            obraLotesProvider((construtoraId: 'c1', obraId: 'obraA'))
+                .overrideWith((ref) => Stream.value(<Lote>[])),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('Diário de Obra'), findsWidgets);
+    },
+  );
+
+  testWidgets(
     'allowedModules normaliza modulos legados e falha fechado se vazio',
     (tester) async {
       // Teste com allowedModules legados (rdo -> diario)
@@ -358,9 +481,10 @@ void main() {
         'allowedModules': ['rdo'],
         'joinedAt': DateTime(2025).toIso8601String(),
       };
-      final modules = ((rawData['modules'] ?? rawData['allowedModules']) as List)
-          .map((m) => normalizeModule(m.toString()))
-          .toList();
+      final modules = normalizeRawModules(
+        rawData['modules'],
+        rawData['allowedModules'],
+      );
       final member = ObraMember.fromJson({...rawData, 'modules': modules});
 
       expect(member.modules, contains('diario'));
@@ -374,16 +498,189 @@ void main() {
         'allowedModules': [],
         'joinedAt': DateTime(2025).toIso8601String(),
       };
-      final emptyModules =
-          ((emptyData['modules'] ?? emptyData['allowedModules']) as List)
-              .map((m) => normalizeModule(m.toString()))
-              .toList();
+      final emptyModules = normalizeRawModules(
+        emptyData['modules'],
+        emptyData['allowedModules'],
+      );
       final emptyMember = ObraMember.fromJson({
         ...emptyData,
         'modules': emptyModules,
       });
 
       expect(emptyMember.modules, isEmpty);
+    },
+  );
+
+  test('normalizeRawModules cobre fallback e filtragem', () {
+    expect(normalizeRawModules(['rdo']), contains('diario'));
+    expect(normalizeRawModules([], ['diario']), contains('diario'));
+    expect(normalizeRawModules([], []), isEmpty);
+    expect(normalizeRawModules('diario', ['lotes']), equals(['lotes']));
+    expect(
+      normalizeRawModules([null, 123, 'lotes']),
+      equals(['lotes']),
+    );
+    expect(normalizeRawModules(null, null), isEmpty);
+  });
+
+  testWidgets(
+    'admin de construtora com obra ativa recebe acesso',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+            ),
+            currentPermissionsProvider(
+              (construtoraId: 'c1', obraId: 'obraA'),
+            ).overrideWith(
+              (ref) => Stream.value(
+                ObraMember(
+                  userId: 'u1',
+                  isActive: true,
+                  isAdmin: true,
+                  modules: ['diario', 'lotes', 'estoque'],
+                  joinedAt: DateTime(2025),
+                ),
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: AccessGuard(
+              construtoraId: 'c1',
+              obraId: 'obraA',
+              child: Text('painel admin'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('painel admin'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'admin de construtora sem doc de obra recebe acesso (fallback)',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({'isActive': true, 'isOwner': true}),
+            ),
+            currentPermissionsProvider(
+              (construtoraId: 'c1', obraId: 'obraB'),
+            ).overrideWith(
+              (ref) => Stream.value(
+                ObraMember(
+                  userId: 'u1',
+                  isActive: true,
+                  isAdmin: true,
+                  modules: ['diario', 'lotes', 'estoque'],
+                  joinedAt: DateTime(2025),
+                ),
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: AccessGuard(
+              construtoraId: 'c1',
+              obraId: 'obraB',
+              child: Text('painel owner'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('painel owner'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'membro central com modules libera modulo sem allowedModules',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'modules': ['diario'],
+              }),
+            ),
+          ],
+          child: const MaterialApp(
+            home: AccessGuard(
+              construtoraId: 'c1',
+              module: 'diario',
+              child: Text('central diario'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('central diario'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'SigoTopBar usa activeRoute explicito sem router',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final obrasList = [
+        Obra(
+          id: 'o9',
+          construtoraId: 'c9',
+          name: 'Obra Nove',
+          createdAt: DateTime(2025),
+        ),
+      ];
+
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const Scaffold(
+              appBar: SigoTopBar(
+                title: 'Painel',
+                activeRoute: '/construtora/c9/obra/o9',
+              ),
+            ),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authStateChangesProvider.overrideWith(
+              (ref) => Stream.value(null),
+            ),
+            construtoraObrasProvider('c9').overrideWith(
+              (ref) => Future.value(obrasList),
+            ),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('obra-switcher-dropdown')),
+        findsOneWidget,
+      );
     },
   );
 }
