@@ -99,17 +99,33 @@ class OperationQueue {
   Future<dynamic> _callStore(String action, Map<String, dynamic> args) async =>
       jsonDecode(await store(action, jsonEncode(args)));
 
-  Future<List<Map<String, dynamic>>> list() async {
+  Future<List<Map<String, dynamic>>> list({
+    String? construtoraId,
+    String? obraId,
+    String? action,
+  }) async {
     final user = sessionUid();
     if (user == null) return [];
-    final result = await _callStore('list', {'uid': user}) as List;
+    final args = <String, dynamic>{'uid': user};
+    if (construtoraId != null) args['construtoraId'] = construtoraId;
+    if (obraId != null) args['obraId'] = obraId;
+    if (action != null) args['action'] = action;
+    final result = await _callStore('list', args) as List;
     if (sessionUid() != user) return [];
     return result.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Stream<List<Map<String, dynamic>>> watch() async* {
+  Stream<List<Map<String, dynamic>>> watch({
+    String? construtoraId,
+    String? obraId,
+    String? action,
+  }) async* {
     while (true) {
-      yield await list();
+      yield await list(
+        construtoraId: construtoraId,
+        obraId: obraId,
+        action: action,
+      );
       await Future<void>.delayed(const Duration(seconds: 2));
     }
   }
@@ -123,6 +139,24 @@ class OperationQueue {
   Future<int> get syncedCount async =>
       (await list()).where((e) => e['state'] == 'synced').length;
 
+  Future<int> scopedPendingCount({String? construtoraId, String? obraId}) async =>
+      (await list(construtoraId: construtoraId, obraId: obraId))
+          .where((e) => e['state'] == 'pending' || e['state'] == 'syncing')
+          .length;
+
+  Future<int> scopedFailedCount({String? construtoraId, String? obraId}) async =>
+      (await list(construtoraId: construtoraId, obraId: obraId))
+          .where((e) =>
+              e['state'] == 'failed' ||
+              e['state'] == 'authorization_rejected' ||
+              e['state'] == 'conflict')
+          .length;
+
+  Future<int> scopedSyncedCount({String? construtoraId, String? obraId}) async =>
+      (await list(construtoraId: construtoraId, obraId: obraId))
+          .where((e) => e['state'] == 'synced')
+          .length;
+
   Future<void> enqueue(
     String action,
     Map<String, dynamic> payload, {
@@ -130,16 +164,20 @@ class OperationQueue {
   }) async {
     final user = sessionUid();
     if (user == null) throw StateError('Entre para salvar a operação.');
+    final construtoraId = payload['construtoraId'] as String?;
+    final obraId = payload['obraId'] as String?;
     final storedPayload = {...payload, 'actorUid': user};
     final row = {
       'key': jsonEncode([
         user,
-        payload['construtoraId'],
-        payload['obraId'],
+        construtoraId,
+        obraId,
         action,
         payload['operationId'],
       ]),
       'uid': user,
+      'construtoraId': construtoraId,
+      'obraId': obraId,
       'schemaVersion': 1,
       'action': action,
       'payload': storedPayload,
@@ -164,12 +202,20 @@ class OperationQueue {
     if (autoSync) unawaited(sync());
   }
 
-  Future<void> sync({String? onlyKey}) async {
+  Future<void> sync({
+    String? onlyKey,
+    String? construtoraId,
+    String? obraId,
+  }) async {
     if (_busy || sessionUid() == null) return;
     _busy = true;
     try {
       final user = sessionUid()!;
-      for (final candidate in await list()) {
+      final candidates = await list(
+        construtoraId: construtoraId,
+        obraId: obraId,
+      );
+      for (final candidate in candidates) {
         if (sessionUid() != user) break;
         if (onlyKey != null && candidate['key'] != onlyKey) continue;
         final lease = const Uuid().v4();

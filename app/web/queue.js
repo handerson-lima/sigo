@@ -33,7 +33,7 @@ globalThis.sigoQueue = async (action, json) => {
   const store = tx.objectStore('operations'); let result = null;
   tx.oncomplete = () => resolve(JSON.stringify(result));
   tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('Fila não persistida'));
-  if (action === 'list') { const req=store.getAll(); req.onsuccess=()=>{result=req.result.filter(r=>r.uid===input.uid);}; return; }
+  if (action === 'list') { const req=store.getAll(); req.onsuccess=()=>{result=req.result.filter(r=>r.uid===input.uid && (!input.construtoraId || r.construtoraId===input.construtoraId || r.payload?.construtoraId===input.construtoraId) && (!input.obraId || r.obraId===input.obraId || r.payload?.obraId===input.obraId) && (!input.action || r.action===input.action));}; return; }
   const req=store.get(input.key);
   req.onsuccess=()=>{
    const old=req.result;

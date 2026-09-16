@@ -48,10 +48,22 @@ Future<String> queueStore(String action, String input) async {
     }
     if (action == 'list') {
       final all = <dynamic>[];
+      final construtoraId = args['construtoraId'] as String?;
+      final obraId = args['obraId'] as String?;
+      final actionFilter = args['action'] as String?;
       await for (final file in dir.list()) {
         if (file is File && file.path.endsWith('.json')) {
-          final row = jsonDecode(await file.readAsString());
-          if (row['uid'] == args['uid']) all.add(row);
+          final row = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+          if (row['uid'] == args['uid']) {
+            final payload = row['payload'] as Map<String, dynamic>?;
+            final itemConstrutora = row['construtoraId'] ?? payload?['construtoraId'];
+            final itemObra = row['obraId'] ?? payload?['obraId'];
+            final itemAction = row['action'];
+            if (construtoraId != null && itemConstrutora != construtoraId) continue;
+            if (obraId != null && itemObra != obraId) continue;
+            if (actionFilter != null && itemAction != actionFilter) continue;
+            all.add(row);
+          }
         }
       }
       return jsonEncode(all);

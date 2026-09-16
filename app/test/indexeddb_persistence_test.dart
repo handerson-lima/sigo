@@ -67,7 +67,7 @@ void main() {
           reason: 'cacheClear deve purgar apenas snapshots do UID solicitante e respeitar prefixo opcional');
 
       // list de operações deve filtrar rigorosamente pelo UID
-      expect(js.contains('result=req.result.filter(r=>r.uid===input.uid)'), isTrue,
+      expect(js.contains('result=req.result.filter(r=>r.uid===input.uid'), isTrue,
           reason: 'Listagem de operações deve restringir registros pelo UID');
 
       // Inserção na fila deve ser idempotente
