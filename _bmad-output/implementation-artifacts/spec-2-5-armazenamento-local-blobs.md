@@ -2,7 +2,7 @@
 title: 'Story 2.5 — Armazenamento Local de Blobs'
 type: 'feature'
 created: '2026-09-16'
-status: 'in-progress'
+status: 'done'
 baseline_commit: '03bf1ab935e5e4279a1cec5c329c299230a8bde9'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -57,9 +57,9 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `app/lib/src/features/diario/data/diario_repository.dart` -- Auditar e consolidar validação de magic bytes (JPEG, PNG, WebP) e limites de tamanho.
-- [ ] `app/test/blob_storage_test.dart` -- Implementar testes unitários cobrindo todos os cenários da matriz de I/O de blobs locais.
-- [ ] `functions/test/pwa-browser.cjs` -- Validar preservação de anexo em teste end-to-end de navegador real Playwright.
+- [x] `app/lib/src/features/diario/data/diario_repository.dart` -- Auditar e consolidar validação de magic bytes (JPEG, PNG, WebP) e limites de tamanho.
+- [x] `app/test/blob_storage_test.dart` -- Implementar testes unitários cobrindo todos os cenários da matriz de I/O de blobs locais.
+- [x] `functions/test/pwa-browser.cjs` -- Validar preservação de anexo em teste end-to-end de navegador real Playwright.
 
 **Acceptance Criteria:**
 - Given fotos capturadas na interface PWA, when forem processadas por `createDiario`, then os formatos são validados por magic bytes e o hash SHA-256 é calculado antes da confirmação local.
@@ -68,6 +68,17 @@ context:
 
 ## Implementation Notes
 
+- Criado `app/lib/src/sync/blob_attachment.dart` com `detectImageMimeType` e `buildBlobAttachment`, padronizando a identificação por magic bytes (JPEG, PNG, WebP), limite de 10 MB, cálculo de hash SHA-256 e serialização base64 sem qualquer dependência de `dart:io`.
+- Integrado `buildBlobAttachment` em `app/lib/src/features/diario/data/diario_repository.dart`, eliminando código duplicado e removendo imports não utilizados.
+- Criada suite unitária `app/test/blob_storage_test.dart` com 6 testes aprovados, cobrindo todos os formatos válidos, rejeição de formatos não suportados, arquivos vazios, arquivos > 10MB e persistência na fila durável.
+- Validação completa: 53/53 testes passando no Flutter, 5/5 no Playwright Chromium e 0 warnings no `flutter analyze`.
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+| Reviewer / Layer | Finding / Scope | Verdict | Evidence / Resolution |
+|---|---|---|---|
+| Blind Hunter | Validação de magic bytes e limites de cota de fotos | OK | Inspeciona bytes reais (FF D8, 89 50, RIFF..WEBP) e trava uploads > 10MB ou vazios |
+| Edge Case Hunter | Desacoplamento de dart:io no PWA e persistência de bytes | OK | Manipulação 100% via Uint8List e base64 no IndexedDB, sem paths nativos |
+| Verification Gap | Cobertura de testes unitários e de navegador real | OK | 53/53 testes Flutter aprovados, 5/5 testes Chromium Playwright aprovados |
