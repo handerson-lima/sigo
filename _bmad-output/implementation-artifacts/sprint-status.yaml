@@ -53,7 +53,7 @@ development_status:
   epic-2: in-progress
   2-1-service-worker-pwa: done
   2-2-cache-aplicativo: done
-  2-3-indexeddb: backlog
+  2-3-indexeddb: review
   2-4-fila-sincronizacao: backlog
   2-5-armazenamento-local-blobs: backlog
   2-6-particionar-cache: backlog

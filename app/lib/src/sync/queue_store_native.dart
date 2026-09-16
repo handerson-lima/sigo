@@ -16,16 +16,20 @@ Future<String> queueStore(String action, String input) async {
     if (action.startsWith('cache')) {
       final cache = Directory('${dir.path}/read-cache');
       await cache.create(recursive: true);
-      final file = File(
-        '${cache.path}/${sha256.convert(utf8.encode(args['key']))}.json',
-      );
+      File? getFile() => args['key'] != null
+          ? File('${cache.path}/${sha256.convert(utf8.encode(args['key'] as String))}.json')
+          : null;
       if (action == 'cacheGet') {
-        return await file.exists()
-            ? jsonEncode(jsonDecode(await file.readAsString())['value'])
-            : 'null';
+        final file = getFile();
+        if (file == null || !await file.exists()) return 'null';
+        final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        return data['uid'] == args['uid'] ? jsonEncode(data['value']) : 'null';
       }
       if (action == 'cachePut') {
-        await file.writeAsString(jsonEncode(args), flush: true);
+        final file = getFile();
+        if (file != null) {
+          await file.writeAsString(jsonEncode(args), flush: true);
+        }
       }
       if (action == 'cacheClear') {
         await for (final entry in cache.list()) {

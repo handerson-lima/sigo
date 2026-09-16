@@ -1,13 +1,26 @@
 // Versioned IndexedDB; upgrade only adds stores, never removes pending records.
-const sigoDb = new Promise((resolve, reject) => {
-  const request = indexedDB.open('sigo-operations', 2);
-  request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('snapshots')) request.result.createObjectStore('snapshots', {keyPath:'key'}); if (!request.result.objectStoreNames.contains('operations')) request.result.createObjectStore('operations', {keyPath:'key'}); };
-  request.onblocked = () => reject(new Error('Feche as outras abas para atualizar a fila.'));
-  request.onsuccess = () => { request.result.onversionchange = () => request.result.close(); resolve(request.result); };
-  request.onerror = () => reject(request.error);
-});
+let currentDbPromise = null;
+function getDb() {
+  if (currentDbPromise) return currentDbPromise;
+  currentDbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open('sigo-operations', 2);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('snapshots')) db.createObjectStore('snapshots', {keyPath:'key'});
+      if (!db.objectStoreNames.contains('operations')) db.createObjectStore('operations', {keyPath:'key'});
+    };
+    request.onblocked = () => { currentDbPromise = null; reject(new Error('Feche as outras abas para atualizar a fila.')); };
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => { db.close(); currentDbPromise = null; };
+      resolve(db);
+    };
+    request.onerror = () => { currentDbPromise = null; reject(request.error); };
+  });
+  return currentDbPromise;
+}
 globalThis.sigoQueue = async (action, json) => {
- const input = JSON.parse(json), db = await sigoDb;
+  const input = JSON.parse(json), db = await getDb();
  if(action.startsWith('cache')) return new Promise((resolve,reject)=>{
   const tx=db.transaction('snapshots',action==='cacheGet'?'readonly':'readwrite'),store=tx.objectStore('snapshots');let result=null;
   tx.oncomplete=()=>resolve(JSON.stringify(result));tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);

@@ -1,0 +1,84 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index b0dbd3a..1d70265 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -53,7 +53,7 @@ development_status:
+   epic-2: in-progress
+   2-1-service-worker-pwa: done
+   2-2-cache-aplicativo: done
+-  2-3-indexeddb: backlog
++  2-3-indexeddb: review
+   2-4-fila-sincronizacao: backlog
+   2-5-armazenamento-local-blobs: backlog
+   2-6-particionar-cache: backlog
+diff --git a/app/lib/src/sync/queue_store_native.dart b/app/lib/src/sync/queue_store_native.dart
+index 93c8ae3..3fb3004 100644
+--- a/app/lib/src/sync/queue_store_native.dart
++++ b/app/lib/src/sync/queue_store_native.dart
+@@ -16,16 +16,20 @@ Future<String> queueStore(String action, String input) async {
+     if (action.startsWith('cache')) {
+       final cache = Directory('${dir.path}/read-cache');
+       await cache.create(recursive: true);
+-      final file = File(
+-        '${cache.path}/${sha256.convert(utf8.encode(args['key']))}.json',
+-      );
++      File? getFile() => args['key'] != null
++          ? File('${cache.path}/${sha256.convert(utf8.encode(args['key'] as String))}.json')
++          : null;
+       if (action == 'cacheGet') {
+-        return await file.exists()
+-            ? jsonEncode(jsonDecode(await file.readAsString())['value'])
+-            : 'null';
++        final file = getFile();
++        if (file == null || !await file.exists()) return 'null';
++        final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
++        return data['uid'] == args['uid'] ? jsonEncode(data['value']) : 'null';
+       }
+       if (action == 'cachePut') {
+-        await file.writeAsString(jsonEncode(args), flush: true);
++        final file = getFile();
++        if (file != null) {
++          await file.writeAsString(jsonEncode(args), flush: true);
++        }
+       }
+       if (action == 'cacheClear') {
+         await for (final entry in cache.list()) {
+diff --git a/app/web/queue.js b/app/web/queue.js
+index e1028bf..724874f 100644
+--- a/app/web/queue.js
++++ b/app/web/queue.js
+@@ -1,13 +1,26 @@
+ // Versioned IndexedDB; upgrade only adds stores, never removes pending records.
+-const sigoDb = new Promise((resolve, reject) => {
+-  const request = indexedDB.open('sigo-operations', 2);
+-  request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('snapshots')) request.result.createObjectStore('snapshots', {keyPath:'key'}); if (!request.result.objectStoreNames.contains('operations')) request.result.createObjectStore('operations', {keyPath:'key'}); };
+-  request.onblocked = () => reject(new Error('Feche as outras abas para atualizar a fila.'));
+-  request.onsuccess = () => { request.result.onversionchange = () => request.result.close(); resolve(request.result); };
+-  request.onerror = () => reject(request.error);
+-});
++let currentDbPromise = null;
++function getDb() {
++  if (currentDbPromise) return currentDbPromise;
++  currentDbPromise = new Promise((resolve, reject) => {
++    const request = indexedDB.open('sigo-operations', 2);
++    request.onupgradeneeded = () => {
++      const db = request.result;
++      if (!db.objectStoreNames.contains('snapshots')) db.createObjectStore('snapshots', {keyPath:'key'});
++      if (!db.objectStoreNames.contains('operations')) db.createObjectStore('operations', {keyPath:'key'});
++    };
++    request.onblocked = () => { currentDbPromise = null; reject(new Error('Feche as outras abas para atualizar a fila.')); };
++    request.onsuccess = () => {
++      const db = request.result;
++      db.onversionchange = () => { db.close(); currentDbPromise = null; };
++      resolve(db);
++    };
++    request.onerror = () => { currentDbPromise = null; reject(request.error); };
++  });
++  return currentDbPromise;
++}
+ globalThis.sigoQueue = async (action, json) => {
+- const input = JSON.parse(json), db = await sigoDb;
++  const input = JSON.parse(json), db = await getDb();
+  if(action.startsWith('cache')) return new Promise((resolve,reject)=>{
+   const tx=db.transaction('snapshots',action==='cacheGet'?'readonly':'readwrite'),store=tx.objectStore('snapshots');let result=null;
+   tx.oncomplete=()=>resolve(JSON.stringify(result));tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
