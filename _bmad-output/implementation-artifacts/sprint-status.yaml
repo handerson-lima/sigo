@@ -50,8 +50,8 @@ development_status:
   1-8-recalculo-modulos: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-service-worker-pwa: backlog
+  epic-2: in-progress
+  2-1-service-worker-pwa: review
   2-2-cache-aplicativo: backlog
   2-3-indexeddb: backlog
   2-4-fila-sincronizacao: backlog

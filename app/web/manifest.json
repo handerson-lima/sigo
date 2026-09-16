@@ -1,13 +1,21 @@
 {
+  "id": "sigo-pwa",
   "name": "SIGO",
   "short_name": "SIGO",
   "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#0175C2",
   "theme_color": "#0175C2",
   "description": "Gestão de obras",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
+  "lang": "pt-BR",
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "icons/Icon-192.png",
