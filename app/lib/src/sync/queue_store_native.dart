@@ -32,10 +32,15 @@ Future<String> queueStore(String action, String input) async {
         }
       }
       if (action == 'cacheClear') {
+        final prefix = args['prefix'] as String?;
         await for (final entry in cache.list()) {
-          if (entry is File &&
-              jsonDecode(await entry.readAsString())['uid'] == args['uid']) {
-            await entry.delete();
+          if (entry is File) {
+            final data = jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
+            if (data['uid'] == args['uid']) {
+              if (prefix == null || (data['key'] as String? ?? '').contains(prefix)) {
+                await entry.delete();
+              }
+            }
           }
         }
       }

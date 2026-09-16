@@ -31,6 +31,19 @@ Future<void> clearReadCache(String uid) async {
   await _cache('cacheClear', uid, '');
 }
 
+/// Limpa o cache seletivamente apenas para um escopo particionado (ex: obra ou construtora revogada)
+Future<void> clearReadCacheScope(String uid, String scopePrefix) async {
+  await jsonDecode(
+    await queueStore(
+      'cacheClear',
+      jsonEncode({
+        'uid': uid,
+        'prefix': scopePrefix,
+      }),
+    ),
+  );
+}
+
 /// Cache local só permite leitura. Toda gravação continua autorizada pelo servidor.
 Stream<Map<String, dynamic>?> cachedDocument(String path) async* {
   final uid = FirebaseAuth.instance.currentUser?.uid;

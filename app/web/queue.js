@@ -26,7 +26,7 @@ globalThis.sigoQueue = async (action, json) => {
   tx.oncomplete=()=>resolve(JSON.stringify(result));tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
   if(action==='cacheGet'){const req=store.get(input.key);req.onsuccess=()=>{result=req.result?.uid===input.uid?req.result.value:null;};}
   if(action==='cachePut')store.put(input);
-  if(action==='cacheClear'){const req=store.openCursor();req.onsuccess=()=>{const cursor=req.result;if(cursor){if(cursor.value.uid===input.uid)cursor.delete();cursor.continue();}};}
+  if(action==='cacheClear'){const req=store.openCursor();req.onsuccess=()=>{const cursor=req.result;if(cursor){if(cursor.value.uid===input.uid && (!input.prefix || (cursor.value.key && cursor.value.key.includes(input.prefix))))cursor.delete();cursor.continue();}};}
  });
  return new Promise((resolve,reject) => {
   const tx = db.transaction('operations', action === 'list' ? 'readonly' : 'readwrite');

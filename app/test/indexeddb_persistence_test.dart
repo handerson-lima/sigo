@@ -63,8 +63,8 @@ void main() {
           reason: 'cacheGet só deve expor dados caso uid confira com o registro');
 
       // cacheClear deve deletar apenas registros pertencentes ao uid informado
-      expect(js.contains('if(cursor.value.uid===input.uid)cursor.delete()'), isTrue,
-          reason: 'cacheClear deve purgar apenas snapshots do UID solicitante');
+      expect(js.contains('if(cursor.value.uid===input.uid && (!input.prefix || (cursor.value.key && cursor.value.key.includes(input.prefix))))cursor.delete()'), isTrue,
+          reason: 'cacheClear deve purgar apenas snapshots do UID solicitante e respeitar prefixo opcional');
 
       // list de operações deve filtrar rigorosamente pelo UID
       expect(js.contains('result=req.result.filter(r=>r.uid===input.uid)'), isTrue,

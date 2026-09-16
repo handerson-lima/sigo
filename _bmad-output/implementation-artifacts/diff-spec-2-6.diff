@@ -1,0 +1,75 @@
+diff --git a/app/lib/src/sync/queue_store_native.dart b/app/lib/src/sync/queue_store_native.dart
+index 3fb3004..45123a8 100644
+--- a/app/lib/src/sync/queue_store_native.dart
++++ b/app/lib/src/sync/queue_store_native.dart
+@@ -32,10 +32,15 @@ Future<String> queueStore(String action, String input) async {
+         }
+       }
+       if (action == 'cacheClear') {
++        final prefix = args['prefix'] as String?;
+         await for (final entry in cache.list()) {
+-          if (entry is File &&
+-              jsonDecode(await entry.readAsString())['uid'] == args['uid']) {
+-            await entry.delete();
++          if (entry is File) {
++            final data = jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
++            if (data['uid'] == args['uid']) {
++              if (prefix == null || (data['key'] as String? ?? '').contains(prefix)) {
++                await entry.delete();
++              }
++            }
+           }
+         }
+       }
+diff --git a/app/lib/src/sync/read_cache.dart b/app/lib/src/sync/read_cache.dart
+index d44a075..c3c1eb4 100644
+--- a/app/lib/src/sync/read_cache.dart
++++ b/app/lib/src/sync/read_cache.dart
+@@ -31,6 +31,19 @@ Future<void> clearReadCache(String uid) async {
+   await _cache('cacheClear', uid, '');
+ }
+ 
++/// Limpa o cache seletivamente apenas para um escopo particionado (ex: obra ou construtora revogada)
++Future<void> clearReadCacheScope(String uid, String scopePrefix) async {
++  await jsonDecode(
++    await queueStore(
++      'cacheClear',
++      jsonEncode({
++        'uid': uid,
++        'prefix': scopePrefix,
++      }),
++    ),
++  );
++}
++
+ /// Cache local só permite leitura. Toda gravação continua autorizada pelo servidor.
+ Stream<Map<String, dynamic>?> cachedDocument(String path) async* {
+   final uid = FirebaseAuth.instance.currentUser?.uid;
+diff --git a/app/test/indexeddb_persistence_test.dart b/app/test/indexeddb_persistence_test.dart
+index 16fe80c..01ca1ca 100644
+--- a/app/test/indexeddb_persistence_test.dart
++++ b/app/test/indexeddb_persistence_test.dart
+@@ -63,8 +63,8 @@ void main() {
+           reason: 'cacheGet só deve expor dados caso uid confira com o registro');
+ 
+       // cacheClear deve deletar apenas registros pertencentes ao uid informado
+-      expect(js.contains('if(cursor.value.uid===input.uid)cursor.delete()'), isTrue,
+-          reason: 'cacheClear deve purgar apenas snapshots do UID solicitante');
++      expect(js.contains('if(cursor.value.uid===input.uid && (!input.prefix || (cursor.value.key && cursor.value.key.includes(input.prefix))))cursor.delete()'), isTrue,
++          reason: 'cacheClear deve purgar apenas snapshots do UID solicitante e respeitar prefixo opcional');
+ 
+       // list de operações deve filtrar rigorosamente pelo UID
+       expect(js.contains('result=req.result.filter(r=>r.uid===input.uid)'), isTrue,
+diff --git a/app/web/queue.js b/app/web/queue.js
+index 724874f..bba54ce 100644
+--- a/app/web/queue.js
++++ b/app/web/queue.js
+@@ -26,7 +26,7 @@ globalThis.sigoQueue = async (action, json) => {
+   tx.oncomplete=()=>resolve(JSON.stringify(result));tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+   if(action==='cacheGet'){const req=store.get(input.key);req.onsuccess=()=>{result=req.result?.uid===input.uid?req.result.value:null;};}
+   if(action==='cachePut')store.put(input);
+-  if(action==='cacheClear'){const req=store.openCursor();req.onsuccess=()=>{const cursor=req.result;if(cursor){if(cursor.value.uid===input.uid)cursor.delete();cursor.continue();}};}
++  if(action==='cacheClear'){const req=store.openCursor();req.onsuccess=()=>{const cursor=req.result;if(cursor){if(cursor.value.uid===input.uid && (!input.prefix || (cursor.value.key && cursor.value.key.includes(input.prefix))))cursor.delete();cursor.continue();}};}
+  });
+  return new Promise((resolve,reject) => {
+   const tx = db.transaction('operations', action === 'list' ? 'readonly' : 'readwrite');
