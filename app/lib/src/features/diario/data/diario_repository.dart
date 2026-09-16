@@ -1,13 +1,12 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:crypto/crypto.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../sync/blob_attachment.dart';
 import '../../../sync/operation_queue.dart';
 import '../../../sync/read_cache.dart';
 import '../domain/diario.dart';
@@ -57,29 +56,14 @@ class DiarioRepository {
     }
     final attachments = <Map<String, dynamic>>[];
     for (final bytes in photos) {
-      if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
-        throw StateError('Foto ausente ou acima de 10 MB');
-      }
-      final type = bytes.length > 3 && bytes[0] == 255 && bytes[1] == 216
-          ? 'image/jpeg'
-          : bytes.length > 8 && bytes[0] == 137 && bytes[1] == 80
-          ? 'image/png'
-          : bytes.length > 12 &&
-                ascii.decode(bytes.sublist(0, 4), allowInvalid: true) ==
-                    'RIFF' &&
-                ascii.decode(bytes.sublist(8, 12), allowInvalid: true) == 'WEBP'
-          ? 'image/webp'
-          : throw StateError('Use JPEG, PNG ou WebP');
       final id = const Uuid().v4();
-      attachments.add({
-        'id': id,
-        'size': bytes.length,
-        'sha256': sha256.convert(bytes).toString(),
-        'contentType': type,
-        'bytes': base64Encode(bytes),
-        'path':
-            'construtoras/${diario.construtoraId}/obras/${diario.obraId}/diarios/${diario.id}/$user/$id',
-      });
+      final path =
+          'construtoras/${diario.construtoraId}/obras/${diario.obraId}/diarios/${diario.id}/$user/$id';
+      attachments.add(buildBlobAttachment(
+        bytes: bytes,
+        storagePath: path,
+        id: id,
+      ));
     }
     await OperationQueue.instance.enqueue('finalizeDiario', {
       'construtoraId': diario.construtoraId,
