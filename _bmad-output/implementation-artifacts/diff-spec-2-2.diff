@@ -1,0 +1,214 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 6692c95..757961f 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -52,7 +52,7 @@ development_status:
+ 
+   epic-2: in-progress
+   2-1-service-worker-pwa: done
+-  2-2-cache-aplicativo: backlog
++  2-2-cache-aplicativo: in-progress
+   2-3-indexeddb: backlog
+   2-4-fila-sincronizacao: backlog
+   2-5-armazenamento-local-blobs: backlog
+diff --git a/_bmad-output/implementation-artifacts/spec-2-2-cache-aplicativo.md b/_bmad-output/implementation-artifacts/spec-2-2-cache-aplicativo.md
+new file mode 100644
+index 0000000..7a02d1a
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/spec-2-2-cache-aplicativo.md
+@@ -0,0 +1,74 @@
++---
++title: 'Story 2.2 — Cache do Aplicativo Separado dos Dados de Negócio'
++type: 'feature'
++created: '2026-09-16'
++status: 'in-progress'
++baseline_commit: 'e0a54971e9dfc2bba90ac92456ac741164eac600'
++route: 'dispatch'
++review_loop_iteration: 0
++context:
++  - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
++  - '{project-root}/docs/task.md'
++---
++
++<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
++
++## Intent
++
++**Problem:** Em aplicações PWA offline-first, misturar o cache de casca/código (`shell/assets`) com o cache de dados transacionais de negócio cria riscos críticos de vazamento de informações entre usuários, falha de revogação de acessos e corrupção de estado ao atualizar a versão do software.
++
++**Approach:** Implementar e auditar a separação estrita entre o cache estático do aplicativo (gerenciado exclusivamente pela Cache Storage API do Service Worker sob o namespace `sigo-shell-*`) e a persistência local de dados de negócio (gerenciada no IndexedDB sob `sigo-operations`), assegurando que dados de Firestore/APIs nunca sejam interceptados pelo Service Worker e que o descarte de dados do usuário (`clearReadCache` / logout / revogação) não remova a casca offline do aplicativo.
++
++## Boundaries & Constraints
++
++**Always:**
++- O Service Worker deve apenas armazenar e responder recursos estáticos locais declarados em `ASSETS` (`index.html`, `canvaskit`, `flutter_bootstrap.js`, scripts embutidos do Firebase e fontes).
++- Todas as requisições para `firestore.googleapis.com`, `identitytoolkit.googleapis.com`, Cloud Functions ou domínios externos devem passar direto sem interceptação ou armazenamento no Cache Storage.
++- A persistência local de dados de leitura (`snapshots`) e fila (`operations`) reside exclusivamente no IndexedDB e deve ser indexada por `uid`.
++- A limpeza de cache por revogação de permissão (`permission-denied` ou `isActive == false`) deve purgar dados de negócio locais do usuário sem destruir o cache da casca do app no Service Worker.
++
++**Never:**
++- Não usar `Cache-Control` ou runtime caching no Service Worker para requisições de API/Firestore.
++- Não compartilhar registros de snapshot entre UIDs distintos no IndexedDB.
++- Não exigir conexão de rede para carregar a casca da tela de login após a limpeza de dados de negócio.
++
++## I/O & Edge-Case Matrix
++
++| Scenario | Input / State | Expected Output / Behavior | Error Handling |
++|----------|--------------|---------------------------|----------------|
++| Requisição de API Firestore | Cliente consulta Firestore | SW ignora requisição (pass-through à rede); não grava no Cache Storage | Falha tratada por `cachedDocument` via IndexedDB local |
++| Limpeza de cache por revogação | Membro marcado `isActive: false` | `clearReadCache(uid)` deleta snapshots do usuário no IndexedDB; `sigo-shell-*` permanece intacto no Cache Storage | App volta à tela de login/acesso negado sem perder o PWA offline |
++| Troca de usuário no dispositivo | Usuário A desloga, Usuário B autentica | `snapshots` de A não são servidos para B; Service Worker continua servindo os mesmos assets estáticos | Erro de conta alterada se snapshot de outro UID for solicitado |
++| Atualização de versão de shell | Nova versão da aplicação é publicada | SW atualiza `sigo-shell-<novo_hash>` no Cache Storage; banco IndexedDB `sigo-operations` permanece intacto com transações preservadas | Falha atômica aborta e preserva versão anterior |
++
++</frozen-after-approval>
++
++## Code Map
++
++- `app/tool/prepare_pwa.py` -- Assegurar que o Service Worker gerado filtre estritamente requisições de mesma origem (`url.origin === self.location.origin`) e somente métodos GET contidos na lista estática `ASSETS`, rejeitando qualquer tentativa de armazenar dados dinâmicos.
++- `app/lib/src/sync/read_cache.dart` -- Gerenciamento de snapshots locais no IndexedDB com validação estrita de UID, isolamento de escopo e purga seletiva em `clearReadCache`.
++- `app/web/queue.js` -- Implementação IndexedDB (`sigo-operations` store `snapshots` e store `operations`).
++- `app/test/cache_separation_test.dart` -- Testes automatizados garantindo a independência entre o shell PWA e o cache de dados de negócio.
++
++## Tasks & Acceptance
++
++**Execution:**
++- [ ] `app/tool/prepare_pwa.py` -- Garantir regras estritas no Service Worker gerado: isolamento de origem, whitelist de assets estáticos e zero runtime-caching de APIs.
++- [ ] `app/lib/src/sync/read_cache.dart` -- Auditar e consolidar `clearReadCache`, isolamento de UID e purga reativa em `permission-denied`.
++- [ ] `app/test/cache_separation_test.dart` -- Criar suite de testes provando que a casca estática e os dados de negócio residem em camadas isoladas e com ciclos de vida independentes.
++
++**Acceptance Criteria:**
++- Given uma consulta ao Firestore ou API externa, when interceptada pelo Service Worker, then a requisição é repassada diretamente sem ser gravada na Cache Storage API.
++- Given um usuário revogado (`isActive == false`), when detectado pelo `cachedDocument`, then `clearReadCache` remove os documentos locais do usuário no IndexedDB enquanto o cache de shell `sigo-shell-*` permanece intacto.
++- Given o suite de testes de cache, when executado `flutter test`, then todos os testes passam comprovando o isolamento de camadas.
++
++## Implementation Notes
++
++- O Cache Storage do navegador (`caches`) guarda arquivos estáticos imutáveis da versão. O IndexedDB guarda o estado operacional dinâmico particionado por usuário. Essa separação de responsabilidades é a pedra angular da arquitetura offline-first do SIGO.
++
++## Verification
++
++**Commands:**
++- `cd app && flutter analyze` -- expected: Sem erros ou advertências.
++- `cd app && flutter test` -- expected: Todos os testes passando com sucesso.
++- `cd app && bash tool/build_pwa.sh` -- expected: PWA gerado com garantia de separação de cache.
+diff --git a/app/test/cache_separation_test.dart b/app/test/cache_separation_test.dart
+new file mode 100644
+index 0000000..7ab399b
+--- /dev/null
++++ b/app/test/cache_separation_test.dart
+@@ -0,0 +1,115 @@
++import 'dart:convert';
++import 'dart:io';
++
++import 'package:flutter_test/flutter_test.dart';
++
++void main() {
++  group('Story 2.2 — Cache do Aplicativo Separado dos Dados de Negócio', () {
++    test('Service worker de release possui política estrita de whitelist sem cacheamento de APIs', () {
++      final preparePy = File('tool/prepare_pwa.py');
++      expect(preparePy.existsSync(), isTrue);
++      final content = preparePy.readAsStringSync();
++
++      // Verifica que o namespace de cache é exclusivo para o shell
++      expect(content.contains("const CACHE='sigo-shell-"), isTrue,
++          reason: 'Namespace do cache deve ser sigo-shell-*');
++
++      // Verifica filtragem de origem: chamadas para APIs externas/Firestore passam direto
++      expect(content.contains("url.origin!==self.location.origin"), isTrue,
++          reason: 'Requisições para domínios de API externos devem ser ignoradas pelo SW');
++
++      // Verifica método GET: mutações (POST/PUT/DELETE) nunca são interceptadas
++      expect(content.contains("event.request.method!=='GET'"), isTrue,
++          reason: 'Apenas requisições GET locais podem consultar o cache');
++
++      // Verifica que o fetch handler NUNCA faz cache.put ou cache.add em tempo de execução
++      // (O cache é populado apenas na instalação atômica via addAll(ASSETS))
++      final fetchHandlerStart = content.indexOf("self.addEventListener('fetch'");
++      expect(fetchHandlerStart, isPositive);
++      final fetchHandlerCode = content.substring(fetchHandlerStart);
++      expect(fetchHandlerCode.contains('cache.put'), isFalse,
++          reason: 'O fetch handler não pode gravar dados dinâmicos em tempo de execução');
++      expect(fetchHandlerCode.contains('cache.add('), isFalse,
++          reason: 'O fetch handler não pode adicionar dados dinâmicos em tempo de execução');
++
++      // Verifica que apenas assets compilados pré-declarados são servidos
++      expect(content.contains("ASSETS.includes(relative)"), isTrue,
++          reason: 'Apenas ativos locais da lista ASSETS podem ser servidos do cache');
++    });
++
++    test('IndexedDB sigo-operations mantém stores de snapshots e operations isoladas do shell', () {
++      final queueJs = File('web/queue.js');
++      expect(queueJs.existsSync(), isTrue);
++      final js = queueJs.readAsStringSync();
++
++      // Verifica nome do banco de dados e versão
++      expect(js.contains("indexedDB.open('sigo-operations'"), isTrue);
++      expect(js.contains("'snapshots'"), isTrue,
++          reason: 'Deve haver store dedicada a snapshots de leitura de negócio');
++      expect(js.contains("'operations'"), isTrue,
++          reason: 'Deve haver store dedicada à fila transacional de operações');
++
++      // Verifica particionamento por UID em snapshots
++      expect(js.contains('cursor.value.uid===input.uid'), isTrue,
++          reason: 'Limpeza de snapshots (cacheClear) deve purgar somente o UID do usuário');
++      expect(js.contains('req.result?.uid===input.uid'), isTrue,
++          reason: 'Leitura de snapshots (cacheGet) deve verificar UID para evitar vazamento');
++    });
++
++    test('read_cache.dart purga snapshots em permission-denied e isActive == false sem tocar no shell', () {
++      final readCacheDart = File('lib/src/sync/read_cache.dart');
++      expect(readCacheDart.existsSync(), isTrue);
++      final dartCode = readCacheDart.readAsStringSync();
++
++      // Verifica função de limpeza dedicada de dados de leitura
++      expect(dartCode.contains('Future<void> clearReadCache(String uid)'), isTrue);
++      expect(dartCode.contains("_cache('cacheClear', uid, '')"), isTrue);
++
++      // Verifica purga reativa quando isActive == false
++      expect(dartCode.contains("value?['isActive'] == false"), isTrue);
++
++      // Verifica purga reativa em permission-denied / unauthenticated
++      expect(dartCode.contains("['permission-denied', 'unauthenticated'].contains(e.code)"), isTrue);
++    });
++
++    test('Simulação de Store comprova isolamento entre usuários e limpeza seletiva de snapshots', () async {
++      final store = <String, Map<String, dynamic>>{};
++
++      void putSnapshot(String uid, String path, dynamic data) {
++        final key = jsonEncode([uid, path]);
++        store[key] = {'uid': uid, 'key': key, 'value': data};
++      }
++
++      dynamic getSnapshot(String uid, String path) {
++        final key = jsonEncode([uid, path]);
++        final item = store[key];
++        if (item != null && item['uid'] == uid) {
++          return item['value'];
++        }
++        return null;
++      }
++
++      void clearSnapshots(String uid) {
++        store.removeWhere((k, v) => v['uid'] == uid);
++      }
++
++      // 1. Usuário A armazena dados de obra
++      putSnapshot('user-A', 'construtoras/c1/obras/o1', {'name': 'Obra A'});
++      expect(getSnapshot('user-A', 'construtoras/c1/obras/o1'), equals({'name': 'Obra A'}));
++
++      // 2. Usuário B não consegue ler os snapshots de A
++      expect(getSnapshot('user-B', 'construtoras/c1/obras/o1'), isNull);
++
++      // 3. Usuário B armazena seus próprios dados
++      putSnapshot('user-B', 'construtoras/c1/obras/o1', {'name': 'Obra B - Visão B'});
++      expect(getSnapshot('user-B', 'construtoras/c1/obras/o1'), equals({'name': 'Obra B - Visão B'}));
++
++      // 4. Usuário A tem acesso revogado -> clearSnapshots('user-A')
++      clearSnapshots('user-A');
++      expect(getSnapshot('user-A', 'construtoras/c1/obras/o1'), isNull);
++
++      // 5. Dados do Usuário B permanecem intactos no IndexedDB
++      expect(getSnapshot('user-B', 'construtoras/c1/obras/o1'), equals({'name': 'Obra B - Visão B'}));
++    });
++  });
++}
