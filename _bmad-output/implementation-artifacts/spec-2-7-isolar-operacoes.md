@@ -2,10 +2,10 @@
 title: 'Story 2.7 — Isolamento de Operações'
 type: 'feature'
 created: '2026-09-16'
-status: 'in-progress'
+status: 'done'
 baseline_commit: '70b05392595ede0c8046d70e56357553661e8715'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 1
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
   - '{project-root}/docs/task.md'
@@ -62,10 +62,10 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `app/web/queue.js` -- Atualizar ação `list` para suportar filtros opcionais de escopo (`construtoraId`, `obraId`, `action`).
-- [ ] `app/lib/src/sync/queue_store_native.dart` -- Atualizar ação `list` nativa para suportar filtros de escopo.
-- [ ] `app/lib/src/sync/operation_queue.dart` -- Persistir campos raiz `construtoraId` e `obraId` no `enqueue`, adicionar parâmetros de escopo em `list`, `watch`, `pendingCount`, `failedCount`, `syncedCount`, e filtrar no `sync`.
-- [ ] `app/test/operation_isolation_test.dart` -- Implementar bateria de testes unitários cobrindo todos os cenários da matriz de I/O e edge cases.
+- [x] `app/web/queue.js` -- Atualizar ação `list` para suportar filtros opcionais de escopo (`construtoraId`, `obraId`, `action`).
+- [x] `app/lib/src/sync/queue_store_native.dart` -- Atualizar ação `list` nativa para suportar filtros de escopo.
+- [x] `app/lib/src/sync/operation_queue.dart` -- Persistir campos raiz `construtoraId` e `obraId` no `enqueue`, adicionar parâmetros de escopo em `list`, `watch`, `pendingCount`, `failedCount`, `syncedCount`, e filtrar no `sync`.
+- [x] `app/test/operation_isolation_test.dart` -- Implementar bateria de testes unitários cobrindo todos os cenários da matriz de I/O e edge cases.
 
 **Acceptance Criteria:**
 - Given operações gravadas para múltiplas obras e construtoras, when `list` ou contadores forem consultados com filtro de `obraId`, then apenas os itens da respectiva obra são retornados.
@@ -74,6 +74,15 @@ context:
 
 ## Implementation Notes
 
+- **queue.js & queue_store_native.dart:** A ação `list` foi enriquecida para aceitar `construtoraId`, `obraId` e `action`, filtrando tanto no registro raiz quanto no `payload` interno com retrocompatibilidade garantida.
+- **operation_queue.dart:** Enfileiramento agora grava `construtoraId` e `obraId` no registro raiz. Métodos `list`, `watch`, `sync` e os novos `scopedPendingCount`, `scopedFailedCount`, `scopedSyncedCount` suportam escopo específico por obra e construtora.
+- **operation_isolation_test.dart:** Criada suíte com 4 testes unitários cobrindo suporte ao filtro de escopo no JS, listagem e contagens particionadas por obra, sincronização seletiva por partição e isolamento de falhas por permissão sem bloqueio cruzado em cadeia.
+- **Verificação:** 61/61 testes Dart passando (`flutter test`), 0 issues no `flutter analyze`, e 5/5 testes Chromium Playwright passando no navegador.
+
 ## Spec Change Log
 
+- 2026-09-16: Criação, aprovação e conclusão da implementação da Story 2.7.
+
 ## Review Triage Log
+
+- Nenhum issue impeditivo ou regressão identificada durante a revisão e execução das baterias de testes.
