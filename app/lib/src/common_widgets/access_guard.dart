@@ -36,7 +36,6 @@ class AccessGuard extends ConsumerWidget {
       return const AccessDeniedScreen();
     }
     final admin = member?['isAdmin'] == true || member?['isOwner'] == true;
-    if (admin) return child;
     if (obraId != null) {
       final om = ref.watch(
         currentPermissionsProvider((
@@ -58,11 +57,12 @@ class AccessGuard extends ConsumerWidget {
       }
       return child;
     }
+    if (admin) return child;
     if (adminOnly ||
         module == 'financeiro' ||
         module != null &&
-            !(member?['modules'] as List? ?? [])
-                .map((m) => normalizeModule(m as String))
+            !((member?['modules'] ?? member?['allowedModules']) as List? ?? [])
+                .map((m) => normalizeModule(m.toString()))
                 .contains(normalizeModule(module!))) {
       return const AccessDeniedScreen();
     }

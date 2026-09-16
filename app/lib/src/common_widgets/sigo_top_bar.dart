@@ -3,15 +3,31 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/authentication/data/auth_repository.dart';
+import '../features/obras/presentation/construtora_obras_provider.dart';
 
 class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
   final String title;
   final List<Widget>? actions;
+  final String? activeRoute;
 
-  const SigoTopBar({super.key, required this.title, this.actions});
+  const SigoTopBar({
+    super.key,
+    required this.title,
+    this.actions,
+    this.activeRoute,
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(60);
+
+  String? _resolveRoute(BuildContext context) {
+    if (activeRoute != null && activeRoute!.isNotEmpty) return activeRoute;
+    try {
+      return GoRouterState.of(context).uri.toString();
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,6 +35,20 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
     final user = authState.value;
     final email = user?.email ?? '';
     final initial = email.isNotEmpty ? email[0].toUpperCase() : 'U';
+
+    final route = _resolveRoute(context);
+    String? cId;
+    String? oId;
+    if (route != null) {
+      final uri = Uri.tryParse(route);
+      final segments = uri?.pathSegments ?? [];
+      if (segments.length >= 2 && segments[0] == 'construtora') {
+        cId = segments[1];
+        if (segments.length >= 4 && segments[2] == 'obra') {
+          oId = segments[3];
+        }
+      }
+    }
 
     return AppBar(
       backgroundColor: Colors.transparent,
@@ -33,16 +63,27 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
             )
           : null,
       title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           if (context.canPop())
             const Text(
               'Voltar • ',
               style: TextStyle(color: Colors.black54, fontSize: 14),
             ),
-          Text(
-            title,
-            style: const TextStyle(color: Colors.black54, fontSize: 14),
+          Flexible(
+            child: Text(
+              title,
+              style: const TextStyle(color: Colors.black54, fontSize: 14),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
+          if (cId != null && oId != null) ...[
+            const SizedBox(width: 12),
+            ObraSwitcher(
+              construtoraId: cId,
+              currentObraId: oId,
+            ),
+          ],
         ],
       ),
       actions: [
@@ -64,6 +105,84 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
         ),
         const SizedBox(width: 16),
       ],
+    );
+  }
+}
+
+class ObraSwitcher extends ConsumerWidget {
+  final String construtoraId;
+  final String currentObraId;
+
+  const ObraSwitcher({
+    super.key,
+    required this.construtoraId,
+    required this.currentObraId,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final obrasAsync = ref.watch(construtoraObrasProvider(construtoraId));
+    return obrasAsync.maybeWhen(
+      data: (obras) {
+        if (obras.isEmpty) return const SizedBox.shrink();
+        final isSelectedPresent = obras.any((o) => o.id == currentObraId);
+        final selectedValue = isSelectedPresent ? currentObraId : null;
+
+        return Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.black12),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              key: const Key('obra-switcher-dropdown'),
+              value: selectedValue,
+              hint: const Text(
+                'Selecionar Obra',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              icon: const Icon(Icons.swap_horiz, size: 18, color: Colors.amber),
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              items: obras.map((o) {
+                return DropdownMenuItem<String>(
+                  key: Key('obra-switcher-item-${o.id}'),
+                  value: o.id,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.business,
+                        size: 14,
+                        color: o.id == currentObraId
+                            ? Colors.amber[900]
+                            : Colors.black45,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        o.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (newObraId) {
+                if (newObraId != null && newObraId != currentObraId) {
+                  context.go('/construtora/$construtoraId/obra/$newObraId');
+                }
+              },
+            ),
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }

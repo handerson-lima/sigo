@@ -2,9 +2,10 @@
 title: 'Story 1.8 — Recálculo de Módulos e Layout Imediato na Troca de Obra'
 type: 'feature'
 created: '2026-09-16'
-status: 'ready-for-dev'
+status: 'in-review'
+baseline_commit: '9e09709bb983d1b2eed9d01e21e08ee7f3229cba'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 1
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
   - '{project-root}/docs/task.md'
@@ -56,11 +57,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `app/lib/src/features/obras/presentation/current_permissions_provider.dart` -- Suportar `allowedModules` como fallback de `modules` e validar status da obra.
-- [ ] `app/lib/src/common_widgets/sigo_top_bar.dart` -- Implementar dropdown/seletor de obra ativa permitindo troca rápida entre obras da mesma construtora.
-- [ ] `app/lib/src/common_widgets/sigo_sidebar.dart` -- Sincronizar itens de navegação com a obra ativa imediatamente após a seleção.
-- [ ] `app/lib/src/features/obras/presentation/obra_dashboard_screen.dart` -- Garantir renderização reativa dos cards da obra ativa.
-- [ ] `app/test/widget_test.dart` -- Adicionar testes de widget e de provedor verificando a troca de contexto entre obras com módulos distintos.
+- [x] `app/lib/src/features/obras/presentation/current_permissions_provider.dart` -- Suportar `allowedModules` como fallback de `modules` e validar status da obra.
+- [x] `app/lib/src/common_widgets/sigo_top_bar.dart` -- Implementar dropdown/seletor de obra ativa permitindo troca rápida entre obras da mesma construtora.
+- [x] `app/lib/src/common_widgets/sigo_sidebar.dart` -- Sincronizar itens de navegação com a obra ativa imediatamente após a seleção.
+- [x] `app/lib/src/features/obras/presentation/obra_dashboard_screen.dart` -- Garantir renderização reativa dos cards da obra ativa.
+- [x] `app/test/widget_test.dart` -- Adicionar testes de widget e de provedor verificando a troca de contexto entre obras com módulos distintos.
 
 **Acceptance Criteria:**
 - Given um usuário com acesso a Obra A (com módulo `diario`) e Obra B (com módulo `lotes`), when o usuário alterna de Obra A para Obra B no seletor, then o layout da sidebar e os cards do dashboard atualizam instantaneamente, exibindo 'Lotes e Setores' e ocultando 'Diário de Obra'.
@@ -71,6 +72,24 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+| Finding | Source | Verdict | Route | Evidence |
+|---------|--------|---------|-------|----------|
+| rawModules aplica toString() em elementos não-string | blind-hunter | medium | patch | `current_permissions_provider.dart:71` — `m.toString()` gera "null" para valores não-string; corrigido para `.whereType<String>()` |
+| Admin bypass movido abaixo do branch obraId | blind-hunter + verification-gap | medium | patch | `access_guard.dart:62` — admin bypass não é exercitado pelo teste de obra inativa; teste adicionado para provar que admin NÃO bypassa obra inativa |
+| allowedModules fallback não exercitado em widget test | verification-gap | medium | patch | `current_permissions_provider.dart:69` — camada de integração in testada; teste widget adicionado |
+| flash momentâneo durante rebuild na troca de obra | edge-case-hunter | medium | defer | Race condition momentânea entre streams; AccessGuard cobre no nível de rota |
+| financeiro inconsistente entre caminhos obraId/null | edge-case-hunter | medium | defer | Comportamento pré-existente não causado por esta story |
+| null obraDoc tratado como ativo | edge-case-hunter | medium | defer | Fallback intencional para obras sem documento; AccessGuard cobre |
+| dupla normalização normalizeModule | edge-case-hunter + verification-gap | low | defer | Idempotente hoje; risco teórico se mapping crescer |
+| ObraSwitcher sem tratamento de erro | blind-hunter | low | defer | Degradção silenciosa aceitável; widget oculto em caso de erro |
+| _resolveRoute catch silencioso | blind-hunter | low | defer | Fallback intencional; ObraSwitcher não renderizado fora de contexto de obra |
+| sidebar isActive sem teste | verification-gap | low | defer | Guarda UI-only; rota protegida por AccessGuard |
+| dashboard isActive sem teste | verification-gap | low | defer | Guarda UI-only; rota protegida por AccessGuard |
+| sidebar null safety (obra != null) | blind-hunter | false | — | Já checked por `obra != null &&` na linha 93 |
+| findsNWidgets(2) correto | blind-hunter | false | — | Sidebar + dashboard card = 2 widgets |
+| Expanded + TextOverflow implementado | blind-hunter | false | — | Código já contém Expanded com TextOverflow.ellipsis |
+| module! fragility guardado | edge-case-hunter | false | — | Guardado por `module != null` na linha 63 |
 
 ## Design Notes
 

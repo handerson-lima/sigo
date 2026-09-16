@@ -14,17 +14,20 @@ final construtoraPermissionProvider = StreamProvider.autoDispose
       if (user == null) return Stream.value(null);
       return cachedDocument('construtoras/$c/construtora_members/${user.uid}');
     });
+
+final obraDocProvider = StreamProvider.autoDispose
+    .family<Map<String, dynamic>?, ObraScope>((ref, scope) {
+      return cachedDocument(
+        'construtoras/${scope.construtoraId}/obras/${scope.obraId}',
+      );
+    });
+
 final currentPermissionsProvider = StreamProvider.autoDispose
     .family<ObraMember?, ObraScope>((ref, scope) {
       final user = ref.watch(authStateChangesProvider).value;
       if (user == null) return Stream.value(null);
       final dev = ref.watch(trustedDevProvider).value == true;
-      final cm = ref
-          .watch(construtoraPermissionProvider(scope.construtoraId))
-          .value;
-      if (dev ||
-          cm?['isActive'] == true &&
-              (cm?['isAdmin'] == true || cm?['isOwner'] == true)) {
+      if (dev) {
         return Stream.value(
           ObraMember(
             userId: user.uid,
@@ -35,14 +38,38 @@ final currentPermissionsProvider = StreamProvider.autoDispose
           ),
         );
       }
+
+      final cm = ref
+          .watch(construtoraPermissionProvider(scope.construtoraId))
+          .value;
       if (cm?['isActive'] != true) return Stream.value(null);
+
+      final obraDoc = ref.watch(obraDocProvider(scope)).value;
+      if (obraDoc != null && obraDoc['isActive'] == false) {
+        return Stream.value(null);
+      }
+
+      if (cm?['isAdmin'] == true || cm?['isOwner'] == true) {
+        return Stream.value(
+          ObraMember(
+            userId: user.uid,
+            isAdmin: true,
+            isActive: true,
+            modules: ['diario', 'lotes', 'estoque'],
+            joinedAt: DateTime(2000),
+          ),
+        );
+      }
+
       return cachedDocument(
         'construtoras/${scope.construtoraId}/obras/${scope.obraId}/members/${user.uid}',
       ).map((doc) {
         if (doc?['isActive'] != true) return null;
-        final data = doc!;
-        data['modules'] = (data['modules'] as List? ?? [])
-            .map((m) => normalizeModule(m as String))
+        final data = Map<String, dynamic>.from(doc!);
+        final rawModules = data['modules'] ?? data['allowedModules'];
+        data['modules'] = (rawModules as List? ?? [])
+            .whereType<String>()
+            .map(normalizeModule)
             .toList();
         return ObraMember.fromJson(data);
       });

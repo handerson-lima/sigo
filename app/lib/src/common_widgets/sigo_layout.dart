@@ -31,7 +31,11 @@ class SigoLayout extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
-                      SigoTopBar(title: title, actions: actions),
+                      SigoTopBar(
+                        title: title,
+                        actions: actions,
+                        activeRoute: activeRoute,
+                      ),
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.all(24.0),
@@ -49,7 +53,11 @@ class SigoLayout extends StatelessWidget {
         // Mobile / Tablet Portrait
         return Scaffold(
           backgroundColor: const Color(0xFFF8FAFC),
-          appBar: SigoTopBar(title: title, actions: actions),
+          appBar: SigoTopBar(
+            title: title,
+            actions: actions,
+            activeRoute: activeRoute,
+          ),
           drawer: SigoSidebar(activeRoute: activeRoute),
           body: Padding(
             padding: const EdgeInsets.all(16.0),

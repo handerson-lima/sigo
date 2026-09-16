@@ -1,3 +1,4 @@
+import '../../../core/contracts.dart';
 import '../../lotes/domain/lote.dart';
 
 import 'package:flutter/material.dart';
@@ -32,9 +33,11 @@ class ObraDashboardScreen extends ConsumerWidget {
         obraId: obraId,
       )),
     );
-    final canLotes =
-        permissionsAsync.value?.isAdmin == true ||
-        permissionsAsync.value?.modules.contains('lotes') == true;
+    final activeMember = permissionsAsync.asData?.value;
+    final canLotes = activeMember != null &&
+        activeMember.isActive &&
+        (activeMember.isAdmin ||
+            activeMember.modules.map(normalizeModule).contains('lotes'));
     final lotesAsync = canLotes
         ? ref.watch(
             obraLotesProvider((construtoraId: construtoraId, obraId: obraId)),
@@ -107,7 +110,8 @@ class ObraDashboardScreen extends ConsumerWidget {
                           '/construtora/$construtoraId/obra/$obraId/lotes',
                         ),
                       ),
-                    if (member.isAdmin || member.modules.contains('diario'))
+                    if (member.isAdmin ||
+                        member.modules.map(normalizeModule).contains('diario'))
                       SigoModuleCard(
                         icon: Icons.assignment,
                         title: 'Diário de Obra',

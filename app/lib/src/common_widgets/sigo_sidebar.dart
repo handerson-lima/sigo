@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/contracts.dart';
 import '../features/authentication/data/auth_repository.dart';
 import '../features/authentication/data/user_repository.dart';
 
@@ -89,8 +90,10 @@ class SigoSidebar extends ConsumerWidget {
                       context.go('/construtora/$cId/obra/$oId');
                     },
                   ),
-                  if (obra?.isAdmin == true ||
-                      obra?.modules.contains('lotes') == true)
+                  if (obra != null &&
+                      obra.isActive &&
+                      (obra.isAdmin ||
+                          obra.modules.map(normalizeModule).contains('lotes')))
                     _NavItem(
                       icon: Icons.map,
                       title: 'Lotes e Setores',
@@ -100,8 +103,10 @@ class SigoSidebar extends ConsumerWidget {
                         context.go('/construtora/$cId/obra/$oId/lotes');
                       },
                     ),
-                  if (obra?.isAdmin == true ||
-                      obra?.modules.contains('diario') == true)
+                  if (obra != null &&
+                      obra.isActive &&
+                      (obra.isAdmin ||
+                          obra.modules.map(normalizeModule).contains('diario')))
                     _NavItem(
                       icon: Icons.assignment,
                       title: 'Diário de Obra',
@@ -218,11 +223,14 @@ class _NavItem extends StatelessWidget {
           children: [
             Icon(icon, color: isActive ? Colors.amber[700] : Colors.white70),
             const SizedBox(width: 12),
-            Text(
-              title,
-              style: TextStyle(
-                color: isActive ? Colors.amber[700] : Colors.white70,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isActive ? Colors.amber[700] : Colors.white70,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

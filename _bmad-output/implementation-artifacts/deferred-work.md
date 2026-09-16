@@ -16,6 +16,40 @@ C0–C6 estão detalhados no [plano de correções](../../docs/plano-de-correcao
 
 Requisitos anteriores permanecem [arquivados](../../docs/archive/2026-09-15-planejamento-anterior/README.md), sujeitos a refinamento para a hierarquia construtora/obra e o papel dev preservado.
 
+## Review Story 1.8 — findings adiados
+
+- source_spec: `spec-1-8-recalculo-modulos.md`
+  summary: Flash momentâneo na troca de obra durante rebuild do provider
+  evidence: Race condition entre streams; AccessGuard cobre no nível de rota
+
+- source_spec: `spec-1-8-recalculo-modulos.md`
+  summary: financeiro inconsistente entre caminhos obraId/null no AccessGuard
+  evidence: Comportamento pré-existente não causado por esta story
+
+- source_spec: `spec-1-8-recalculo-modulos.md`
+  summary: null obraDoc tratado como ativo no currentPermissionsProvider
+  evidence: Fallback intencional para obras sem documento; AccessGuard cobre
+
+- source_spec: `spec-1-8-recalculo-modulos.md`
+  summary: dupla normalização normalizeModule em sidebar e dashboard
+  evidence: Idempotente hoje; risco teórico se mapping crescer
+
+- source_spec: `spec-1-8-recalculo-modulos.md`
+  summary: ObraSwitcher sem tratamento de erro em stream
+  evidence: Degradção silenciosa aceitável; widget oculto em caso de erro
+
+- source_spec: `spec-1-8-recalculo-modulos.md`
+  summary: _resolveRoute catch silencioso no GoRouterState
+  evidence: Fallback intencional; ObraSwitcher não renderizado fora de contexto de obra
+
+- source_spec: `spec-1-8-recalculo-modulos.md`
+  summary: sidebar isActive sem teste de widget
+  evidence: Guarda UI-only; rota protegida por AccessGuard
+
+- source_spec: `spec-1-8-recalculo-modulos.md`
+  summary: dashboard isActive sem teste de widget
+  evidence: Guarda UI-only; rota protegida por AccessGuard
+
 ## Implantação
 
 Nenhuma migração, publicação ou alteração de dados de produção foi executada nesta atualização documental. Preparar resultado concreto, simulação e recuperação antes de solicitar implantação.
