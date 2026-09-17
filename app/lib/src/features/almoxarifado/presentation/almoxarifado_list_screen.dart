@@ -65,6 +65,7 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
                           0;
                       if (d['type'] == 'entrada') delta += q;
                       if (d['type'] == 'saida') delta -= q;
+                      if (d['type'] == 'ajuste') delta += q;
                     }
                     return Text(
                       'Confirmado: ${material.quantityUnits != null ? material.quantityUnits! / 1000 : material.currentQuantity} ${material.unit}${rows.isEmpty ? '' : '\nEstimativa com pendências: ${(material.quantityUnits != null ? material.quantityUnits! / 1000 : material.currentQuantity) + delta} ${material.unit}'}',
