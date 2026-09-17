@@ -63,7 +63,7 @@ development_status:
   2-10-idempotencia: done
   2-11-executar-autorizacao: done
   2-12-indicador-sincronizacao: done
-  2-13-sistema-carimbo: backlog
+  2-13-sistema-carimbo: done
   2-14-versionamento-migracao: backlog
   epic-2-retrospective: optional
 

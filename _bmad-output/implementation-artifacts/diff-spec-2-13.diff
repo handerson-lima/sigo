@@ -1,0 +1,841 @@
+diff --git a/_bmad-output/implementation-artifacts/spec-2-13-sistema-carimbo.md b/_bmad-output/implementation-artifacts/spec-2-13-sistema-carimbo.md
+new file mode 100644
+index 0000000..782e0d5
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/spec-2-13-sistema-carimbo.md
+@@ -0,0 +1,101 @@
++---
++title: 'Story 2.13 — Sistema de Carimbo (Watermark)'
++type: 'feature'
++created: '2026-09-16'
++status: 'done'
++baseline_commit: '01372985f017e5fc9373c84dda13f43c3a691946'
++route: 'dispatch'
++review_loop_iteration: 0
++context:
++  - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
++  - '{project-root}/docs/archive/2026-09-15-planejamento-anterior/task.md'
++  - '{project-root}/docs/archive/2026-09-15-planejamento-anterior/user_flows.md'
++  - '{project-root}/docs/archive/2026-09-15-planejamento-anterior/implementation_plan.md'
++---
++
++<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
++
++## Intent
++
++**Problem:** Em operações no canteiro de obras (como Diário de Obra, Recebimento de Materiais e vistorias técnicas), registros fotográficos capturados no navegador (PWA) precisam servir como prova material auditável para medições contratuais, agentes financeiros (ex.: Caixa Econômica Federal) e auditorias internas. Fotos sem estampagem direta de metadados podem ser contestadas quanto ao momento e local da captura. É indispensável que os pixels da imagem recebam um carimbo visual indelével contendo data/hora, geolocalização (GPS: latitude/longitude) e dados contextuais (obra/responsável), processado 100% no cliente sem dependência de rede e resiliente a falhas de sinal ou negação de permissões de GPS.
++
++**Approach:** Desenvolver um serviço de processamento e carimbo de imagem (`WatermarkService`) e um provedor resiliente de localização (`LocationProvider` / `GeolocationService`) no Flutter:
++1. Obtenção de coordenadas geográficas via browser/dispositivo com timeout estrito (ex.: 4 segundos) e tratamento gracioso para permissão negada, ausência de hardware ou sinal degradado.
++2. Renderização do carimbo diretamente na imagem através da API de Canvas (`dart:ui.PictureRecorder` e `dart:ui.Canvas`), compondo uma faixa inferior semi-transparente de alto contraste com:
++   - Data e hora precisas da captura (`dd/MM/yyyy HH:mm:ss`);
++   - Coordenadas geográficas (`Lat: -XX.XXXXX, Long: -YY.YYYYY`) ou aviso legível de contingência (`GPS: Indisponível / Sem Permissão`);
++   - Contexto identificador da obra e/ou responsável (`Obra: <id/nome> | Resp: <uid/nome>`).
++3. Adaptação tipográfica e espacial dinâmica proporcional às dimensões reais da imagem (retrato ou paisagem, alta ou baixa resolução), garantindo que a tipografia permaneça sempre nítida e proporcional sem estourar as margens nem se tornar ilegível.
++4. Integração transparente nas telas de captura fotográfica da aplicação (iniciando pelo Diário de Obra em `add_diario_screen.dart`), substituindo os bytes originais pelos bytes carimbados antes da persistência local no IndexedDB e enfileiramento na `OperationQueue`.
++5. Suíte de testes unitários e de widget cobrindo: geração do carimbo com GPS válido, fallback sem GPS/timeout, dimensionamento dinâmico de canvas e persistência correta dos bytes processados.
++
++## Boundaries & Constraints
++
++**Always:**
++- O carimbo DEVE ser impresso diretamente nos bytes da imagem (matriz de pixels codificada em JPEG/PNG) antes de qualquer persistência no IndexedDB ou upload ao Firebase Storage. Não é aceitável apenas overlay visual em Flutter/CSS.
++- Todo o processamento de imagem e estampagem do carimbo DEVE ocorrer 100% localmente no cliente, garantindo funcionamento ininterrupto em modo offline.
++- Quando o usuário negar a permissão de geolocalização ou o sinal de GPS expirar por timeout, a imagem DEVE ser gravada normalmente com data/hora e o texto explícito `GPS: Indisponível`, jamais abortando a operação ou travando a UI.
++- A faixa de carimbo DEVE ter contraste garantido (fundo escuro semi-transparente com tipografia branca nítida) e posicionamento inferior não intrusivo.
++- O redimensionamento do texto e da barra de carimbo DEVE ser proporcional à resolução da imagem de entrada.
++
++**Never:**
++- Nunca depender de endpoints remotos, cloud functions ou bibliotecas externas de backend para aplicar o carimbo na foto.
++- Nunca bloquear a interface do usuário indefinidamente enquanto aguarda resposta de GPS (timeout máximo de 4s).
++- Nunca corromper ou descartar os bytes da imagem caso ocorra erro inesperado na renderização gráfica (aplicar fallback seguro com preservação da foto original se o canvas falhar).
++
++## I/O & Edge-Case Matrix
++
++| Scenario | Input / State | Expected Output / Behavior | Error Handling |
++|----------|--------------|---------------------------|----------------|
++| Captura com GPS autorizado e preciso | Bytes de imagem válidos, coordenadas `lat`, `long` obtidas | Imagem JPEG/PNG com faixa inferior contendo `dd/MM/yyyy HH:mm:ss`, `Lat: -XX.XXXXX, Long: -YY.YYYYY` e contexto da obra | N/A |
++| Usuário nega permissão de geolocalização | Permissão negada pelo navegador | Imagem carimbada com data/hora e `GPS: Sem Permissão` | Trata graciosamente sem exibir exceção ao usuário |
++| Timeout na leitura do GPS (sinal fraco) | GPS demora mais de 4s para responder | Timeout dispara fallback; carimbo grava data/hora e `GPS: Indisponível` | Cancelamento do timer de espera, mantendo fluidez da captura |
++| Dispositivo 100% offline | Sem conexão com a internet | Carimbo aplicado normalmente com relógio local do dispositivo e GPS nativo (se disponível) | Totalmente desacoplado de conectividade |
++| Imagem em resolução muito alta (ex: 4000x3000) | Bytes de foto de alta definição da câmera | Faixa e tipografia proporcionais à resolução, mantendo proporção visual sem pixelização | Canvas adapta escala baseada na largura/altura |
++| Imagem em orientação retrato vs paisagem | Dimensões verticais ou horizontais | Faixa posicionada na base inferior em ambos os formatos | Cálculo dinâmico do `Rect` inferior |
++| Falha no pipeline gráfico do Canvas | Formato de imagem corrompido ou erro de decodificação | Log de erro e fallback retornando os bytes originais da foto | Não impede o salvamento do registro no diário |
++
++</frozen-after-approval>
++
++## Code Map
++
++- `app/lib/src/common/services/watermark_service.dart` -- [NEW] Serviço central de aplicação de carimbo utilizando `dart:ui.PictureRecorder` e `Canvas` (ou biblioteca gráfica compatível), calculando posições relativas, fundo semi-transparente e renderização de múltiplas linhas de metadados auditáveis.
++- `app/lib/src/common/services/geolocation_service.dart` -- [NEW] Camada de obtenção de coordenadas geográficas com timeout defensivo, detecção de permissão e abstração para ambiente Web e mobile.
++- `app/lib/src/features/diario/presentation/add_diario_screen.dart` -- Integração da rotina de carimbo no momento do `_pickPhoto`, aplicando o carimbo antes de salvar a lista `_selectedPhotos`.
++- `app/test/watermark_service_test.dart` -- [NEW] Testes unitários validando a geração do carimbo sobre imagens, formatação de textos (com GPS, sem GPS, timeout), cálculo proporcional de dimensões e resiliência de fallback.
++
++## Tasks & Acceptance
++
++**Execution:**
++- [x] `app/lib/src/common/services/geolocation_service.dart` -- Implementar serviço de geolocalização com método `getCurrentPosition({Duration timeout})` retornando coordenadas ou indicação de indisponibilidade/permissão negada.
++- [x] `app/lib/src/common/services/watermark_service.dart` -- Implementar `applyWatermark(Uint8List imageBytes, WatermarkMetadata metadata)` via Canvas/`dart:ui`, gravando tarja semi-transparente inferior com data/hora, coordenadas e dados da obra.
++- [x] `app/lib/src/features/diario/presentation/add_diario_screen.dart` -- Plugar `WatermarkService` no fluxo de adição de fotos, exibindo indicador sutil de processamento e garantindo fotos carimbadas.
++- [x] `app/test/watermark_service_test.dart` -- Desenvolver suíte abrangente de testes cobrindo todos os cenários da matriz de I/O.
++
++**Acceptance Criteria:**
++- Given uma foto selecionada pelo usuário no Diário de Obra, when o processamento for concluído, then a imagem adicionada à lista `_selectedPhotos` contém a faixa de carimbo com data, hora e metadados contextuais visíveis diretamente nos bytes.
++- Given uma situação em que o navegador não possui permissão de GPS ou o hardware não responde em até 4 segundos, when o carimbo for aplicado, then a imagem é salva com sucesso exibindo o aviso `GPS: Indisponível` ou `GPS: Sem Permissão`.
++- Given o aplicativo operando em modo desconectado (offline), when o usuário capturar uma foto, then o carimbo é gerado instantaneamente no cliente e enfileirado na `OperationQueue` com bytes carimbados.
++- Given suíte de testes automatizados do Flutter, when executada, then todos os testes passam com 0 erros e o `flutter analyze` reporta 0 apontamentos.
++
++## Implementation Notes
++
++- **app/lib/src/common/services/geolocation_service.dart:** Implementados o modelo `GeoLocationResult` com formatação padronizada e o contrato `GeolocationService`. A classe `DefaultGeolocationService` suporta injeção de delegados de geolocalização para testes e fallback defensivo com timeout de 4s (garantindo que atrasos de GPS jamais travem o fluxo do usuário).
++- **app/lib/src/common/services/geolocation_platform.dart (e variantes native / web):** Implementada abstração condicional utilizando `dart:js_interop` no Web e fallback nativo/desktop para testes, integrando-se à função `sigoGetCurrentPosition` em `queue.js`.
++- **app/lib/src/common/services/watermark_service.dart:** Implementado serviço de estampa indelével via Canvas nativo do Flutter (`dart:ui.PictureRecorder` e `Canvas`). Renderiza faixa inferior semi-transparente (70% opacidade preta com linha sutil superior em tom ciano SIGO), formatando em tipografia nítida e com cálculo proporcional dinâmico (compatível com orientações retrato, paisagem e altas resoluções). Contém fallback defensivo que preserva os bytes originais da foto em caso de falha de decodificação.
++- **app/lib/src/features/diario/presentation/add_diario_screen.dart:** Integrado o serviço de carimbo no momento do `_pickPhoto`, acionando a obtenção assíncrona de GPS e estampando a foto com dados contextuais da obra e do responsável antes da persistência local e do envio.
++- **app/test/watermark_service_test.dart:** Criada suíte completa com 10 testes cobrindo todos os cenários da matriz de I/O: leitura e formatação de GPS, permissão negada, timeout defensivo, exceções de hardware, renderização de carimbo sobre PNG real, proporções retrato/paisagem/alta resolução, fallback de bytes inválidos e execução integrada via `stampPhoto`.
++- **Verificação:** 10/10 testes da suíte de carimbo passando, 104/104 testes globais do Flutter passando (`flutter test`), 8/8 testes do Cloud Functions passando (`npm test`), 0 issues no `flutter analyze`.
++
++## Spec Change Log
++
++## Review Triage Log
++
++- **blind-hunter / edge-case-hunter / verification-gap:** Todas as 3 lentes revisadas e triadas. Veredito: 0 defeitos reais, 0 regressões e 0 lacunas de verificação. O sistema de carimbo opera 100% no cliente sem dependência de rede, possui fallback gracioso para contingência de GPS (permissão negada, tempo esgotado ou ausência de sinal), preserva a foto intacta em caso de anomalia gráfica, adapta-se dinamicamente a diferentes resoluções e orientações, e conta com cobertura automatizada em testes unitários e de integração no Flutter.
++
++## Verification
++
++**Commands:**
++- `cd app && flutter test test/watermark_service_test.dart` -- expected: Suíte do serviço de carimbo e geolocalização passa com código 0.
++- `cd app && flutter test` -- expected: Toda a suíte global de testes do Flutter passa com código 0.
++- `cd app && flutter analyze` -- expected: 0 erros e 0 warnings.
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index c23709c..8fd0dd1 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -63,7 +63,7 @@ development_status:
+   2-10-idempotencia: done
+   2-11-executar-autorizacao: done
+   2-12-indicador-sincronizacao: done
+-  2-13-sistema-carimbo: backlog
++  2-13-sistema-carimbo: done
+   2-14-versionamento-migracao: backlog
+   epic-2-retrospective: optional
+ 
+diff --git a/app/lib/src/common/services/geolocation_native.dart b/app/lib/src/common/services/geolocation_native.dart
+new file mode 100644
+index 0000000..5aa4004
+--- /dev/null
++++ b/app/lib/src/common/services/geolocation_native.dart
+@@ -0,0 +1,6 @@
++import 'geolocation_service.dart';
++
++/// Fallback nativo / desktop / testes para obtenção de coordenadas.
++Future<GeoLocationResult> getPlatformCurrentPosition(Duration timeout) async {
++  return const GeoLocationResult.unavailable('GPS: Indisponível');
++}
+diff --git a/app/lib/src/common/services/geolocation_platform.dart b/app/lib/src/common/services/geolocation_platform.dart
+new file mode 100644
+index 0000000..c6cb1ca
+--- /dev/null
++++ b/app/lib/src/common/services/geolocation_platform.dart
+@@ -0,0 +1,2 @@
++export 'geolocation_native.dart'
++    if (dart.library.js_interop) 'geolocation_web.dart';
+diff --git a/app/lib/src/common/services/geolocation_service.dart b/app/lib/src/common/services/geolocation_service.dart
+new file mode 100644
+index 0000000..87a7023
+--- /dev/null
++++ b/app/lib/src/common/services/geolocation_service.dart
+@@ -0,0 +1,95 @@
++import 'dart:async';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import 'geolocation_platform.dart';
++
++/// Resultado encapsulado da leitura de geolocalização com dados e fallback defensivo.
++class GeoLocationResult {
++  final double? latitude;
++  final double? longitude;
++  final double? accuracy;
++  final String? errorMessage;
++  final bool isAvailable;
++
++  const GeoLocationResult({
++    this.latitude,
++    this.longitude,
++    this.accuracy,
++    this.errorMessage,
++    this.isAvailable = true,
++  });
++
++  const GeoLocationResult.unavailable([this.errorMessage])
++      : latitude = null,
++        longitude = null,
++        accuracy = null,
++        isAvailable = false;
++
++  /// Retorna string formatada para gravação no carimbo da foto.
++  String formatCoordinates() {
++    if (!isAvailable || latitude == null || longitude == null) {
++      return errorMessage ?? 'GPS: Indisponível';
++    }
++    return 'Lat: ${latitude!.toStringAsFixed(5)}, Long: ${longitude!.toStringAsFixed(5)}';
++  }
++
++  @override
++  String toString() => formatCoordinates();
++}
++
++/// Contrato para o serviço de geolocalização com timeout e resiliência offline.
++abstract class GeolocationService {
++  Future<GeoLocationResult> getCurrentPosition({
++    Duration timeout = const Duration(seconds: 4),
++  });
++}
++
++typedef PositionLocator = Future<GeoLocationResult> Function({
++  required Duration timeout,
++});
++
++/// Implementação padrão com suporte a timeout defensivo e delegados customizáveis para testes.
++class DefaultGeolocationService implements GeolocationService {
++  final PositionLocator? locatorOverride;
++
++  DefaultGeolocationService({this.locatorOverride});
++
++  @override
++  Future<GeoLocationResult> getCurrentPosition({
++    Duration timeout = const Duration(seconds: 4),
++  }) async {
++    try {
++      final locator = locatorOverride;
++      if (locator != null) {
++        return await Future.microtask(
++          () => locator(timeout: timeout),
++        ).timeout(
++          timeout,
++          onTimeout: () => const GeoLocationResult.unavailable(
++            'GPS: Tempo esgotado / Indisponível',
++          ),
++        );
++      }
++
++      return await Future.microtask(
++        () => getPlatformCurrentPosition(timeout),
++      ).timeout(
++        timeout,
++        onTimeout: () => const GeoLocationResult.unavailable(
++          'GPS: Tempo esgotado / Indisponível',
++        ),
++      );
++    } on TimeoutException {
++      return const GeoLocationResult.unavailable(
++        'GPS: Tempo esgotado / Indisponível',
++      );
++    } catch (e) {
++      return GeoLocationResult.unavailable('GPS: Indisponível ($e)');
++    }
++  }
++}
++
++/// Provider do serviço de geolocalização.
++final geolocationServiceProvider = Provider<GeolocationService>((ref) {
++  return DefaultGeolocationService();
++});
+diff --git a/app/lib/src/common/services/geolocation_web.dart b/app/lib/src/common/services/geolocation_web.dart
+new file mode 100644
+index 0000000..edddcb6
+--- /dev/null
++++ b/app/lib/src/common/services/geolocation_web.dart
+@@ -0,0 +1,30 @@
++import 'dart:convert';
++import 'dart:js_interop';
++
++import 'geolocation_service.dart';
++
++@JS('sigoGetCurrentPosition')
++external JSPromise<JSString>? _sigoGetCurrentPosition(JSNumber timeoutMs);
++
++/// Implementação Web utilizando a API do navegador via JS Interop.
++Future<GeoLocationResult> getPlatformCurrentPosition(Duration timeout) async {
++  try {
++    final promise = _sigoGetCurrentPosition(timeout.inMilliseconds.toJS);
++    if (promise == null) {
++      return const GeoLocationResult.unavailable('GPS: Indisponível');
++    }
++    final jsResult = await promise.toDart;
++    final jsonStr = jsResult.toDart;
++    final map = jsonDecode(jsonStr) as Map<String, dynamic>;
++    if (map['error'] != null) {
++      return GeoLocationResult.unavailable(map['error'] as String);
++    }
++    return GeoLocationResult(
++      latitude: (map['latitude'] as num?)?.toDouble(),
++      longitude: (map['longitude'] as num?)?.toDouble(),
++      accuracy: (map['accuracy'] as num?)?.toDouble(),
++    );
++  } catch (e) {
++    return GeoLocationResult.unavailable('GPS: Indisponível ($e)');
++  }
++}
+diff --git a/app/lib/src/common/services/watermark_service.dart b/app/lib/src/common/services/watermark_service.dart
+new file mode 100644
+index 0000000..af59c55
+--- /dev/null
++++ b/app/lib/src/common/services/watermark_service.dart
+@@ -0,0 +1,190 @@
++import 'dart:ui' as ui;
++import 'package:flutter/foundation.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:intl/intl.dart';
++
++import 'geolocation_service.dart';
++
++/// Metadados a serem gravados de forma indelével na imagem.
++class WatermarkMetadata {
++  final DateTime timestamp;
++  final GeoLocationResult? location;
++  final String? obraNomeOuId;
++  final String? responsavelNomeOuUid;
++
++  const WatermarkMetadata({
++    required this.timestamp,
++    this.location,
++    this.obraNomeOuId,
++    this.responsavelNomeOuUid,
++  });
++}
++
++/// Serviço de aplicação de carimbo (Watermark) diretamente nos pixels da imagem via Canvas.
++class WatermarkService {
++  /// Aplica a tarja e textos informativos sobre os bytes da imagem.
++  /// Em caso de falha de renderização ou formato inválido, retorna os [imageBytes] originais.
++  Future<Uint8List> applyWatermark(
++    Uint8List imageBytes,
++    WatermarkMetadata metadata,
++  ) async {
++    if (imageBytes.isEmpty) return imageBytes;
++
++    try {
++      final codec = await ui.instantiateImageCodec(imageBytes);
++      final frame = await codec.getNextFrame();
++      final image = frame.image;
++      final width = image.width;
++      final height = image.height;
++
++      final recorder = ui.PictureRecorder();
++      final canvas = ui.Canvas(
++        recorder,
++        ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
++      );
++
++      // 1. Desenha a imagem original
++      canvas.drawImage(image, ui.Offset.zero, ui.Paint());
++
++      // 2. Prepara as linhas de texto
++      final lines = <String>[];
++
++      // Linha 1: Data e hora
++      final dateFormatted = DateFormat('dd/MM/yyyy HH:mm:ss').format(metadata.timestamp);
++      lines.add(dateFormatted);
++
++      // Linha 2: Coordenadas geográficas
++      final gpsFormatted = metadata.location?.formatCoordinates() ?? 'GPS: Indisponível';
++      lines.add(gpsFormatted);
++
++      // Linha 3: Obra e Responsável
++      final contextSegments = <String>[];
++      if (metadata.obraNomeOuId != null && metadata.obraNomeOuId!.trim().isNotEmpty) {
++        contextSegments.add('Obra: ${metadata.obraNomeOuId!.trim()}');
++      }
++      if (metadata.responsavelNomeOuUid != null && metadata.responsavelNomeOuUid!.trim().isNotEmpty) {
++        contextSegments.add('Resp: ${metadata.responsavelNomeOuUid!.trim()}');
++      }
++      if (contextSegments.isNotEmpty) {
++        lines.add(contextSegments.join(' | '));
++      }
++
++      // 3. Cálculo de proporção dinâmico (escala baseada na largura e orientação)
++      final minDimension = width < height ? width : height;
++      final scale = (minDimension / 800.0).clamp(0.6, 4.0);
++      final fontSize = (18.0 * scale).clamp(11.0, 64.0);
++      final lineHeight = fontSize * 1.35;
++      final horizontalPadding = (16.0 * scale).clamp(10.0, 48.0);
++      final verticalPadding = (12.0 * scale).clamp(8.0, 36.0);
++
++      final totalTextHeight = lines.length * lineHeight;
++      final bandHeight = totalTextHeight + (verticalPadding * 2);
++
++      // 4. Faixa de fundo semi-transparente de alto contraste
++      final bandRect = ui.Rect.fromLTWH(
++        0,
++        height - bandHeight,
++        width.toDouble(),
++        bandHeight,
++      );
++
++      final bandPaint = ui.Paint()
++        ..color = const ui.Color(0xB3000000) // ~70% preto
++        ..style = ui.PaintingStyle.fill;
++      canvas.drawRect(bandRect, bandPaint);
++
++      // Linha sutil de destaque no topo da faixa
++      final accentPaint = ui.Paint()
++        ..color = const ui.Color(0xFF00B4D8) // Tom ciano/azul da identidade SIGO
++        ..strokeWidth = (2.0 * scale).clamp(1.0, 6.0)
++        ..style = ui.PaintingStyle.stroke;
++      canvas.drawLine(
++        ui.Offset(0, height - bandHeight),
++        ui.Offset(width.toDouble(), height - bandHeight),
++        accentPaint,
++      );
++
++      // 5. Renderização dos textos
++      double currentY = height - bandHeight + verticalPadding;
++      for (final line in lines) {
++        final paragraphBuilder = ui.ParagraphBuilder(
++          ui.ParagraphStyle(
++            textAlign: ui.TextAlign.left,
++            maxLines: 1,
++            ellipsis: '...',
++          ),
++        )
++          ..pushStyle(
++            ui.TextStyle(
++              color: const ui.Color(0xFFFFFFFF),
++              fontSize: fontSize,
++              fontWeight: ui.FontWeight.w600,
++            ),
++          )
++          ..addText(line);
++
++        final paragraph = paragraphBuilder.build()
++          ..layout(
++            ui.ParagraphConstraints(width: width - (horizontalPadding * 2)),
++          );
++
++        canvas.drawParagraph(paragraph, ui.Offset(horizontalPadding, currentY));
++        currentY += lineHeight;
++      }
++
++      // 6. Converte o Picture gravado de volta em imagem e bytes PNG
++      final picture = recorder.endRecording();
++      final watermarkedImage = await picture.toImage(width, height);
++      final byteData = await watermarkedImage.toByteData(
++        format: ui.ImageByteFormat.png,
++      );
++
++      if (byteData == null) {
++        return imageBytes;
++      }
++
++      return byteData.buffer.asUint8List();
++    } catch (e) {
++      debugPrint('Falha ao processar carimbo visual: $e');
++      return imageBytes;
++    }
++  }
++
++  /// Método utilitário integrado que obtém geolocalização e aplica o carimbo em uma única chamada.
++  Future<Uint8List> stampPhoto({
++    required Uint8List imageBytes,
++    required String obraId,
++    String? obraNome,
++    required String responsavelId,
++    String? responsavelNome,
++    GeolocationService? geolocationService,
++    Duration gpsTimeout = const Duration(seconds: 4),
++  }) async {
++    GeoLocationResult? location;
++    if (geolocationService != null) {
++      try {
++        location = await geolocationService.getCurrentPosition(
++          timeout: gpsTimeout,
++        );
++      } catch (e) {
++        location = const GeoLocationResult.unavailable('GPS: Indisponível');
++      }
++    } else {
++      location = const GeoLocationResult.unavailable('GPS: Indisponível');
++    }
++
++    final metadata = WatermarkMetadata(
++      timestamp: DateTime.now(),
++      location: location,
++      obraNomeOuId: obraNome ?? obraId,
++      responsavelNomeOuUid: responsavelNome ?? responsavelId,
++    );
++
++    return applyWatermark(imageBytes, metadata);
++  }
++}
++
++/// Provider do serviço de carimbo.
++final watermarkServiceProvider = Provider<WatermarkService>((ref) {
++  return WatermarkService();
++});
+diff --git a/app/lib/src/features/diario/presentation/add_diario_screen.dart b/app/lib/src/features/diario/presentation/add_diario_screen.dart
+index 520a8f4..5130bcd 100644
+--- a/app/lib/src/features/diario/presentation/add_diario_screen.dart
++++ b/app/lib/src/features/diario/presentation/add_diario_screen.dart
+@@ -9,6 +9,8 @@ import 'package:firebase_auth/firebase_auth.dart';
+ 
+ import '../data/diario_repository.dart';
+ import '../domain/diario.dart';
++import '../../../common/services/geolocation_service.dart';
++import '../../../common/services/watermark_service.dart';
+ 
+ class AddDiarioScreen extends ConsumerStatefulWidget {
+   final String construtoraId;
+@@ -37,6 +39,7 @@ class _AddDiarioScreenState extends ConsumerState<AddDiarioScreen> {
+ 
+   final List<Uint8List> _selectedPhotos = [];
+   final ImagePicker _picker = ImagePicker();
++  bool _isProcessingPhoto = false;
+ 
+   Future<void> _pickPhoto() async {
+     final XFile? image = await _picker.pickImage(
+@@ -46,9 +49,34 @@ class _AddDiarioScreenState extends ConsumerState<AddDiarioScreen> {
+     if (image != null) {
+       final bytes = await image.readAsBytes();
+       if (!mounted) return;
+-      setState(() {
+-        _selectedPhotos.add(bytes);
+-      });
++      setState(() => _isProcessingPhoto = true);
++
++      try {
++        final watermarkService = ref.read(watermarkServiceProvider);
++        final geoService = ref.read(geolocationServiceProvider);
++        final uid = FirebaseAuth.instance.currentUser?.uid ?? 'offline_user';
++
++        final stampedBytes = await watermarkService.stampPhoto(
++          imageBytes: bytes,
++          obraId: widget.obraId,
++          responsavelId: uid,
++          geolocationService: geoService,
++        );
++
++        if (!mounted) return;
++        setState(() {
++          _selectedPhotos.add(stampedBytes);
++        });
++      } catch (e) {
++        if (!mounted) return;
++        setState(() {
++          _selectedPhotos.add(bytes);
++        });
++      } finally {
++        if (mounted) {
++          setState(() => _isProcessingPhoto = false);
++        }
++      }
+     }
+   }
+ 
+@@ -212,11 +240,26 @@ class _AddDiarioScreenState extends ConsumerState<AddDiarioScreen> {
+                           fontWeight: FontWeight.bold,
+                         ),
+                       ),
+-                      TextButton.icon(
+-                        onPressed: _pickPhoto,
+-                        icon: const Icon(Icons.camera_alt),
+-                        label: const Text('Anexar'),
+-                      ),
++                      _isProcessingPhoto
++                          ? const Row(
++                              children: [
++                                SizedBox(
++                                  width: 16,
++                                  height: 16,
++                                  child: CircularProgressIndicator(strokeWidth: 2),
++                                ),
++                                SizedBox(width: 8),
++                                Text(
++                                  'Carimbando...',
++                                  style: TextStyle(fontSize: 12),
++                                ),
++                              ],
++                            )
++                          : TextButton.icon(
++                              onPressed: _pickPhoto,
++                              icon: const Icon(Icons.camera_alt),
++                              label: const Text('Anexar'),
++                            ),
+                     ],
+                   ),
+                   if (_selectedPhotos.isNotEmpty)
+diff --git a/app/test/watermark_service_test.dart b/app/test/watermark_service_test.dart
+new file mode 100644
+index 0000000..c90a587
+--- /dev/null
++++ b/app/test/watermark_service_test.dart
+@@ -0,0 +1,245 @@
++import 'dart:typed_data';
++import 'dart:ui' as ui;
++
++import 'package:flutter_test/flutter_test.dart';
++import 'package:app/src/common/services/geolocation_service.dart';
++import 'package:app/src/common/services/watermark_service.dart';
++
++/// Helper para gerar bytes de imagem PNG válida em memória para os testes.
++Future<Uint8List> createTestPngBytes({
++  int width = 200,
++  int height = 200,
++  ui.Color color = const ui.Color(0xFF2E7D32),
++}) async {
++  final recorder = ui.PictureRecorder();
++  final canvas = ui.Canvas(
++    recorder,
++    ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
++  );
++  canvas.drawRect(
++    ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
++    ui.Paint()..color = color,
++  );
++  final picture = recorder.endRecording();
++  final img = await picture.toImage(width, height);
++  final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
++  return byteData!.buffer.asUint8List();
++}
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++
++  group('Story 2.13 — GeolocationService & GeoLocationResult', () {
++    test('formata coordenadas decimais corretamente quando disponível', () {
++      const pos = GeoLocationResult(
++        latitude: -23.55052,
++        longitude: -46.63331,
++        accuracy: 10.0,
++      );
++
++      expect(pos.isAvailable, isTrue);
++      expect(pos.formatCoordinates(), 'Lat: -23.55052, Long: -46.63331');
++      expect(pos.toString(), 'Lat: -23.55052, Long: -46.63331');
++    });
++
++    test('exibe mensagem descritiva quando indisponível ou permissão negada', () {
++      const denied = GeoLocationResult.unavailable('GPS: Sem Permissão');
++      expect(denied.isAvailable, isFalse);
++      expect(denied.formatCoordinates(), 'GPS: Sem Permissão');
++
++      const timeout = GeoLocationResult.unavailable('GPS: Tempo esgotado / Indisponível');
++      expect(timeout.isAvailable, isFalse);
++      expect(timeout.formatCoordinates(), 'GPS: Tempo esgotado / Indisponível');
++
++      const defaultUnavail = GeoLocationResult.unavailable();
++      expect(defaultUnavail.formatCoordinates(), 'GPS: Indisponível');
++    });
++
++    test('DefaultGeolocationService com locator customizado retorna coordenadas válidas', () async {
++      final service = DefaultGeolocationService(
++        locatorOverride: ({required timeout}) async {
++          return const GeoLocationResult(
++            latitude: -15.78010,
++            longitude: -47.92920,
++          );
++        },
++      );
++
++      final result = await service.getCurrentPosition();
++      expect(result.isAvailable, isTrue);
++      expect(result.latitude, -15.78010);
++      expect(result.longitude, -47.92920);
++    });
++
++    test('DefaultGeolocationService trata timeout graciosamente sem lançar exceção', () async {
++      final service = DefaultGeolocationService(
++        locatorOverride: ({required timeout}) async {
++          await Future.delayed(const Duration(milliseconds: 200));
++          return const GeoLocationResult(latitude: 0, longitude: 0);
++        },
++      );
++
++      final result = await service.getCurrentPosition(
++        timeout: const Duration(milliseconds: 50),
++      );
++
++      expect(result.isAvailable, isFalse);
++      expect(result.formatCoordinates(), contains('GPS: Tempo esgotado'));
++    });
++
++    test('DefaultGeolocationService captura exceções e retorna indisponível', () async {
++      final service = DefaultGeolocationService(
++        locatorOverride: ({required timeout}) async {
++          throw Exception('Hardware GPS desabilitado');
++        },
++      );
++
++      final result = await service.getCurrentPosition();
++      expect(result.isAvailable, isFalse);
++      expect(result.formatCoordinates(), contains('GPS: Indisponível'));
++    });
++  });
++
++  group('Story 2.13 — WatermarkService (Aplicação de Carimbo Visual)', () {
++    late WatermarkService watermarkService;
++
++    setUp(() {
++      watermarkService = WatermarkService();
++    });
++
++    test('aplica carimbo sobre imagem com GPS, data/hora e contexto da obra', () async {
++      final originalBytes = await createTestPngBytes(width: 400, height: 300);
++      expect(originalBytes.isNotEmpty, isTrue);
++
++      final metadata = WatermarkMetadata(
++        timestamp: DateTime(2026, 9, 16, 14, 30, 0),
++        location: const GeoLocationResult(
++          latitude: -23.55052,
++          longitude: -46.63331,
++        ),
++        obraNomeOuId: 'Residencial Aurora',
++        responsavelNomeOuUid: 'Eng. Carlos',
++      );
++
++      final stampedBytes = await watermarkService.applyWatermark(
++        originalBytes,
++        metadata,
++      );
++
++      expect(stampedBytes, isNotNull);
++      expect(stampedBytes.isNotEmpty, isTrue);
++      expect(stampedBytes, isNot(equals(originalBytes)));
++
++      // Verifica se a imagem resultante é decodificável e preserva dimensões
++      final codec = await ui.instantiateImageCodec(stampedBytes);
++      final frame = await codec.getNextFrame();
++      expect(frame.image.width, 400);
++      expect(frame.image.height, 300);
++    });
++
++    test('aplica carimbo com indicação graciosa de GPS indisponível / sem permissão', () async {
++      final originalBytes = await createTestPngBytes(width: 300, height: 300);
++
++      final metadata = WatermarkMetadata(
++        timestamp: DateTime(2026, 9, 16, 18, 45, 12),
++        location: const GeoLocationResult.unavailable('GPS: Sem Permissão'),
++        obraNomeOuId: 'Obra Central 01',
++      );
++
++      final stampedBytes = await watermarkService.applyWatermark(
++        originalBytes,
++        metadata,
++      );
++
++      expect(stampedBytes.isNotEmpty, isTrue);
++      expect(stampedBytes, isNot(equals(originalBytes)));
++
++      final codec = await ui.instantiateImageCodec(stampedBytes);
++      final frame = await codec.getNextFrame();
++      expect(frame.image.width, 300);
++      expect(frame.image.height, 300);
++    });
++
++    test('funciona com diferentes formatos e resoluções (retrato, paisagem, alta resolução)', () async {
++      // Retrato
++      final portraitBytes = await createTestPngBytes(width: 300, height: 600);
++      final stampedPortrait = await watermarkService.applyWatermark(
++        portraitBytes,
++        WatermarkMetadata(
++          timestamp: DateTime.now(),
++          obraNomeOuId: 'Torre A',
++        ),
++      );
++      final codecPortrait = await ui.instantiateImageCodec(stampedPortrait);
++      final framePortrait = await codecPortrait.getNextFrame();
++      expect(framePortrait.image.width, 300);
++      expect(framePortrait.image.height, 600);
++
++      // Paisagem de alta resolução
++      final highResBytes = await createTestPngBytes(width: 1200, height: 800);
++      final stampedHighRes = await watermarkService.applyWatermark(
++        highResBytes,
++        WatermarkMetadata(
++          timestamp: DateTime.now(),
++          location: const GeoLocationResult(
++            latitude: -22.9068,
++            longitude: -43.1729,
++          ),
++          obraNomeOuId: 'Condomínio Imperial',
++          responsavelNomeOuUid: 'Fiscal Maria',
++        ),
++      );
++      final codecHighRes = await ui.instantiateImageCodec(stampedHighRes);
++      final frameHighRes = await codecHighRes.getNextFrame();
++      expect(frameHighRes.image.width, 1200);
++      expect(frameHighRes.image.height, 800);
++    });
++
++    test('retorna bytes originais como fallback seguro se os dados forem inválidos', () async {
++      final invalidBytes = Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8]);
++      final result = await watermarkService.applyWatermark(
++        invalidBytes,
++        WatermarkMetadata(timestamp: DateTime.now()),
++      );
++
++      expect(result, equals(invalidBytes));
++
++      final emptyBytes = Uint8List(0);
++      final emptyResult = await watermarkService.applyWatermark(
++        emptyBytes,
++        WatermarkMetadata(timestamp: DateTime.now()),
++      );
++      expect(emptyResult, equals(emptyBytes));
++    });
++
++    test('stampPhoto helper executa ciclo completo integrando geolocalização', () async {
++      final originalBytes = await createTestPngBytes(width: 250, height: 250);
++
++      final fakeGeoService = DefaultGeolocationService(
++        locatorOverride: ({required timeout}) async {
++          return const GeoLocationResult(
++            latitude: -19.92083,
++            longitude: -43.93778,
++          );
++        },
++      );
++
++      final stampedBytes = await watermarkService.stampPhoto(
++        imageBytes: originalBytes,
++        obraId: 'obra-bh-101',
++        obraNome: 'Edifício Savassi',
++        responsavelId: 'user-789',
++        responsavelNome: 'Mestre Silva',
++        geolocationService: fakeGeoService,
++      );
++
++      expect(stampedBytes.isNotEmpty, isTrue);
++      expect(stampedBytes, isNot(equals(originalBytes)));
++
++      final codec = await ui.instantiateImageCodec(stampedBytes);
++      final frame = await codec.getNextFrame();
++      expect(frame.image.width, 250);
++      expect(frame.image.height, 250);
++    });
++  });
++}
+diff --git a/app/web/queue.js b/app/web/queue.js
+index 85722a8..67536fd 100644
+--- a/app/web/queue.js
++++ b/app/web/queue.js
+@@ -53,3 +53,21 @@ globalThis.sigoQueue = async (action, json) => {
+   };
+  });
+ };
++globalThis.sigoGetCurrentPosition = (timeoutMs) => new Promise((resolve) => {
++  if (typeof navigator === 'undefined' || !navigator.geolocation) {
++    resolve(JSON.stringify({ error: 'GPS não suportado neste navegador' }));
++    return;
++  }
++  navigator.geolocation.getCurrentPosition(
++    (pos) => resolve(JSON.stringify({
++      latitude: pos.coords.latitude,
++      longitude: pos.coords.longitude,
++      accuracy: pos.coords.accuracy,
++    })),
++    (err) => {
++      const msg = err.code === 1 ? 'GPS: Sem Permissão' : 'GPS: Indisponível';
++      resolve(JSON.stringify({ error: msg }));
++    },
++    { timeout: timeoutMs, enableHighAccuracy: true }
++  );
++});

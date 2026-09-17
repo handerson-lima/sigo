@@ -53,3 +53,21 @@ globalThis.sigoQueue = async (action, json) => {
   };
  });
 };
+globalThis.sigoGetCurrentPosition = (timeoutMs) => new Promise((resolve) => {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    resolve(JSON.stringify({ error: 'GPS não suportado neste navegador' }));
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => resolve(JSON.stringify({
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+      accuracy: pos.coords.accuracy,
+    })),
+    (err) => {
+      const msg = err.code === 1 ? 'GPS: Sem Permissão' : 'GPS: Indisponível';
+      resolve(JSON.stringify({ error: msg }));
+    },
+    { timeout: timeoutMs, enableHighAccuracy: true }
+  );
+});

@@ -9,6 +9,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../data/diario_repository.dart';
 import '../domain/diario.dart';
+import '../../../common/services/geolocation_service.dart';
+import '../../../common/services/watermark_service.dart';
 
 class AddDiarioScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -37,6 +39,7 @@ class _AddDiarioScreenState extends ConsumerState<AddDiarioScreen> {
 
   final List<Uint8List> _selectedPhotos = [];
   final ImagePicker _picker = ImagePicker();
+  bool _isProcessingPhoto = false;
 
   Future<void> _pickPhoto() async {
     final XFile? image = await _picker.pickImage(
@@ -46,9 +49,34 @@ class _AddDiarioScreenState extends ConsumerState<AddDiarioScreen> {
     if (image != null) {
       final bytes = await image.readAsBytes();
       if (!mounted) return;
-      setState(() {
-        _selectedPhotos.add(bytes);
-      });
+      setState(() => _isProcessingPhoto = true);
+
+      try {
+        final watermarkService = ref.read(watermarkServiceProvider);
+        final geoService = ref.read(geolocationServiceProvider);
+        final uid = FirebaseAuth.instance.currentUser?.uid ?? 'offline_user';
+
+        final stampedBytes = await watermarkService.stampPhoto(
+          imageBytes: bytes,
+          obraId: widget.obraId,
+          responsavelId: uid,
+          geolocationService: geoService,
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _selectedPhotos.add(stampedBytes);
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _selectedPhotos.add(bytes);
+        });
+      } finally {
+        if (mounted) {
+          setState(() => _isProcessingPhoto = false);
+        }
+      }
     }
   }
 
@@ -212,11 +240,26 @@ class _AddDiarioScreenState extends ConsumerState<AddDiarioScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      TextButton.icon(
-                        onPressed: _pickPhoto,
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text('Anexar'),
-                      ),
+                      _isProcessingPhoto
+                          ? const Row(
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Carimbando...',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            )
+                          : TextButton.icon(
+                              onPressed: _pickPhoto,
+                              icon: const Icon(Icons.camera_alt),
+                              label: const Text('Anexar'),
+                            ),
                     ],
                   ),
                   if (_selectedPhotos.isNotEmpty)
