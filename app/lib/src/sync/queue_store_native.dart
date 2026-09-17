@@ -101,6 +101,9 @@ Future<String> queueStore(String action, String input) async {
       }
       row['state'] = args['state'];
       row['error'] = args['error'];
+      if (args.containsKey('result')) {
+        row['result'] = args['result'];
+      }
       row['lease'] = null;
       row['leaseUntil'] = 0;
       row['attempts'] = (row['attempts'] as int? ?? 0) + 1;

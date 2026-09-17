@@ -45,6 +45,7 @@ globalThis.sigoQueue = async (action, json) => {
    if(action==='finish') {
     if(!old || old.uid!==input.uid || old.lease!==input.lease) return;
     old.state=input.state; old.error=input.error; old.leaseUntil=0; old.lease=null;
+    if(input.result!==undefined) old.result=input.result;
     old.attempts=(old.attempts||0)+1; old.nextAttemptAt=input.state==='failed'?Date.now()+Math.min(300000,1000*2**Math.min(old.attempts,8)):0;
     // Retain bytes even after success: explicit cleanup is a separate user action.
     store.put(old); result=old;

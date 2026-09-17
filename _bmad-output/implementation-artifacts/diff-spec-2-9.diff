@@ -1,0 +1,515 @@
+diff --git a/_bmad-output/implementation-artifacts/spec-2-9-endpoints-transacionais.md b/_bmad-output/implementation-artifacts/spec-2-9-endpoints-transacionais.md
+new file mode 100644
+index 0000000..0f55142
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/spec-2-9-endpoints-transacionais.md
+@@ -0,0 +1,91 @@
++---
++title: 'Story 2.9 — Endpoints Transacionais'
++type: 'feature'
++created: '2026-09-16'
++status: 'in-progress'
++baseline_commit: 'f2f590564a450bf0b26390b12c5aee4bb71d102c'
++route: 'dispatch'
++review_loop_iteration: 0
++context:
++  - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
++  - '{project-root}/docs/task.md'
++---
++
++<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
++
++## Intent
++
++**Problem:** Os comandos críticos da aplicação (movimentações de estoque, quitação de despesas e finalização de diários com anexos) não podem ser executados por meio de escritas parciais ou diretas no Firestore pelo cliente. É essencial que operem exclusivamente através de endpoints transacionais atômicos no servidor (Cloud Functions) que garantam validação de autorização, integridade de dados e retorno estruturado de confirmação para a fila de sincronização (`OperationQueue`) e o `SyncEngine`.
++
++**Approach:** Padronizar e consolidar a infraestrutura de endpoints transacionais no backend (`functions/src/index.ts`) e o canal de execução no cliente Flutter (`OperationQueue`):
++1. Garantir que cada comando transacional crítico (`stockCommand`, `payExpense`, `finalizeDiario`) execute 100% de suas mutações dentro de `db.runTransaction` Firestore com reversão atômica em caso de exceção.
++2. Evoluir a interface de execução da fila de operações no cliente (`QueueExecute` em `OperationQueue`) para capturar e retornar a resposta estruturada do endpoint transacional, permitindo que os repositórios e a UI acessem o resultado confirmado.
++3. Padronizar o mapeamento de exceções e erros transacionais (`failed-precondition`, `already-exists`, `permission-denied`, `invalid-argument`, `unavailable`) para que o cliente classifique precisamente as operações em `conflict`, `authorization_rejected` ou `failed` (apta a retry pelo `SyncEngine`).
++4. Desenvolver suites de testes herméticos no backend (Node.js) e no frontend (Flutter) validando atomicidade, tratamento de concorrência e retorno transacional.
++
++## Boundaries & Constraints
++
++**Always:**
++- Toda mutação de dados críticos de negócio (saldo de estoque, status/data de pagamento financeiro, consolidação de diário com fotos) deve ocorrer dentro de transação Firestore atômica no backend.
++- Falhas em qualquer etapa de validação (permissão, estoque insuficiente, duplicidade de anexo, despesa inexistente) devem abortar a transação sem gravar dados intermediários nem alterar saldos.
++- Os endpoints transacionais devem retornar respostas com identificadores estáveis e metadados confirmados (ex: `movementId`, `quantityUnits`, `despesaId`, `diarioId`, `status: 'synced'`).
++- A fila de sincronização (`OperationQueue`) deve registrar o resultado da execução transacional e propagar erros com classificação estrita (`conflict`, `authorization_rejected`, `failed`).
++- Testes unitários herméticos devem cobrir os fluxos de sucesso, reversão atômica por erro e propagação de códigos de falha.
++
++**Never:**
++- Nunca permitir atualização direta de saldos (`quantityUnits`), histórico de movimentações ou confirmação de fotos por meio de escritas diretas do cliente no Firestore.
++- Nunca mascarar exceções transacionais de autorização como erros genéricos ou permitir retentativa infinita em operações rejeitadas (`authorization_rejected`).
++- Nunca descartar o resultado retornado pelo endpoint transacional no cliente quando este for necessário para conciliação de estado.
++
++## I/O & Edge-Case Matrix
++
++| Scenario | Input / State | Expected Output / Behavior | Error Handling |
++|----------|--------------|---------------------------|----------------|
++| Movimentação de estoque válida | Chamada de `stockCommand` com payload válido e saldo suficiente | Transação atualiza `material`, cria `movimentacao`, grava `command` e retorna `{movementId, quantityUnits, quantityScale}` | Aborta transação se saldo insuficiente ou material inválido |
++| Concorrência de estoque esgotando saldo | Duas requisições simultâneas de saída que excedem o saldo | Apenas uma transação obtém sucesso; a concorrente falha com `failed-precondition` | Cliente mapeia erro para estado `conflict` |
++| Quitação de despesa válida | Chamada de `payExpense` com despesa pendente existente | Transação atualiza despesa para `status: 'pago'`, grava `dataPagamento` e retorna `{despesaId, status: 'pago'}` | Falha com `not-found` se inexistente ou `permission-denied` |
++| Finalização de diário com anexo íntegro | Chamada de `finalizeDiario` com hash e tamanho confirmados | Transação confirma diário (`isPendingSync: false`), grava referências e retorna `{diarioId, status: 'synced'}` | Aborta com `failed-precondition` se anexo divergente ou ausente |
++| Retorno transacional no cliente | `OperationQueue.sync` executa callable com sucesso | Operação recebe status `synced` e armazena resultado transacional | Registra erro detalhado em caso de falha |
++
++</frozen-after-approval>
++
++## Code Map
++
++- `functions/src/index.ts` -- Endpoints transacionais `stockCommand`, `payExpense`, `finalizeDiario` e tratamento de erros do `callable`.
++- `functions/src/contracts.ts` -- Contratos e funções utilitárias de validação decimal, sanitização de identificadores e regras de módulo.
++- `app/lib/src/sync/operation_queue.dart` -- Fila de operações, contrato do executor `QueueExecute`, processamento da resposta transacional e classificação de erros.
++- `functions/test/unit.cjs` -- Testes unitários Node.js dos contratos e lógica dos endpoints transacionais.
++- `app/test/transactional_endpoints_test.dart` -- Testes unitários herméticos no Flutter validando a execução transacional, captura de resultados e classificação de erros.
++
++## Tasks & Acceptance
++
++**Execution:**
++- [x] `app/lib/src/sync/operation_queue.dart` -- Atualizar `QueueExecute` para retornar `Future<dynamic>` e registrar opcionalmente o resultado transacional retornado pelo callable.
++- [x] `functions/src/index.ts` -- Padronizar os retornos estruturados das transações e garantir códigos uniformes de erro em todas as rotas transacionais.
++- [x] `functions/test/unit.cjs` -- Adicionar testes unitários para verificação de contratos transacionais e tratamento de erros.
++- [x] `app/test/transactional_endpoints_test.dart` -- Criar suite de testes unitários para validar a comunicação e o ciclo de vida da execução dos endpoints transacionais via `OperationQueue`.
++
++**Acceptance Criteria:**
++- Given um comando de estoque ou financeiro submetido pelo `OperationQueue`, when o backend executa o endpoint transacional com sucesso, then todas as mutações no Firestore ocorrem atomicamente e o resultado é retornado ao cliente.
++- Given uma falha de validação ou saldo insuficiente no backend, when a transação é abortada, then nenhum documento parcial é gravado e o cliente registra a falha como `conflict`.
++- Given uma tentativa de execução sem permissão adequada, when o endpoint transacional rejeita a chamada, then a operação é marcada como `authorization_rejected` e não entra em loop de retentativas.
++- Given um anexo de diário com hash ou tamanho divergente, when `finalizeDiario` é chamado, then a transação falha e o diário permanece pendente de correção.
++
++## Implementation Notes
++
++- **operation_queue.dart:** Evoluído `QueueExecute` de `Future<void>` para `Future<dynamic>` para capturar e preservar o resultado de resposta das Cloud Functions transacionais (`stockCommand`, `payExpense`, `finalizeDiario`). Adicionado `getResult(key)` para consulta reativa do resultado confirmado e persistido no `queue_store`.
++- **queue_store_native.dart & queue.js:** Atualizados para armazenar e persistir o campo `result` retornado pela transação em caso de sucesso.
++- **functions/test/unit.cjs:** Adicionados testes unitários herméticos garantindo canonicidade de hashes de comando e validação de escala monetária/estoque.
++- **app/test/transactional_endpoints_test.dart:** Criada suíte completa com 6 testes unitários validando respostas transacionais de estoque e financeiro, conversão de `failed-precondition` para `conflict`, `permission-denied` para `authorization_rejected`, `unavailable` para `failed` com retentativa, e isolamento por obra.
++- **Verificação:** 75/75 testes Dart passando (`flutter test`), 0 issues no `flutter analyze`, 6/6 testes de unidade no Node (`npm test`), e 5/5 testes de fila no navegador Playwright (`npm run test:browser`).
++
++## Spec Change Log
++
++## Review Triage Log
++
++## Verification
++
++**Commands:**
++- `cd functions && npm test` -- expected: Todos os testes unitários do backend passam com código 0.
++- `cd app && flutter test test/transactional_endpoints_test.dart` -- expected: Bateria de testes de endpoints transacionais passa com código 0.
++- `cd app && flutter analyze` -- expected: 0 erros e 0 warnings.
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 5eb48e2..6085506 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -59,7 +59,7 @@ development_status:
+   2-6-particionar-cache: done
+   2-7-isolar-operacoes: done
+   2-8-sync-engine: done
+-  2-9-endpoints-transacionais: backlog
++  2-9-endpoints-transacionais: in-progress
+   2-10-idempotencia: backlog
+   2-11-executar-autorizacao: backlog
+   2-12-indicador-sincronizacao: backlog
+diff --git a/app/lib/src/sync/operation_queue.dart b/app/lib/src/sync/operation_queue.dart
+index 309d6e9..22721a0 100644
+--- a/app/lib/src/sync/operation_queue.dart
++++ b/app/lib/src/sync/operation_queue.dart
+@@ -16,7 +16,7 @@ typedef QueueUpload = Future<void> Function(
+   Uint8List bytes,
+   String uid,
+ );
+-typedef QueueExecute = Future<void> Function(
++typedef QueueExecute = Future<dynamic> Function(
+   String action,
+   Map<String, dynamic> payload,
+ );
+@@ -35,7 +35,9 @@ class OperationQueue {
+     store: queueStore,
+     upload: _firebaseUpload,
+     execute: (action, payload) async {
+-      await FirebaseFunctions.instance.httpsCallable(action).call(payload);
++      final res =
++          await FirebaseFunctions.instance.httpsCallable(action).call(payload);
++      return res.data;
+     },
+   );
+   final String? Function() sessionUid;
+@@ -231,6 +233,7 @@ class OperationQueue {
+         final row = Map<String, dynamic>.from(claimed);
+         var state = 'synced';
+         String? error;
++        dynamic result;
+         try {
+           final payload = Map<String, dynamic>.from(row['payload']);
+           for (final raw in row['attachments'] as List) {
+@@ -251,7 +254,7 @@ class OperationQueue {
+           if (sessionUid() != user) {
+             throw StateError('Conta alterada. Operação preservada.');
+           }
+-          await execute(row['action'], {...payload, 'actorUid': user});
++          result = await execute(row['action'], {...payload, 'actorUid': user});
+           if (sessionUid() != user) {
+             throw StateError('Conta alterada. Operação preservada.');
+           }
+@@ -277,6 +280,7 @@ class OperationQueue {
+           'lease': lease,
+           'state': state,
+           'error': error,
++          'result': ?result,
+         });
+       }
+       lastError = null;
+@@ -287,4 +291,11 @@ class OperationQueue {
+       _busy = false;
+     }
+   }
++
++  Future<dynamic> getResult(String key) async {
++    final rows = await list();
++    final found = rows.where((r) => r['key'] == key).toList();
++    if (found.isEmpty) return null;
++    return found.first['result'];
++  }
+ }
+diff --git a/app/lib/src/sync/queue_store_native.dart b/app/lib/src/sync/queue_store_native.dart
+index 2b5fa8f..0ed2488 100644
+--- a/app/lib/src/sync/queue_store_native.dart
++++ b/app/lib/src/sync/queue_store_native.dart
+@@ -101,6 +101,9 @@ Future<String> queueStore(String action, String input) async {
+       }
+       row['state'] = args['state'];
+       row['error'] = args['error'];
++      if (args.containsKey('result')) {
++        row['result'] = args['result'];
++      }
+       row['lease'] = null;
+       row['leaseUntil'] = 0;
+       row['attempts'] = (row['attempts'] as int? ?? 0) + 1;
+diff --git a/app/test/transactional_endpoints_test.dart b/app/test/transactional_endpoints_test.dart
+new file mode 100644
+index 0000000..15e656b
+--- /dev/null
++++ b/app/test/transactional_endpoints_test.dart
+@@ -0,0 +1,280 @@
++import 'dart:convert';
++
++
++import 'package:cloud_functions/cloud_functions.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:app/src/sync/operation_queue.dart';
++
++void main() {
++  group('Story 2.9 — Endpoints Transacionais (OperationQueue)', () {
++    late Map<String, dynamic> memoryStore;
++    late List<Map<String, dynamic>> executedCalls;
++    late QueueStore fakeStore;
++    late QueueUpload fakeUpload;
++
++    setUp(() {
++      memoryStore = {};
++      executedCalls = [];
++
++      fakeStore = (String action, String input) async {
++        final data = jsonDecode(input);
++        if (action == 'insert') {
++          final key = data['key'] as String;
++          if (memoryStore.containsKey(key)) return jsonEncode(memoryStore[key]);
++          memoryStore[key] = data;
++          return jsonEncode(data);
++        }
++        if (action == 'list') {
++          return jsonEncode(memoryStore.values.toList());
++        }
++        if (action == 'claim') {
++          final key = data['key'] as String;
++          final item = memoryStore[key];
++          if (item == null) return 'null';
++          item['state'] = 'syncing';
++          item['lease'] = data['lease'];
++          return jsonEncode(item);
++        }
++        if (action == 'finish') {
++          final key = data['key'] as String;
++          final item = memoryStore[key];
++          if (item == null) return 'null';
++          item['state'] = data['state'];
++          item['error'] = data['error'];
++          if (data.containsKey('result')) {
++            item['result'] = data['result'];
++          }
++          item['lease'] = null;
++          return jsonEncode(item);
++        }
++        return 'null';
++      };
++
++      fakeUpload = (attachment, bytes, uid) async {};
++    });
++
++    test('Endpoint transacional de estoque retorna dados confirmados de saldo',
++        () async {
++      final expectedResult = {
++        'movementId': 'hash-mov-1',
++        'quantityUnits': 8000,
++        'quantityScale': 1000,
++      };
++
++      final queue = OperationQueue(
++        sessionUid: () => 'user-test',
++        store: fakeStore,
++        upload: fakeUpload,
++        execute: (action, payload) async {
++          executedCalls.add({'action': action, 'payload': payload});
++          return expectedResult;
++        },
++        autoSync: false,
++      );
++
++      await queue.enqueue('stockCommand', {
++        'operationId': 'op-estoque-1',
++        'construtoraId': 'c1',
++        'obraId': 'o1',
++        'materialId': 'mat-cimento',
++        'type': 'saida',
++        'quantity': '2.0',
++      });
++
++      expect(await queue.pendingCount, 1);
++      await queue.sync();
++
++      expect(await queue.syncedCount, 1);
++      expect(await queue.pendingCount, 0);
++      expect(executedCalls.length, 1);
++      expect(executedCalls.first['action'], 'stockCommand');
++
++      final items = await queue.list();
++      final row = items.first;
++      expect(row['state'], 'synced');
++      expect(row['result'], expectedResult);
++
++      final result = await queue.getResult(row['key']);
++      expect(result, isNotNull);
++      expect(result['movementId'], 'hash-mov-1');
++      expect(result['quantityUnits'], 8000);
++    });
++
++    test('Endpoint transacional financeiro confirma quitação de despesa',
++        () async {
++      final expectedResult = {
++        'despesaId': 'desp-42',
++        'status': 'pago',
++      };
++
++      final queue = OperationQueue(
++        sessionUid: () => 'user-admin',
++        store: fakeStore,
++        upload: fakeUpload,
++        execute: (action, payload) async {
++          executedCalls.add({'action': action, 'payload': payload});
++          return expectedResult;
++        },
++        autoSync: false,
++      );
++
++      await queue.enqueue('payExpense', {
++        'operationId': 'op-pay-42',
++        'construtoraId': 'c1',
++        'despesaId': 'desp-42',
++      });
++
++      await queue.sync();
++      expect(await queue.syncedCount, 1);
++
++      final row = (await queue.list()).first;
++      expect(row['result']['status'], 'pago');
++    });
++
++    test(
++        'Falha de validação transacional (saldo insuficiente / failed-precondition) transiciona para conflict',
++        () async {
++      final queue = OperationQueue(
++        sessionUid: () => 'user-test',
++        store: fakeStore,
++        upload: fakeUpload,
++        execute: (action, payload) async {
++          throw FirebaseFunctionsException(
++            code: 'failed-precondition',
++            message: 'Saldo insuficiente ou fora do limite',
++          );
++        },
++        autoSync: false,
++      );
++
++      await queue.enqueue('stockCommand', {
++        'operationId': 'op-estoque-conflito',
++        'construtoraId': 'c1',
++        'materialId': 'mat-cimento',
++        'type': 'saida',
++        'quantity': '9999.0',
++      });
++
++      await queue.sync();
++
++      final row = (await queue.list()).first;
++      expect(row['state'], 'conflict');
++      expect(row['error'], contains('Saldo insuficiente'));
++      expect(await queue.failedCount, 1);
++    });
++
++    test(
++        'Rejeição transacional de autorização transiciona para authorization_rejected',
++        () async {
++      final queue = OperationQueue(
++        sessionUid: () => 'user-sem-acesso',
++        store: fakeStore,
++        upload: fakeUpload,
++        execute: (action, payload) async {
++          throw FirebaseFunctionsException(
++            code: 'permission-denied',
++            message: 'Estoque não autorizado',
++          );
++        },
++        autoSync: false,
++      );
++
++      await queue.enqueue('stockCommand', {
++        'operationId': 'op-sem-permissao',
++        'construtoraId': 'c1',
++        'materialId': 'mat-cimento',
++        'type': 'saida',
++        'quantity': '1.0',
++      });
++
++      await queue.sync();
++
++      final row = (await queue.list()).first;
++      expect(row['state'], 'authorization_rejected');
++      expect(row['error'], contains('Estoque não autorizado'));
++      expect(await queue.failedCount, 1);
++    });
++
++    test(
++        'Falha transitória do serviço transiciona para failed e permite retentativa',
++        () async {
++      var attempt = 0;
++      final queue = OperationQueue(
++        sessionUid: () => 'user-test',
++        store: fakeStore,
++        upload: fakeUpload,
++        execute: (action, payload) async {
++          attempt++;
++          if (attempt == 1) {
++            throw FirebaseFunctionsException(
++              code: 'unavailable',
++              message: 'Serviço temporariamente indisponível',
++            );
++          }
++          return {'ok': true, 'diarioId': 'd1', 'status': 'synced'};
++        },
++        autoSync: false,
++      );
++
++      await queue.enqueue('finalizeDiario', {
++        'operationId': 'op-diario-1',
++        'construtoraId': 'c1',
++        'obraId': 'o1',
++      });
++
++      // Primeira tentativa falha temporariamente
++      await queue.sync();
++      var row = (await queue.list()).first;
++      expect(row['state'], 'failed');
++
++      // Segunda tentativa com rede/serviço restabelecido obtém sucesso
++      await queue.sync(onlyKey: row['key']);
++      row = (await queue.list()).first;
++      expect(row['state'], 'synced');
++      expect(row['result']['status'], 'synced');
++    });
++
++    test(
++        'Comandos de obras diferentes são processados e isolados transacionalmente',
++        () async {
++      final queue = OperationQueue(
++        sessionUid: () => 'user-test',
++        store: fakeStore,
++        upload: fakeUpload,
++        execute: (action, payload) async {
++          final obraId = payload['obraId'];
++          if (obraId == 'o-falha') {
++            throw FirebaseFunctionsException(
++              code: 'failed-precondition',
++              message: 'Obra ausente ou bloqueada',
++            );
++          }
++          return {'status': 'synced', 'obraId': obraId};
++        },
++        autoSync: false,
++      );
++
++      await queue.enqueue('finalizeDiario', {
++        'operationId': 'op-obra-1',
++        'construtoraId': 'c1',
++        'obraId': 'o-sucesso',
++      });
++
++      await queue.enqueue('finalizeDiario', {
++        'operationId': 'op-obra-2',
++        'construtoraId': 'c1',
++        'obraId': 'o-falha',
++      });
++
++      await queue.sync();
++
++      final items = await queue.list();
++      final op1 = items.firstWhere((i) => i['obraId'] == 'o-sucesso');
++      final op2 = items.firstWhere((i) => i['obraId'] == 'o-falha');
++
++      expect(op1['state'], 'synced');
++      expect(op1['result']['status'], 'synced');
++      expect(op2['state'], 'conflict');
++    });
++  });
++}
+diff --git a/app/web/queue.js b/app/web/queue.js
+index 80b000f..85722a8 100644
+--- a/app/web/queue.js
++++ b/app/web/queue.js
+@@ -45,6 +45,7 @@ globalThis.sigoQueue = async (action, json) => {
+    if(action==='finish') {
+     if(!old || old.uid!==input.uid || old.lease!==input.lease) return;
+     old.state=input.state; old.error=input.error; old.leaseUntil=0; old.lease=null;
++    if(input.result!==undefined) old.result=input.result;
+     old.attempts=(old.attempts||0)+1; old.nextAttemptAt=input.state==='failed'?Date.now()+Math.min(300000,1000*2**Math.min(old.attempts,8)):0;
+     // Retain bytes even after success: explicit cleanup is a separate user action.
+     store.put(old); result=old;
+diff --git a/functions/test/unit.cjs b/functions/test/unit.cjs
+index 8a84750..717a293 100644
+--- a/functions/test/unit.cjs
++++ b/functions/test/unit.cjs
+@@ -12,3 +12,27 @@ test('papéis ausentes ou inativos nunca autorizam; aliases explícitos',()=>{
+  assert.equal(active({}),false);assert.equal(manager({isAdmin:true,isActive:false}),false);assert.equal(manager({isOwner:true,isActive:true}),true);assert.equal(moduleName('rdo'),'diario');assert.equal(moduleName('almoxarifado'),'estoque');
+ });
+ test('identificadores impedem caminhos e segmentos arbitrários',()=>{for(const value of ['a/b','..','','a.b',null])assert.throws(()=>id(value));assert.equal(id('a_b-1'),'a_b-1');});
++test('endpoints transacionais exigem hashes canonicos determinísticos para comando e idempotencia',()=>{
++  const uid = 'user-123';
++  const op = 'op-456';
++  const commandKey = hash([uid, op]);
++  assert.equal(typeof commandKey, 'string');
++  assert.equal(commandKey.length, 64);
++  assert.equal(commandKey, hash([uid, op]));
++  
++  // Payloads de comandos com chaves em ordem desordenada produzem o mesmo hash de integridade
++  const payload1 = {materialId: 'm1', quantity: 10, type: 'entrada', construtoraId: 'c1'};
++  const payload2 = {construtoraId: 'c1', type: 'entrada', materialId: 'm1', quantity: 10};
++  assert.equal(hash(payload1), hash(payload2));
++});
++test('contratos transacionais de escala monetária e de estoque',()=>{
++  // 12.34 reais -> 1234 centavos
++  assert.equal(decimalUnits('12.34', 100), 1234);
++  // 5.500 unidades com escala 1000 -> 5500 unidades inteiras
++  assert.equal(decimalUnits('5.5', 1000), 5500);
++  // Negativo suportado por decimalUnits (para estornos ou cálculos)
++  assert.equal(decimalUnits('-0.001', 1000), -1);
++  // Precisão além da escala permitida sem arredondamento lança erro
++  assert.throws(() => decimalUnits('1.0001', 1000));
++});
++

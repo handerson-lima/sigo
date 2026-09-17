@@ -16,7 +16,7 @@ typedef QueueUpload = Future<void> Function(
   Uint8List bytes,
   String uid,
 );
-typedef QueueExecute = Future<void> Function(
+typedef QueueExecute = Future<dynamic> Function(
   String action,
   Map<String, dynamic> payload,
 );
@@ -35,7 +35,9 @@ class OperationQueue {
     store: queueStore,
     upload: _firebaseUpload,
     execute: (action, payload) async {
-      await FirebaseFunctions.instance.httpsCallable(action).call(payload);
+      final res =
+          await FirebaseFunctions.instance.httpsCallable(action).call(payload);
+      return res.data;
     },
   );
   final String? Function() sessionUid;
@@ -231,6 +233,7 @@ class OperationQueue {
         final row = Map<String, dynamic>.from(claimed);
         var state = 'synced';
         String? error;
+        dynamic result;
         try {
           final payload = Map<String, dynamic>.from(row['payload']);
           for (final raw in row['attachments'] as List) {
@@ -251,7 +254,7 @@ class OperationQueue {
           if (sessionUid() != user) {
             throw StateError('Conta alterada. Operação preservada.');
           }
-          await execute(row['action'], {...payload, 'actorUid': user});
+          result = await execute(row['action'], {...payload, 'actorUid': user});
           if (sessionUid() != user) {
             throw StateError('Conta alterada. Operação preservada.');
           }
@@ -277,6 +280,7 @@ class OperationQueue {
           'lease': lease,
           'state': state,
           'error': error,
+          'result': ?result,
         });
       }
       lastError = null;
@@ -286,5 +290,12 @@ class OperationQueue {
     } finally {
       _busy = false;
     }
+  }
+
+  Future<dynamic> getResult(String key) async {
+    final rows = await list();
+    final found = rows.where((r) => r['key'] == key).toList();
+    if (found.isEmpty) return null;
+    return found.first['result'];
   }
 }
