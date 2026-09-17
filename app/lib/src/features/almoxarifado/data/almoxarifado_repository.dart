@@ -68,6 +68,8 @@ class AlmoxarifadoRepository {
       'evidence': mov.evidence,
       'nfNumber': mov.nfNumber,
       'fornecedor': mov.fornecedor,
+      'apropriacaoLote': mov.apropriacaoLote,
+      'solicitante': mov.solicitante,
     });
   }
 }

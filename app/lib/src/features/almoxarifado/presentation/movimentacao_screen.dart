@@ -10,6 +10,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../data/almoxarifado_repository.dart';
 import '../domain/material.dart' as mat;
 import '../domain/movimentacao.dart';
+import '../../obras/presentation/construtora_obras_provider.dart';
+import '../../lotes/presentation/obra_lotes_provider.dart';
 
 class MovimentacaoScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -33,9 +35,13 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
   final _obsController = TextEditingController();
   final _obraController = TextEditingController();
   final _loteController = TextEditingController();
+  final _solicitanteController = TextEditingController();
   final _nfController = TextEditingController();
   final _fornecedorController = TextEditingController();
   final _evidenceController = TextEditingController();
+  String? _selectedObraId;
+  String? _selectedLoteId;
+  bool _apropriacaoLote = false;
   bool _isLoading = false;
 
   @override
@@ -44,6 +50,7 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
     _obsController.dispose();
     _obraController.dispose();
     _loteController.dispose();
+    _solicitanteController.dispose();
     _nfController.dispose();
     _fornecedorController.dispose();
     _evidenceController.dispose();
@@ -62,6 +69,18 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
 
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+      final finalObraId = _selectedObraId ??
+          (_obraController.text.trim().isEmpty ? null : _obraController.text.trim());
+      final finalLoteId = _selectedLoteId ??
+          (_loteController.text.trim().isEmpty ? null : _loteController.text.trim());
+
+      if (isSaida && _apropriacaoLote && (finalLoteId == null || finalLoteId.isEmpty)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selecione o lote para apropriação')),
+        );
+        return;
+      }
+
       final mov = Movimentacao(
         id: const Uuid().v4(),
         materialId: widget.material.id,
@@ -69,12 +88,8 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
         quantity: q,
         date: DateTime.now(),
         responsavelId: uid,
-        obraId: _obraController.text.trim().isEmpty
-            ? null
-            : _obraController.text.trim(),
-        loteId: _loteController.text.trim().isEmpty
-            ? null
-            : _loteController.text.trim(),
+        obraId: finalObraId,
+        loteId: finalLoteId,
         observacao: _obsController.text.trim(),
         nfNumber: !isSaida && _nfController.text.trim().isNotEmpty
             ? _nfController.text.trim()
@@ -84,6 +99,10 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
             : null,
         evidence: !isSaida && _evidenceController.text.trim().isNotEmpty
             ? _evidenceController.text.trim()
+            : null,
+        apropriacaoLote: isSaida ? _apropriacaoLote : null,
+        solicitante: isSaida && _solicitanteController.text.trim().isNotEmpty
+            ? _solicitanteController.text.trim()
             : null,
       );
 
@@ -118,7 +137,7 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
         title: Text(isSaida ? 'Saída de Material' : 'Entrada de Material'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Form(
           key: _formKey,
           child: ListView(
@@ -133,7 +152,7 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
               Text(
                 'Estoque Atual: ${widget.material.currentQuantity} ${widget.material.unit}',
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               TextFormField(
                 controller: _quantityController,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -160,40 +179,189 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 },
               ),
               if (isSaida) ...[
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _obraController,
-                  decoration: const InputDecoration(
-                    labelText: 'ID da Obra de Destino',
+                const SizedBox(height: 10),
+                ref.watch(construtoraObrasProvider(widget.construtoraId)).when(
+                  data: (obras) {
+                    if (obras.isNotEmpty) {
+                      return DropdownButtonFormField<String>(
+                        key: const Key('obra-dropdown'),
+                        initialValue: _selectedObraId,
+                        decoration: const InputDecoration(
+                          labelText: 'Obra de Destino',
+                        ),
+                        items: obras
+                            .map((o) => DropdownMenuItem(
+                                  value: o.id,
+                                  child: Text(o.name),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedObraId = val;
+                            _selectedLoteId = null;
+                            _obraController.text = val ?? '';
+                            _loteController.clear();
+                          });
+                        },
+                        validator: (v) =>
+                            (v == null || v.isEmpty) &&
+                            _obraController.text.trim().isEmpty
+                                ? 'Informe a obra de destino'
+                                : null,
+                      );
+                    }
+                    return TextFormField(
+                      controller: _obraController,
+                      decoration: const InputDecoration(
+                        labelText: 'ID da Obra de Destino',
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Informe a obra de destino'
+                          : null,
+                    );
+                  },
+                  loading: () => TextFormField(
+                    controller: _obraController,
+                    decoration: const InputDecoration(
+                      labelText: 'ID da Obra de Destino',
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Informe a obra de destino'
+                        : null,
                   ),
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Informe a obra de destino'
-                      : null,
+                  error: (_, _) => TextFormField(
+                    controller: _obraController,
+                    decoration: const InputDecoration(
+                      labelText: 'ID da Obra de Destino',
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Informe a obra de destino'
+                        : null,
+                  ),
                 ),
                 const SizedBox(height: 16),
+                if ((_selectedObraId ?? _obraController.text.trim()).isNotEmpty)
+                  ref
+                      .watch(obraLotesProvider((
+                        construtoraId: widget.construtoraId,
+                        obraId: _selectedObraId ?? _obraController.text.trim()
+                      )))
+                      .when(
+                        data: (lotes) {
+                          if (lotes.isNotEmpty) {
+                            return DropdownButtonFormField<String>(
+                              key: const Key('lote-dropdown'),
+                              initialValue: _selectedLoteId,
+                              decoration: const InputDecoration(
+                                labelText: 'Lote de Destino (Opcional)',
+                              ),
+                              items: [
+                                const DropdownMenuItem<String>(
+                                  value: null,
+                                  child: Text('Nenhum lote específico (Geral da Obra)'),
+                                ),
+                                ...lotes.map((l) => DropdownMenuItem(
+                                      value: l.id,
+                                      child: Text('${l.name} (${l.phase})'),
+                                    )),
+                              ],
+                              onChanged: (val) {
+                                setState(() {
+                                  _selectedLoteId = val;
+                                  _loteController.text = val ?? '';
+                                });
+                              },
+                              validator: (val) {
+                                if (_apropriacaoLote &&
+                                    (val == null || val.isEmpty) &&
+                                    _loteController.text.trim().isEmpty) {
+                                  return 'Selecione o lote para apropriação';
+                                }
+                                return null;
+                              },
+                            );
+                          }
+                          return TextFormField(
+                            controller: _loteController,
+                            decoration: const InputDecoration(
+                              labelText: 'Lote de Destino (Opcional)',
+                            ),
+                            validator: (v) {
+                              if (_apropriacaoLote &&
+                                  (v == null || v.trim().isEmpty)) {
+                                return 'Selecione o lote para apropriação';
+                              }
+                              return null;
+                            },
+                          );
+                        },
+                        loading: () => const LinearProgressIndicator(),
+                        error: (_, _) => TextFormField(
+                          controller: _loteController,
+                          decoration: const InputDecoration(
+                            labelText: 'Lote de Destino (Opcional)',
+                          ),
+                          validator: (v) {
+                            if (_apropriacaoLote &&
+                                (v == null || v.trim().isEmpty)) {
+                              return 'Selecione o lote para apropriação';
+                            }
+                            return null;
+                          },
+                        ),
+                      )
+                else
+                  TextFormField(
+                    controller: _loteController,
+                    decoration: const InputDecoration(
+                      labelText: 'Lote de Destino (Opcional)',
+                    ),
+                    validator: (v) {
+                      if (_apropriacaoLote && (v == null || v.trim().isEmpty)) {
+                        return 'Selecione o lote para apropriação';
+                      }
+                      return null;
+                    },
+                  ),
+                const SizedBox(height: 10),
+                SwitchListTile(
+                  key: const Key('apropriacao-lote-switch'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Apropriar diretamente ao Lote'),
+                  subtitle: const Text(
+                    'Vincula o consumo do material à unidade',
+                  ),
+                  value: _apropriacaoLote,
+                  onChanged: (val) {
+                    setState(() => _apropriacaoLote = val);
+                  },
+                ),
+                const SizedBox(height: 10),
                 TextFormField(
-                  controller: _loteController,
+                  controller: _solicitanteController,
                   decoration: const InputDecoration(
-                    labelText: 'Lote de Destino (Opcional)',
+                    labelText: 'Solicitante / Retirado por (Opcional)',
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
                 ),
               ],
               if (!isSaida) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 TextFormField(
                   controller: _nfController,
                   decoration: const InputDecoration(
                     labelText: 'Número da Nota Fiscal (NF)',
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 TextFormField(
                   controller: _fornecedorController,
                   decoration: const InputDecoration(
                     labelText: 'Fornecedor',
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 TextFormField(
                   controller: _evidenceController,
                   decoration: const InputDecoration(
@@ -201,14 +369,14 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               TextFormField(
                 controller: _obsController,
                 decoration: const InputDecoration(
                   labelText: 'Observação (Ex: Motivo, Entregador)',
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
                 child: _isLoading

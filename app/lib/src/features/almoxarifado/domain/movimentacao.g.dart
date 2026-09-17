@@ -19,6 +19,8 @@ Movimentacao _$MovimentacaoFromJson(Map<String, dynamic> json) => Movimentacao(
   evidence: json['evidence'] as String?,
   nfNumber: json['nfNumber'] as String?,
   fornecedor: json['fornecedor'] as String?,
+  apropriacaoLote: json['apropriacaoLote'] as bool?,
+  solicitante: json['solicitante'] as String?,
 );
 
 Map<String, dynamic> _$MovimentacaoToJson(Movimentacao instance) =>
@@ -35,6 +37,8 @@ Map<String, dynamic> _$MovimentacaoToJson(Movimentacao instance) =>
       'evidence': instance.evidence,
       'nfNumber': instance.nfNumber,
       'fornecedor': instance.fornecedor,
+      'apropriacaoLote': instance.apropriacaoLote,
+      'solicitante': instance.solicitante,
     };
 
 const _$MovimentacaoTypeEnumMap = {

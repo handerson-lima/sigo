@@ -177,8 +177,24 @@ class StockHistoryScreen extends StatelessWidget {
                   final nf = d['nfNumber'] as String?;
                   final fornecedor = d['fornecedor'] as String?;
                   final evidence = d['evidence'] as String?;
+                  final obraId = d['obraId'] as String?;
+                  final loteId = d['loteId'] as String?;
+                  final solicitante = d['solicitante'] as String?;
+                  final apropriacaoLote = d['apropriacaoLote'] == true;
                   final obs = (d['observacao'] ?? d['reason'] ?? '') as String;
                   final details = <String>[];
+                  if (obraId != null && obraId.isNotEmpty) {
+                    details.add('Obra: $obraId');
+                  }
+                  if (loteId != null && loteId.isNotEmpty) {
+                    details.add('Lote: $loteId');
+                  }
+                  if (apropriacaoLote) {
+                    details.add('[Apropriação Lote]');
+                  }
+                  if (solicitante != null && solicitante.isNotEmpty) {
+                    details.add('Solicitante: $solicitante');
+                  }
                   if (nf != null && nf.isNotEmpty) details.add('NF: $nf');
                   if (fornecedor != null && fornecedor.isNotEmpty) {
                     details.add('Fornecedor: $fornecedor');
