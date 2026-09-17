@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets(
-    'smoke test: initialization routes signed-out user to login without Firebase',
+    'initialization routes signed-out user to login without Firebase',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(

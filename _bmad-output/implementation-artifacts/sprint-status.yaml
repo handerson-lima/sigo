@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-17-2026 05:47
+last_updated: 09-17-2026 06:02
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -162,7 +162,7 @@ action_items:
     action: "Dividir app/test/widget_test.dart em arquivos menores por feature (auth_widget_test.dart,
       navigation_widget_test.dart, etc.)"
     owner: "maranduteam"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-16.md"
   - epic: 1
     id: "epic-1-retro-item-2-auditoria-dev-prod"
@@ -197,5 +197,5 @@ action_items:
     action: "Reestruturar e dividir app/test/widget_test.dart em arquivos menores
       por dominio (carry-over da retro do Epic 1)"
     owner: "maranduteam"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
