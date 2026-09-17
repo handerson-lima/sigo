@@ -38,6 +38,17 @@ class ObraDashboardScreen extends ConsumerWidget {
         activeMember.isActive &&
         (activeMember.isAdmin ||
             activeMember.modules.map(normalizeModule).contains('lotes'));
+    final canRh = activeMember != null &&
+        activeMember.isActive &&
+        (activeMember.isAdmin ||
+            activeMember.modules.map(normalizeModule).contains('rh'));
+    final canEstoque = activeMember != null &&
+        activeMember.isActive &&
+        (activeMember.isAdmin ||
+            activeMember.modules.map(normalizeModule).contains('estoque'));
+    final canFinanceiro = activeMember != null &&
+        activeMember.isActive &&
+        activeMember.isAdmin;
     final lotesAsync = canLotes
         ? ref.watch(
             obraLotesProvider((construtoraId: construtoraId, obraId: obraId)),
@@ -117,6 +128,30 @@ class ObraDashboardScreen extends ConsumerWidget {
                         title: 'Diário de Obra',
                         onTap: () => context.go(
                           '/construtora/$construtoraId/obra/$obraId/diarios',
+                        ),
+                      ),
+                    if (canRh)
+                      SigoModuleCard(
+                        icon: Icons.playlist_add_check,
+                        title: 'Chamada Diária (RH)',
+                        onTap: () => context.go(
+                          '/construtora/$construtoraId/obra/$obraId/rh/chamadas',
+                        ),
+                      ),
+                    if (canEstoque)
+                      SigoModuleCard(
+                        icon: Icons.inventory_2,
+                        title: 'Almoxarifado',
+                        onTap: () => context.go(
+                          '/construtora/$construtoraId/almoxarifado',
+                        ),
+                      ),
+                    if (canFinanceiro)
+                      SigoModuleCard(
+                        icon: Icons.account_balance_wallet,
+                        title: 'Financeiro',
+                        onTap: () => context.go(
+                          '/construtora/$construtoraId/financeiro',
                         ),
                       ),
                   ],

@@ -160,6 +160,60 @@ class SigoSidebar extends ConsumerWidget {
                     isActive: activeRoute.endsWith('/sync'),
                     onTap: () => context.go('/construtora/$cId/sync'),
                   ),
+                if (cId != null &&
+                    (isDev ||
+                        obra != null &&
+                            obra.isActive &&
+                            (obra.isAdmin ||
+                                obra.modules
+                                    .map(normalizeModule)
+                                    .contains('rh'))))
+                  _NavItem(
+                    icon: Icons.people,
+                    title: 'Funcionários (RH)',
+                    isActive: activeRoute.contains('/rh/funcionarios'),
+                    onTap: () {
+                      Scaffold.maybeOf(context)?.closeDrawer();
+                      context.go('/construtora/$cId/rh/funcionarios');
+                    },
+                  ),
+                if (cId != null &&
+                    (isDev ||
+                        obra != null &&
+                            obra.isActive &&
+                            (obra.isAdmin ||
+                                obra.modules
+                                    .map(normalizeModule)
+                                    .contains('estoque'))))
+                  _NavItem(
+                    icon: Icons.inventory_2,
+                    title: 'Almoxarifado',
+                    isActive: activeRoute.contains('/almoxarifado'),
+                    onTap: () {
+                      Scaffold.maybeOf(context)?.closeDrawer();
+                      context.go('/construtora/$cId/almoxarifado');
+                    },
+                  ),
+                if (cId != null && (isDev || obra != null && obra.isAdmin))
+                  _NavItem(
+                    icon: Icons.account_balance_wallet,
+                    title: 'Financeiro',
+                    isActive: activeRoute.contains('/financeiro'),
+                    onTap: () {
+                      Scaffold.maybeOf(context)?.closeDrawer();
+                      context.go('/construtora/$cId/financeiro');
+                    },
+                  ),
+                if (cId != null && (isDev || obra != null && obra.isAdmin))
+                  _NavItem(
+                    icon: Icons.group,
+                    title: 'Membros',
+                    isActive: activeRoute.contains('/membros'),
+                    onTap: () {
+                      Scaffold.maybeOf(context)?.closeDrawer();
+                      context.go('/construtora/$cId/membros');
+                    },
+                  ),
                 if (isDev)
                   _NavItem(
                     icon: Icons.build,
