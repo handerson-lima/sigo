@@ -38,6 +38,14 @@ class ObraRepository {
             toFirestore: (member, _) => member.toJson(),
           );
 
+  Future<void> createObra(Obra obra) async {
+    await _obrasRef(obra.construtoraId).doc(obra.id).set(obra);
+  }
+
+  Future<void> updateObra(Obra obra) async {
+    await _obrasRef(obra.construtoraId).doc(obra.id).update(obra.toJson());
+  }
+
   Future<Obra?> getObra(String construtoraId, String obraId) async {
     final snapshot = await _obrasRef(construtoraId)
         .doc(obraId)
@@ -101,12 +109,16 @@ class ObraRepository {
 
       final obrasFutures = querySnapshot.docs
           .where(
-            (doc) =>
-                doc.reference.parent.parent!.parent.parent!.id == construtoraId,
+            (doc) {
+              final obraRef = doc.reference.parent.parent;
+              final construtoraRef = obraRef?.parent.parent;
+              return construtoraRef != null && construtoraRef.id == construtoraId;
+            },
           )
           .map((doc) async {
-            // doc.reference é construtoras/{cId}/obras/{oId}/members/{uId}
-            final obraDoc = await doc.reference.parent.parent!
+            final obraDocRef = doc.reference.parent.parent;
+            if (obraDocRef == null) return null;
+            final obraDoc = await obraDocRef
                 .withConverter<Obra>(
                   fromFirestore: (snapshot, _) =>
                       Obra.fromJson(snapshot.data()!),

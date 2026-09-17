@@ -1,0 +1,552 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 433d023..9967922 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -5,7 +5,7 @@
+ # IDs históricos preservados; docs/stories não existe no workspace atual.
+ 
+ generated: 09-14-2026 16:15
+-last_updated: 09-17-2026 06:02
++last_updated: 09-17-2026 06:19
+ project: obras
+ project_key: SIGO
+ tracking_system: file-system
+@@ -74,7 +74,7 @@ development_status:
+   2-5-5-testes-seguranca: backlog
+ 
+   epic-3: in-progress
+-  3-1-crud-projetos-lotes: review
++  3-1-crud-projetos-lotes: done
+   3-2-estoque-recebimento: backlog
+   3-3-estoque-saida: backlog
+   3-4-estoque-ajustes: backlog
+diff --git a/app/lib/src/features/lotes/data/lote_repository.dart b/app/lib/src/features/lotes/data/lote_repository.dart
+index 39f041e..d468389 100644
+--- a/app/lib/src/features/lotes/data/lote_repository.dart
++++ b/app/lib/src/features/lotes/data/lote_repository.dart
+@@ -36,8 +36,7 @@ class LoteRepository {
+ 
+   Stream<List<Lote>> _livewatchLotes(String construtoraId, String obraId) {
+     return _lotesRef(construtoraId, obraId)
+-        .snapshots(includeMetadataChanges: true)
+-        .where((s) => !s.metadata.isFromCache)
++        .snapshots()
+         .map((snapshot) {
+           return snapshot.docs.map((doc) => doc.data()).toList();
+         });
+diff --git a/app/lib/src/features/lotes/presentation/add_lote_screen.dart b/app/lib/src/features/lotes/presentation/add_lote_screen.dart
+index 41ddf4f..c2fec7b 100644
+--- a/app/lib/src/features/lotes/presentation/add_lote_screen.dart
++++ b/app/lib/src/features/lotes/presentation/add_lote_screen.dart
+@@ -19,8 +19,15 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
+   final _formKey = GlobalKey<FormState>();
+   final _nameController = TextEditingController();
+   String _selectedPhase = defaultLotePhases.first;
++  LoteStatus _selectedStatus = LoteStatus.noPrazo;
+   bool _isLoading = false;
+ 
++  @override
++  void dispose() {
++    _nameController.dispose();
++    super.dispose();
++  }
++
+   Future<void> _submit() async {
+     if (!_formKey.currentState!.validate()) return;
+     setState(() => _isLoading = true);
+@@ -32,6 +39,7 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
+         obraId: widget.obraId,
+         name: _nameController.text.trim(),
+         phase: _selectedPhase,
++        status: _selectedStatus,
+         createdAt: DateTime.now(),
+       );
+ 
+@@ -56,33 +64,49 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
+         padding: const EdgeInsets.all(16.0),
+         child: Form(
+           key: _formKey,
+-          child: Column(
+-            children: [
+-              TextFormField(
+-                controller: _nameController,
+-                decoration: const InputDecoration(labelText: 'Nome/Identificação do Lote (Ex: Casa 1)'),
+-                validator: (val) => val == null || val.isEmpty ? 'Campo obrigatório' : null,
+-              ),
+-              const SizedBox(height: 16),
+-              DropdownButtonFormField<String>(
+-                initialValue: _selectedPhase,
+-                decoration: const InputDecoration(labelText: 'Fase Inicial'),
+-                items: defaultLotePhases.map((phase) {
+-                  return DropdownMenuItem(value: phase, child: Text(phase));
+-                }).toList(),
+-                onChanged: (val) {
+-                  if (val != null) setState(() => _selectedPhase = val);
+-                },
+-              ),
+-              const SizedBox(height: 32),
+-              SizedBox(
+-                width: double.infinity,
+-                child: ElevatedButton(
+-                  onPressed: _isLoading ? null : _submit,
+-                  child: _isLoading ? const CircularProgressIndicator() : const Text('Criar Lote'),
++          child: SingleChildScrollView(
++            child: Column(
++              children: [
++                TextFormField(
++                  controller: _nameController,
++                  decoration: const InputDecoration(labelText: 'Nome/Identificação do Lote (Ex: Casa 1)'),
++                  validator: (val) => val == null || val.trim().isEmpty ? 'Campo obrigatório' : null,
++                ),
++                const SizedBox(height: 16),
++                DropdownButtonFormField<String>(
++                  initialValue: _selectedPhase,
++                  decoration: const InputDecoration(labelText: 'Fase Inicial'),
++                  items: defaultLotePhases.map((phase) {
++                    return DropdownMenuItem(value: phase, child: Text(phase));
++                  }).toList(),
++                  onChanged: (val) {
++                    if (val != null) setState(() => _selectedPhase = val);
++                  },
++                ),
++                const SizedBox(height: 16),
++                DropdownButtonFormField<LoteStatus>(
++                  initialValue: _selectedStatus,
++                  decoration: const InputDecoration(labelText: 'Status Inicial'),
++                  items: const [
++                    DropdownMenuItem(value: LoteStatus.noPrazo, child: Text('No Prazo')),
++                    DropdownMenuItem(value: LoteStatus.atrasado, child: Text('Atrasado')),
++                    DropdownMenuItem(value: LoteStatus.paralisado, child: Text('Paralisado')),
++                    DropdownMenuItem(value: LoteStatus.concluido, child: Text('Concluído')),
++                  ],
++                  onChanged: (val) {
++                    if (val != null) setState(() => _selectedStatus = val);
++                  },
+                 ),
+-              )
+-            ],
++                const SizedBox(height: 32),
++                SizedBox(
++                  width: double.infinity,
++                  child: ElevatedButton(
++                    onPressed: _isLoading ? null : _submit,
++                    child: _isLoading ? const CircularProgressIndicator() : const Text('Criar Lote'),
++                  ),
++                )
++              ],
++            ),
+           ),
+         ),
+       ),
+diff --git a/app/lib/src/features/lotes/presentation/lotes_list_screen.dart b/app/lib/src/features/lotes/presentation/lotes_list_screen.dart
+index e015fc5..bcc454e 100644
+--- a/app/lib/src/features/lotes/presentation/lotes_list_screen.dart
++++ b/app/lib/src/features/lotes/presentation/lotes_list_screen.dart
+@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
+ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:go_router/go_router.dart';
+ 
++import '../data/lote_repository.dart';
+ import '../domain/lote.dart';
+ import 'obra_lotes_provider.dart';
+ 
+@@ -52,7 +53,7 @@ class LotesListScreen extends ConsumerWidget {
+   }
+ }
+ 
+-class _LoteCard extends StatelessWidget {
++class _LoteCard extends ConsumerWidget {
+   final Lote lote;
+   const _LoteCard({required this.lote});
+ 
+@@ -70,12 +71,19 @@ class _LoteCard extends StatelessWidget {
+   }
+ 
+   @override
+-  Widget build(BuildContext context) {
++  Widget build(BuildContext context, WidgetRef ref) {
+     return Card(
+       color: _getStatusColor(),
+       child: InkWell(
+         onTap: () {
+-          // TODO: Abrir bottom sheet para alterar fase/status futuramente
++          showModalBottomSheet(
++            context: context,
++            isScrollControlled: true,
++            shape: const RoundedRectangleBorder(
++              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
++            ),
++            builder: (ctx) => _EditLoteSheet(lote: lote),
++          );
+         },
+         child: Padding(
+           padding: const EdgeInsets.all(12.0),
+@@ -96,3 +104,134 @@ class _LoteCard extends StatelessWidget {
+     );
+   }
+ }
++
++class _EditLoteSheet extends ConsumerStatefulWidget {
++  final Lote lote;
++
++  const _EditLoteSheet({required this.lote});
++
++  @override
++  ConsumerState<_EditLoteSheet> createState() => _EditLoteSheetState();
++}
++
++class _EditLoteSheetState extends ConsumerState<_EditLoteSheet> {
++  late String _selectedPhase;
++  late LoteStatus _selectedStatus;
++  bool _isSaving = false;
++
++  @override
++  void initState() {
++    super.initState();
++    _selectedPhase = widget.lote.phase;
++    _selectedStatus = widget.lote.status;
++  }
++
++  Future<void> _save() async {
++    setState(() => _isSaving = true);
++    try {
++      final repo = ref.read(loteRepositoryProvider);
++      if (_selectedPhase != widget.lote.phase) {
++        await repo.updatePhase(
++          widget.lote.construtoraId,
++          widget.lote.obraId,
++          widget.lote.id,
++          _selectedPhase,
++        );
++      }
++      if (_selectedStatus != widget.lote.status) {
++        await repo.updateStatus(
++          widget.lote.construtoraId,
++          widget.lote.obraId,
++          widget.lote.id,
++          _selectedStatus,
++        );
++      }
++      if (mounted) {
++        Navigator.pop(context);
++        ScaffoldMessenger.of(context).showSnackBar(
++          const SnackBar(content: Text('Lote atualizado com sucesso!')),
++        );
++      }
++    } catch (e) {
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text('Erro ao atualizar lote: $e')),
++        );
++      }
++    } finally {
++      if (mounted) setState(() => _isSaving = false);
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    return Padding(
++      padding: EdgeInsets.only(
++        left: 24,
++        right: 24,
++        top: 24,
++        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
++      ),
++      child: Column(
++        mainAxisSize: MainAxisSize.min,
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          Row(
++            mainAxisAlignment: MainAxisAlignment.spaceBetween,
++            children: [
++              Text(
++                'Lote: ${widget.lote.name}',
++                style: Theme.of(context).textTheme.titleLarge?.copyWith(
++                      fontWeight: FontWeight.bold,
++                    ),
++              ),
++              IconButton(
++                icon: const Icon(Icons.close),
++                onPressed: () => Navigator.pop(context),
++              ),
++            ],
++          ),
++          const SizedBox(height: 16),
++          DropdownButtonFormField<String>(
++            initialValue: _selectedPhase,
++            decoration: const InputDecoration(labelText: 'Fase de Construção'),
++            items: defaultLotePhases.map((phase) {
++              return DropdownMenuItem(value: phase, child: Text(phase));
++            }).toList(),
++            onChanged: (val) {
++              if (val != null) setState(() => _selectedPhase = val);
++            },
++          ),
++          const SizedBox(height: 16),
++          DropdownButtonFormField<LoteStatus>(
++            initialValue: _selectedStatus,
++            decoration: const InputDecoration(labelText: 'Status Operacional'),
++            items: const [
++              DropdownMenuItem(value: LoteStatus.noPrazo, child: Text('No Prazo')),
++              DropdownMenuItem(value: LoteStatus.atrasado, child: Text('Atrasado')),
++              DropdownMenuItem(value: LoteStatus.paralisado, child: Text('Paralisado')),
++              DropdownMenuItem(value: LoteStatus.concluido, child: Text('Concluído')),
++            ],
++            onChanged: (val) {
++              if (val != null) setState(() => _selectedStatus = val);
++            },
++          ),
++          const SizedBox(height: 24),
++          SizedBox(
++            width: double.infinity,
++            child: ElevatedButton(
++              onPressed: _isSaving ? null : _save,
++              child: _isSaving
++                  ? const SizedBox(
++                      width: 16,
++                      height: 16,
++                      child: CircularProgressIndicator(strokeWidth: 2),
++                    )
++                  : const Text('Salvar Alterações'),
++            ),
++          ),
++        ],
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/obras/data/obra_repository.dart b/app/lib/src/features/obras/data/obra_repository.dart
+index 3ebe202..3a7fbe4 100644
+--- a/app/lib/src/features/obras/data/obra_repository.dart
++++ b/app/lib/src/features/obras/data/obra_repository.dart
+@@ -38,6 +38,14 @@ class ObraRepository {
+             toFirestore: (member, _) => member.toJson(),
+           );
+ 
++  Future<void> createObra(Obra obra) async {
++    await _obrasRef(obra.construtoraId).doc(obra.id).set(obra);
++  }
++
++  Future<void> updateObra(Obra obra) async {
++    await _obrasRef(obra.construtoraId).doc(obra.id).update(obra.toJson());
++  }
++
+   Future<Obra?> getObra(String construtoraId, String obraId) async {
+     final snapshot = await _obrasRef(construtoraId)
+         .doc(obraId)
+@@ -101,12 +109,16 @@ class ObraRepository {
+ 
+       final obrasFutures = querySnapshot.docs
+           .where(
+-            (doc) =>
+-                doc.reference.parent.parent!.parent.parent!.id == construtoraId,
++            (doc) {
++              final obraRef = doc.reference.parent.parent;
++              final construtoraRef = obraRef?.parent.parent;
++              return construtoraRef != null && construtoraRef.id == construtoraId;
++            },
+           )
+           .map((doc) async {
+-            // doc.reference é construtoras/{cId}/obras/{oId}/members/{uId}
+-            final obraDoc = await doc.reference.parent.parent!
++            final obraDocRef = doc.reference.parent.parent;
++            if (obraDocRef == null) return null;
++            final obraDoc = await obraDocRef
+                 .withConverter<Obra>(
+                   fromFirestore: (snapshot, _) =>
+                       Obra.fromJson(snapshot.data()!),
+diff --git a/app/lib/src/features/obras/presentation/obras_list_screen.dart b/app/lib/src/features/obras/presentation/obras_list_screen.dart
+index 0bd37b2..34b4b50 100644
+--- a/app/lib/src/features/obras/presentation/obras_list_screen.dart
++++ b/app/lib/src/features/obras/presentation/obras_list_screen.dart
+@@ -13,6 +13,9 @@ import 'package:fl_chart/fl_chart.dart';
+ import '../../financeiro/presentation/financeiro_provider.dart';
+ 
+ import '../../../common_widgets/sigo_layout.dart';
++import 'package:uuid/uuid.dart';
++import '../data/obra_repository.dart';
++import '../domain/obra.dart';
+ 
+ class ObrasListScreen extends ConsumerWidget {
+   final String construtoraId;
+@@ -44,6 +47,17 @@ class ObrasListScreen extends ConsumerWidget {
+       title: 'Painel da Construtora',
+       activeRoute: '/construtora/$construtoraId',
+       actions: [
++        if (admin)
++          IconButton(
++            icon: const Icon(Icons.add_business, color: Colors.black54),
++            tooltip: 'Nova Obra',
++            onPressed: () {
++              showDialog(
++                context: context,
++                builder: (ctx) => _AddObraDialog(construtoraId: construtoraId),
++              );
++            },
++          ),
+         if (admin)
+           IconButton(
+             icon: const Icon(Icons.people, color: Colors.black54),
+@@ -77,10 +91,29 @@ class ObrasListScreen extends ConsumerWidget {
+         error: (err, stack) => Center(child: Text('Erro: $err')),
+         data: (obras) {
+           if (obras.isEmpty) {
+-            return const Center(
+-              child: Text(
+-                'Nenhuma obra encontrada para você nesta construtora.',
+-                textAlign: TextAlign.center,
++            return Center(
++              child: Column(
++                mainAxisSize: MainAxisSize.min,
++                children: [
++                  const Text(
++                    'Nenhuma obra encontrada para você nesta construtora.',
++                    textAlign: TextAlign.center,
++                  ),
++                  if (admin) ...[
++                    const SizedBox(height: 16),
++                    ElevatedButton.icon(
++                      onPressed: () {
++                        showDialog(
++                          context: context,
++                          builder: (ctx) =>
++                              _AddObraDialog(construtoraId: construtoraId),
++                        );
++                      },
++                      icon: const Icon(Icons.add),
++                      label: const Text('Criar Nova Obra'),
++                    ),
++                  ],
++                ],
+               ),
+             );
+           }
+@@ -212,3 +245,127 @@ class ObrasListScreen extends ConsumerWidget {
+     );
+   }
+ }
++
++class _AddObraDialog extends ConsumerStatefulWidget {
++  final String construtoraId;
++
++  const _AddObraDialog({required this.construtoraId});
++
++  @override
++  ConsumerState<_AddObraDialog> createState() => _AddObraDialogState();
++}
++
++class _AddObraDialogState extends ConsumerState<_AddObraDialog> {
++  final _formKey = GlobalKey<FormState>();
++  final _nameController = TextEditingController();
++  final _descController = TextEditingController();
++  final _addressController = TextEditingController();
++  bool _isSaving = false;
++
++  @override
++  void dispose() {
++    _nameController.dispose();
++    _descController.dispose();
++    _addressController.dispose();
++    super.dispose();
++  }
++
++  Future<void> _submit() async {
++    if (!_formKey.currentState!.validate()) return;
++    setState(() => _isSaving = true);
++
++    try {
++      final obra = Obra(
++        id: const Uuid().v4(),
++        construtoraId: widget.construtoraId,
++        name: _nameController.text.trim(),
++        description: _descController.text.trim().isEmpty
++            ? null
++            : _descController.text.trim(),
++        createdAt: DateTime.now(),
++        isActive: true,
++      );
++
++      await ref.read(obraRepositoryProvider).createObra(obra);
++      ref.invalidate(construtoraObrasProvider(widget.construtoraId));
++
++      if (mounted) {
++        Navigator.pop(context);
++        ScaffoldMessenger.of(context).showSnackBar(
++          const SnackBar(content: Text('Obra cadastrada com sucesso!')),
++        );
++      }
++    } catch (e) {
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text('Erro ao cadastrar obra: $e')),
++        );
++      }
++    } finally {
++      if (mounted) setState(() => _isSaving = false);
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    return AlertDialog(
++      title: const Text('Nova Obra'),
++      content: SizedBox(
++        width: 450,
++        child: Form(
++          key: _formKey,
++          child: SingleChildScrollView(
++            child: Column(
++              mainAxisSize: MainAxisSize.min,
++              children: [
++                TextFormField(
++                  controller: _nameController,
++                  decoration: const InputDecoration(
++                    labelText: 'Nome da Obra *',
++                    hintText: 'Ex: Residencial Flores',
++                  ),
++                  autofocus: true,
++                  validator: (val) =>
++                      val == null || val.trim().isEmpty ? 'Campo obrigatório' : null,
++                ),
++                const SizedBox(height: 16),
++                TextFormField(
++                  controller: _descController,
++                  decoration: const InputDecoration(
++                    labelText: 'Descrição (opcional)',
++                    hintText: 'Ex: Construção de 20 casas geminadas',
++                  ),
++                  maxLines: 2,
++                ),
++                const SizedBox(height: 16),
++                TextFormField(
++                  controller: _addressController,
++                  decoration: const InputDecoration(
++                    labelText: 'Endereço (opcional)',
++                    hintText: 'Ex: Rua das Palmeiras, 100',
++                  ),
++                ),
++              ],
++            ),
++          ),
++        ),
++      ),
++      actions: [
++        TextButton(
++          onPressed: _isSaving ? null : () => Navigator.pop(context),
++          child: const Text('Cancelar'),
++        ),
++        ElevatedButton(
++          onPressed: _isSaving ? null : _submit,
++          child: _isSaving
++              ? const SizedBox(
++                  width: 16,
++                  height: 16,
++                  child: CircularProgressIndicator(strokeWidth: 2),
++                )
++              : const Text('Salvar'),
++        ),
++      ],
++    );
++  }
++}

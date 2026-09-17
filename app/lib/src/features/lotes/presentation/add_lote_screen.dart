@@ -19,7 +19,14 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   String _selectedPhase = defaultLotePhases.first;
+  LoteStatus _selectedStatus = LoteStatus.noPrazo;
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -32,6 +39,7 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
         obraId: widget.obraId,
         name: _nameController.text.trim(),
         phase: _selectedPhase,
+        status: _selectedStatus,
         createdAt: DateTime.now(),
       );
 
@@ -56,33 +64,49 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Nome/Identificação do Lote (Ex: Casa 1)'),
-                validator: (val) => val == null || val.isEmpty ? 'Campo obrigatório' : null,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedPhase,
-                decoration: const InputDecoration(labelText: 'Fase Inicial'),
-                items: defaultLotePhases.map((phase) {
-                  return DropdownMenuItem(value: phase, child: Text(phase));
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedPhase = val);
-                },
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _submit,
-                  child: _isLoading ? const CircularProgressIndicator() : const Text('Criar Lote'),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: 'Nome/Identificação do Lote (Ex: Casa 1)'),
+                  validator: (val) => val == null || val.trim().isEmpty ? 'Campo obrigatório' : null,
                 ),
-              )
-            ],
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedPhase,
+                  decoration: const InputDecoration(labelText: 'Fase Inicial'),
+                  items: defaultLotePhases.map((phase) {
+                    return DropdownMenuItem(value: phase, child: Text(phase));
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedPhase = val);
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<LoteStatus>(
+                  initialValue: _selectedStatus,
+                  decoration: const InputDecoration(labelText: 'Status Inicial'),
+                  items: const [
+                    DropdownMenuItem(value: LoteStatus.noPrazo, child: Text('No Prazo')),
+                    DropdownMenuItem(value: LoteStatus.atrasado, child: Text('Atrasado')),
+                    DropdownMenuItem(value: LoteStatus.paralisado, child: Text('Paralisado')),
+                    DropdownMenuItem(value: LoteStatus.concluido, child: Text('Concluído')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedStatus = val);
+                  },
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _submit,
+                    child: _isLoading ? const CircularProgressIndicator() : const Text('Criar Lote'),
+                  ),
+                )
+              ],
+            ),
           ),
         ),
       ),

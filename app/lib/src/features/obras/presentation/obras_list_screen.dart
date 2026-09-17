@@ -13,6 +13,9 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../financeiro/presentation/financeiro_provider.dart';
 
 import '../../../common_widgets/sigo_layout.dart';
+import 'package:uuid/uuid.dart';
+import '../data/obra_repository.dart';
+import '../domain/obra.dart';
 
 class ObrasListScreen extends ConsumerWidget {
   final String construtoraId;
@@ -46,6 +49,17 @@ class ObrasListScreen extends ConsumerWidget {
       actions: [
         if (admin)
           IconButton(
+            icon: const Icon(Icons.add_business, color: Colors.black54),
+            tooltip: 'Nova Obra',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => _AddObraDialog(construtoraId: construtoraId),
+              );
+            },
+          ),
+        if (admin)
+          IconButton(
             icon: const Icon(Icons.people, color: Colors.black54),
             tooltip: 'Gerenciar Membros',
             onPressed: () {
@@ -77,10 +91,29 @@ class ObrasListScreen extends ConsumerWidget {
         error: (err, stack) => Center(child: Text('Erro: $err')),
         data: (obras) {
           if (obras.isEmpty) {
-            return const Center(
-              child: Text(
-                'Nenhuma obra encontrada para você nesta construtora.',
-                textAlign: TextAlign.center,
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Nenhuma obra encontrada para você nesta construtora.',
+                    textAlign: TextAlign.center,
+                  ),
+                  if (admin) ...[
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) =>
+                              _AddObraDialog(construtoraId: construtoraId),
+                        );
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Criar Nova Obra'),
+                    ),
+                  ],
+                ],
               ),
             );
           }
@@ -209,6 +242,130 @@ class ObrasListScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _AddObraDialog extends ConsumerStatefulWidget {
+  final String construtoraId;
+
+  const _AddObraDialog({required this.construtoraId});
+
+  @override
+  ConsumerState<_AddObraDialog> createState() => _AddObraDialogState();
+}
+
+class _AddObraDialogState extends ConsumerState<_AddObraDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descController = TextEditingController();
+  final _addressController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final obra = Obra(
+        id: const Uuid().v4(),
+        construtoraId: widget.construtoraId,
+        name: _nameController.text.trim(),
+        description: _descController.text.trim().isEmpty
+            ? null
+            : _descController.text.trim(),
+        createdAt: DateTime.now(),
+        isActive: true,
+      );
+
+      await ref.read(obraRepositoryProvider).createObra(obra);
+      ref.invalidate(construtoraObrasProvider(widget.construtoraId));
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Obra cadastrada com sucesso!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao cadastrar obra: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Nova Obra'),
+      content: SizedBox(
+        width: 450,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome da Obra *',
+                    hintText: 'Ex: Residencial Flores',
+                  ),
+                  autofocus: true,
+                  validator: (val) =>
+                      val == null || val.trim().isEmpty ? 'Campo obrigatório' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descController,
+                  decoration: const InputDecoration(
+                    labelText: 'Descrição (opcional)',
+                    hintText: 'Ex: Construção de 20 casas geminadas',
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _addressController,
+                  decoration: const InputDecoration(
+                    labelText: 'Endereço (opcional)',
+                    hintText: 'Ex: Rua das Palmeiras, 100',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _isSaving ? null : _submit,
+          child: _isSaving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Salvar'),
+        ),
+      ],
     );
   }
 }

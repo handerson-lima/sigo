@@ -36,8 +36,7 @@ class LoteRepository {
 
   Stream<List<Lote>> _livewatchLotes(String construtoraId, String obraId) {
     return _lotesRef(construtoraId, obraId)
-        .snapshots(includeMetadataChanges: true)
-        .where((s) => !s.metadata.isFromCache)
+        .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) => doc.data()).toList();
         });
