@@ -35,4 +35,89 @@ test('contratos transacionais de escala monetária e de estoque',()=>{
   // Precisão além da escala permitida sem arredondamento lança erro
   assert.throws(() => decimalUnits('1.0001', 1000));
 });
+test('idempotencia de comandos: reenvio identico retorna mesmo resultado e divergencia falha',()=>{
+  const uid = 'user-eng';
+  const op = 'op-mov-001';
+  const commandKey = hash([uid, op]);
+
+  // Payload original
+  const payloadOriginal = {
+    m: 'mat-cimento',
+    type: 'saida',
+    quantity: 5000,
+    o: 'obra-1',
+    l: 'lote-A',
+    reason: 'Uso fundacao',
+    reversalId: null,
+    evidence: null,
+    apropriacaoLote: true
+  };
+  const originalHash = hash(payloadOriginal);
+
+  // Simulação do banco de comandos
+  const commandStore = new Map();
+  
+  // Função que simula a guarda de idempotência dos endpoints transacionais (stockCommand, payExpense, finalizeDiario)
+  function processCommand(actorUid, operationId, payload, executeMutation) {
+    const key = hash([actorUid, operationId]);
+    const currentHash = hash(payload);
+    const prior = commandStore.get(key);
+    
+    if (prior) {
+      if (prior.payloadHash !== currentHash) {
+        const error = new Error('operationId com conteúdo diferente');
+        error.code = 'already-exists';
+        throw error;
+      }
+      // Idempotente: retorna o resultado original sem reexecutar mutação
+      return {result: prior.result, fromCache: true};
+    }
+
+    // Executa a mutação
+    const result = executeMutation();
+    commandStore.set(key, {payloadHash: currentHash, result, actor: actorUid, at: Date.now()});
+    return {result, fromCache: false};
+  }
+
+  let sideEffectCounter = 0;
+  function performStockDeduction() {
+    sideEffectCounter++;
+    return {movementId: commandKey, quantityUnits: 15000, quantityScale: 1000};
+  }
+
+  // 1. Primeira execução: comita mutação e grava comando
+  const firstExec = processCommand(uid, op, payloadOriginal, performStockDeduction);
+  assert.equal(firstExec.fromCache, false);
+  assert.equal(firstExec.result.movementId, commandKey);
+  assert.equal(sideEffectCounter, 1);
+
+  // 2. Reenvio com mesmo operationId e mesmo payload (ex: retry após queda de rede)
+  // Ordem de campos diferente não altera o hash canônico
+  const payloadReordered = {
+    l: 'lote-A',
+    o: 'obra-1',
+    m: 'mat-cimento',
+    apropriacaoLote: true,
+    evidence: null,
+    quantity: 5000,
+    reason: 'Uso fundacao',
+    reversalId: null,
+    type: 'saida'
+  };
+  const secondExec = processCommand(uid, op, payloadReordered, performStockDeduction);
+  assert.equal(secondExec.fromCache, true);
+  assert.deepEqual(secondExec.result, firstExec.result);
+  // Garante que o efeito colateral NÃO foi executado novamente
+  assert.equal(sideEffectCounter, 1);
+
+  // 3. Reenvio com mesmo operationId mas payload divergente (ex: quantidade alterada)
+  const payloadDivergent = {...payloadOriginal, quantity: 6000};
+  assert.throws(
+    () => processCommand(uid, op, payloadDivergent, performStockDeduction),
+    (err) => err.code === 'already-exists' && err.message.includes('conteúdo diferente')
+  );
+  // Garante que nenhum efeito colateral ocorreu no conflito
+  assert.equal(sideEffectCounter, 1);
+});
+
 

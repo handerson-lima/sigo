@@ -3,7 +3,6 @@ import '../../../sync/read_cache.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 
 import '../domain/despesa.dart';
 
@@ -13,8 +12,10 @@ final financeiroRepositoryProvider = Provider<FinanceiroRepository>((ref) {
 
 class FinanceiroRepository {
   final FirebaseFirestore _firestore;
+  final OperationQueue _queue;
 
-  FinanceiroRepository(this._firestore);
+  FinanceiroRepository(this._firestore, {OperationQueue? queue})
+      : _queue = queue ?? OperationQueue.instance;
 
   CollectionReference<Despesa> _despesasRef(String construtoraId) => _firestore
       .collection('construtoras')
@@ -42,9 +43,13 @@ class FinanceiroRepository {
     await _despesasRef(despesa.construtoraId).doc(despesa.id).set(despesa);
   }
 
-  Future<void> marcarComoPago(String construtoraId, String despesaId) async {
-    await OperationQueue.instance.enqueue('payExpense', {
-      'operationId': const Uuid().v4(),
+  Future<void> marcarComoPago(
+    String construtoraId,
+    String despesaId, {
+    String? operationId,
+  }) async {
+    await _queue.enqueue('payExpense', {
+      'operationId': operationId ?? 'pay-$despesaId',
       'construtoraId': construtoraId,
       'despesaId': despesaId,
     });
