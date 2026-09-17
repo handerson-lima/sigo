@@ -30,10 +30,19 @@ class _AddMaterialScreenState extends ConsumerState<AddMaterialScreen> {
         construtoraId: widget.construtoraId,
         name: _nameController.text.trim(),
         unit: _unitController.text.trim(),
+        currentQuantity: 0.0,
+        quantityUnits: 0,
+        quantityScale: 1000,
+        schemaVersion: 2,
       );
 
       await ref.read(almoxarifadoRepositoryProvider).createMaterial(material);
-      if (mounted) context.pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Material cadastrado com sucesso!')),
+        );
+        context.pop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));

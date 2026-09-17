@@ -12,7 +12,7 @@ Despesa _$DespesaFromJson(Map<String, dynamic> json) => Despesa(
   obraId: json['obraId'] as String?,
   descricao: json['descricao'] as String,
   valor: (json['valor'] as num).toDouble(),
-  valorEmCentavos: json['valorEmCentavos'] as int?,
+  valorEmCentavos: (json['valorEmCentavos'] as num?)?.toInt(),
   dataVencimento: DateTime.parse(json['dataVencimento'] as String),
   dataPagamento: json['dataPagamento'] == null
       ? null
@@ -28,6 +28,7 @@ Map<String, dynamic> _$DespesaToJson(Despesa instance) => <String, dynamic>{
   'construtoraId': instance.construtoraId,
   'obraId': instance.obraId,
   'descricao': instance.descricao,
+  'valorEmCentavos': instance.valorEmCentavos,
   'valor': instance.valor,
   'dataVencimento': instance.dataVencimento.toIso8601String(),
   'dataPagamento': instance.dataPagamento?.toIso8601String(),

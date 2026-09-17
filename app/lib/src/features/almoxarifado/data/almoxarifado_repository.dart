@@ -45,10 +45,21 @@ class AlmoxarifadoRepository {
   }
 
   Future<void> createMaterial(mat.Material material) async {
-    if (material.currentQuantity != 0) {
+    if (material.currentQuantity != 0 ||
+        (material.quantityUnits != null && material.quantityUnits != 0)) {
       throw ArgumentError('Material novo inicia com saldo zero');
     }
-    await _materiaisRef(material.construtoraId).doc(material.id).set(material);
+    final m = mat.Material(
+      id: material.id,
+      construtoraId: material.construtoraId,
+      name: material.name,
+      unit: material.unit,
+      currentQuantity: 0.0,
+      quantityUnits: 0,
+      quantityScale: material.quantityScale ?? 1000,
+      schemaVersion: material.schemaVersion ?? 2,
+    );
+    await _materiaisRef(m.construtoraId).doc(m.id).set(m);
   }
 
   /// Registra uma movimentação e atualiza o saldo usando Transaction para garantir consistência
@@ -60,8 +71,11 @@ class AlmoxarifadoRepository {
       'operationId': mov.id,
       'construtoraId': construtoraId,
       'materialId': mov.materialId,
-      'type': mov.type.name,
+      'type': mov.commandType ?? mov.type.name,
       'quantity': mov.quantity,
+      if (mov.quantityUnits != null) 'quantityUnits': mov.quantityUnits,
+      if (mov.quantityScale != null) 'quantityScale': mov.quantityScale,
+      if (mov.deltaUnits != null) 'deltaUnits': mov.deltaUnits,
       'obraId': mov.obraId,
       'loteId': mov.loteId,
       'observacao': mov.observacao,
@@ -70,6 +84,7 @@ class AlmoxarifadoRepository {
       'fornecedor': mov.fornecedor,
       'apropriacaoLote': mov.apropriacaoLote,
       'solicitante': mov.solicitante,
+      'reversalId': mov.reversalId,
       'valorItensCentavos': mov.valorItensCentavos,
       'freteCentavos': mov.freteCentavos,
       'despesasCentavos': mov.despesasCentavos,

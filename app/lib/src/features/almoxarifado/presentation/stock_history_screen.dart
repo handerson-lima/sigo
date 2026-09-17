@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/contracts.dart';
 import '../../../sync/operation_queue.dart';
 import '../domain/material.dart' as mat;
 
@@ -126,18 +127,6 @@ class StockHistoryScreen extends StatelessWidget {
     final descontoCentavos = (d['descontoCentavos'] as num?)?.toInt();
     final custoTotalCentavos = (d['custoTotalCentavos'] as num?)?.toInt();
 
-    String formatCents(int cents) {
-      final negative = cents < 0;
-      final abs = cents.abs();
-      final reais = abs ~/ 100;
-      final centavos = (abs % 100).toString().padLeft(2, '0');
-      final formattedReais = reais.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (Match m) => '${m[1]}.',
-      );
-      return '${negative ? '-' : ''}R\$ $formattedReais,$centavos';
-    }
-
     if (custoTotalCentavos != null &&
         (freteCentavos != null ||
             despesasCentavos != null ||
@@ -249,7 +238,14 @@ class StockHistoryScreen extends StatelessWidget {
         ],
       );
     } else {
-      final baseText = '${d['type']} · ${d['quantity']} ${material.unit}';
+      final scale = (d['quantityScale'] as num?)?.toInt() ?? 1000;
+      final qStr = d['quantityUnits'] != null
+          ? formatQuantityWithScale(
+              (d['quantityUnits'] as num).toDouble() / scale,
+              scale: scale,
+            )
+          : '${d['quantity']}';
+      final baseText = '${d['type']} · $qStr ${material.unit}';
       if (isReversed) {
         titleWidget = Row(
           mainAxisSize: MainAxisSize.min,
@@ -429,15 +425,16 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
     super.initState();
     _quantity = TextEditingController(
       text: widget.type == 'abertura'
-          ? widget.material.currentQuantity.toString()
+          ? formatQuantityWithScale(
+              widget.material.currentQuantity,
+              useComma: false,
+            )
           : '',
     );
     _reason = TextEditingController();
     _evidence = TextEditingController();
 
-    final currentBalance = widget.material.quantityUnits != null
-        ? widget.material.quantityUnits! / 1000
-        : widget.material.currentQuantity;
+    final currentBalance = widget.material.displayQuantity;
     final balanceDisplay = currentBalance % 1 == 0
         ? currentBalance.toInt().toString()
         : currentBalance.toString();
@@ -512,9 +509,7 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
   }
 
   void _updatePredicted(String valText) {
-    final currentBalance = widget.material.quantityUnits != null
-        ? widget.material.quantityUnits! / 1000
-        : widget.material.currentQuantity;
+    final currentBalance = widget.material.displayQuantity;
     final balanceDisplay = currentBalance % 1 == 0
         ? currentBalance.toInt().toString()
         : currentBalance.toString();
@@ -688,6 +683,28 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
                   ),
                   onChanged: _updatePredicted,
                   validator: (v) {
+                    if (widget.type == 'abertura') {
+                      final raw = v?.trim() ?? '';
+                      if (raw.isEmpty) {
+                        return 'Informe o saldo conferido';
+                      }
+                      final int units;
+                      try {
+                        units = parseQuantityUnits(raw, scale: 1000);
+                      } on FormatException catch (e) {
+                        return e.message;
+                      } catch (_) {
+                        return 'Informe uma quantidade válida';
+                      }
+                      final expectedUnits = decimalUnits(
+                        widget.material.currentQuantity,
+                        3,
+                      );
+                      if (units != expectedUnits) {
+                        return 'Valor diverge do saldo legado (${formatQuantityWithScale(widget.material.currentQuantity)})';
+                      }
+                      return null;
+                    }
                     if (widget.type == 'ajuste') {
                       final raw = v?.replaceAll(',', '.').trim() ?? '';
                       if (raw.isEmpty) {

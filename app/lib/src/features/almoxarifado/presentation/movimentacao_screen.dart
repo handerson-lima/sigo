@@ -43,6 +43,8 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
   final _freteController = TextEditingController();
   final _despesasController = TextEditingController();
   final _descontoController = TextEditingController();
+  final _custoUnitarioSaidaController = TextEditingController();
+  final _custoTotalSaidaController = TextEditingController();
   String? _selectedObraId;
   String? _selectedLoteId;
   bool _apropriacaoLote = false;
@@ -62,35 +64,21 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
     _freteController.dispose();
     _despesasController.dispose();
     _descontoController.dispose();
+    _custoUnitarioSaidaController.dispose();
+    _custoTotalSaidaController.dispose();
     super.dispose();
   }
 
   int? _parseCents(String? text) {
     if (text == null || text.trim().isEmpty) return null;
-    var clean = text.trim().replaceAll('R\$', '').trim();
-    if (clean.contains(',') && clean.contains('.')) {
-      clean = clean.replaceAll('.', '').replaceAll(',', '.');
-    } else if (clean.contains(',')) {
-      clean = clean.replaceAll(',', '.');
-    }
     try {
-      return decimalUnits(clean, 2, round: true);
+      return parseCurrencyToCents(text);
     } catch (_) {
       return null;
     }
   }
 
-  String _formatCents(int cents) {
-    final negative = cents < 0;
-    final abs = cents.abs();
-    final reais = abs ~/ 100;
-    final centavos = (abs % 100).toString().padLeft(2, '0');
-    final formattedReais = reais.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
-    );
-    return '${negative ? '-' : ''}R\$ $formattedReais,$centavos';
-  }
+  String _formatCents(int cents) => formatCents(cents);
 
   String? _validateMoneyField(String? val) {
     if (val == null || val.trim().isEmpty) return null;
@@ -104,8 +92,14 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final q = double.tryParse(_quantityController.text) ?? 0;
-    if (!q.isFinite || q <= 0) return;
+    final int qUnits;
+    try {
+      qUnits = parseQuantityUnits(_quantityController.text, scale: 1000);
+    } catch (_) {
+      return;
+    }
+    if (qUnits <= 0) return;
+    final q = qUnits / 1000.0;
 
     final isSaida = widget.type == MovimentacaoType.saida;
 
@@ -169,6 +163,26 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
           custoTotalCentavos = total;
           custoUnitarioCentavos = q > 0 ? (total / q).round() : 0;
         }
+      } else {
+        final hasUnit = _custoUnitarioSaidaController.text.trim().isNotEmpty;
+        final hasTot = _custoTotalSaidaController.text.trim().isNotEmpty;
+        if (hasUnit || hasTot) {
+          if (hasUnit) {
+            final unitCents = _parseCents(_custoUnitarioSaidaController.text);
+            if (unitCents != null && unitCents >= 0) {
+              custoUnitarioCentavos = unitCents;
+              custoTotalCentavos = hasTot
+                  ? _parseCents(_custoTotalSaidaController.text)
+                  : (unitCents * q).round();
+            }
+          } else if (hasTot) {
+            final totCents = _parseCents(_custoTotalSaidaController.text);
+            if (totCents != null && totCents >= 0) {
+              custoTotalCentavos = totCents;
+              custoUnitarioCentavos = q > 0 ? (totCents / q).round() : 0;
+            }
+          }
+        }
       }
 
       final mov = Movimentacao(
@@ -176,6 +190,10 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
         materialId: widget.material.id,
         type: widget.type,
         quantity: q,
+        quantityUnits: qUnits,
+        quantityScale: 1000,
+        deltaUnits: isSaida ? -qUnits : qUnits,
+        commandType: isSaida ? 'saida' : 'entrada',
         date: DateTime.now(),
         responsavelId: uid,
         obraId: finalObraId,
@@ -246,7 +264,7 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 ),
               ),
               Text(
-                'Estoque Atual: ${widget.material.currentQuantity} ${widget.material.unit}',
+                'Estoque Atual: ${formatQuantityWithScale(widget.material.displayQuantity)} ${widget.material.unit}',
               ),
               const SizedBox(height: 10),
               TextFormField(
@@ -259,17 +277,23 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 ),
                 onChanged: (_) => setState(() {}),
                 validator: (val) {
-                  if (val == null || val.isEmpty) return 'Informe a quantidade';
-                  final v = double.tryParse(val);
-                  if (v == null || !v.isFinite || v <= 0) {
+                  if (val == null || val.trim().isEmpty) return 'Informe a quantidade';
+                  final int units;
+                  try {
+                    units = parseQuantityUnits(val, scale: 1000, allowNegative: false);
+                  } on FormatException catch (e) {
+                    if (e.message == 'Use até 3 casas decimais') {
+                      return 'Use até 3 casas decimais';
+                    }
+                    return 'Valor inválido';
+                  } catch (_) {
                     return 'Valor inválido';
                   }
-                  try {
-                    decimalUnits(val, 3);
-                  } catch (_) {
-                    return 'Use até 3 casas decimais';
+                  if (units <= 0) {
+                    return 'Valor inválido';
                   }
-                  if (isSaida && v > widget.material.currentQuantity) {
+                  final v = units / 1000.0;
+                  if (isSaida && v > widget.material.displayQuantity) {
                     return 'Estoque insuficiente';
                   }
                   return null;
@@ -415,6 +439,7 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                     ),
                     validator: (v) {
                       if (_apropriacaoLote && (v == null || v.trim().isEmpty)) {
+                        debugPrint('DEBUG lote empty with apropriacaoLote true');
                         return 'Selecione o lote para apropriação';
                       }
                       return null;
@@ -441,6 +466,46 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                     labelText: 'Solicitante / Retirado por (Opcional)',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                Row(
+                  children: const [
+                    Icon(Icons.monetization_on_outlined, size: 20, color: Colors.blueGrey),
+                    SizedBox(width: 8),
+                    Text(
+                      'Custo de Apropriação ao Lote (Opcional)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueGrey,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  key: const Key('custo-unitario-field'),
+                  controller: _custoUnitarioSaidaController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Custo Unitário (R\$)',
+                    hintText: 'Ex: 35,00',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateMoneyField,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  key: const Key('custo-total-field'),
+                  controller: _custoTotalSaidaController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Custo Total Apropriado (R\$)',
+                    hintText: 'Ex: 350,00',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateMoneyField,
                 ),
               ],
               if (!isSaida) ...[
@@ -554,7 +619,10 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                     final vdesc = _parseCents(_descontoController.text) ?? 0;
                     final total = (vi + vf + vd) - vdesc;
                     final isNegative = total < 0;
-                    final qVal = double.tryParse(_quantityController.text) ?? 0;
+                    double qVal = 0.0;
+                    try {
+                      qVal = parseQuantityUnits(_quantityController.text, scale: 1000) / 1000.0;
+                    } catch (_) {}
                     final unitCents = (qVal > 0 && !isNegative) ? (total / qVal).round() : null;
 
                     return Container(

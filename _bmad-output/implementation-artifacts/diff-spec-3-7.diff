@@ -1,0 +1,931 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index f99d8ec..81465fc 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -5,7 +5,7 @@
+ # IDs históricos preservados; docs/stories não existe no workspace atual.
+ 
+ generated: 09-14-2026 16:15
+-last_updated: 09-17-2026 16:05
++last_updated: 09-17-2026 16:15
+ project: obras
+ project_key: SIGO
+ tracking_system: file-system
+@@ -80,7 +80,7 @@ development_status:
+   3-4-estoque-ajustes: done
+   3-5-estoque-estorno: done
+   3-6-estoque-rateio: done
+-  3-7-monetario-centavos: backlog
++  3-7-monetario-centavos: in-review
+   epic-3-retrospective: optional
+ 
+   epic-4: backlog
+diff --git a/app/lib/src/core/contracts.dart b/app/lib/src/core/contracts.dart
+index 7e1a115..369dd39 100644
+--- a/app/lib/src/core/contracts.dart
++++ b/app/lib/src/core/contracts.dart
+@@ -55,3 +55,120 @@ int decimalUnits(dynamic value, int digits, {bool round = false}) {
+   }
+   return negative ? -result : result;
+ }
++
++int _digitsForScale(int scale) {
++  int d = 0;
++  int temp = scale;
++  while (temp >= 10 && temp % 10 == 0) {
++    d++;
++    temp ~/= 10;
++  }
++  return d > 0 ? d : 3;
++}
++
++int parseCurrencyToCents(dynamic value) {
++  if (value == null) throw const FormatException('Valor monetário inválido');
++  String text;
++  if (value is num) {
++    if (!value.isFinite) throw const FormatException('Valor monetário inválido');
++    text = value.toString();
++  } else {
++    text = value.toString().trim();
++  }
++  if (text.isEmpty) throw const FormatException('Valor monetário inválido');
++  var clean = text.replaceAll('R\$', '').replaceAll(' ', '').trim();
++  final negative = clean.startsWith('-');
++  if (negative) clean = clean.substring(1).trim();
++  if (clean.contains(',') && clean.contains('.')) {
++    clean = clean.replaceAll('.', '').replaceAll(',', '.');
++  } else if (clean.contains(',')) {
++    clean = clean.replaceAll(',', '.');
++  }
++  final cents = decimalUnits(clean, 2, round: true);
++  return negative ? -cents.abs() : cents.abs();
++}
++
++String formatCents(int cents) {
++  final negative = cents < 0;
++  final abs = cents.abs();
++  final reais = abs ~/ 100;
++  final centavos = (abs % 100).toString().padLeft(2, '0');
++  final formattedReais = reais.toString().replaceAllMapped(
++    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
++    (Match m) => '${m[1]}.',
++  );
++  return '${negative ? '-' : ''}R\$ $formattedReais,$centavos';
++}
++
++int parseQuantityUnits(
++  dynamic value, {
++  int scale = 1000,
++  bool allowNegative = false,
++}) {
++  if (value == null) throw const FormatException('Valor inválido');
++  String text;
++  if (value is num) {
++    if (!value.isFinite) throw const FormatException('Valor inválido');
++    text = value.toString();
++  } else {
++    text = value.toString().trim();
++  }
++  if (text.isEmpty) throw const FormatException('Valor inválido');
++
++  final hasPlus = text.startsWith('+');
++  if (hasPlus) text = text.substring(1).trim();
++  final negative = text.startsWith('-');
++  if (negative) {
++    if (!allowNegative) throw const FormatException('Valor inválido');
++    text = text.substring(1).trim();
++  }
++
++  if (text.contains(',') && text.contains('.')) {
++    text = text.replaceAll('.', '').replaceAll(',', '.');
++  } else if (text.contains(',')) {
++    text = text.replaceAll(',', '.');
++  }
++
++  if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(text)) {
++    throw const FormatException('Valor inválido');
++  }
++
++  final digits = _digitsForScale(scale);
++  final parts = text.split('.');
++  if (parts.length == 2 && parts[1].length > digits) {
++    throw FormatException('Use até $digits casas decimais');
++  }
++
++  final units = decimalUnits(text, digits, round: false);
++  return negative ? -units : units;
++}
++
++String formatQuantityWithScale(
++  num quantity, {
++  int scale = 1000,
++  bool useComma = true,
++}) {
++  final double val = quantity.toDouble();
++  if (val % 1 == 0) {
++    return val.toInt().toString();
++  }
++  final digits = _digitsForScale(scale);
++  var str = val.toStringAsFixed(digits);
++  while (str.contains('.') && (str.endsWith('0') || str.endsWith('.'))) {
++    str = str.substring(0, str.length - 1);
++  }
++  if (useComma) {
++    str = str.replaceAll('.', ',');
++  }
++  return str;
++}
++
++String formatQuantityUnits(
++  int quantityUnits, {
++  int scale = 1000,
++  bool useComma = true,
++}) => formatQuantityWithScale(
++  quantityUnits / scale,
++  scale: scale,
++  useComma: useComma,
++);
+diff --git a/app/lib/src/features/almoxarifado/data/almoxarifado_repository.dart b/app/lib/src/features/almoxarifado/data/almoxarifado_repository.dart
+index cb120f5..6e6eb3f 100644
+--- a/app/lib/src/features/almoxarifado/data/almoxarifado_repository.dart
++++ b/app/lib/src/features/almoxarifado/data/almoxarifado_repository.dart
+@@ -45,10 +45,21 @@ class AlmoxarifadoRepository {
+   }
+ 
+   Future<void> createMaterial(mat.Material material) async {
+-    if (material.currentQuantity != 0) {
++    if (material.currentQuantity != 0 ||
++        (material.quantityUnits != null && material.quantityUnits != 0)) {
+       throw ArgumentError('Material novo inicia com saldo zero');
+     }
+-    await _materiaisRef(material.construtoraId).doc(material.id).set(material);
++    final m = mat.Material(
++      id: material.id,
++      construtoraId: material.construtoraId,
++      name: material.name,
++      unit: material.unit,
++      currentQuantity: 0.0,
++      quantityUnits: 0,
++      quantityScale: material.quantityScale ?? 1000,
++      schemaVersion: material.schemaVersion ?? 2,
++    );
++    await _materiaisRef(m.construtoraId).doc(m.id).set(m);
+   }
+ 
+   /// Registra uma movimentação e atualiza o saldo usando Transaction para garantir consistência
+@@ -60,8 +71,11 @@ class AlmoxarifadoRepository {
+       'operationId': mov.id,
+       'construtoraId': construtoraId,
+       'materialId': mov.materialId,
+-      'type': mov.type.name,
++      'type': mov.commandType ?? mov.type.name,
+       'quantity': mov.quantity,
++      if (mov.quantityUnits != null) 'quantityUnits': mov.quantityUnits,
++      if (mov.quantityScale != null) 'quantityScale': mov.quantityScale,
++      if (mov.deltaUnits != null) 'deltaUnits': mov.deltaUnits,
+       'obraId': mov.obraId,
+       'loteId': mov.loteId,
+       'observacao': mov.observacao,
+@@ -70,6 +84,7 @@ class AlmoxarifadoRepository {
+       'fornecedor': mov.fornecedor,
+       'apropriacaoLote': mov.apropriacaoLote,
+       'solicitante': mov.solicitante,
++      'reversalId': mov.reversalId,
+       'valorItensCentavos': mov.valorItensCentavos,
+       'freteCentavos': mov.freteCentavos,
+       'despesasCentavos': mov.despesasCentavos,
+diff --git a/app/lib/src/features/almoxarifado/domain/material.dart b/app/lib/src/features/almoxarifado/domain/material.dart
+index 303048f..38ffad2 100644
+--- a/app/lib/src/features/almoxarifado/domain/material.dart
++++ b/app/lib/src/features/almoxarifado/domain/material.dart
+@@ -1,3 +1,4 @@
++import '../../../core/contracts.dart';
+ import 'package:json_annotation/json_annotation.dart';
+ 
+ part 'material.g.dart';
+@@ -10,6 +11,8 @@ class Material {
+   final String unit; // ex: Saco, Metro, Unidade
+   final double currentQuantity;
+   final int? quantityUnits;
++  final int? quantityScale;
++  final int? schemaVersion;
+ 
+   Material({
+     required this.id,
+@@ -17,28 +20,40 @@ class Material {
+     required this.name,
+     required this.unit,
+     this.currentQuantity = 0.0,
+-    this.quantityUnits = 0,
++    this.quantityUnits,
++    this.quantityScale = 1000,
++    this.schemaVersion = 2,
+   });
+ 
++  int get effectiveQuantityScale => quantityScale ?? 1000;
++
++  double get displayQuantity => quantityUnits != null
++      ? quantityUnits! / effectiveQuantityScale
++      : currentQuantity;
++
++  String get formattedBalance =>
++      formatQuantityWithScale(displayQuantity, scale: effectiveQuantityScale);
++
+   factory Material.fromJson(Map<String, dynamic> json) {
+     final legacy = _$MaterialFromJson(json);
++    final scale = (json['quantityScale'] as num?)?.toInt() ?? 1000;
++    final units = (json['quantityUnits'] as num?)?.toInt();
++    final schema = (json['schemaVersion'] as num?)?.toInt() ?? 2;
+     return Material(
+       id: legacy.id,
+       construtoraId: legacy.construtoraId,
+       name: legacy.name,
+       unit: legacy.unit,
+-      quantityUnits: json['quantityUnits'] as int?,
+-      currentQuantity: json['quantityUnits'] != null
+-          ? (json['quantityUnits'] as int) / (json['quantityScale'] as int)
+-          : legacy.currentQuantity,
++      quantityUnits: units,
++      quantityScale: scale,
++      schemaVersion: schema,
++      currentQuantity: units != null ? units / scale : legacy.currentQuantity,
+     );
+   }
+   Map<String, dynamic> toJson() => {
+     ..._$MaterialToJson(this),
+-    if (quantityUnits != null) ...{
+-      'quantityUnits': quantityUnits,
+-      'quantityScale': 1000,
+-      'schemaVersion': 2,
+-    },
++    if (quantityUnits != null) 'quantityUnits': quantityUnits,
++    'quantityScale': effectiveQuantityScale,
++    if (schemaVersion != null) 'schemaVersion': schemaVersion,
+   };
+ }
+diff --git a/app/lib/src/features/almoxarifado/domain/material.g.dart b/app/lib/src/features/almoxarifado/domain/material.g.dart
+index 25e8fcb..6d6c602 100644
+--- a/app/lib/src/features/almoxarifado/domain/material.g.dart
++++ b/app/lib/src/features/almoxarifado/domain/material.g.dart
+@@ -12,6 +12,7 @@ Material _$MaterialFromJson(Map<String, dynamic> json) => Material(
+   name: json['name'] as String,
+   unit: json['unit'] as String,
+   currentQuantity: (json['currentQuantity'] as num?)?.toDouble() ?? 0.0,
++  quantityUnits: (json['quantityUnits'] as num?)?.toInt() ?? 0,
+ );
+ 
+ Map<String, dynamic> _$MaterialToJson(Material instance) => <String, dynamic>{
+@@ -20,4 +21,5 @@ Map<String, dynamic> _$MaterialToJson(Material instance) => <String, dynamic>{
+   'name': instance.name,
+   'unit': instance.unit,
+   'currentQuantity': instance.currentQuantity,
++  'quantityUnits': instance.quantityUnits,
+ };
+diff --git a/app/lib/src/features/almoxarifado/domain/movimentacao.dart b/app/lib/src/features/almoxarifado/domain/movimentacao.dart
+index be3f6ee..4b8606a 100644
+--- a/app/lib/src/features/almoxarifado/domain/movimentacao.dart
++++ b/app/lib/src/features/almoxarifado/domain/movimentacao.dart
+@@ -28,12 +28,19 @@ class Movimentacao {
+   final int? descontoCentavos; // Desconto concedido em centavos
+   final int? custoTotalCentavos; // Custo total efetivo (itens + frete + despesas - desconto) em centavos
+   final int? custoUnitarioCentavos; // Custo unitário efetivo apurado em centavos por unidade
++  final int? quantityUnits; // Quantidade inteira escalada
++  final int? quantityScale; // Fator de escala (padrão 1000)
++  final int? deltaUnits; // Variação com sinal (+ entrada, - saída)
++  final String? commandType; // 'entrada', 'saida', 'ajuste', 'estorno', 'abertura'
++  final String? reversalId; // ID da movimentação original estornada
++  final String? reversedBy; // ID do estorno que reverteu este movimento
++  final int? openingBalanceUnits; // Saldo de abertura para reconciliação legada
+ 
+   Movimentacao({
+     required this.id,
+     required this.materialId,
+     required this.type,
+-    required this.quantity,
++    this.quantity = 0.0,
+     required this.date,
+     required this.responsavelId,
+     this.obraId,
+@@ -50,10 +57,55 @@ class Movimentacao {
+     this.descontoCentavos,
+     this.custoTotalCentavos,
+     this.custoUnitarioCentavos,
++    this.quantityUnits,
++    this.quantityScale,
++    this.deltaUnits,
++    this.commandType,
++    this.reversalId,
++    this.reversedBy,
++    this.openingBalanceUnits,
+   });
+ 
+-  factory Movimentacao.fromJson(Map<String, dynamic> json) =>
+-      _$MovimentacaoFromJson(compatibleDates(json, ['date']));
++  int get effectiveQuantityScale => quantityScale ?? 1000;
+ 
+-  Map<String, dynamic> toJson() => _$MovimentacaoToJson(this);
++  double get effectiveQuantity {
++    if (quantityUnits != null) {
++      return quantityUnits! / effectiveQuantityScale;
++    }
++    return quantity;
++  }
++
++  String get displayQuantity => formatQuantityWithScale(
++        effectiveQuantity,
++        scale: effectiveQuantityScale,
++        useComma: false,
++      );
++
++  String get displayQuantityBr => formatQuantityWithScale(
++        effectiveQuantity,
++        scale: effectiveQuantityScale,
++        useComma: true,
++      );
++
++  factory Movimentacao.fromJson(Map<String, dynamic> json) {
++    final copy = Map<String, dynamic>.from(json);
++    if (copy['quantity'] == null && copy['quantityUnits'] != null) {
++      final scale = (copy['quantityScale'] as num?)?.toDouble() ?? 1000.0;
++      copy['quantity'] = (copy['quantityUnits'] as num).toDouble() / scale;
++    }
++    return _$MovimentacaoFromJson(compatibleDates(copy, ['date']));
++  }
++
++  Map<String, dynamic> toJson() => <String, dynamic>{
++        ..._$MovimentacaoToJson(this),
++        'quantity': effectiveQuantity,
++        if (quantityUnits != null) 'quantityUnits': quantityUnits,
++        if (quantityScale != null) 'quantityScale': quantityScale,
++        if (deltaUnits != null) 'deltaUnits': deltaUnits,
++        if (commandType != null) 'commandType': commandType,
++        if (reversalId != null) 'reversalId': reversalId,
++        if (reversedBy != null) 'reversedBy': reversedBy,
++        if (openingBalanceUnits != null)
++          'openingBalanceUnits': openingBalanceUnits,
++      };
+ }
+diff --git a/app/lib/src/features/almoxarifado/domain/movimentacao.g.dart b/app/lib/src/features/almoxarifado/domain/movimentacao.g.dart
+index 2bceb4b..ad232ca 100644
+--- a/app/lib/src/features/almoxarifado/domain/movimentacao.g.dart
++++ b/app/lib/src/features/almoxarifado/domain/movimentacao.g.dart
+@@ -10,7 +10,7 @@ Movimentacao _$MovimentacaoFromJson(Map<String, dynamic> json) => Movimentacao(
+   id: json['id'] as String,
+   materialId: json['materialId'] as String,
+   type: $enumDecode(_$MovimentacaoTypeEnumMap, json['type']),
+-  quantity: (json['quantity'] as num).toDouble(),
++  quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
+   date: DateTime.parse(json['date'] as String),
+   responsavelId: json['responsavelId'] as String,
+   obraId: json['obraId'] as String?,
+@@ -27,6 +27,13 @@ Movimentacao _$MovimentacaoFromJson(Map<String, dynamic> json) => Movimentacao(
+   descontoCentavos: (json['descontoCentavos'] as num?)?.toInt(),
+   custoTotalCentavos: (json['custoTotalCentavos'] as num?)?.toInt(),
+   custoUnitarioCentavos: (json['custoUnitarioCentavos'] as num?)?.toInt(),
++  quantityUnits: (json['quantityUnits'] as num?)?.toInt(),
++  quantityScale: (json['quantityScale'] as num?)?.toInt(),
++  deltaUnits: (json['deltaUnits'] as num?)?.toInt(),
++  commandType: json['commandType'] as String?,
++  reversalId: json['reversalId'] as String?,
++  reversedBy: json['reversedBy'] as String?,
++  openingBalanceUnits: (json['openingBalanceUnits'] as num?)?.toInt(),
+ );
+ 
+ Map<String, dynamic> _$MovimentacaoToJson(Movimentacao instance) =>
+@@ -51,6 +58,13 @@ Map<String, dynamic> _$MovimentacaoToJson(Movimentacao instance) =>
+       'descontoCentavos': instance.descontoCentavos,
+       'custoTotalCentavos': instance.custoTotalCentavos,
+       'custoUnitarioCentavos': instance.custoUnitarioCentavos,
++      'quantityUnits': instance.quantityUnits,
++      'quantityScale': instance.quantityScale,
++      'deltaUnits': instance.deltaUnits,
++      'commandType': instance.commandType,
++      'reversalId': instance.reversalId,
++      'reversedBy': instance.reversedBy,
++      'openingBalanceUnits': instance.openingBalanceUnits,
+     };
+ 
+ const _$MovimentacaoTypeEnumMap = {
+diff --git a/app/lib/src/features/almoxarifado/presentation/add_material_screen.dart b/app/lib/src/features/almoxarifado/presentation/add_material_screen.dart
+index ec3a999..1b83593 100644
+--- a/app/lib/src/features/almoxarifado/presentation/add_material_screen.dart
++++ b/app/lib/src/features/almoxarifado/presentation/add_material_screen.dart
+@@ -30,10 +30,19 @@ class _AddMaterialScreenState extends ConsumerState<AddMaterialScreen> {
+         construtoraId: widget.construtoraId,
+         name: _nameController.text.trim(),
+         unit: _unitController.text.trim(),
++        currentQuantity: 0.0,
++        quantityUnits: 0,
++        quantityScale: 1000,
++        schemaVersion: 2,
+       );
+ 
+       await ref.read(almoxarifadoRepositoryProvider).createMaterial(material);
+-      if (mounted) context.pop();
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          const SnackBar(content: Text('Material cadastrado com sucesso!')),
++        );
++        context.pop();
++      }
+     } catch (e) {
+       if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+diff --git a/app/lib/src/features/almoxarifado/presentation/almoxarifado_list_screen.dart b/app/lib/src/features/almoxarifado/presentation/almoxarifado_list_screen.dart
+index f9c5edf..1101634 100644
+--- a/app/lib/src/features/almoxarifado/presentation/almoxarifado_list_screen.dart
++++ b/app/lib/src/features/almoxarifado/presentation/almoxarifado_list_screen.dart
+@@ -1,3 +1,4 @@
++import '../../../core/contracts.dart';
+ import 'stock_history_screen.dart';
+ import '../../authentication/data/user_repository.dart';
+ import '../../obras/presentation/current_permissions_provider.dart';
+@@ -73,8 +74,12 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
+                         if (rev != null) delta += rev;
+                       }
+                     }
++                    final confirmed = material.displayQuantity;
++                    final confirmedStr = formatQuantityWithScale(confirmed);
++                    final est = confirmed + delta;
++                    final estStr = formatQuantityWithScale(est);
+                     return Text(
+-                      'Confirmado: ${material.quantityUnits != null ? material.quantityUnits! / 1000 : material.currentQuantity} ${material.unit}${rows.isEmpty ? '' : '\nEstimativa com pendências: ${(material.quantityUnits != null ? material.quantityUnits! / 1000 : material.currentQuantity) + delta} ${material.unit}'}',
++                      'Confirmado: $confirmedStr ${material.unit}${rows.isEmpty ? '' : '\nEstimativa com pendências: $estStr ${material.unit}'}',
+                     );
+                   },
+                 ),
+diff --git a/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart b/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart
+index 6672218..0bff021 100644
+--- a/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart
++++ b/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart
+@@ -43,6 +43,8 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+   final _freteController = TextEditingController();
+   final _despesasController = TextEditingController();
+   final _descontoController = TextEditingController();
++  final _custoUnitarioSaidaController = TextEditingController();
++  final _custoTotalSaidaController = TextEditingController();
+   String? _selectedObraId;
+   String? _selectedLoteId;
+   bool _apropriacaoLote = false;
+@@ -62,35 +64,21 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+     _freteController.dispose();
+     _despesasController.dispose();
+     _descontoController.dispose();
++    _custoUnitarioSaidaController.dispose();
++    _custoTotalSaidaController.dispose();
+     super.dispose();
+   }
+ 
+   int? _parseCents(String? text) {
+     if (text == null || text.trim().isEmpty) return null;
+-    var clean = text.trim().replaceAll('R\$', '').trim();
+-    if (clean.contains(',') && clean.contains('.')) {
+-      clean = clean.replaceAll('.', '').replaceAll(',', '.');
+-    } else if (clean.contains(',')) {
+-      clean = clean.replaceAll(',', '.');
+-    }
+     try {
+-      return decimalUnits(clean, 2, round: true);
++      return parseCurrencyToCents(text);
+     } catch (_) {
+       return null;
+     }
+   }
+ 
+-  String _formatCents(int cents) {
+-    final negative = cents < 0;
+-    final abs = cents.abs();
+-    final reais = abs ~/ 100;
+-    final centavos = (abs % 100).toString().padLeft(2, '0');
+-    final formattedReais = reais.toString().replaceAllMapped(
+-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+-      (Match m) => '${m[1]}.',
+-    );
+-    return '${negative ? '-' : ''}R\$ $formattedReais,$centavos';
+-  }
++  String _formatCents(int cents) => formatCents(cents);
+ 
+   String? _validateMoneyField(String? val) {
+     if (val == null || val.trim().isEmpty) return null;
+@@ -104,8 +92,14 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+   Future<void> _submit() async {
+     if (!_formKey.currentState!.validate()) return;
+ 
+-    final q = double.tryParse(_quantityController.text) ?? 0;
+-    if (!q.isFinite || q <= 0) return;
++    final int qUnits;
++    try {
++      qUnits = parseQuantityUnits(_quantityController.text, scale: 1000);
++    } catch (_) {
++      return;
++    }
++    if (qUnits <= 0) return;
++    final q = qUnits / 1000.0;
+ 
+     final isSaida = widget.type == MovimentacaoType.saida;
+ 
+@@ -169,6 +163,26 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+           custoTotalCentavos = total;
+           custoUnitarioCentavos = q > 0 ? (total / q).round() : 0;
+         }
++      } else {
++        final hasUnit = _custoUnitarioSaidaController.text.trim().isNotEmpty;
++        final hasTot = _custoTotalSaidaController.text.trim().isNotEmpty;
++        if (hasUnit || hasTot) {
++          if (hasUnit) {
++            final unitCents = _parseCents(_custoUnitarioSaidaController.text);
++            if (unitCents != null && unitCents >= 0) {
++              custoUnitarioCentavos = unitCents;
++              custoTotalCentavos = hasTot
++                  ? _parseCents(_custoTotalSaidaController.text)
++                  : (unitCents * q).round();
++            }
++          } else if (hasTot) {
++            final totCents = _parseCents(_custoTotalSaidaController.text);
++            if (totCents != null && totCents >= 0) {
++              custoTotalCentavos = totCents;
++              custoUnitarioCentavos = q > 0 ? (totCents / q).round() : 0;
++            }
++          }
++        }
+       }
+ 
+       final mov = Movimentacao(
+@@ -176,6 +190,10 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+         materialId: widget.material.id,
+         type: widget.type,
+         quantity: q,
++        quantityUnits: qUnits,
++        quantityScale: 1000,
++        deltaUnits: isSaida ? -qUnits : qUnits,
++        commandType: isSaida ? 'saida' : 'entrada',
+         date: DateTime.now(),
+         responsavelId: uid,
+         obraId: finalObraId,
+@@ -246,7 +264,7 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+                 ),
+               ),
+               Text(
+-                'Estoque Atual: ${widget.material.currentQuantity} ${widget.material.unit}',
++                'Estoque Atual: ${formatQuantityWithScale(widget.material.displayQuantity)} ${widget.material.unit}',
+               ),
+               const SizedBox(height: 10),
+               TextFormField(
+@@ -259,17 +277,23 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+                 ),
+                 onChanged: (_) => setState(() {}),
+                 validator: (val) {
+-                  if (val == null || val.isEmpty) return 'Informe a quantidade';
+-                  final v = double.tryParse(val);
+-                  if (v == null || !v.isFinite || v <= 0) {
+-                    return 'Valor inválido';
+-                  }
++                  if (val == null || val.trim().isEmpty) return 'Informe a quantidade';
++                  final int units;
+                   try {
+-                    decimalUnits(val, 3);
++                    units = parseQuantityUnits(val, scale: 1000, allowNegative: false);
++                  } on FormatException catch (e) {
++                    if (e.message == 'Use até 3 casas decimais') {
++                      return 'Use até 3 casas decimais';
++                    }
++                    return 'Valor inválido';
+                   } catch (_) {
+-                    return 'Use até 3 casas decimais';
++                    return 'Valor inválido';
++                  }
++                  if (units <= 0) {
++                    return 'Valor inválido';
+                   }
+-                  if (isSaida && v > widget.material.currentQuantity) {
++                  final v = units / 1000.0;
++                  if (isSaida && v > widget.material.displayQuantity) {
+                     return 'Estoque insuficiente';
+                   }
+                   return null;
+@@ -415,6 +439,7 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+                     ),
+                     validator: (v) {
+                       if (_apropriacaoLote && (v == null || v.trim().isEmpty)) {
++                        debugPrint('DEBUG lote empty with apropriacaoLote true');
+                         return 'Selecione o lote para apropriação';
+                       }
+                       return null;
+@@ -442,6 +467,46 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+                     prefixIcon: Icon(Icons.person_outline),
+                   ),
+                 ),
++                const SizedBox(height: 16),
++                const Divider(),
++                Row(
++                  children: const [
++                    Icon(Icons.monetization_on_outlined, size: 20, color: Colors.blueGrey),
++                    SizedBox(width: 8),
++                    Text(
++                      'Custo de Apropriação ao Lote (Opcional)',
++                      style: TextStyle(
++                        fontSize: 16,
++                        fontWeight: FontWeight.bold,
++                        color: Colors.blueGrey,
++                      ),
++                    ),
++                  ],
++                ),
++                const SizedBox(height: 10),
++                TextFormField(
++                  key: const Key('custo-unitario-field'),
++                  controller: _custoUnitarioSaidaController,
++                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
++                  decoration: const InputDecoration(
++                    labelText: 'Custo Unitário (R\$)',
++                    hintText: 'Ex: 35,00',
++                  ),
++                  onChanged: (_) => setState(() {}),
++                  validator: _validateMoneyField,
++                ),
++                const SizedBox(height: 10),
++                TextFormField(
++                  key: const Key('custo-total-field'),
++                  controller: _custoTotalSaidaController,
++                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
++                  decoration: const InputDecoration(
++                    labelText: 'Custo Total Apropriado (R\$)',
++                    hintText: 'Ex: 350,00',
++                  ),
++                  onChanged: (_) => setState(() {}),
++                  validator: _validateMoneyField,
++                ),
+               ],
+               if (!isSaida) ...[
+                 const SizedBox(height: 10),
+@@ -554,7 +619,10 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+                     final vdesc = _parseCents(_descontoController.text) ?? 0;
+                     final total = (vi + vf + vd) - vdesc;
+                     final isNegative = total < 0;
+-                    final qVal = double.tryParse(_quantityController.text) ?? 0;
++                    double qVal = 0.0;
++                    try {
++                      qVal = parseQuantityUnits(_quantityController.text, scale: 1000) / 1000.0;
++                    } catch (_) {}
+                     final unitCents = (qVal > 0 && !isNegative) ? (total / qVal).round() : null;
+ 
+                     return Container(
+diff --git a/app/lib/src/features/almoxarifado/presentation/stock_history_screen.dart b/app/lib/src/features/almoxarifado/presentation/stock_history_screen.dart
+index e89d4a5..28b10b7 100644
+--- a/app/lib/src/features/almoxarifado/presentation/stock_history_screen.dart
++++ b/app/lib/src/features/almoxarifado/presentation/stock_history_screen.dart
+@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
+ import 'package:flutter/material.dart';
+ import 'package:uuid/uuid.dart';
+ 
++import '../../../core/contracts.dart';
+ import '../../../sync/operation_queue.dart';
+ import '../domain/material.dart' as mat;
+ 
+@@ -126,18 +127,6 @@ class StockHistoryScreen extends StatelessWidget {
+     final descontoCentavos = (d['descontoCentavos'] as num?)?.toInt();
+     final custoTotalCentavos = (d['custoTotalCentavos'] as num?)?.toInt();
+ 
+-    String formatCents(int cents) {
+-      final negative = cents < 0;
+-      final abs = cents.abs();
+-      final reais = abs ~/ 100;
+-      final centavos = (abs % 100).toString().padLeft(2, '0');
+-      final formattedReais = reais.toString().replaceAllMapped(
+-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+-        (Match m) => '${m[1]}.',
+-      );
+-      return '${negative ? '-' : ''}R\$ $formattedReais,$centavos';
+-    }
+-
+     if (custoTotalCentavos != null &&
+         (freteCentavos != null ||
+             despesasCentavos != null ||
+@@ -249,7 +238,14 @@ class StockHistoryScreen extends StatelessWidget {
+         ],
+       );
+     } else {
+-      final baseText = '${d['type']} · ${d['quantity']} ${material.unit}';
++      final scale = (d['quantityScale'] as num?)?.toInt() ?? 1000;
++      final qStr = d['quantityUnits'] != null
++          ? formatQuantityWithScale(
++              (d['quantityUnits'] as num).toDouble() / scale,
++              scale: scale,
++            )
++          : '${d['quantity']}';
++      final baseText = '${d['type']} · $qStr ${material.unit}';
+       if (isReversed) {
+         titleWidget = Row(
+           mainAxisSize: MainAxisSize.min,
+@@ -429,15 +425,16 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
+     super.initState();
+     _quantity = TextEditingController(
+       text: widget.type == 'abertura'
+-          ? widget.material.currentQuantity.toString()
++          ? formatQuantityWithScale(
++              widget.material.currentQuantity,
++              useComma: false,
++            )
+           : '',
+     );
+     _reason = TextEditingController();
+     _evidence = TextEditingController();
+ 
+-    final currentBalance = widget.material.quantityUnits != null
+-        ? widget.material.quantityUnits! / 1000
+-        : widget.material.currentQuantity;
++    final currentBalance = widget.material.displayQuantity;
+     final balanceDisplay = currentBalance % 1 == 0
+         ? currentBalance.toInt().toString()
+         : currentBalance.toString();
+@@ -512,9 +509,7 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
+   }
+ 
+   void _updatePredicted(String valText) {
+-    final currentBalance = widget.material.quantityUnits != null
+-        ? widget.material.quantityUnits! / 1000
+-        : widget.material.currentQuantity;
++    final currentBalance = widget.material.displayQuantity;
+     final balanceDisplay = currentBalance % 1 == 0
+         ? currentBalance.toInt().toString()
+         : currentBalance.toString();
+@@ -688,6 +683,28 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
+                   ),
+                   onChanged: _updatePredicted,
+                   validator: (v) {
++                    if (widget.type == 'abertura') {
++                      final raw = v?.trim() ?? '';
++                      if (raw.isEmpty) {
++                        return 'Informe o saldo conferido';
++                      }
++                      final int units;
++                      try {
++                        units = parseQuantityUnits(raw, scale: 1000);
++                      } on FormatException catch (e) {
++                        return e.message;
++                      } catch (_) {
++                        return 'Informe uma quantidade válida';
++                      }
++                      final expectedUnits = decimalUnits(
++                        widget.material.currentQuantity,
++                        3,
++                      );
++                      if (units != expectedUnits) {
++                        return 'Valor diverge do saldo legado (${formatQuantityWithScale(widget.material.currentQuantity)})';
++                      }
++                      return null;
++                    }
+                     if (widget.type == 'ajuste') {
+                       final raw = v?.replaceAll(',', '.').trim() ?? '';
+                       if (raw.isEmpty) {
+diff --git a/app/lib/src/features/construtoras/domain/construtora_member.g.dart b/app/lib/src/features/construtoras/domain/construtora_member.g.dart
+index df2a9d5..ca5811f 100644
+--- a/app/lib/src/features/construtoras/domain/construtora_member.g.dart
++++ b/app/lib/src/features/construtoras/domain/construtora_member.g.dart
+@@ -9,23 +9,23 @@ part of 'construtora_member.dart';
+ ConstrutoraMember _$ConstrutoraMemberFromJson(Map<String, dynamic> json) =>
+     ConstrutoraMember(
+       userId: json['userId'] as String,
++      isOwner: json['isOwner'] as bool? ?? false,
++      isAdmin: json['isAdmin'] as bool? ?? false,
++      joinedAt: DateTime.parse(json['joinedAt'] as String),
++      isActive: json['isActive'] as bool? ?? false,
+       modules:
+           (json['modules'] as List<dynamic>?)
+               ?.map((e) => e as String)
+               .toList() ??
+           const [],
+-      isOwner: json['isOwner'] as bool? ?? false,
+-      isAdmin: json['isAdmin'] as bool? ?? false,
+-      joinedAt: DateTime.parse(json['joinedAt'] as String),
+-      isActive: json['isActive'] as bool? ?? false,
+     );
+ 
+ Map<String, dynamic> _$ConstrutoraMemberToJson(ConstrutoraMember instance) =>
+     <String, dynamic>{
+       'userId': instance.userId,
+-      'modules': instance.modules,
+       'isOwner': instance.isOwner,
+       'isAdmin': instance.isAdmin,
+       'joinedAt': instance.joinedAt.toIso8601String(),
+       'isActive': instance.isActive,
++      'modules': instance.modules,
+     };
+diff --git a/app/lib/src/features/financeiro/domain/despesa.g.dart b/app/lib/src/features/financeiro/domain/despesa.g.dart
+index 9f84b1d..7551ea2 100644
+--- a/app/lib/src/features/financeiro/domain/despesa.g.dart
++++ b/app/lib/src/features/financeiro/domain/despesa.g.dart
+@@ -12,7 +12,7 @@ Despesa _$DespesaFromJson(Map<String, dynamic> json) => Despesa(
+   obraId: json['obraId'] as String?,
+   descricao: json['descricao'] as String,
+   valor: (json['valor'] as num).toDouble(),
+-  valorEmCentavos: json['valorEmCentavos'] as int?,
++  valorEmCentavos: (json['valorEmCentavos'] as num?)?.toInt(),
+   dataVencimento: DateTime.parse(json['dataVencimento'] as String),
+   dataPagamento: json['dataPagamento'] == null
+       ? null
+@@ -28,6 +28,7 @@ Map<String, dynamic> _$DespesaToJson(Despesa instance) => <String, dynamic>{
+   'construtoraId': instance.construtoraId,
+   'obraId': instance.obraId,
+   'descricao': instance.descricao,
++  'valorEmCentavos': instance.valorEmCentavos,
+   'valor': instance.valor,
+   'dataVencimento': instance.dataVencimento.toIso8601String(),
+   'dataPagamento': instance.dataPagamento?.toIso8601String(),
+diff --git a/app/test/contracts_test.dart b/app/test/contracts_test.dart
+index a236aaf..854677a 100644
+--- a/app/test/contracts_test.dart
++++ b/app/test/contracts_test.dart
+@@ -60,4 +60,92 @@ void main() {
+     expect(normalizeModule('rdo'), 'diario');
+     expect(normalizeModule('almoxarifado'), 'estoque');
+   });
++
++  group('Currency conversion and formatting', () {
++    test('parseCurrencyToCents parses formatted BRL, decimals and ints', () {
++      expect(parseCurrencyToCents('R\$ 1.500,75'), 150075);
++      expect(parseCurrencyToCents('1500.75'), 150075);
++      expect(parseCurrencyToCents('1500,75'), 150075);
++      expect(parseCurrencyToCents('R\$ 35,00'), 3500);
++      expect(parseCurrencyToCents('35'), 3500);
++      expect(parseCurrencyToCents('0,50'), 50);
++      expect(parseCurrencyToCents('-35,00'), -3500);
++    });
++
++    test('parseCurrencyToCents throws on invalid inputs', () {
++      expect(() => parseCurrencyToCents(null), throwsFormatException);
++      expect(() => parseCurrencyToCents(''), throwsFormatException);
++      expect(() => parseCurrencyToCents('abc'), throwsFormatException);
++      expect(() => parseCurrencyToCents(double.nan), throwsFormatException);
++    });
++
++    test('formatCents formats cents to currency string', () {
++      expect(formatCents(150075), 'R\$ 1.500,75');
++      expect(formatCents(3500), 'R\$ 35,00');
++      expect(formatCents(0), 'R\$ 0,00');
++      expect(formatCents(-3500), '-R\$ 35,00');
++    });
++  });
++
++  group('Quantity units parsing and scale formatting', () {
++    test('parseQuantityUnits supports pt-BR comma and en-US dot', () {
++      expect(parseQuantityUnits('1,5'), 1500);
++      expect(parseQuantityUnits('1,250'), 1250);
++      expect(parseQuantityUnits('2.5'), 2500);
++      expect(parseQuantityUnits('0.75'), 750);
++      expect(parseQuantityUnits('1.250,5'), 1250500);
++      expect(parseQuantityUnits(10), 10000);
++      expect(parseQuantityUnits(2.5), 2500);
++    });
++
++    test('parseQuantityUnits rejects more than 3 decimal places', () {
++      expect(
++        () => parseQuantityUnits('1,1234'),
++        throwsA(
++          isA<FormatException>().having(
++            (e) => e.message,
++            'message',
++            'Use até 3 casas decimais',
++          ),
++        ),
++      );
++      expect(
++        () => parseQuantityUnits('0.0001'),
++        throwsA(
++          isA<FormatException>().having(
++            (e) => e.message,
++            'message',
++            'Use até 3 casas decimais',
++          ),
++        ),
++      );
++    });
++
++    test('parseQuantityUnits validates negative and invalid numbers', () {
++      expect(() => parseQuantityUnits('-5'), throwsFormatException);
++      expect(() => parseQuantityUnits('abc'), throwsFormatException);
++      expect(() => parseQuantityUnits(null), throwsFormatException);
++      expect(() => parseQuantityUnits(''), throwsFormatException);
++      // When allowNegative is true
++      expect(parseQuantityUnits('-5', allowNegative: true), -5000);
++      expect(parseQuantityUnits('+2,5', allowNegative: true), 2500);
++    });
++
++    test('formatQuantityWithScale strips trailing zeros and formats comma', () {
++      expect(formatQuantityWithScale(50.0), '50');
++      expect(formatQuantityWithScale(52.5), '52,5');
++      expect(formatQuantityWithScale(1.25), '1,25');
++      expect(formatQuantityWithScale(1.250), '1,25');
++      expect(formatQuantityWithScale(0.0), '0');
++      expect(formatQuantityWithScale(0.001), '0,001');
++      expect(formatQuantityWithScale(12.5, useComma: false), '12.5');
++    });
++
++    test('formatQuantityUnits converts integer units to formatted string', () {
++      expect(formatQuantityUnits(50000), '50');
++      expect(formatQuantityUnits(52500), '52,5');
++      expect(formatQuantityUnits(1250), '1,25');
++      expect(formatQuantityUnits(1), '0,001');
++    });
++  });
+ }

@@ -12,6 +12,7 @@ Material _$MaterialFromJson(Map<String, dynamic> json) => Material(
   name: json['name'] as String,
   unit: json['unit'] as String,
   currentQuantity: (json['currentQuantity'] as num?)?.toDouble() ?? 0.0,
+  quantityUnits: (json['quantityUnits'] as num?)?.toInt() ?? 0,
 );
 
 Map<String, dynamic> _$MaterialToJson(Material instance) => <String, dynamic>{
@@ -20,4 +21,5 @@ Map<String, dynamic> _$MaterialToJson(Material instance) => <String, dynamic>{
   'name': instance.name,
   'unit': instance.unit,
   'currentQuantity': instance.currentQuantity,
+  'quantityUnits': instance.quantityUnits,
 };

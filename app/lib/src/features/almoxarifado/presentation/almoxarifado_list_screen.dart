@@ -1,3 +1,4 @@
+import '../../../core/contracts.dart';
 import 'stock_history_screen.dart';
 import '../../authentication/data/user_repository.dart';
 import '../../obras/presentation/current_permissions_provider.dart';
@@ -73,8 +74,12 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
                         if (rev != null) delta += rev;
                       }
                     }
+                    final confirmed = material.displayQuantity;
+                    final confirmedStr = formatQuantityWithScale(confirmed);
+                    final est = confirmed + delta;
+                    final estStr = formatQuantityWithScale(est);
                     return Text(
-                      'Confirmado: ${material.quantityUnits != null ? material.quantityUnits! / 1000 : material.currentQuantity} ${material.unit}${rows.isEmpty ? '' : '\nEstimativa com pendências: ${(material.quantityUnits != null ? material.quantityUnits! / 1000 : material.currentQuantity) + delta} ${material.unit}'}',
+                      'Confirmado: $confirmedStr ${material.unit}${rows.isEmpty ? '' : '\nEstimativa com pendências: $estStr ${material.unit}'}',
                     );
                   },
                 ),

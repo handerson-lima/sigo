@@ -10,7 +10,7 @@ Movimentacao _$MovimentacaoFromJson(Map<String, dynamic> json) => Movimentacao(
   id: json['id'] as String,
   materialId: json['materialId'] as String,
   type: $enumDecode(_$MovimentacaoTypeEnumMap, json['type']),
-  quantity: (json['quantity'] as num).toDouble(),
+  quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
   date: DateTime.parse(json['date'] as String),
   responsavelId: json['responsavelId'] as String,
   obraId: json['obraId'] as String?,
@@ -27,6 +27,13 @@ Movimentacao _$MovimentacaoFromJson(Map<String, dynamic> json) => Movimentacao(
   descontoCentavos: (json['descontoCentavos'] as num?)?.toInt(),
   custoTotalCentavos: (json['custoTotalCentavos'] as num?)?.toInt(),
   custoUnitarioCentavos: (json['custoUnitarioCentavos'] as num?)?.toInt(),
+  quantityUnits: (json['quantityUnits'] as num?)?.toInt(),
+  quantityScale: (json['quantityScale'] as num?)?.toInt(),
+  deltaUnits: (json['deltaUnits'] as num?)?.toInt(),
+  commandType: json['commandType'] as String?,
+  reversalId: json['reversalId'] as String?,
+  reversedBy: json['reversedBy'] as String?,
+  openingBalanceUnits: (json['openingBalanceUnits'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$MovimentacaoToJson(Movimentacao instance) =>
@@ -51,6 +58,13 @@ Map<String, dynamic> _$MovimentacaoToJson(Movimentacao instance) =>
       'descontoCentavos': instance.descontoCentavos,
       'custoTotalCentavos': instance.custoTotalCentavos,
       'custoUnitarioCentavos': instance.custoUnitarioCentavos,
+      'quantityUnits': instance.quantityUnits,
+      'quantityScale': instance.quantityScale,
+      'deltaUnits': instance.deltaUnits,
+      'commandType': instance.commandType,
+      'reversalId': instance.reversalId,
+      'reversedBy': instance.reversedBy,
+      'openingBalanceUnits': instance.openingBalanceUnits,
     };
 
 const _$MovimentacaoTypeEnumMap = {

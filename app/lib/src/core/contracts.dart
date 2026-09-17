@@ -55,3 +55,120 @@ int decimalUnits(dynamic value, int digits, {bool round = false}) {
   }
   return negative ? -result : result;
 }
+
+int _digitsForScale(int scale) {
+  int d = 0;
+  int temp = scale;
+  while (temp >= 10 && temp % 10 == 0) {
+    d++;
+    temp ~/= 10;
+  }
+  return d > 0 ? d : 3;
+}
+
+int parseCurrencyToCents(dynamic value) {
+  if (value == null) throw const FormatException('Valor monetário inválido');
+  String text;
+  if (value is num) {
+    if (!value.isFinite) throw const FormatException('Valor monetário inválido');
+    text = value.toString();
+  } else {
+    text = value.toString().trim();
+  }
+  if (text.isEmpty) throw const FormatException('Valor monetário inválido');
+  var clean = text.replaceAll('R\$', '').replaceAll(' ', '').trim();
+  final negative = clean.startsWith('-');
+  if (negative) clean = clean.substring(1).trim();
+  if (clean.contains(',') && clean.contains('.')) {
+    clean = clean.replaceAll('.', '').replaceAll(',', '.');
+  } else if (clean.contains(',')) {
+    clean = clean.replaceAll(',', '.');
+  }
+  final cents = decimalUnits(clean, 2, round: true);
+  return negative ? -cents.abs() : cents.abs();
+}
+
+String formatCents(int cents) {
+  final negative = cents < 0;
+  final abs = cents.abs();
+  final reais = abs ~/ 100;
+  final centavos = (abs % 100).toString().padLeft(2, '0');
+  final formattedReais = reais.toString().replaceAllMapped(
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (Match m) => '${m[1]}.',
+  );
+  return '${negative ? '-' : ''}R\$ $formattedReais,$centavos';
+}
+
+int parseQuantityUnits(
+  dynamic value, {
+  int scale = 1000,
+  bool allowNegative = false,
+}) {
+  if (value == null) throw const FormatException('Valor inválido');
+  String text;
+  if (value is num) {
+    if (!value.isFinite) throw const FormatException('Valor inválido');
+    text = value.toString();
+  } else {
+    text = value.toString().trim();
+  }
+  if (text.isEmpty) throw const FormatException('Valor inválido');
+
+  final hasPlus = text.startsWith('+');
+  if (hasPlus) text = text.substring(1).trim();
+  final negative = text.startsWith('-');
+  if (negative) {
+    if (!allowNegative) throw const FormatException('Valor inválido');
+    text = text.substring(1).trim();
+  }
+
+  if (text.contains(',') && text.contains('.')) {
+    text = text.replaceAll('.', '').replaceAll(',', '.');
+  } else if (text.contains(',')) {
+    text = text.replaceAll(',', '.');
+  }
+
+  if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(text)) {
+    throw const FormatException('Valor inválido');
+  }
+
+  final digits = _digitsForScale(scale);
+  final parts = text.split('.');
+  if (parts.length == 2 && parts[1].length > digits) {
+    throw FormatException('Use até $digits casas decimais');
+  }
+
+  final units = decimalUnits(text, digits, round: false);
+  return negative ? -units : units;
+}
+
+String formatQuantityWithScale(
+  num quantity, {
+  int scale = 1000,
+  bool useComma = true,
+}) {
+  final double val = quantity.toDouble();
+  if (val % 1 == 0) {
+    return val.toInt().toString();
+  }
+  final digits = _digitsForScale(scale);
+  var str = val.toStringAsFixed(digits);
+  while (str.contains('.') && (str.endsWith('0') || str.endsWith('.'))) {
+    str = str.substring(0, str.length - 1);
+  }
+  if (useComma) {
+    str = str.replaceAll('.', ',');
+  }
+  return str;
+}
+
+String formatQuantityUnits(
+  int quantityUnits, {
+  int scale = 1000,
+  bool useComma = true,
+}) => formatQuantityWithScale(
+  quantityUnits / scale,
+  scale: scale,
+  useComma: useComma,
+);
