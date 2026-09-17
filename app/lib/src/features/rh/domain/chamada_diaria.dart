@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/contracts.dart';
+import 'custo_mao_de_obra.dart';
 
 enum PresencaStatus {
   presente('presente', 'Presente', 'P'),
@@ -170,6 +172,11 @@ class ChamadaDiaria {
   final String status; // 'confirmada' | 'retificada' | 'cancelada'
   final String? observacoes;
   final List<ApontamentoTrabalhador> workers;
+  final int totalDayCostCents;
+  final String costPolicyVersion;
+  final CostPolicy? costPolicy;
+  final List<WorkerCostSnapshot> costSnapshots;
+  final List<LotCostSummary> lotCostSummaries;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int schemaVersion;
@@ -186,6 +193,11 @@ class ChamadaDiaria {
     this.status = 'confirmada',
     this.observacoes,
     this.workers = const [],
+    this.totalDayCostCents = 0,
+    this.costPolicyVersion = 'v1',
+    this.costPolicy,
+    this.costSnapshots = const [],
+    this.lotCostSummaries = const [],
     required this.createdAt,
     required this.updatedAt,
     this.schemaVersion = 1,
@@ -202,6 +214,8 @@ class ChamadaDiaria {
   bool get isValid =>
       workers.isNotEmpty && workers.every((w) => w.isValidAllocation);
 
+  String get formattedTotalCost => formatCents(totalDayCostCents);
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -215,6 +229,11 @@ class ChamadaDiaria {
       'status': status,
       'observacoes': observacoes,
       'workers': workers.map((w) => w.toMap()).toList(),
+      'totalDayCostCents': totalDayCostCents,
+      'costPolicyVersion': costPolicyVersion,
+      if (costPolicy != null) 'costPolicy': costPolicy!.toMap(),
+      'costSnapshots': costSnapshots.map((s) => s.toMap()).toList(),
+      'lotCostSummaries': lotCostSummaries.map((s) => s.toMap()).toList(),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'schemaVersion': schemaVersion,
@@ -229,6 +248,8 @@ class ChamadaDiaria {
     }
 
     final rawWorkers = map['workers'] as List<dynamic>? ?? [];
+    final rawCostSnapshots = map['costSnapshots'] as List<dynamic>? ?? [];
+    final rawLotCostSummaries = map['lotCostSummaries'] as List<dynamic>? ?? [];
 
     return ChamadaDiaria(
       id: id ?? map['id'] as String? ?? '',
@@ -244,6 +265,19 @@ class ChamadaDiaria {
       workers: rawWorkers
           .map((w) =>
               ApontamentoTrabalhador.fromMap(Map<String, dynamic>.from(w as Map)))
+          .toList(),
+      totalDayCostCents: (map['totalDayCostCents'] as num?)?.toInt() ?? 0,
+      costPolicyVersion: map['costPolicyVersion'] as String? ?? 'v1',
+      costPolicy: map['costPolicy'] != null
+          ? CostPolicy.fromMap(Map<String, dynamic>.from(map['costPolicy'] as Map))
+          : null,
+      costSnapshots: rawCostSnapshots
+          .map((s) =>
+              WorkerCostSnapshot.fromMap(Map<String, dynamic>.from(s as Map)))
+          .toList(),
+      lotCostSummaries: rawLotCostSummaries
+          .map((l) =>
+              LotCostSummary.fromMap(Map<String, dynamic>.from(l as Map)))
           .toList(),
       createdAt: parseDate(map['createdAt']),
       updatedAt: parseDate(map['updatedAt']),
@@ -263,6 +297,11 @@ class ChamadaDiaria {
     String? status,
     String? observacoes,
     List<ApontamentoTrabalhador>? workers,
+    int? totalDayCostCents,
+    String? costPolicyVersion,
+    CostPolicy? costPolicy,
+    List<WorkerCostSnapshot>? costSnapshots,
+    List<LotCostSummary>? lotCostSummaries,
     DateTime? createdAt,
     DateTime? updatedAt,
     int? schemaVersion,
@@ -279,6 +318,11 @@ class ChamadaDiaria {
       status: status ?? this.status,
       observacoes: observacoes ?? this.observacoes,
       workers: workers ?? this.workers,
+      totalDayCostCents: totalDayCostCents ?? this.totalDayCostCents,
+      costPolicyVersion: costPolicyVersion ?? this.costPolicyVersion,
+      costPolicy: costPolicy ?? this.costPolicy,
+      costSnapshots: costSnapshots ?? this.costSnapshots,
+      lotCostSummaries: lotCostSummaries ?? this.lotCostSummaries,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       schemaVersion: schemaVersion ?? this.schemaVersion,

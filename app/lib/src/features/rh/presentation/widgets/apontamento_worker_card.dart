@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/contracts.dart';
 import '../../../lotes/domain/lote.dart';
 import '../../domain/chamada_diaria.dart';
 import 'rateio_lotes_sheet.dart';
@@ -7,6 +8,7 @@ class ApontamentoWorkerCard extends StatelessWidget {
   final ApontamentoTrabalhador apontamento;
   final List<Lote> availableLotes;
   final String? defaultLotId;
+  final int? baseDailyRateCents;
   final ValueChanged<ApontamentoTrabalhador> onChanged;
 
   const ApontamentoWorkerCard({
@@ -14,8 +16,18 @@ class ApontamentoWorkerCard extends StatelessWidget {
     required this.apontamento,
     required this.availableLotes,
     this.defaultLotId,
+    this.baseDailyRateCents,
     required this.onChanged,
   });
+
+  int get effectiveCostCents {
+    if (baseDailyRateCents == null) return 0;
+    if (apontamento.status == PresencaStatus.falta) return 0;
+    if (apontamento.status == PresencaStatus.meioPeriodo) {
+      return baseDailyRateCents! ~/ 2;
+    }
+    return baseDailyRateCents!;
+  }
 
   void _setStatus(PresencaStatus newStatus) {
     if (newStatus == apontamento.status) return;
@@ -58,6 +70,7 @@ class ApontamentoWorkerCard extends StatelessWidget {
       status: apontamento.status,
       availableLotes: availableLotes,
       initialAllocations: apontamento.allocations,
+      effectiveCostCents: effectiveCostCents,
       onSave: (allocations) {
         onChanged(apontamento.copyWith(allocations: allocations));
       },
@@ -138,6 +151,43 @@ class ApontamentoWorkerCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (baseDailyRateCents != null) ...[
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: statusColor.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          formatCents(effectiveCostCents),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${formatCents(baseDailyRateCents!)}/dia',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 12),

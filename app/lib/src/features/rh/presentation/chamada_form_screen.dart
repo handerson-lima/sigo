@@ -5,15 +5,19 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/contracts.dart';
 import '../../lotes/data/lote_repository.dart';
 import '../../lotes/domain/lote.dart';
+import '../data/custo_mao_de_obra_service.dart';
 import '../data/rh_repository.dart';
+import '../domain/custo_mao_de_obra.dart';
 import '../domain/equipe.dart';
 import '../domain/funcionario.dart';
 import '../data/chamada_repository.dart';
 import '../data/lote_persistido_service.dart';
 import '../domain/chamada_diaria.dart';
 import 'widgets/apontamento_worker_card.dart';
+import 'widgets/resumo_custos_chamada_dialog.dart';
 
 class ChamadaFormScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -193,7 +197,10 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
     );
   }
 
-  Future<void> _saveChamada(List<Equipe> equipes) async {
+  Future<void> _saveChamada(
+    List<Equipe> equipes,
+    List<Funcionario> allFuncionarios,
+  ) async {
     if (!_isFormValid) return;
 
     setState(() {
@@ -204,6 +211,11 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
     final equipeName = _selectedTeamId != null
         ? equipes.where((e) => e.id == _selectedTeamId).firstOrNull?.name
         : null;
+
+    final costResult = CustoMaoDeObraService.computeChamadaCosts(
+      funcionarios: allFuncionarios,
+      apontamentos: _workers,
+    );
 
     final chamada = ChamadaDiaria(
       id: _existingChamada?.id ?? const Uuid().v4(),
@@ -216,6 +228,11 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
       defaultLotId: _defaultLotId,
       status: _existingChamada != null ? 'retificada' : 'confirmada',
       workers: _workers,
+      totalDayCostCents: costResult.totalDayCostCents,
+      costPolicyVersion: 'v1',
+      costPolicy: const CostPolicy(),
+      costSnapshots: costResult.costSnapshots,
+      lotCostSummaries: costResult.lotCostSummaries,
       createdAt: _existingChamada?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
       schemaVersion: 1,
@@ -448,10 +465,14 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
                                 itemCount: _workers.length,
                                 itemBuilder: (context, index) {
                                   final worker = _workers[index];
+                                  final func = allFuncionarios
+                                      .where((f) => f.id == worker.workerId)
+                                      .firstOrNull;
                                   return ApontamentoWorkerCard(
                                     apontamento: worker,
                                     availableLotes: lotes,
                                     defaultLotId: _defaultLotId,
+                                    baseDailyRateCents: func?.totalDailyRateCents,
                                     onChanged: (updated) {
                                       setState(() {
                                         _workers[index] = updated;
@@ -463,79 +484,136 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
                       ),
 
                       // Sticky Bottom Bar com Resumo e Botão Salvar
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 10,
-                              offset: const Offset(0, -4),
+                      Builder(
+                        builder: (context) {
+                          final currentCosts =
+                              CustoMaoDeObraService.computeChamadaCosts(
+                            funcionarios: allFuncionarios,
+                            apontamentos: _workers,
+                          );
+
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.08),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, -4),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: SafeArea(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            child: SafeArea(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  _SummaryItem(
-                                    label: 'Total',
-                                    count: _workers.length,
-                                    color: Colors.blueGrey,
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.payments_outlined,
+                                              size: 18,
+                                              color: Colors.indigo.shade700),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Custo Estimado: ${formatCents(currentCosts.totalDayCostCents)}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                              color: Colors.indigo.shade800,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      TextButton.icon(
+                                        style: TextButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        icon: const Icon(Icons.analytics_outlined,
+                                            size: 16),
+                                        label: const Text('Resumo por Lote',
+                                            style: TextStyle(fontSize: 12)),
+                                        onPressed: () {
+                                          ResumoCustosChamadaDialog.show(
+                                            context: context,
+                                            totalDayCostCents:
+                                                currentCosts.totalDayCostCents,
+                                            lotCostSummaries:
+                                                currentCosts.lotCostSummaries,
+                                            costSnapshots:
+                                                currentCosts.costSnapshots,
+                                            date: _formattedDate,
+                                          );
+                                        },
+                                      ),
+                                    ],
                                   ),
-                                  _SummaryItem(
-                                    label: 'Presentes',
-                                    count: _presentCount,
-                                    color: Colors.green,
+                                  const Divider(height: 14),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceAround,
+                                    children: [
+                                      _SummaryItem(
+                                        label: 'Total',
+                                        count: _workers.length,
+                                        color: Colors.blueGrey,
+                                      ),
+                                      _SummaryItem(
+                                        label: 'Presentes',
+                                        count: _presentCount,
+                                        color: Colors.green,
+                                      ),
+                                      _SummaryItem(
+                                        label: '1/2 Período',
+                                        count: _meioPeriodoCount,
+                                        color: Colors.orange,
+                                      ),
+                                      _SummaryItem(
+                                        label: 'Faltas',
+                                        count: _faltaCount,
+                                        color: Colors.red,
+                                      ),
+                                    ],
                                   ),
-                                  _SummaryItem(
-                                    label: '1/2 Período',
-                                    count: _meioPeriodoCount,
-                                    color: Colors.orange,
-                                  ),
-                                  _SummaryItem(
-                                    label: 'Faltas',
-                                    count: _faltaCount,
-                                    color: Colors.red,
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 50,
+                                    child: FilledButton.icon(
+                                      icon: _isSaving
+                                          ? const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.check_circle_outline),
+                                      label: Text(
+                                        _isSaving
+                                            ? 'Salvando Chamada...'
+                                            : 'Salvar Chamada Diária',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      onPressed: (_isFormValid && !_isSaving)
+                                          ? () => _saveChamada(
+                                              equipes, allFuncionarios)
+                                          : null,
+                                    ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: FilledButton.icon(
-                                  icon: _isSaving
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Icon(Icons.check_circle_outline),
-                                  label: Text(
-                                    _isSaving
-                                        ? 'Salvando Chamada...'
-                                        : 'Salvar Chamada Diária',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  onPressed: (_isFormValid && !_isSaving)
-                                      ? () => _saveChamada(equipes)
-                                      : null,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

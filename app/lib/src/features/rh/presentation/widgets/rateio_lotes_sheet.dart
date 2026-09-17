@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/contracts.dart';
 import '../../../lotes/domain/lote.dart';
 import '../../domain/chamada_diaria.dart';
 
@@ -7,6 +8,7 @@ class RateioLotesSheet extends StatefulWidget {
   final PresencaStatus status;
   final List<Lote> availableLotes;
   final List<AlocacaoLote> initialAllocations;
+  final int? effectiveCostCents;
   final ValueChanged<List<AlocacaoLote>> onSave;
 
   const RateioLotesSheet({
@@ -15,6 +17,7 @@ class RateioLotesSheet extends StatefulWidget {
     required this.status,
     required this.availableLotes,
     required this.initialAllocations,
+    this.effectiveCostCents,
     required this.onSave,
   });
 
@@ -24,6 +27,7 @@ class RateioLotesSheet extends StatefulWidget {
     required PresencaStatus status,
     required List<Lote> availableLotes,
     required List<AlocacaoLote> initialAllocations,
+    int? effectiveCostCents,
     required ValueChanged<List<AlocacaoLote>> onSave,
   }) {
     return showModalBottomSheet(
@@ -38,6 +42,7 @@ class RateioLotesSheet extends StatefulWidget {
         status: status,
         availableLotes: availableLotes,
         initialAllocations: initialAllocations,
+        effectiveCostCents: effectiveCostCents,
         onSave: onSave,
       ),
     );
@@ -251,13 +256,32 @@ class _RateioLotesSheetState extends State<RateioLotesSheet> {
                           ),
                           Row(
                             children: [
-                              Text(
-                                '${alloc.percentage}%',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: colorScheme.primary,
-                                ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '${alloc.percentage}%',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                  if (widget.effectiveCostCents != null &&
+                                      widget.effectiveCostCents! > 0)
+                                    Text(
+                                      formatCents(_expectedPercentage > 0
+                                          ? (widget.effectiveCostCents! *
+                                                  alloc.percentage) ~/
+                                              _expectedPercentage
+                                          : 0),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                ],
                               ),
                               const SizedBox(width: 8),
                               IconButton(

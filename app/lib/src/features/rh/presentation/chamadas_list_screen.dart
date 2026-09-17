@@ -270,6 +270,33 @@ class _ChamadaCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (chamada.totalDayCostCents > 0) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.payments_outlined,
+                        size: 16, color: Colors.indigo.shade700),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Custo Mão de Obra: ${chamada.formattedTotalCost}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.indigo.shade700,
+                      ),
+                    ),
+                    if (chamada.lotCostSummaries.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '• ${chamada.lotCostSummaries.length} lote(s)',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ],
           ),
         ),
