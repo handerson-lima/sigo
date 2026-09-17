@@ -66,6 +66,11 @@ service cloud.firestore {
     match /members/{uid} { allow read: if signed() && (request.auth.uid == uid || obraAdmin(c,o)); allow write: if false; }
     match /lotes/{l} { allow read: if module(c,o,'lotes'); allow create, update: if obraAdmin(c,o) && request.resource.data.id == l && request.resource.data.obraId == o; allow delete: if false; }
     match /diarios/{id} { allow read: if module(c,o,'diario'); allow write: if false; }
+    match /chamadas/{ch} {
+     allow read: if rh(c) || module(c,o,'rh');
+     allow create, update: if (rh(c) || module(c,o,'rh')) && request.resource.data.id == ch && request.resource.data.construtoraId == c && request.resource.data.obraId == o && request.resource.data.schemaVersion == 1;
+     allow delete: if false;
+    }
    }
   }
   match /{path=**}/construtora_members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }

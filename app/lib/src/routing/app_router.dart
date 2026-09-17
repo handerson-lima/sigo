@@ -30,6 +30,8 @@ import '../features/authentication/data/user_repository.dart';
 import '../features/rh/presentation/funcionarios_list_screen.dart';
 import '../features/rh/presentation/funcionario_form_screen.dart';
 import '../features/rh/domain/funcionario.dart';
+import '../features/rh/presentation/chamadas_list_screen.dart';
+import '../features/rh/presentation/chamada_form_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
@@ -200,6 +202,50 @@ final routerProvider = Provider<GoRouter>((ref) {
             obraId: oId,
             module: 'diario',
             child: SyncQueueScreen(construtoraId: cId, obraId: oId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/rh/chamadas',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'rh',
+            child: ChamadasListScreen(construtoraId: cId, obraId: oId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/rh/chamadas/nova',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'rh',
+            child: ChamadaFormScreen(construtoraId: cId, obraId: oId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/rh/chamadas/:chId',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          final chId = state.pathParameters['chId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'rh',
+            child: ChamadaFormScreen(
+              construtoraId: cId,
+              obraId: oId,
+              chamadaId: chId,
+            ),
           );
         },
       ),

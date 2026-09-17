@@ -1,0 +1,2530 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 7540cc8..31a81ec 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -85,7 +85,7 @@ development_status:
+ 
+   epic-4: in-progress
+   4-1-rh-cadastro: done
+-  4-2-rh-chamada: backlog
++  4-2-rh-chamada: in-progress
+   4-3-rh-custos: backlog
+   4-4-rh-validar-invariantes: backlog
+   epic-4-retrospective: optional
+diff --git a/app/lib/src/common_widgets/sigo_sidebar.dart b/app/lib/src/common_widgets/sigo_sidebar.dart
+index b2289ad..43f2773 100644
+--- a/app/lib/src/common_widgets/sigo_sidebar.dart
++++ b/app/lib/src/common_widgets/sigo_sidebar.dart
+@@ -116,6 +116,20 @@ class SigoSidebar extends ConsumerWidget {
+                         context.go('/construtora/$cId/obra/$oId/diarios');
+                       },
+                     ),
++                  if (obra != null &&
++                      obra.isActive &&
++                      (obra.isAdmin ||
++                          obra.modules.map(normalizeModule).contains('rh') ||
++                          obra.modules.map(normalizeModule).contains('recursos_humanos')))
++                    _NavItem(
++                      icon: Icons.playlist_add_check,
++                      title: 'Chamada Diária (RH)',
++                      isActive: activeRoute.contains('/rh/chamadas'),
++                      onTap: () {
++                        Scaffold.maybeOf(context)?.closeDrawer();
++                        context.go('/construtora/$cId/obra/$oId/rh/chamadas');
++                      },
++                    ),
+                   const SizedBox(height: 24),
+                   const Padding(
+                     padding: EdgeInsets.only(left: 16, bottom: 8),
+diff --git a/app/lib/src/features/rh/data/chamada_repository.dart b/app/lib/src/features/rh/data/chamada_repository.dart
+new file mode 100644
+index 0000000..8dad738
+--- /dev/null
++++ b/app/lib/src/features/rh/data/chamada_repository.dart
+@@ -0,0 +1,101 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import '../../../sync/read_cache.dart';
++import '../domain/chamada_diaria.dart';
++
++final chamadaRepositoryProvider = Provider<ChamadaRepository>((ref) {
++  return ChamadaRepository(FirebaseFirestore.instance);
++});
++
++final chamadasStreamProvider = StreamProvider.family<List<ChamadaDiaria>,
++    ({String construtoraId, String obraId})>((ref, scope) {
++  return ref
++      .watch(chamadaRepositoryProvider)
++      .watchChamadas(scope.construtoraId, scope.obraId);
++});
++
++final chamadaDetailProvider = FutureProvider.family<ChamadaDiaria?,
++    ({String construtoraId, String obraId, String chamadaId})>((ref, scope) {
++  return ref.watch(chamadaRepositoryProvider).getChamada(
++        scope.construtoraId,
++        scope.obraId,
++        scope.chamadaId,
++      );
++});
++
++class ChamadaRepository {
++  final FirebaseFirestore _firestore;
++
++  ChamadaRepository(this._firestore);
++
++  CollectionReference<ChamadaDiaria> _chamadasRef(
++    String construtoraId,
++    String obraId,
++  ) {
++    return _firestore
++        .collection('construtoras')
++        .doc(construtoraId)
++        .collection('obras')
++        .doc(obraId)
++        .collection('chamadas')
++        .withConverter<ChamadaDiaria>(
++          fromFirestore: (snapshot, _) =>
++              ChamadaDiaria.fromMap(snapshot.data()!, id: snapshot.id),
++          toFirestore: (ch, _) => ch.toMap(),
++        );
++  }
++
++  Stream<List<ChamadaDiaria>> watchChamadas(
++    String construtoraId,
++    String obraId,
++  ) {
++    return cachedList(
++      'construtoras/$construtoraId/obras/$obraId/chamadas',
++      _liveWatchChamadas(construtoraId, obraId),
++      (c) => c.toMap(),
++      (d) => ChamadaDiaria.fromMap(Map<String, dynamic>.from(d)),
++    );
++  }
++
++  Stream<List<ChamadaDiaria>> _liveWatchChamadas(
++    String construtoraId,
++    String obraId,
++  ) {
++    return _chamadasRef(construtoraId, obraId)
++        .orderBy('date', descending: true)
++        .snapshots()
++        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
++  }
++
++  Future<ChamadaDiaria?> getChamada(
++    String construtoraId,
++    String obraId,
++    String chamadaId,
++  ) async {
++    final doc = await _chamadasRef(construtoraId, obraId).doc(chamadaId).get();
++    return doc.data();
++  }
++
++  Future<void> saveChamada(ChamadaDiaria chamada) async {
++    if (!chamada.isValid) {
++      throw ArgumentError(
++        'Chamada possui colaboradores com alocações inválidas ou lista vazia.',
++      );
++    }
++    await _chamadasRef(chamada.construtoraId, chamada.obraId)
++        .doc(chamada.id)
++        .set(chamada, SetOptions(merge: true));
++  }
++
++  Future<void> cancelChamada(
++    String construtoraId,
++    String obraId,
++    String chamadaId,
++  ) async {
++    await _chamadasRef(construtoraId, obraId).doc(chamadaId).update({
++      'status': 'cancelada',
++      'updatedAt': Timestamp.now(),
++    });
++  }
++}
+diff --git a/app/lib/src/features/rh/data/lote_persistido_service.dart b/app/lib/src/features/rh/data/lote_persistido_service.dart
+new file mode 100644
+index 0000000..7346b3f
+--- /dev/null
++++ b/app/lib/src/features/rh/data/lote_persistido_service.dart
+@@ -0,0 +1,78 @@
++import 'dart:convert';
++import 'package:firebase_auth/firebase_auth.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import '../../../sync/queue_store.dart';
++
++final lotePersistidoServiceProvider = Provider<LotePersistidoService>((ref) {
++  return LotePersistidoService();
++});
++
++class LotePersistidoService {
++  final Map<String, String> _inMemoryCache = {};
++
++  String _buildKey(String obraId, String teamId) => 'last_lot:$obraId:$teamId';
++
++  String _getUid() {
++    try {
++      return FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
++    } catch (_) {
++      return 'anonymous';
++    }
++  }
++
++  Future<void> saveDefaultLot({
++    required String obraId,
++    required String teamId,
++    required String lotId,
++  }) async {
++    final key = _buildKey(obraId, teamId);
++    _inMemoryCache[key] = lotId;
++
++    final uid = _getUid();
++    try {
++      await queueStore(
++        'cacheSet',
++        jsonEncode({
++          'uid': uid,
++          'key': jsonEncode([uid, 'lote_persistido/$key']),
++          'value': {'lotId': lotId},
++        }),
++      );
++    } catch (_) {
++      // Falha silenciosa de persistência secundária mantendo cache em memória
++    }
++  }
++
++  Future<String?> getDefaultLot({
++    required String obraId,
++    required String teamId,
++  }) async {
++    final key = _buildKey(obraId, teamId);
++    if (_inMemoryCache.containsKey(key)) {
++      return _inMemoryCache[key];
++    }
++
++    final uid = _getUid();
++    try {
++      final res = await queueStore(
++        'cacheGet',
++        jsonEncode({
++          'uid': uid,
++          'key': jsonEncode([uid, 'lote_persistido/$key']),
++        }),
++      );
++      if (res.isNotEmpty) {
++        final decoded = jsonDecode(res);
++        if (decoded is Map && decoded['lotId'] is String) {
++          final lotId = decoded['lotId'] as String;
++          _inMemoryCache[key] = lotId;
++          return lotId;
++        }
++      }
++    } catch (_) {
++      // Retorna null se não houver registro
++    }
++
++    return null;
++  }
++}
+diff --git a/app/lib/src/features/rh/domain/chamada_diaria.dart b/app/lib/src/features/rh/domain/chamada_diaria.dart
+new file mode 100644
+index 0000000..7f17a70
+--- /dev/null
++++ b/app/lib/src/features/rh/domain/chamada_diaria.dart
+@@ -0,0 +1,287 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++
++enum PresencaStatus {
++  presente('presente', 'Presente', 'P'),
++  meioPeriodo('meio-periodo', 'Meio-Período', '1/2'),
++  falta('falta', 'Falta', 'F');
++
++  final String value;
++  final String label;
++  final String shortCode;
++
++  const PresencaStatus(this.value, this.label, this.shortCode);
++
++  static PresencaStatus fromString(String? val) {
++    switch (val) {
++      case 'presente':
++        return PresencaStatus.presente;
++      case 'meio-periodo':
++      case 'meioPeriodo':
++        return PresencaStatus.meioPeriodo;
++      case 'falta':
++      default:
++        return PresencaStatus.falta;
++    }
++  }
++}
++
++class AlocacaoLote {
++  final String lotId;
++  final String lotName;
++  final int percentage;
++
++  const AlocacaoLote({
++    required this.lotId,
++    required this.lotName,
++    required this.percentage,
++  });
++
++  Map<String, dynamic> toMap() {
++    return {
++      'lotId': lotId,
++      'lotName': lotName,
++      'percentage': percentage,
++    };
++  }
++
++  factory AlocacaoLote.fromMap(Map<String, dynamic> map) {
++    return AlocacaoLote(
++      lotId: map['lotId'] as String? ?? '',
++      lotName: map['lotName'] as String? ?? '',
++      percentage: (map['percentage'] as num?)?.toInt() ?? 0,
++    );
++  }
++
++  AlocacaoLote copyWith({
++    String? lotId,
++    String? lotName,
++    int? percentage,
++  }) {
++    return AlocacaoLote(
++      lotId: lotId ?? this.lotId,
++      lotName: lotName ?? this.lotName,
++      percentage: percentage ?? this.percentage,
++    );
++  }
++
++  @override
++  bool operator ==(Object other) =>
++      identical(this, other) ||
++      other is AlocacaoLote &&
++          runtimeType == other.runtimeType &&
++          lotId == other.lotId &&
++          percentage == other.percentage;
++
++  @override
++  int get hashCode => lotId.hashCode ^ percentage.hashCode;
++}
++
++class ApontamentoTrabalhador {
++  final String workerId;
++  final String workerName;
++  final String workerRole;
++  final PresencaStatus status;
++  final List<AlocacaoLote> allocations;
++
++  const ApontamentoTrabalhador({
++    required this.workerId,
++    required this.workerName,
++    required this.workerRole,
++    required this.status,
++    this.allocations = const [],
++  });
++
++  int get totalPercentage =>
++      allocations.fold(0, (total, a) => total + a.percentage);
++
++  bool get isValidAllocation {
++    switch (status) {
++      case PresencaStatus.falta:
++        return totalPercentage == 0;
++      case PresencaStatus.meioPeriodo:
++        return totalPercentage == 50;
++      case PresencaStatus.presente:
++        return totalPercentage == 100;
++    }
++  }
++
++  String? get validationError {
++    if (isValidAllocation) return null;
++    switch (status) {
++      case PresencaStatus.falta:
++        return 'Colaborador ausente não deve ter lotes alocados';
++      case PresencaStatus.meioPeriodo:
++        return 'Meio-período deve totalizar 50% (atual: $totalPercentage%)';
++      case PresencaStatus.presente:
++        return 'Presença integral deve totalizar 100% (atual: $totalPercentage%)';
++    }
++  }
++
++  Map<String, dynamic> toMap() {
++    return {
++      'workerId': workerId,
++      'workerName': workerName,
++      'workerRole': workerRole,
++      'status': status.value,
++      'allocations': allocations.map((a) => a.toMap()).toList(),
++    };
++  }
++
++  factory ApontamentoTrabalhador.fromMap(Map<String, dynamic> map) {
++    final rawStatus = map['status'] as String?;
++    final rawAllocations = map['allocations'] as List<dynamic>? ?? [];
++    return ApontamentoTrabalhador(
++      workerId: map['workerId'] as String? ?? '',
++      workerName: map['workerName'] as String? ?? '',
++      workerRole: map['workerRole'] as String? ?? '',
++      status: PresencaStatus.fromString(rawStatus),
++      allocations: rawAllocations
++          .map((a) => AlocacaoLote.fromMap(Map<String, dynamic>.from(a as Map)))
++          .toList(),
++    );
++  }
++
++  ApontamentoTrabalhador copyWith({
++    String? workerId,
++    String? workerName,
++    String? workerRole,
++    PresencaStatus? status,
++    List<AlocacaoLote>? allocations,
++  }) {
++    return ApontamentoTrabalhador(
++      workerId: workerId ?? this.workerId,
++      workerName: workerName ?? this.workerName,
++      workerRole: workerRole ?? this.workerRole,
++      status: status ?? this.status,
++      allocations: allocations ?? this.allocations,
++    );
++  }
++}
++
++class ChamadaDiaria {
++  final String id;
++  final String construtoraId;
++  final String obraId;
++  final String date; // YYYY-MM-DD
++  final String? teamId;
++  final String? teamName;
++  final String createdByUid;
++  final String? defaultLotId;
++  final String status; // 'confirmada' | 'retificada' | 'cancelada'
++  final String? observacoes;
++  final List<ApontamentoTrabalhador> workers;
++  final DateTime createdAt;
++  final DateTime updatedAt;
++  final int schemaVersion;
++
++  const ChamadaDiaria({
++    required this.id,
++    required this.construtoraId,
++    required this.obraId,
++    required this.date,
++    this.teamId,
++    this.teamName,
++    required this.createdByUid,
++    this.defaultLotId,
++    this.status = 'confirmada',
++    this.observacoes,
++    this.workers = const [],
++    required this.createdAt,
++    required this.updatedAt,
++    this.schemaVersion = 1,
++  });
++
++  int get totalWorkers => workers.length;
++  int get presentCount =>
++      workers.where((w) => w.status == PresencaStatus.presente).length;
++  int get meioPeriodoCount =>
++      workers.where((w) => w.status == PresencaStatus.meioPeriodo).length;
++  int get faltaCount =>
++      workers.where((w) => w.status == PresencaStatus.falta).length;
++
++  bool get isValid =>
++      workers.isNotEmpty && workers.every((w) => w.isValidAllocation);
++
++  Map<String, dynamic> toMap() {
++    return {
++      'id': id,
++      'construtoraId': construtoraId,
++      'obraId': obraId,
++      'date': date,
++      'teamId': teamId,
++      'teamName': teamName,
++      'createdByUid': createdByUid,
++      'defaultLotId': defaultLotId,
++      'status': status,
++      'observacoes': observacoes,
++      'workers': workers.map((w) => w.toMap()).toList(),
++      'createdAt': Timestamp.fromDate(createdAt),
++      'updatedAt': Timestamp.fromDate(updatedAt),
++      'schemaVersion': schemaVersion,
++    };
++  }
++
++  factory ChamadaDiaria.fromMap(Map<String, dynamic> map, {String? id}) {
++    DateTime parseDate(dynamic value) {
++      if (value is Timestamp) return value.toDate();
++      if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
++      return DateTime.now();
++    }
++
++    final rawWorkers = map['workers'] as List<dynamic>? ?? [];
++
++    return ChamadaDiaria(
++      id: id ?? map['id'] as String? ?? '',
++      construtoraId: map['construtoraId'] as String? ?? '',
++      obraId: map['obraId'] as String? ?? '',
++      date: map['date'] as String? ?? '',
++      teamId: map['teamId'] as String?,
++      teamName: map['teamName'] as String?,
++      createdByUid: map['createdByUid'] as String? ?? '',
++      defaultLotId: map['defaultLotId'] as String?,
++      status: map['status'] as String? ?? 'confirmada',
++      observacoes: map['observacoes'] as String?,
++      workers: rawWorkers
++          .map((w) =>
++              ApontamentoTrabalhador.fromMap(Map<String, dynamic>.from(w as Map)))
++          .toList(),
++      createdAt: parseDate(map['createdAt']),
++      updatedAt: parseDate(map['updatedAt']),
++      schemaVersion: (map['schemaVersion'] as num?)?.toInt() ?? 1,
++    );
++  }
++
++  ChamadaDiaria copyWith({
++    String? id,
++    String? construtoraId,
++    String? obraId,
++    String? date,
++    String? teamId,
++    String? teamName,
++    String? createdByUid,
++    String? defaultLotId,
++    String? status,
++    String? observacoes,
++    List<ApontamentoTrabalhador>? workers,
++    DateTime? createdAt,
++    DateTime? updatedAt,
++    int? schemaVersion,
++  }) {
++    return ChamadaDiaria(
++      id: id ?? this.id,
++      construtoraId: construtoraId ?? this.construtoraId,
++      obraId: obraId ?? this.obraId,
++      date: date ?? this.date,
++      teamId: teamId ?? this.teamId,
++      teamName: teamName ?? this.teamName,
++      createdByUid: createdByUid ?? this.createdByUid,
++      defaultLotId: defaultLotId ?? this.defaultLotId,
++      status: status ?? this.status,
++      observacoes: observacoes ?? this.observacoes,
++      workers: workers ?? this.workers,
++      createdAt: createdAt ?? this.createdAt,
++      updatedAt: updatedAt ?? this.updatedAt,
++      schemaVersion: schemaVersion ?? this.schemaVersion,
++    );
++  }
++}
+diff --git a/app/lib/src/features/rh/presentation/chamada_form_screen.dart b/app/lib/src/features/rh/presentation/chamada_form_screen.dart
+new file mode 100644
+index 0000000..4f9124e
+--- /dev/null
++++ b/app/lib/src/features/rh/presentation/chamada_form_screen.dart
+@@ -0,0 +1,586 @@
++import 'package:firebase_auth/firebase_auth.dart';
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:go_router/go_router.dart';
++import 'package:intl/intl.dart';
++import 'package:uuid/uuid.dart';
++
++import '../../lotes/data/lote_repository.dart';
++import '../../lotes/domain/lote.dart';
++import '../data/rh_repository.dart';
++import '../domain/equipe.dart';
++import '../domain/funcionario.dart';
++import '../data/chamada_repository.dart';
++import '../data/lote_persistido_service.dart';
++import '../domain/chamada_diaria.dart';
++import 'widgets/apontamento_worker_card.dart';
++
++class ChamadaFormScreen extends ConsumerStatefulWidget {
++  final String construtoraId;
++  final String obraId;
++  final String? chamadaId;
++
++  const ChamadaFormScreen({
++    super.key,
++    required this.construtoraId,
++    required this.obraId,
++    this.chamadaId,
++  });
++
++  @override
++  ConsumerState<ChamadaFormScreen> createState() => _ChamadaFormScreenState();
++}
++
++class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
++  DateTime _selectedDate = DateTime.now();
++  String? _selectedTeamId;
++  String? _defaultLotId;
++  final List<ApontamentoTrabalhador> _workers = [];
++  bool _isSaving = false;
++  bool _initialized = false;
++  ChamadaDiaria? _existingChamada;
++
++  String get _formattedDate => DateFormat('yyyy-MM-dd').format(_selectedDate);
++
++  int get _presentCount =>
++      _workers.where((w) => w.status == PresencaStatus.presente).length;
++  int get _meioPeriodoCount =>
++      _workers.where((w) => w.status == PresencaStatus.meioPeriodo).length;
++  int get _faltaCount =>
++      _workers.where((w) => w.status == PresencaStatus.falta).length;
++
++  bool get _isFormValid =>
++      _workers.isNotEmpty && _workers.every((w) => w.isValidAllocation);
++
++  @override
++  void initState() {
++    super.initState();
++    _loadInitialData();
++  }
++
++  Future<void> _loadInitialData() async {
++    if (widget.chamadaId != null) {
++      final repo = ref.read(chamadaRepositoryProvider);
++      final ch = await repo.getChamada(
++        widget.construtoraId,
++        widget.obraId,
++        widget.chamadaId!,
++      );
++      if (ch != null && mounted) {
++        setState(() {
++          _existingChamada = ch;
++          _selectedDate = DateTime.tryParse(ch.date) ?? DateTime.now();
++          _selectedTeamId = ch.teamId;
++          _defaultLotId = ch.defaultLotId;
++          _workers.clear();
++          _workers.addAll(ch.workers);
++          _initialized = true;
++        });
++        return;
++      }
++    }
++    setState(() {
++      _initialized = true;
++    });
++  }
++
++  Future<void> _pickDate() async {
++    final picked = await showDatePicker(
++      context: context,
++      initialDate: _selectedDate,
++      firstDate: DateTime(2020),
++      lastDate: DateTime(2035),
++    );
++    if (picked != null && picked != _selectedDate) {
++      setState(() {
++        _selectedDate = picked;
++      });
++    }
++  }
++
++  void _syncWorkersList(List<Funcionario> allFuncionarios, List<Lote> lotes) {
++    if (_existingChamada != null) return; // Não sobrescreve chamada existente
++
++    final activeFuncionarios = allFuncionarios.where((f) => f.isActive).toList();
++    final filtered = _selectedTeamId == null || _selectedTeamId!.isEmpty
++        ? activeFuncionarios
++        : activeFuncionarios.where((f) => f.teamId == _selectedTeamId).toList();
++
++    if (_workers.isEmpty || _workers.length != filtered.length) {
++      final targetLot = lotes.where((l) => l.id == _defaultLotId).firstOrNull ??
++          (lotes.isNotEmpty ? lotes.first : null);
++
++      _workers.clear();
++      for (final f in filtered) {
++        _workers.add(
++          ApontamentoTrabalhador(
++            workerId: f.id,
++            workerName: f.name,
++            workerRole: f.role,
++            status: PresencaStatus.presente,
++            allocations: targetLot != null
++                ? [
++                    AlocacaoLote(
++                      lotId: targetLot.id,
++                      lotName: targetLot.name,
++                      percentage: 100,
++                    ),
++                  ]
++                : [],
++          ),
++        );
++      }
++    }
++  }
++
++  Future<void> _onTeamChanged(String? teamId, List<Lote> lotes) async {
++    setState(() {
++      _selectedTeamId = teamId;
++      _workers.clear(); // Limpa para recalcular pela equipe
++    });
++
++    if (teamId != null && teamId.isNotEmpty) {
++      final savedLot = await ref
++          .read(lotePersistidoServiceProvider)
++          .getDefaultLot(obraId: widget.obraId, teamId: teamId);
++      if (savedLot != null && lotes.any((l) => l.id == savedLot) && mounted) {
++        setState(() {
++          _defaultLotId = savedLot;
++        });
++      }
++    }
++  }
++
++  void _onDefaultLotChanged(String? lotId) {
++    setState(() {
++      _defaultLotId = lotId;
++    });
++    if (lotId != null && _selectedTeamId != null && _selectedTeamId!.isNotEmpty) {
++      ref.read(lotePersistidoServiceProvider).saveDefaultLot(
++            obraId: widget.obraId,
++            teamId: _selectedTeamId!,
++            lotId: lotId,
++          );
++    }
++  }
++
++  void _markAllPresent(List<Lote> lotes) {
++    final targetLot = lotes.where((l) => l.id == _defaultLotId).firstOrNull ??
++        (lotes.isNotEmpty ? lotes.first : null);
++
++    setState(() {
++      for (var i = 0; i < _workers.length; i++) {
++        _workers[i] = _workers[i].copyWith(
++          status: PresencaStatus.presente,
++          allocations: targetLot != null
++              ? [
++                  AlocacaoLote(
++                    lotId: targetLot.id,
++                    lotName: targetLot.name,
++                    percentage: 100,
++                  ),
++                ]
++              : [],
++        );
++      }
++    });
++
++    ScaffoldMessenger.of(context).showSnackBar(
++      const SnackBar(
++        content: Text('Todos os operários marcados como presentes!'),
++        duration: Duration(seconds: 1),
++      ),
++    );
++  }
++
++  Future<void> _saveChamada(List<Equipe> equipes) async {
++    if (!_isFormValid) return;
++
++    setState(() {
++      _isSaving = true;
++    });
++
++    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
++    final equipeName = _selectedTeamId != null
++        ? equipes.where((e) => e.id == _selectedTeamId).firstOrNull?.name
++        : null;
++
++    final chamada = ChamadaDiaria(
++      id: _existingChamada?.id ?? const Uuid().v4(),
++      construtoraId: widget.construtoraId,
++      obraId: widget.obraId,
++      date: _formattedDate,
++      teamId: _selectedTeamId,
++      teamName: equipeName,
++      createdByUid: uid,
++      defaultLotId: _defaultLotId,
++      status: _existingChamada != null ? 'retificada' : 'confirmada',
++      workers: _workers,
++      createdAt: _existingChamada?.createdAt ?? DateTime.now(),
++      updatedAt: DateTime.now(),
++      schemaVersion: 1,
++    );
++
++    try {
++      await ref.read(chamadaRepositoryProvider).saveChamada(chamada);
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(
++            backgroundColor: Colors.green,
++            content: Text(
++              _existingChamada != null
++                  ? 'Chamada retificada com sucesso!'
++                  : 'Chamada diária salva com sucesso!',
++            ),
++          ),
++        );
++        context.pop();
++      }
++    } catch (e) {
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(
++            backgroundColor: Colors.red,
++            content: Text('Erro ao salvar chamada: $e'),
++          ),
++        );
++      }
++    } finally {
++      if (mounted) {
++        setState(() {
++          _isSaving = false;
++        });
++      }
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final theme = Theme.of(context);
++    final colorScheme = theme.colorScheme;
++
++    final funcionariosAsync =
++        ref.watch(funcionariosStreamProvider(widget.construtoraId));
++    final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
++    final lotesStream = ref.watch(loteRepositoryProvider).watchLotes(
++          widget.construtoraId,
++          widget.obraId,
++        );
++
++    return StreamBuilder<List<Lote>>(
++      stream: lotesStream,
++      builder: (context, lotesSnap) {
++        final lotes = lotesSnap.data ?? [];
++
++        return funcionariosAsync.when(
++          loading: () => const Scaffold(
++            body: Center(child: CircularProgressIndicator()),
++          ),
++          error: (e, st) => Scaffold(
++            body: Center(child: Text('Erro ao carregar colaboradores: $e')),
++          ),
++          data: (allFuncionarios) {
++            return equipesAsync.when(
++              loading: () => const Scaffold(
++                body: Center(child: CircularProgressIndicator()),
++              ),
++              error: (e, st) => Scaffold(
++                body: Center(child: Text('Erro ao carregar equipes: $e')),
++              ),
++              data: (equipes) {
++                if (_initialized && _workers.isEmpty && _existingChamada == null) {
++                  _syncWorkersList(allFuncionarios, lotes);
++                }
++
++                return Scaffold(
++                  appBar: AppBar(
++                    title: Text(
++                      _existingChamada != null
++                          ? 'Retificar Chamada Diária'
++                          : 'Nova Chamada Diária',
++                    ),
++                    actions: [
++                      if (lotes.isNotEmpty && _workers.isNotEmpty)
++                        TextButton.icon(
++                          icon: const Icon(Icons.done_all, color: Colors.green),
++                          label: const Text(
++                            'Todos Presentes',
++                            style: TextStyle(
++                              color: Colors.green,
++                              fontWeight: FontWeight.bold,
++                            ),
++                          ),
++                          onPressed: () => _markAllPresent(lotes),
++                        ),
++                    ],
++                  ),
++                  body: Column(
++                    children: [
++                      // Cabeçalho de Seleção
++                      Container(
++                        padding: const EdgeInsets.all(16),
++                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
++                        child: Column(
++                          children: [
++                            Row(
++                              children: [
++                                // Data da chamada
++                                Expanded(
++                                  flex: 2,
++                                  child: InkWell(
++                                    onTap: _pickDate,
++                                    borderRadius: BorderRadius.circular(10),
++                                    child: InputDecorator(
++                                      decoration: InputDecoration(
++                                        labelText: 'Data do Expediente',
++                                        prefixIcon: const Icon(Icons.calendar_today, size: 18),
++                                        border: OutlineInputBorder(
++                                          borderRadius: BorderRadius.circular(10),
++                                        ),
++                                        contentPadding: const EdgeInsets.symmetric(
++                                          horizontal: 12,
++                                          vertical: 8,
++                                        ),
++                                      ),
++                                      child: Text(
++                                        DateFormat('dd/MM/yyyy').format(_selectedDate),
++                                        style: const TextStyle(fontWeight: FontWeight.bold),
++                                      ),
++                                    ),
++                                  ),
++                                ),
++                                const SizedBox(width: 12),
++
++                                // Lote Padrão
++                                Expanded(
++                                  flex: 3,
++                                  child: DropdownButtonFormField<String>(
++                                    initialValue: _defaultLotId,
++                                    decoration: InputDecoration(
++                                      labelText: 'Lote Padrão',
++                                      prefixIcon: const Icon(Icons.home_work, size: 18),
++                                      border: OutlineInputBorder(
++                                        borderRadius: BorderRadius.circular(10),
++                                      ),
++                                      contentPadding: const EdgeInsets.symmetric(
++                                        horizontal: 12,
++                                        vertical: 8,
++                                      ),
++                                    ),
++                                    hint: const Text('Selecionar lote...'),
++                                    items: [
++                                      ...lotes.map((l) => DropdownMenuItem(
++                                            value: l.id,
++                                            child: Text(
++                                              l.name,
++                                              overflow: TextOverflow.ellipsis,
++                                            ),
++                                          )),
++                                    ],
++                                    onChanged: _onDefaultLotChanged,
++                                  ),
++                                ),
++                              ],
++                            ),
++                            const SizedBox(height: 12),
++
++                            // Seleção de Equipe
++                            DropdownButtonFormField<String?>(
++                              initialValue: _selectedTeamId,
++                              decoration: InputDecoration(
++                                labelText: 'Equipe de Trabalho',
++                                prefixIcon: const Icon(Icons.groups, size: 18),
++                                border: OutlineInputBorder(
++                                  borderRadius: BorderRadius.circular(10),
++                                ),
++                                contentPadding: const EdgeInsets.symmetric(
++                                  horizontal: 12,
++                                  vertical: 8,
++                                ),
++                              ),
++                              items: [
++                                const DropdownMenuItem<String?>(
++                                  value: null,
++                                  child: Text('Todos os Colaboradores da Obra'),
++                                ),
++                                ...equipes.map((e) => DropdownMenuItem(
++                                      value: e.id,
++                                      child: Text(e.name),
++                                    )),
++                              ],
++                              onChanged: (teamId) {
++                                _onTeamChanged(teamId, lotes);
++                                _syncWorkersList(allFuncionarios, lotes);
++                              },
++                            ),
++                          ],
++                        ),
++                      ),
++
++                      // Lista de Operários
++                      Expanded(
++                        child: _workers.isEmpty
++                            ? Center(
++                                child: Padding(
++                                  padding: const EdgeInsets.all(24.0),
++                                  child: Column(
++                                    mainAxisAlignment: MainAxisAlignment.center,
++                                    children: [
++                                      const Icon(
++                                        Icons.person_off_outlined,
++                                        size: 48,
++                                        color: Colors.grey,
++                                      ),
++                                      const SizedBox(height: 12),
++                                      Text(
++                                        'Nenhum colaborador encontrado para o filtro selecionado.',
++                                        textAlign: TextAlign.center,
++                                        style: theme.textTheme.bodyMedium?.copyWith(
++                                          color: colorScheme.onSurfaceVariant,
++                                        ),
++                                      ),
++                                    ],
++                                  ),
++                                ),
++                              )
++                            : ListView.builder(
++                                padding: const EdgeInsets.symmetric(vertical: 8),
++                                itemCount: _workers.length,
++                                itemBuilder: (context, index) {
++                                  final worker = _workers[index];
++                                  return ApontamentoWorkerCard(
++                                    apontamento: worker,
++                                    availableLotes: lotes,
++                                    defaultLotId: _defaultLotId,
++                                    onChanged: (updated) {
++                                      setState(() {
++                                        _workers[index] = updated;
++                                      });
++                                    },
++                                  );
++                                },
++                              ),
++                      ),
++
++                      // Sticky Bottom Bar com Resumo e Botão Salvar
++                      Container(
++                        padding: const EdgeInsets.all(16),
++                        decoration: BoxDecoration(
++                          color: colorScheme.surface,
++                          boxShadow: [
++                            BoxShadow(
++                              color: Colors.black.withValues(alpha: 0.08),
++                              blurRadius: 10,
++                              offset: const Offset(0, -4),
++                            ),
++                          ],
++                        ),
++                        child: SafeArea(
++                          child: Column(
++                            mainAxisSize: MainAxisSize.min,
++                            children: [
++                              Row(
++                                mainAxisAlignment: MainAxisAlignment.spaceAround,
++                                children: [
++                                  _SummaryItem(
++                                    label: 'Total',
++                                    count: _workers.length,
++                                    color: Colors.blueGrey,
++                                  ),
++                                  _SummaryItem(
++                                    label: 'Presentes',
++                                    count: _presentCount,
++                                    color: Colors.green,
++                                  ),
++                                  _SummaryItem(
++                                    label: '1/2 Período',
++                                    count: _meioPeriodoCount,
++                                    color: Colors.orange,
++                                  ),
++                                  _SummaryItem(
++                                    label: 'Faltas',
++                                    count: _faltaCount,
++                                    color: Colors.red,
++                                  ),
++                                ],
++                              ),
++                              const SizedBox(height: 12),
++                              SizedBox(
++                                width: double.infinity,
++                                height: 50,
++                                child: FilledButton.icon(
++                                  icon: _isSaving
++                                      ? const SizedBox(
++                                          width: 20,
++                                          height: 20,
++                                          child: CircularProgressIndicator(
++                                            strokeWidth: 2,
++                                            color: Colors.white,
++                                          ),
++                                        )
++                                      : const Icon(Icons.check_circle_outline),
++                                  label: Text(
++                                    _isSaving
++                                        ? 'Salvando Chamada...'
++                                        : 'Salvar Chamada Diária',
++                                    style: const TextStyle(
++                                      fontSize: 16,
++                                      fontWeight: FontWeight.bold,
++                                    ),
++                                  ),
++                                  onPressed: (_isFormValid && !_isSaving)
++                                      ? () => _saveChamada(equipes)
++                                      : null,
++                                ),
++                              ),
++                            ],
++                          ),
++                        ),
++                      ),
++                    ],
++                  ),
++                );
++              },
++            );
++          },
++        );
++      },
++    );
++  }
++}
++
++class _SummaryItem extends StatelessWidget {
++  final String label;
++  final int count;
++  final Color color;
++
++  const _SummaryItem({
++    required this.label,
++    required this.count,
++    required this.color,
++  });
++
++  @override
++  Widget build(BuildContext context) {
++    return Column(
++      children: [
++        Text(
++          '$count',
++          style: TextStyle(
++            fontSize: 18,
++            fontWeight: FontWeight.bold,
++            color: color,
++          ),
++        ),
++        Text(
++          label,
++          style: TextStyle(
++            fontSize: 12,
++            color: color.withValues(alpha: 0.85),
++            fontWeight: FontWeight.w600,
++          ),
++        ),
++      ],
++    );
++  }
++}
+diff --git a/app/lib/src/features/rh/presentation/chamadas_list_screen.dart b/app/lib/src/features/rh/presentation/chamadas_list_screen.dart
+new file mode 100644
+index 0000000..08f6da7
+--- /dev/null
++++ b/app/lib/src/features/rh/presentation/chamadas_list_screen.dart
+@@ -0,0 +1,317 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:go_router/go_router.dart';
++import 'package:intl/intl.dart';
++
++import '../../../common_widgets/sigo_sidebar.dart';
++import '../data/chamada_repository.dart';
++import '../domain/chamada_diaria.dart';
++
++class ChamadasListScreen extends ConsumerStatefulWidget {
++  final String construtoraId;
++  final String obraId;
++
++  const ChamadasListScreen({
++    super.key,
++    required this.construtoraId,
++    required this.obraId,
++  });
++
++  @override
++  ConsumerState<ChamadasListScreen> createState() => _ChamadasListScreenState();
++}
++
++class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
++  String _statusFilter = 'todas'; // 'todas' | 'confirmada' | 'retificada'
++
++  @override
++  Widget build(BuildContext context) {
++    final theme = Theme.of(context);
++    final colorScheme = theme.colorScheme;
++
++    final chamadasAsync = ref.watch(
++      chamadasStreamProvider((
++        construtoraId: widget.construtoraId,
++        obraId: widget.obraId,
++      )),
++    );
++
++    return Scaffold(
++      drawer: SigoSidebar(
++        activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
++      ),
++      appBar: AppBar(
++        title: const Text('Chamada Diária (RH)'),
++        actions: [
++          IconButton(
++            icon: const Icon(Icons.add),
++            tooltip: 'Nova Chamada',
++            onPressed: () => context.push(
++              '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
++            ),
++          ),
++        ],
++      ),
++      body: Column(
++        children: [
++          // Barra de Filtros
++          Padding(
++            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
++            child: Row(
++              children: [
++                Expanded(
++                  child: SegmentedButton<String>(
++                    segments: const [
++                      ButtonSegment(value: 'todas', label: Text('Todas')),
++                      ButtonSegment(value: 'confirmada', label: Text('Confirmadas')),
++                      ButtonSegment(value: 'retificada', label: Text('Retificadas')),
++                    ],
++                    selected: {_statusFilter},
++                    onSelectionChanged: (set) {
++                      setState(() {
++                        _statusFilter = set.first;
++                      });
++                    },
++                  ),
++                ),
++              ],
++            ),
++          ),
++
++          Expanded(
++            child: chamadasAsync.when(
++              loading: () => const Center(child: CircularProgressIndicator()),
++              error: (e, st) => Center(
++                child: Text('Erro ao carregar chamadas: $e'),
++              ),
++              data: (chamadas) {
++                final filtered = chamadas.where((c) {
++                  if (_statusFilter == 'todas') return c.status != 'cancelada';
++                  return c.status == _statusFilter;
++                }).toList();
++
++                if (filtered.isEmpty) {
++                  return Center(
++                    child: Padding(
++                      padding: const EdgeInsets.all(32.0),
++                      child: Column(
++                        mainAxisAlignment: MainAxisAlignment.center,
++                        children: [
++                          Icon(
++                            Icons.fact_check_outlined,
++                            size: 64,
++                            color: colorScheme.outline,
++                          ),
++                          const SizedBox(height: 16),
++                          Text(
++                            'Nenhuma chamada diária registrada.',
++                            style: theme.textTheme.titleMedium?.copyWith(
++                              color: colorScheme.onSurfaceVariant,
++                            ),
++                          ),
++                          const SizedBox(height: 8),
++                          Text(
++                            'Inicie o registro de presença da equipe para apropriar a mão de obra nos lotes.',
++                            textAlign: TextAlign.center,
++                            style: theme.textTheme.bodyMedium?.copyWith(
++                              color: colorScheme.outline,
++                            ),
++                          ),
++                          const SizedBox(height: 24),
++                          FilledButton.icon(
++                            icon: const Icon(Icons.add),
++                            label: const Text('Lançar Chamada de Hoje'),
++                            onPressed: () => context.push(
++                              '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
++                            ),
++                          ),
++                        ],
++                      ),
++                    ),
++                  );
++                }
++
++                return ListView.builder(
++                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
++                  itemCount: filtered.length,
++                  itemBuilder: (context, index) {
++                    final chamada = filtered[index];
++                    return _ChamadaCard(
++                      chamada: chamada,
++                      onTap: () => context.push(
++                        '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/${chamada.id}',
++                      ),
++                    );
++                  },
++                );
++              },
++            ),
++          ),
++        ],
++      ),
++      floatingActionButton: FloatingActionButton.extended(
++        icon: const Icon(Icons.playlist_add_check),
++        label: const Text('Nova Chamada'),
++        onPressed: () => context.push(
++          '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
++        ),
++      ),
++    );
++  }
++}
++
++class _ChamadaCard extends StatelessWidget {
++  final ChamadaDiaria chamada;
++  final VoidCallback onTap;
++
++  const _ChamadaCard({
++    required this.chamada,
++    required this.onTap,
++  });
++
++  @override
++  Widget build(BuildContext context) {
++    final theme = Theme.of(context);
++    final colorScheme = theme.colorScheme;
++
++    DateTime? parsedDate = DateTime.tryParse(chamada.date);
++    final dateDisplay = parsedDate != null
++        ? DateFormat('dd/MM/yyyy (EEE)', 'pt_BR').format(parsedDate)
++        : chamada.date;
++
++    final isRetificada = chamada.status == 'retificada';
++
++    return Card(
++      elevation: 0,
++      margin: const EdgeInsets.only(bottom: 12),
++      shape: RoundedRectangleBorder(
++        borderRadius: BorderRadius.circular(16),
++        side: BorderSide(color: colorScheme.outlineVariant),
++      ),
++      child: InkWell(
++        borderRadius: BorderRadius.circular(16),
++        onTap: onTap,
++        child: Padding(
++          padding: const EdgeInsets.all(16),
++          child: Column(
++            crossAxisAlignment: CrossAxisAlignment.start,
++            children: [
++              Row(
++                mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                children: [
++                  Row(
++                    children: [
++                      Icon(Icons.calendar_today, size: 18, color: colorScheme.primary),
++                      const SizedBox(width: 8),
++                      Text(
++                        dateDisplay,
++                        style: theme.textTheme.titleMedium?.copyWith(
++                          fontWeight: FontWeight.bold,
++                        ),
++                      ),
++                    ],
++                  ),
++                  if (isRetificada)
++                    Container(
++                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
++                      decoration: BoxDecoration(
++                        color: Colors.purple.withValues(alpha: 0.15),
++                        borderRadius: BorderRadius.circular(8),
++                      ),
++                      child: const Text(
++                        'Retificada',
++                        style: TextStyle(
++                          fontSize: 11,
++                          fontWeight: FontWeight.bold,
++                          color: Colors.purple,
++                        ),
++                      ),
++                    ),
++                ],
++              ),
++              const SizedBox(height: 8),
++
++              Text(
++                chamada.teamName != null
++                    ? 'Equipe: ${chamada.teamName}'
++                    : 'Equipe: Geral da Obra',
++                style: theme.textTheme.bodyMedium?.copyWith(
++                  color: colorScheme.onSurfaceVariant,
++                ),
++              ),
++              const SizedBox(height: 12),
++
++              // Badges de Presença
++              Wrap(
++                spacing: 8,
++                runSpacing: 4,
++                children: [
++                  _Badge(
++                    label: '${chamada.presentCount} presentes',
++                    color: Colors.green,
++                    icon: Icons.check,
++                  ),
++                  if (chamada.meioPeriodoCount > 0)
++                    _Badge(
++                      label: '${chamada.meioPeriodoCount} meio-período',
++                      color: Colors.orange,
++                      icon: Icons.schedule,
++                    ),
++                  if (chamada.faltaCount > 0)
++                    _Badge(
++                      label: '${chamada.faltaCount} faltas',
++                      color: Colors.red,
++                      icon: Icons.close,
++                    ),
++                  _Badge(
++                    label: '${chamada.totalWorkers} total',
++                    color: Colors.blueGrey,
++                    icon: Icons.groups,
++                  ),
++                ],
++              ),
++            ],
++          ),
++        ),
++      ),
++    );
++  }
++}
++
++class _Badge extends StatelessWidget {
++  final String label;
++  final Color color;
++  final IconData icon;
++
++  const _Badge({
++    required this.label,
++    required this.color,
++    required this.icon,
++  });
++
++  @override
++  Widget build(BuildContext context) {
++    return Container(
++      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
++      decoration: BoxDecoration(
++        color: color.withValues(alpha: 0.12),
++        borderRadius: BorderRadius.circular(8),
++      ),
++      child: Row(
++        mainAxisSize: MainAxisSize.min,
++        children: [
++          Icon(icon, size: 13, color: color),
++          const SizedBox(width: 4),
++          Text(
++            label,
++            style: TextStyle(
++              fontSize: 12,
++              fontWeight: FontWeight.bold,
++              color: color,
++            ),
++          ),
++        ],
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/rh/presentation/widgets/apontamento_worker_card.dart b/app/lib/src/features/rh/presentation/widgets/apontamento_worker_card.dart
+new file mode 100644
+index 0000000..fc06696
+--- /dev/null
++++ b/app/lib/src/features/rh/presentation/widgets/apontamento_worker_card.dart
+@@ -0,0 +1,305 @@
++import 'package:flutter/material.dart';
++import '../../../lotes/domain/lote.dart';
++import '../../domain/chamada_diaria.dart';
++import 'rateio_lotes_sheet.dart';
++
++class ApontamentoWorkerCard extends StatelessWidget {
++  final ApontamentoTrabalhador apontamento;
++  final List<Lote> availableLotes;
++  final String? defaultLotId;
++  final ValueChanged<ApontamentoTrabalhador> onChanged;
++
++  const ApontamentoWorkerCard({
++    super.key,
++    required this.apontamento,
++    required this.availableLotes,
++    this.defaultLotId,
++    required this.onChanged,
++  });
++
++  void _setStatus(PresencaStatus newStatus) {
++    if (newStatus == apontamento.status) return;
++
++    List<AlocacaoLote> newAllocations = [];
++    if (newStatus == PresencaStatus.falta) {
++      newAllocations = [];
++    } else {
++      // Se estava em falta ou sem alocação, usa o lote padrão ou o primeiro lote disponível
++      final targetLotId = defaultLotId ??
++          (availableLotes.isNotEmpty ? availableLotes.first.id : null);
++      final targetLot = availableLotes.where((l) => l.id == targetLotId).firstOrNull ??
++          (availableLotes.isNotEmpty ? availableLotes.first : null);
++
++      final percentage = newStatus == PresencaStatus.meioPeriodo ? 50 : 100;
++
++      if (targetLot != null) {
++        newAllocations = [
++          AlocacaoLote(
++            lotId: targetLot.id,
++            lotName: targetLot.name,
++            percentage: percentage,
++          ),
++        ];
++      }
++    }
++
++    onChanged(
++      apontamento.copyWith(
++        status: newStatus,
++        allocations: newAllocations,
++      ),
++    );
++  }
++
++  void _openRateioSheet(BuildContext context) {
++    RateioLotesSheet.show(
++      context: context,
++      workerName: apontamento.workerName,
++      status: apontamento.status,
++      availableLotes: availableLotes,
++      initialAllocations: apontamento.allocations,
++      onSave: (allocations) {
++        onChanged(apontamento.copyWith(allocations: allocations));
++      },
++    );
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final theme = Theme.of(context);
++    final colorScheme = theme.colorScheme;
++    final isFalta = apontamento.status == PresencaStatus.falta;
++    final isMeio = apontamento.status == PresencaStatus.meioPeriodo;
++    final isPresente = apontamento.status == PresencaStatus.presente;
++    final hasError = !apontamento.isValidAllocation;
++
++    Color statusColor;
++    if (isFalta) {
++      statusColor = Colors.red;
++    } else if (isMeio) {
++      statusColor = Colors.orange;
++    } else {
++      statusColor = Colors.green;
++    }
++
++    return Card(
++      elevation: 0,
++      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
++      shape: RoundedRectangleBorder(
++        borderRadius: BorderRadius.circular(16),
++        side: BorderSide(
++          color: hasError
++              ? Colors.red
++              : statusColor.withValues(alpha: 0.3),
++          width: hasError ? 2.0 : 1.0,
++        ),
++      ),
++      child: Padding(
++        padding: const EdgeInsets.all(14),
++        child: Column(
++          crossAxisAlignment: CrossAxisAlignment.start,
++          children: [
++            Row(
++              children: [
++                CircleAvatar(
++                  radius: 20,
++                  backgroundColor: statusColor.withValues(alpha: 0.15),
++                  child: Text(
++                    apontamento.workerName.isNotEmpty
++                        ? apontamento.workerName[0].toUpperCase()
++                        : '?',
++                    style: TextStyle(
++                      fontWeight: FontWeight.bold,
++                      color: statusColor,
++                      fontSize: 16,
++                    ),
++                  ),
++                ),
++                const SizedBox(width: 12),
++                Expanded(
++                  child: Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      Text(
++                        apontamento.workerName,
++                        style: const TextStyle(
++                          fontWeight: FontWeight.bold,
++                          fontSize: 15,
++                        ),
++                        maxLines: 1,
++                        overflow: TextOverflow.ellipsis,
++                      ),
++                      Text(
++                        apontamento.workerRole,
++                        style: theme.textTheme.bodySmall?.copyWith(
++                          color: colorScheme.onSurfaceVariant,
++                        ),
++                      ),
++                    ],
++                  ),
++                ),
++              ],
++            ),
++            const SizedBox(height: 12),
++
++            // Botões de Presença / Meio-Período / Falta
++            LayoutBuilder(
++              builder: (context, constraints) {
++                return Row(
++                  children: [
++                    Expanded(
++                      child: _StatusOptionButton(
++                        label: 'Presente',
++                        shortLabel: 'P',
++                        isSelected: isPresente,
++                        activeColor: Colors.green,
++                        onTap: () => _setStatus(PresencaStatus.presente),
++                      ),
++                    ),
++                    const SizedBox(width: 6),
++                    Expanded(
++                      child: _StatusOptionButton(
++                        label: '1/2 Período',
++                        shortLabel: '1/2',
++                        isSelected: isMeio,
++                        activeColor: Colors.orange,
++                        onTap: () => _setStatus(PresencaStatus.meioPeriodo),
++                      ),
++                    ),
++                    const SizedBox(width: 6),
++                    Expanded(
++                      child: _StatusOptionButton(
++                        label: 'Falta',
++                        shortLabel: 'F',
++                        isSelected: isFalta,
++                        activeColor: Colors.red,
++                        onTap: () => _setStatus(PresencaStatus.falta),
++                      ),
++                    ),
++                  ],
++                );
++              },
++            ),
++
++            if (!isFalta) ...[
++              const SizedBox(height: 10),
++              Row(
++                crossAxisAlignment: CrossAxisAlignment.center,
++                children: [
++                  Expanded(
++                    child: Wrap(
++                      spacing: 6,
++                      runSpacing: 4,
++                      children: apontamento.allocations.isEmpty
++                          ? [
++                              Chip(
++                                label: const Text('Nenhum lote'),
++                                backgroundColor: Colors.red.withValues(alpha: 0.1),
++                                labelStyle: const TextStyle(
++                                  fontSize: 12,
++                                  color: Colors.red,
++                                ),
++                                visualDensity: VisualDensity.compact,
++                              ),
++                            ]
++                          : apontamento.allocations.map((alloc) {
++                              return Chip(
++                                avatar: const Icon(Icons.home_work_outlined, size: 14),
++                                label: Text(
++                                  '${alloc.lotName.isEmpty ? "Lote" : alloc.lotName} (${alloc.percentage}%)',
++                                ),
++                                visualDensity: VisualDensity.compact,
++                                backgroundColor: colorScheme.surfaceContainerHighest,
++                                labelStyle: const TextStyle(
++                                  fontSize: 12,
++                                  fontWeight: FontWeight.w600,
++                                ),
++                              );
++                            }).toList(),
++                    ),
++                  ),
++                  TextButton.icon(
++                    style: TextButton.styleFrom(
++                      visualDensity: VisualDensity.compact,
++                    ),
++                    icon: const Icon(Icons.tune, size: 16),
++                    label: const Text('Lotes / Rateio', style: TextStyle(fontSize: 12)),
++                    onPressed: () => _openRateioSheet(context),
++                  ),
++                ],
++              ),
++            ],
++
++            if (hasError) ...[
++              const SizedBox(height: 6),
++              Row(
++                children: [
++                  const Icon(Icons.error_outline, size: 14, color: Colors.red),
++                  const SizedBox(width: 4),
++                  Expanded(
++                    child: Text(
++                      apontamento.validationError ?? 'Alocação inválida',
++                      style: const TextStyle(
++                        fontSize: 11,
++                        color: Colors.red,
++                        fontWeight: FontWeight.bold,
++                      ),
++                    ),
++                  ),
++                ],
++              ),
++            ],
++          ],
++        ),
++      ),
++    );
++  }
++}
++
++class _StatusOptionButton extends StatelessWidget {
++  final String label;
++  final String shortLabel;
++  final bool isSelected;
++  final Color activeColor;
++  final VoidCallback onTap;
++
++  const _StatusOptionButton({
++    required this.label,
++    required this.shortLabel,
++    required this.isSelected,
++    required this.activeColor,
++    required this.onTap,
++  });
++
++  @override
++  Widget build(BuildContext context) {
++    return InkWell(
++      onTap: onTap,
++      borderRadius: BorderRadius.circular(10),
++      child: Container(
++        height: 44, // Generoso para toque em campo
++        alignment: Alignment.center,
++        decoration: BoxDecoration(
++          color: isSelected
++              ? activeColor.withValues(alpha: 0.18)
++              : Colors.transparent,
++          borderRadius: BorderRadius.circular(10),
++          border: Border.all(
++            color: isSelected ? activeColor : Colors.grey.shade300,
++            width: isSelected ? 1.8 : 1.0,
++          ),
++        ),
++        child: Text(
++          label,
++          style: TextStyle(
++            fontSize: 13,
++            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
++            color: isSelected ? activeColor : Colors.grey.shade700,
++          ),
++          maxLines: 1,
++          overflow: TextOverflow.ellipsis,
++        ),
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/rh/presentation/widgets/rateio_lotes_sheet.dart b/app/lib/src/features/rh/presentation/widgets/rateio_lotes_sheet.dart
+new file mode 100644
+index 0000000..cdfb686
+--- /dev/null
++++ b/app/lib/src/features/rh/presentation/widgets/rateio_lotes_sheet.dart
+@@ -0,0 +1,340 @@
++import 'package:flutter/material.dart';
++import '../../../lotes/domain/lote.dart';
++import '../../domain/chamada_diaria.dart';
++
++class RateioLotesSheet extends StatefulWidget {
++  final String workerName;
++  final PresencaStatus status;
++  final List<Lote> availableLotes;
++  final List<AlocacaoLote> initialAllocations;
++  final ValueChanged<List<AlocacaoLote>> onSave;
++
++  const RateioLotesSheet({
++    super.key,
++    required this.workerName,
++    required this.status,
++    required this.availableLotes,
++    required this.initialAllocations,
++    required this.onSave,
++  });
++
++  static Future<void> show({
++    required BuildContext context,
++    required String workerName,
++    required PresencaStatus status,
++    required List<Lote> availableLotes,
++    required List<AlocacaoLote> initialAllocations,
++    required ValueChanged<List<AlocacaoLote>> onSave,
++  }) {
++    return showModalBottomSheet(
++      context: context,
++      isScrollControlled: true,
++      backgroundColor: Theme.of(context).colorScheme.surface,
++      shape: const RoundedRectangleBorder(
++        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
++      ),
++      builder: (_) => RateioLotesSheet(
++        workerName: workerName,
++        status: status,
++        availableLotes: availableLotes,
++        initialAllocations: initialAllocations,
++        onSave: onSave,
++      ),
++    );
++  }
++
++  @override
++  State<RateioLotesSheet> createState() => _RateioLotesSheetState();
++}
++
++class _RateioLotesSheetState extends State<RateioLotesSheet> {
++  late List<AlocacaoLote> _allocations;
++  String? _selectedLoteToAdd;
++
++  int get _expectedPercentage =>
++      widget.status == PresencaStatus.meioPeriodo ? 50 : 100;
++
++  int get _totalPercentage =>
++      _allocations.fold(0, (sum, item) => sum + item.percentage);
++
++  bool get _isValid => _totalPercentage == _expectedPercentage;
++
++  @override
++  void initState() {
++    super.initState();
++    _allocations = List.from(widget.initialAllocations);
++    if (_allocations.isEmpty && widget.availableLotes.isNotEmpty) {
++      _allocations.add(
++        AlocacaoLote(
++          lotId: widget.availableLotes.first.id,
++          lotName: widget.availableLotes.first.name,
++          percentage: _expectedPercentage,
++        ),
++      );
++    }
++  }
++
++  void _updatePercentage(int index, int newPercentage) {
++    setState(() {
++      final clamped = newPercentage.clamp(0, 100);
++      _allocations[index] = _allocations[index].copyWith(percentage: clamped);
++    });
++  }
++
++  void _removeAllocation(int index) {
++    setState(() {
++      _allocations.removeAt(index);
++    });
++  }
++
++  void _addAllocation(String loteId) {
++    final lote = widget.availableLotes.firstWhere((l) => l.id == loteId);
++    if (_allocations.any((a) => a.lotId == loteId)) {
++      return;
++    }
++    final remaining = (_expectedPercentage - _totalPercentage).clamp(0, 100);
++    setState(() {
++      _allocations.add(
++        AlocacaoLote(
++          lotId: lote.id,
++          lotName: lote.name,
++          percentage: remaining > 0 ? remaining : 0,
++        ),
++      );
++      _selectedLoteToAdd = null;
++    });
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final theme = Theme.of(context);
++    final colorScheme = theme.colorScheme;
++    final viewInsets = MediaQuery.of(context).viewInsets;
++
++    final unallocatedLotes = widget.availableLotes
++        .where((l) => !_allocations.any((a) => a.lotId == l.id))
++        .toList();
++
++    return Padding(
++      padding: EdgeInsets.only(
++        left: 20,
++        right: 20,
++        top: 20,
++        bottom: viewInsets.bottom + 20,
++      ),
++      child: Column(
++        mainAxisSize: MainAxisSize.min,
++        crossAxisAlignment: CrossAxisAlignment.stretch,
++        children: [
++          Row(
++            mainAxisAlignment: MainAxisAlignment.spaceBetween,
++            children: [
++              Expanded(
++                child: Column(
++                  crossAxisAlignment: CrossAxisAlignment.start,
++                  children: [
++                    Text(
++                      'Rateio de Lotes: ${widget.workerName}',
++                      style: theme.textTheme.titleMedium?.copyWith(
++                        fontWeight: FontWeight.bold,
++                      ),
++                    ),
++                    const SizedBox(height: 4),
++                    Text(
++                      'Status: ${widget.status.label} (Meta: $_expectedPercentage%)',
++                      style: theme.textTheme.bodySmall?.copyWith(
++                        color: colorScheme.onSurfaceVariant,
++                      ),
++                    ),
++                  ],
++                ),
++              ),
++              IconButton(
++                icon: const Icon(Icons.close),
++                onPressed: () => Navigator.of(context).pop(),
++              ),
++            ],
++          ),
++          const SizedBox(height: 16),
++
++          // Barra de progresso de validação
++          Container(
++            padding: const EdgeInsets.all(12),
++            decoration: BoxDecoration(
++              color: _isValid
++                  ? Colors.green.withValues(alpha: 0.12)
++                  : Colors.red.withValues(alpha: 0.12),
++              borderRadius: BorderRadius.circular(12),
++              border: Border.all(
++                color: _isValid ? Colors.green : Colors.red,
++                width: 1.5,
++              ),
++            ),
++            child: Row(
++              children: [
++                Icon(
++                  _isValid ? Icons.check_circle : Icons.warning_amber_rounded,
++                  color: _isValid ? Colors.green : Colors.red,
++                ),
++                const SizedBox(width: 10),
++                Expanded(
++                  child: Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      Text(
++                        _isValid
++                            ? 'Alocação equilibrada ($_totalPercentage%)'
++                            : 'Alocação incorreta: $_totalPercentage% de $_expectedPercentage%',
++                        style: TextStyle(
++                          fontWeight: FontWeight.bold,
++                          color: _isValid ? Colors.green.shade800 : Colors.red.shade800,
++                        ),
++                      ),
++                      const SizedBox(height: 4),
++                      LinearProgressIndicator(
++                        value: _expectedPercentage > 0
++                            ? (_totalPercentage / _expectedPercentage)
++                                .clamp(0.0, 1.0)
++                            : 0,
++                        color: _isValid ? Colors.green : Colors.red,
++                        backgroundColor: colorScheme.surfaceContainerHighest,
++                      ),
++                    ],
++                  ),
++                ),
++              ],
++            ),
++          ),
++          const SizedBox(height: 16),
++
++          // Lista de alocações
++          if (_allocations.isEmpty)
++            Padding(
++              padding: const EdgeInsets.symmetric(vertical: 24),
++              child: Center(
++                child: Text(
++                  'Nenhum lote alocado. Adicione um lote abaixo.',
++                  style: theme.textTheme.bodyMedium?.copyWith(
++                    color: colorScheme.onSurfaceVariant,
++                  ),
++                ),
++              ),
++            )
++          else
++            ..._allocations.asMap().entries.map((entry) {
++              final idx = entry.key;
++              final alloc = entry.value;
++              return Card(
++                elevation: 0,
++                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
++                margin: const EdgeInsets.only(bottom: 12),
++                shape: RoundedRectangleBorder(
++                  borderRadius: BorderRadius.circular(12),
++                ),
++                child: Padding(
++                  padding: const EdgeInsets.all(12),
++                  child: Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      Row(
++                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                        children: [
++                          Row(
++                            children: [
++                              const Icon(Icons.home_work_outlined, size: 20),
++                              const SizedBox(width: 8),
++                              Text(
++                                alloc.lotName.isEmpty ? 'Lote' : alloc.lotName,
++                                style: const TextStyle(fontWeight: FontWeight.bold),
++                              ),
++                            ],
++                          ),
++                          Row(
++                            children: [
++                              Text(
++                                '${alloc.percentage}%',
++                                style: TextStyle(
++                                  fontSize: 16,
++                                  fontWeight: FontWeight.bold,
++                                  color: colorScheme.primary,
++                                ),
++                              ),
++                              const SizedBox(width: 8),
++                              IconButton(
++                                icon: const Icon(Icons.delete_outline, color: Colors.red),
++                                tooltip: 'Remover lote',
++                                onPressed: () => _removeAllocation(idx),
++                              ),
++                            ],
++                          ),
++                        ],
++                      ),
++                      Slider(
++                        value: alloc.percentage.toDouble(),
++                        min: 0,
++                        max: 100,
++                        divisions: 20, // passos de 5%
++                        label: '${alloc.percentage}%',
++                        onChanged: (val) => _updatePercentage(idx, val.round()),
++                      ),
++                    ],
++                  ),
++                ),
++              );
++            }),
++
++          // Adicionar novo lote
++          if (unallocatedLotes.isNotEmpty)
++            Row(
++              children: [
++                Expanded(
++                  child: DropdownButtonFormField<String>(
++                    initialValue: _selectedLoteToAdd,
++                    hint: const Text('Adicionar outro lote...'),
++                    decoration: InputDecoration(
++                      contentPadding: const EdgeInsets.symmetric(
++                        horizontal: 12,
++                        vertical: 8,
++                      ),
++                      border: OutlineInputBorder(
++                        borderRadius: BorderRadius.circular(10),
++                      ),
++                    ),
++                    items: unallocatedLotes.map((l) {
++                      return DropdownMenuItem<String>(
++                        value: l.id,
++                        child: Text(l.name),
++                      );
++                    }).toList(),
++                    onChanged: (val) {
++                      if (val != null) {
++                        _addAllocation(val);
++                      }
++                    },
++                  ),
++                ),
++              ],
++            ),
++          const SizedBox(height: 20),
++
++          FilledButton.icon(
++            icon: const Icon(Icons.check),
++            label: const Text('Confirmar Rateio'),
++            style: FilledButton.styleFrom(
++              padding: const EdgeInsets.symmetric(vertical: 14),
++              shape: RoundedRectangleBorder(
++                borderRadius: BorderRadius.circular(12),
++              ),
++            ),
++            onPressed: _isValid
++                ? () {
++                    widget.onSave(_allocations);
++                    Navigator.of(context).pop();
++                  }
++                : null,
++          ),
++        ],
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/routing/app_router.dart b/app/lib/src/routing/app_router.dart
+index 1d44a5d..b0c64a8 100644
+--- a/app/lib/src/routing/app_router.dart
++++ b/app/lib/src/routing/app_router.dart
+@@ -30,6 +30,8 @@ import '../features/authentication/data/user_repository.dart';
+ import '../features/rh/presentation/funcionarios_list_screen.dart';
+ import '../features/rh/presentation/funcionario_form_screen.dart';
+ import '../features/rh/domain/funcionario.dart';
++import '../features/rh/presentation/chamadas_list_screen.dart';
++import '../features/rh/presentation/chamada_form_screen.dart';
+ 
+ final routerProvider = Provider<GoRouter>((ref) {
+   final authState = ref.watch(authStateChangesProvider);
+@@ -203,6 +205,50 @@ final routerProvider = Provider<GoRouter>((ref) {
+           );
+         },
+       ),
++      GoRoute(
++        path: '/construtora/:cId/obra/:oId/rh/chamadas',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'rh',
++            child: ChamadasListScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: '/construtora/:cId/obra/:oId/rh/chamadas/nova',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'rh',
++            child: ChamadaFormScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: '/construtora/:cId/obra/:oId/rh/chamadas/:chId',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final chId = state.pathParameters['chId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'rh',
++            child: ChamadaFormScreen(
++              construtoraId: cId,
++              obraId: oId,
++              chamadaId: chId,
++            ),
++          );
++        },
++      ),
+       GoRoute(
+         path: '/construtora/:cId/almoxarifado',
+         builder: (context, state) {
+diff --git a/app/test/rh_chamada_test.dart b/app/test/rh_chamada_test.dart
+new file mode 100644
+index 0000000..c9712d0
+--- /dev/null
++++ b/app/test/rh_chamada_test.dart
+@@ -0,0 +1,350 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:app/src/features/lotes/domain/lote.dart';
++import 'package:app/src/features/rh/data/lote_persistido_service.dart';
++import 'package:app/src/features/rh/domain/chamada_diaria.dart';
++import 'package:app/src/features/rh/presentation/widgets/apontamento_worker_card.dart';
++import 'package:app/src/features/rh/presentation/widgets/rateio_lotes_sheet.dart';
++
++void main() {
++  group('Story 4.2 — Invariantes de Apontamento e Rateio', () {
++    test('Trabalhador Presente com alocação integral (100%) é válido', () {
++      final apontamento = ApontamentoTrabalhador(
++        workerId: 'w-1',
++        workerName: 'João da Silva',
++        workerRole: 'Pedreiro',
++        status: PresencaStatus.presente,
++        allocations: const [
++          AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 100),
++        ],
++      );
++
++      expect(apontamento.totalPercentage, equals(100));
++      expect(apontamento.isValidAllocation, isTrue);
++      expect(apontamento.validationError, isNull);
++    });
++
++    test('Trabalhador Presente com rateio em múltiplos lotes somando 100% é válido', () {
++      final apontamento = ApontamentoTrabalhador(
++        workerId: 'w-1',
++        workerName: 'João da Silva',
++        workerRole: 'Pedreiro',
++        status: PresencaStatus.presente,
++        allocations: const [
++          AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 60),
++          AlocacaoLote(lotId: 'lote-2', lotName: 'Casa 02', percentage: 40),
++        ],
++      );
++
++      expect(apontamento.totalPercentage, equals(100));
++      expect(apontamento.isValidAllocation, isTrue);
++    });
++
++    test('Trabalhador Presente com soma divergente de 100% viola invariante', () {
++      final apontamento80 = ApontamentoTrabalhador(
++        workerId: 'w-1',
++        workerName: 'João da Silva',
++        workerRole: 'Pedreiro',
++        status: PresencaStatus.presente,
++        allocations: const [
++          AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 80),
++        ],
++      );
++
++      expect(apontamento80.totalPercentage, equals(80));
++      expect(apontamento80.isValidAllocation, isFalse);
++      expect(apontamento80.validationError, contains('100%'));
++
++      final apontamento120 = ApontamentoTrabalhador(
++        workerId: 'w-1',
++        workerName: 'João da Silva',
++        workerRole: 'Pedreiro',
++        status: PresencaStatus.presente,
++        allocations: const [
++          AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 70),
++          AlocacaoLote(lotId: 'lote-2', lotName: 'Casa 02', percentage: 50),
++        ],
++      );
++
++      expect(apontamento120.totalPercentage, equals(120));
++      expect(apontamento120.isValidAllocation, isFalse);
++    });
++
++    test('Trabalhador em Meio-Período exige soma de exatamente 50%', () {
++      final validoMeio = ApontamentoTrabalhador(
++        workerId: 'w-2',
++        workerName: 'Maria Santos',
++        workerRole: 'Pintora',
++        status: PresencaStatus.meioPeriodo,
++        allocations: const [
++          AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 50),
++        ],
++      );
++
++      expect(validoMeio.totalPercentage, equals(50));
++      expect(validoMeio.isValidAllocation, isTrue);
++
++      final invalidoMeio = ApontamentoTrabalhador(
++        workerId: 'w-2',
++        workerName: 'Maria Santos',
++        workerRole: 'Pintora',
++        status: PresencaStatus.meioPeriodo,
++        allocations: const [
++          AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 100),
++        ],
++      );
++
++      expect(invalidoMeio.totalPercentage, equals(100));
++      expect(invalidoMeio.isValidAllocation, isFalse);
++      expect(invalidoMeio.validationError, contains('50%'));
++    });
++
++    test('Trabalhador Ausente (Falta) exige 0% de apropriação e lista vazia', () {
++      final validoFalta = ApontamentoTrabalhador(
++        workerId: 'w-3',
++        workerName: 'Carlos Lima',
++        workerRole: 'Ajudante',
++        status: PresencaStatus.falta,
++        allocations: const [],
++      );
++
++      expect(validoFalta.totalPercentage, equals(0));
++      expect(validoFalta.isValidAllocation, isTrue);
++
++      final invalidoFalta = ApontamentoTrabalhador(
++        workerId: 'w-3',
++        workerName: 'Carlos Lima',
++        workerRole: 'Ajudante',
++        status: PresencaStatus.falta,
++        allocations: const [
++          AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 50),
++        ],
++      );
++
++      expect(invalidoFalta.isValidAllocation, isFalse);
++      expect(invalidoFalta.validationError, contains('ausente'));
++    });
++
++    test('ChamadaDiaria valida todos os trabalhadores e contadores do dia', () {
++      final chamada = ChamadaDiaria(
++        id: 'ch-1',
++        construtoraId: 'const-1',
++        obraId: 'obra-1',
++        date: '2026-09-17',
++        createdByUid: 'encarregado-1',
++        createdAt: DateTime.now(),
++        updatedAt: DateTime.now(),
++        workers: const [
++          ApontamentoTrabalhador(
++            workerId: 'w-1',
++            workerName: 'João',
++            workerRole: 'Pedreiro',
++            status: PresencaStatus.presente,
++            allocations: [
++              AlocacaoLote(lotId: 'l-1', lotName: 'Lote 1', percentage: 100),
++            ],
++          ),
++          ApontamentoTrabalhador(
++            workerId: 'w-2',
++            workerName: 'Maria',
++            workerRole: 'Servente',
++            status: PresencaStatus.meioPeriodo,
++            allocations: [
++              AlocacaoLote(lotId: 'l-1', lotName: 'Lote 1', percentage: 50),
++            ],
++          ),
++          ApontamentoTrabalhador(
++            workerId: 'w-3',
++            workerName: 'Carlos',
++            workerRole: 'Ajudante',
++            status: PresencaStatus.falta,
++            allocations: [],
++          ),
++        ],
++      );
++
++      expect(chamada.totalWorkers, equals(3));
++      expect(chamada.presentCount, equals(1));
++      expect(chamada.meioPeriodoCount, equals(1));
++      expect(chamada.faltaCount, equals(1));
++      expect(chamada.isValid, isTrue);
++    });
++
++    test('Serialização e desserialização de ChamadaDiaria preserva estrutura', () {
++      final original = ChamadaDiaria(
++        id: 'ch-99',
++        construtoraId: 'c-10',
++        obraId: 'o-20',
++        date: '2026-09-17',
++        teamId: 'team-alpha',
++        teamName: 'Equipe Alvenaria',
++        createdByUid: 'user-77',
++        defaultLotId: 'lot-5',
++        status: 'confirmada',
++        createdAt: DateTime(2026, 9, 17, 7, 30),
++        updatedAt: DateTime(2026, 9, 17, 7, 30),
++        workers: const [
++          ApontamentoTrabalhador(
++            workerId: 'w-100',
++            workerName: 'Pedro Alvenaria',
++            workerRole: 'Encarregado',
++            status: PresencaStatus.presente,
++            allocations: [
++              AlocacaoLote(lotId: 'lot-5', lotName: 'Casa 05', percentage: 100),
++            ],
++          ),
++        ],
++      );
++
++      final map = original.toMap();
++      expect(map['date'], equals('2026-09-17'));
++      expect(map['teamName'], equals('Equipe Alvenaria'));
++
++      final restored = ChamadaDiaria.fromMap(map, id: 'ch-99');
++      expect(restored.id, equals('ch-99'));
++      expect(restored.workers.length, equals(1));
++      expect(restored.workers.first.workerName, equals('Pedro Alvenaria'));
++      expect(restored.workers.first.allocations.first.percentage, equals(100));
++    });
++  });
++
++  group('Story 4.2 — Memorização do Lote Atual', () {
++    test('LotePersistidoService salva e recupera preferência de lote por equipe', () async {
++      final service = LotePersistidoService();
++
++      expect(
++        await service.getDefaultLot(obraId: 'obra-1', teamId: 'equipe-1'),
++        isNull,
++      );
++
++      await service.saveDefaultLot(
++        obraId: 'obra-1',
++        teamId: 'equipe-1',
++        lotId: 'lote-42',
++      );
++
++      final lotId = await service.getDefaultLot(
++        obraId: 'obra-1',
++        teamId: 'equipe-1',
++      );
++      expect(lotId, equals('lote-42'));
++    });
++  });
++
++  group('Story 4.2 — Widgets e Experiência do Encarregado', () {
++    final mockLotes = [
++      Lote(
++        id: 'l-1',
++        construtoraId: 'c-1',
++        obraId: 'o-1',
++        name: 'Casa 10',
++        phase: 'Alvenaria',
++        createdAt: DateTime.now(),
++      ),
++      Lote(
++        id: 'l-2',
++        construtoraId: 'c-1',
++        obraId: 'o-1',
++        name: 'Casa 11',
++        phase: 'Alvenaria',
++        createdAt: DateTime.now(),
++      ),
++    ];
++
++    testWidgets('ApontamentoWorkerCard alterna presença para Falta e Meio-Período', (tester) async {
++      ApontamentoTrabalhador current = ApontamentoTrabalhador(
++        workerId: 'w-1',
++        workerName: 'Antônio da Silva',
++        workerRole: 'Armador',
++        status: PresencaStatus.presente,
++        allocations: const [
++          AlocacaoLote(lotId: 'l-1', lotName: 'Casa 10', percentage: 100),
++        ],
++      );
++
++      await tester.pumpWidget(
++        MaterialApp(
++          home: Scaffold(
++            body: StatefulBuilder(
++              builder: (context, setState) {
++                return ApontamentoWorkerCard(
++                  apontamento: current,
++                  availableLotes: mockLotes,
++                  onChanged: (updated) {
++                    setState(() {
++                      current = updated;
++                    });
++                  },
++                );
++              },
++            ),
++          ),
++        ),
++      );
++
++      expect(find.text('Antônio da Silva'), findsOneWidget);
++      expect(find.text('Armador'), findsOneWidget);
++      expect(find.text('Casa 10 (100%)'), findsOneWidget);
++
++      // Clica em 'Falta'
++      await tester.tap(find.text('Falta'));
++      await tester.pumpAndSettle();
++
++      expect(current.status, equals(PresencaStatus.falta));
++      expect(current.allocations, isEmpty);
++      expect(find.text('Casa 10 (100%)'), findsNothing);
++
++      // Clica em '1/2 Período'
++      await tester.tap(find.text('1/2 Período'));
++      await tester.pumpAndSettle();
++
++      expect(current.status, equals(PresencaStatus.meioPeriodo));
++      expect(current.allocations.first.percentage, equals(50));
++      expect(find.text('Casa 10 (50%)'), findsOneWidget);
++    });
++
++    testWidgets('RateioLotesSheet valida equilíbrio e bloqueia confirmação divergente', (tester) async {
++      List<AlocacaoLote> savedAllocations = [];
++
++      await tester.pumpWidget(
++        MaterialApp(
++          home: Scaffold(
++            body: Builder(
++              builder: (context) => ElevatedButton(
++                onPressed: () {
++                  RateioLotesSheet.show(
++                    context: context,
++                    workerName: 'Roberto Alves',
++                    status: PresencaStatus.presente,
++                    availableLotes: mockLotes,
++                    initialAllocations: const [
++                      AlocacaoLote(lotId: 'l-1', lotName: 'Casa 10', percentage: 100),
++                    ],
++                    onSave: (allocs) {
++                      savedAllocations = allocs;
++                    },
++                  );
++                },
++                child: const Text('Abrir Rateio'),
++              ),
++            ),
++          ),
++        ),
++      );
++
++      await tester.tap(find.text('Abrir Rateio'));
++      await tester.pumpAndSettle();
++
++      expect(find.text('Rateio de Lotes: Roberto Alves'), findsOneWidget);
++      expect(find.text('Alocação equilibrada (100%)'), findsOneWidget);
++      expect(find.text('Confirmar Rateio'), findsOneWidget);
++
++      // Botão confirmar deve estar habilitado inicialmente
++      await tester.tap(find.text('Confirmar Rateio'));
++      await tester.pumpAndSettle();
++
++      expect(savedAllocations.length, equals(1));
++      expect(savedAllocations.first.percentage, equals(100));
++    });
++  });
++}
+diff --git a/firestore.rules b/firestore.rules
+index 6b43193..759bbc3 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -66,6 +66,11 @@ service cloud.firestore {
+     match /members/{uid} { allow read: if signed() && (request.auth.uid == uid || obraAdmin(c,o)); allow write: if false; }
+     match /lotes/{l} { allow read: if module(c,o,'lotes'); allow create, update: if obraAdmin(c,o) && request.resource.data.id == l && request.resource.data.obraId == o; allow delete: if false; }
+     match /diarios/{id} { allow read: if module(c,o,'diario'); allow write: if false; }
++    match /chamadas/{ch} {
++     allow read: if rh(c) || module(c,o,'rh');
++     allow create, update: if (rh(c) || module(c,o,'rh')) && request.resource.data.id == ch && request.resource.data.construtoraId == c && request.resource.data.obraId == o && request.resource.data.schemaVersion == 1;
++     allow delete: if false;
++    }
+    }
+   }
+   match /{path=**}/construtora_members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }

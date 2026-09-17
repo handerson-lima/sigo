@@ -116,6 +116,20 @@ class SigoSidebar extends ConsumerWidget {
                         context.go('/construtora/$cId/obra/$oId/diarios');
                       },
                     ),
+                  if (obra != null &&
+                      obra.isActive &&
+                      (obra.isAdmin ||
+                          obra.modules.map(normalizeModule).contains('rh') ||
+                          obra.modules.map(normalizeModule).contains('recursos_humanos')))
+                    _NavItem(
+                      icon: Icons.playlist_add_check,
+                      title: 'Chamada Diária (RH)',
+                      isActive: activeRoute.contains('/rh/chamadas'),
+                      onTap: () {
+                        Scaffold.maybeOf(context)?.closeDrawer();
+                        context.go('/construtora/$cId/obra/$oId/rh/chamadas');
+                      },
+                    ),
                   const SizedBox(height: 24),
                   const Padding(
                     padding: EdgeInsets.only(left: 16, bottom: 8),
