@@ -22,6 +22,12 @@ class Movimentacao {
   final String? fornecedor; // Razão social ou nome do fornecedor
   final bool? apropriacaoLote; // Se a saída foi apropriada diretamente a um lote
   final String? solicitante; // Nome ou identificação de quem solicitou/retirou o material
+  final int? valorItensCentavos; // Valor bruto dos itens em centavos
+  final int? freteCentavos; // Valor do frete acessório em centavos
+  final int? despesasCentavos; // Outras despesas acessórias em centavos
+  final int? descontoCentavos; // Desconto concedido em centavos
+  final int? custoTotalCentavos; // Custo total efetivo (itens + frete + despesas - desconto) em centavos
+  final int? custoUnitarioCentavos; // Custo unitário efetivo apurado em centavos por unidade
 
   Movimentacao({
     required this.id,
@@ -38,6 +44,12 @@ class Movimentacao {
     this.fornecedor,
     this.apropriacaoLote,
     this.solicitante,
+    this.valorItensCentavos,
+    this.freteCentavos,
+    this.despesasCentavos,
+    this.descontoCentavos,
+    this.custoTotalCentavos,
+    this.custoUnitarioCentavos,
   });
 
   factory Movimentacao.fromJson(Map<String, dynamic> json) =>

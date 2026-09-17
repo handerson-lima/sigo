@@ -119,6 +119,48 @@ class StockHistoryScreen extends StatelessWidget {
       details.add('(Estornado)');
     }
 
+    final custoUnitarioCentavos = (d['custoUnitarioCentavos'] as num?)?.toInt();
+    final valorItensCentavos = (d['valorItensCentavos'] as num?)?.toInt();
+    final freteCentavos = (d['freteCentavos'] as num?)?.toInt();
+    final despesasCentavos = (d['despesasCentavos'] as num?)?.toInt();
+    final descontoCentavos = (d['descontoCentavos'] as num?)?.toInt();
+    final custoTotalCentavos = (d['custoTotalCentavos'] as num?)?.toInt();
+
+    String formatCents(int cents) {
+      final negative = cents < 0;
+      final abs = cents.abs();
+      final reais = abs ~/ 100;
+      final centavos = (abs % 100).toString().padLeft(2, '0');
+      final formattedReais = reais.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]}.',
+      );
+      return '${negative ? '-' : ''}R\$ $formattedReais,$centavos';
+    }
+
+    if (custoTotalCentavos != null &&
+        (freteCentavos != null ||
+            despesasCentavos != null ||
+            descontoCentavos != null ||
+            valorItensCentavos != null)) {
+      final parts = <String>[];
+      if (valorItensCentavos != null && valorItensCentavos > 0) {
+        parts.add('Itens: ${formatCents(valorItensCentavos)}');
+      }
+      if (freteCentavos != null && freteCentavos > 0) {
+        parts.add('Frete: ${formatCents(freteCentavos)}');
+      }
+      if (despesasCentavos != null && despesasCentavos > 0) {
+        parts.add('Desp: ${formatCents(despesasCentavos)}');
+      }
+      if (descontoCentavos != null && descontoCentavos > 0) {
+        parts.add('Desc: ${formatCents(descontoCentavos)}');
+      }
+      if (parts.isNotEmpty) {
+        details.add(parts.join(' | '));
+      }
+    }
+
     Widget titleWidget;
     if (isAjuste) {
       final deltaUnits = d['deltaUnits'] as num?;
@@ -236,6 +278,33 @@ class StockHistoryScreen extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ],
+        );
+      } else if (custoUnitarioCentavos != null) {
+        titleWidget = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(baseText),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 6,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.green.shade600),
+              ),
+              child: Text(
+                '${formatCents(custoUnitarioCentavos)}/${material.unit}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade800,
                 ),
               ),
             ),

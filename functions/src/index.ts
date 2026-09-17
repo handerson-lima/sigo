@@ -97,7 +97,22 @@ export const stockCommand = callable('stockCommand', async (d, uid) => {
   if ((type === 'entrada' || type === 'saida') && quantity <= 0) throw new Error('Quantidade positiva obrigatória');
   const o = d.obraId ? id(d.obraId) : null, l = d.loteId ? id(d.loteId) : null;
   if (type === 'saida' && !o || l && !o || d.apropriacaoLote === true && !l) throw new Error('Destino obrigatório');
-  const payload = {m, type, quantity, o, l, reason: d.reason || d.observacao || '', reversalId: d.reversalId || null, evidence: d.evidence || null, nfNumber: d.nfNumber || null, fornecedor: d.fornecedor || null, apropriacaoLote: d.apropriacaoLote === true};
+  const payload = {
+    m, type, quantity, o, l,
+    reason: d.reason || d.observacao || '',
+    reversalId: d.reversalId || null,
+    evidence: d.evidence || null,
+    nfNumber: d.nfNumber || null,
+    fornecedor: d.fornecedor || null,
+    apropriacaoLote: d.apropriacaoLote === true,
+    valorItensCentavos: typeof d.valorItensCentavos === 'number' ? Math.round(d.valorItensCentavos) : null,
+    freteCentavos: typeof d.freteCentavos === 'number' ? Math.round(d.freteCentavos) : null,
+    despesasCentavos: typeof d.despesasCentavos === 'number' ? Math.round(d.despesasCentavos) : null,
+    descontoCentavos: typeof d.descontoCentavos === 'number' ? Math.round(d.descontoCentavos) : null,
+    custoTotalCentavos: typeof d.custoTotalCentavos === 'number' ? Math.round(d.custoTotalCentavos) : null,
+    custoUnitarioCentavos: typeof d.custoUnitarioCentavos === 'number' ? Math.round(d.custoUnitarioCentavos) : null,
+  };
+  if (payload.custoTotalCentavos !== null && payload.custoTotalCentavos < 0) throw new Error('Custo total não pode ser negativo');
   const h = hash(payload), command = db.doc(`construtoras/${c}/commands/${hash([uid, op])}`), mat = db.doc(`construtoras/${c}/materiais/${m}`);
   return db.runTransaction(async tx => {
     const a = await authority(tx, uid, c, o || undefined); if (!a.can('estoque')) fail('permission-denied', 'Estoque não autorizado');
@@ -126,7 +141,32 @@ export const stockCommand = callable('stockCommand', async (d, uid) => {
     if (!Number.isSafeInteger(next) || next < 0) fail('failed-precondition', 'Saldo insuficiente ou fora do limite');
     const movementId = hash([uid, op]), result = {movementId, quantityUnits: next, quantityScale: SCALE};
     tx.update(mat, {quantityUnits: next, quantityScale: SCALE, currentQuantity: next / SCALE, schemaVersion: 2});
-    tx.create(mat.collection('movimentacoes').doc(movementId), {id: movementId, materialId: m, type: delta < 0 ? 'saida' : 'entrada', commandType: type, quantity: Math.abs(delta) / SCALE, quantityUnits: Math.abs(delta), deltaUnits: delta, quantityScale: SCALE, date: admin.firestore.Timestamp.now(), responsavelId: uid, obraId: o, loteId: l, observacao: payload.reason, evidence: d.evidence || null, nfNumber: d.nfNumber || null, fornecedor: d.fornecedor || null, reversalId: payload.reversalId, openingBalanceUnits: type === 'abertura' ? balance : null});
+    tx.create(mat.collection('movimentacoes').doc(movementId), {
+      id: movementId,
+      materialId: m,
+      type: delta < 0 ? 'saida' : 'entrada',
+      commandType: type,
+      quantity: Math.abs(delta) / SCALE,
+      quantityUnits: Math.abs(delta),
+      deltaUnits: delta,
+      quantityScale: SCALE,
+      date: admin.firestore.Timestamp.now(),
+      responsavelId: uid,
+      obraId: o,
+      loteId: l,
+      observacao: payload.reason,
+      evidence: d.evidence || null,
+      nfNumber: d.nfNumber || null,
+      fornecedor: d.fornecedor || null,
+      reversalId: payload.reversalId,
+      openingBalanceUnits: type === 'abertura' ? balance : null,
+      valorItensCentavos: payload.valorItensCentavos,
+      freteCentavos: payload.freteCentavos,
+      despesasCentavos: payload.despesasCentavos,
+      descontoCentavos: payload.descontoCentavos,
+      custoTotalCentavos: payload.custoTotalCentavos,
+      custoUnitarioCentavos: payload.custoUnitarioCentavos,
+    });
     if (original) tx.update(original, {reversedBy: movementId});
     tx.create(command, {payloadHash: h, result, actor: uid, at: stamp()}); audit(tx, uid, 'stockCommand', mat.path, {operationId: op, type});
     return result;

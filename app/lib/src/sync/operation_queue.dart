@@ -30,7 +30,7 @@ class OperationQueue {
     this.autoSync = true,
   });
 
-  static final instance = OperationQueue(
+  static OperationQueue instance = OperationQueue(
     sessionUid: () => FirebaseAuth.instance.currentUser?.uid,
     store: queueStore,
     upload: _firebaseUpload,

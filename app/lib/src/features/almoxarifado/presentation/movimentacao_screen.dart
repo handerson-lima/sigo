@@ -39,6 +39,10 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
   final _nfController = TextEditingController();
   final _fornecedorController = TextEditingController();
   final _evidenceController = TextEditingController();
+  final _valorItensController = TextEditingController();
+  final _freteController = TextEditingController();
+  final _despesasController = TextEditingController();
+  final _descontoController = TextEditingController();
   String? _selectedObraId;
   String? _selectedLoteId;
   bool _apropriacaoLote = false;
@@ -54,7 +58,47 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
     _nfController.dispose();
     _fornecedorController.dispose();
     _evidenceController.dispose();
+    _valorItensController.dispose();
+    _freteController.dispose();
+    _despesasController.dispose();
+    _descontoController.dispose();
     super.dispose();
+  }
+
+  int? _parseCents(String? text) {
+    if (text == null || text.trim().isEmpty) return null;
+    var clean = text.trim().replaceAll('R\$', '').trim();
+    if (clean.contains(',') && clean.contains('.')) {
+      clean = clean.replaceAll('.', '').replaceAll(',', '.');
+    } else if (clean.contains(',')) {
+      clean = clean.replaceAll(',', '.');
+    }
+    try {
+      return decimalUnits(clean, 2, round: true);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _formatCents(int cents) {
+    final negative = cents < 0;
+    final abs = cents.abs();
+    final reais = abs ~/ 100;
+    final centavos = (abs % 100).toString().padLeft(2, '0');
+    final formattedReais = reais.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
+    return '${negative ? '-' : ''}R\$ $formattedReais,$centavos';
+  }
+
+  String? _validateMoneyField(String? val) {
+    if (val == null || val.trim().isEmpty) return null;
+    final cents = _parseCents(val);
+    if (cents == null || cents < 0) {
+      return 'Informe um valor monetário válido';
+    }
+    return null;
   }
 
   Future<void> _submit() async {
@@ -68,7 +112,10 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+      String uid = 'unknown';
+      try {
+        uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+      } catch (_) {}
       final finalObraId = _selectedObraId ??
           (_obraController.text.trim().isEmpty ? null : _obraController.text.trim());
       final finalLoteId = _selectedLoteId ??
@@ -79,6 +126,49 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
           const SnackBar(content: Text('Selecione o lote para apropriação')),
         );
         return;
+      }
+
+      int? valorItensCentavos;
+      int? freteCentavos;
+      int? despesasCentavos;
+      int? descontoCentavos;
+      int? custoTotalCentavos;
+      int? custoUnitarioCentavos;
+
+      if (!isSaida) {
+        final hasFinancialInfo = _valorItensController.text.trim().isNotEmpty ||
+            _freteController.text.trim().isNotEmpty ||
+            _despesasController.text.trim().isNotEmpty ||
+            _descontoController.text.trim().isNotEmpty;
+
+        if (hasFinancialInfo) {
+          final vItens = _parseCents(_valorItensController.text) ?? 0;
+          final vFrete = _parseCents(_freteController.text) ?? 0;
+          final vDesp = _parseCents(_despesasController.text) ?? 0;
+          final vDesc = _parseCents(_descontoController.text) ?? 0;
+
+          if (vItens < 0 || vFrete < 0 || vDesp < 0 || vDesc < 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Valores monetários não podem ser negativos')),
+            );
+            return;
+          }
+
+          final total = (vItens + vFrete + vDesp) - vDesc;
+          if (total < 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Desconto não pode exceder o valor total')),
+            );
+            return;
+          }
+
+          valorItensCentavos = vItens;
+          freteCentavos = vFrete;
+          despesasCentavos = vDesp;
+          descontoCentavos = vDesc;
+          custoTotalCentavos = total;
+          custoUnitarioCentavos = q > 0 ? (total / q).round() : 0;
+        }
       }
 
       final mov = Movimentacao(
@@ -104,6 +194,12 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
         solicitante: isSaida && _solicitanteController.text.trim().isNotEmpty
             ? _solicitanteController.text.trim()
             : null,
+        valorItensCentavos: valorItensCentavos,
+        freteCentavos: freteCentavos,
+        despesasCentavos: despesasCentavos,
+        descontoCentavos: descontoCentavos,
+        custoTotalCentavos: custoTotalCentavos,
+        custoUnitarioCentavos: custoUnitarioCentavos,
       );
 
       await ref
@@ -161,6 +257,7 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 decoration: InputDecoration(
                   labelText: 'Quantidade (${widget.material.unit})',
                 ),
+                onChanged: (_) => setState(() {}),
                 validator: (val) {
                   if (val == null || val.isEmpty) return 'Informe a quantidade';
                   final v = double.tryParse(val);
@@ -368,6 +465,170 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                     labelText: 'Evidência / Comprovante (URL ou Referência)',
                   ),
                 ),
+                const SizedBox(height: 16),
+                const Divider(),
+                Row(
+                  children: const [
+                    Icon(Icons.calculate_outlined, size: 20, color: Colors.blueGrey),
+                    SizedBox(width: 8),
+                    Text(
+                      'Rateio e Custos de Aquisição (Opcional)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueGrey,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  key: const Key('valor-itens-field'),
+                  controller: _valorItensController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Valor dos Itens (R\$)',
+                    hintText: 'Ex: 1500,00',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateMoneyField,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  key: const Key('frete-field'),
+                  controller: _freteController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Valor do Frete (R\$)',
+                    hintText: 'Ex: 100,00',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateMoneyField,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  key: const Key('despesas-field'),
+                  controller: _despesasController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Outras Despesas Acessórias (R\$)',
+                    hintText: 'Ex: 50,00',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: _validateMoneyField,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  key: const Key('desconto-field'),
+                  controller: _descontoController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Desconto Concedido (R\$)',
+                    hintText: 'Ex: 20,00',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  validator: (val) {
+                    final err = _validateMoneyField(val);
+                    if (err != null) return err;
+                    final dCents = _parseCents(val ?? '') ?? 0;
+                    final bCents = (_parseCents(_valorItensController.text) ?? 0) +
+                        (_parseCents(_freteController.text) ?? 0) +
+                        (_parseCents(_despesasController.text) ?? 0);
+                    if (dCents > bCents) {
+                      return 'Desconto não pode exceder o valor total';
+                    }
+                    return null;
+                  },
+                ),
+                Builder(
+                  builder: (context) {
+                    final hasFin = _valorItensController.text.trim().isNotEmpty ||
+                        _freteController.text.trim().isNotEmpty ||
+                        _despesasController.text.trim().isNotEmpty ||
+                        _descontoController.text.trim().isNotEmpty;
+                    if (!hasFin) return const SizedBox.shrink();
+
+                    final vi = _parseCents(_valorItensController.text) ?? 0;
+                    final vf = _parseCents(_freteController.text) ?? 0;
+                    final vd = _parseCents(_despesasController.text) ?? 0;
+                    final vdesc = _parseCents(_descontoController.text) ?? 0;
+                    final total = (vi + vf + vd) - vdesc;
+                    final isNegative = total < 0;
+                    final qVal = double.tryParse(_quantityController.text) ?? 0;
+                    final unitCents = (qVal > 0 && !isNegative) ? (total / qVal).round() : null;
+
+                    return Container(
+                      key: const Key('rateio-preview-card'),
+                      margin: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isNegative ? Colors.red.shade50 : Colors.blueGrey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isNegative ? Colors.red.shade300 : Colors.blueGrey.shade200,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (isNegative) ...[
+                            Text(
+                              'Desconto não pode exceder o valor total',
+                              style: TextStyle(
+                                color: Colors.red.shade800,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ] else ...[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Custo Total da Entrada:',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  _formatCents(total),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (unitCents != null) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Custo Unitário Efetivo:',
+                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    '${_formatCents(unitCents)} / ${widget.material.unit}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green.shade800,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 6),
+                            Text(
+                              'Composição: Itens ${_formatCents(vi)} | Frete ${_formatCents(vf)} | Desp ${_formatCents(vd)} | Desc ${_formatCents(vdesc)}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                const Divider(),
               ],
               const SizedBox(height: 10),
               TextFormField(

@@ -126,6 +126,10 @@ void main() {
     });
 
     testWidgets('MovimentacaoScreen exibe campos de recebimento (NF, Fornecedor, Evidência) para Entrada', (tester) async {
+      tester.view.physicalSize = const Size(1000, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
       final testMaterial = mat.Material(
         id: 'mat-cimento',
         construtoraId: 'c1',

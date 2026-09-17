@@ -13,12 +13,12 @@ final almoxarifadoRepositoryProvider = Provider<AlmoxarifadoRepository>((ref) {
 });
 
 class AlmoxarifadoRepository {
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
 
-  AlmoxarifadoRepository(this._firestore);
+  AlmoxarifadoRepository([this._firestore]);
 
   CollectionReference<mat.Material> _materiaisRef(String construtoraId) =>
-      _firestore
+      (_firestore ?? FirebaseFirestore.instance)
           .collection('construtoras')
           .doc(construtoraId)
           .collection('materiais')
@@ -70,6 +70,12 @@ class AlmoxarifadoRepository {
       'fornecedor': mov.fornecedor,
       'apropriacaoLote': mov.apropriacaoLote,
       'solicitante': mov.solicitante,
+      'valorItensCentavos': mov.valorItensCentavos,
+      'freteCentavos': mov.freteCentavos,
+      'despesasCentavos': mov.despesasCentavos,
+      'descontoCentavos': mov.descontoCentavos,
+      'custoTotalCentavos': mov.custoTotalCentavos,
+      'custoUnitarioCentavos': mov.custoUnitarioCentavos,
     });
   }
 }

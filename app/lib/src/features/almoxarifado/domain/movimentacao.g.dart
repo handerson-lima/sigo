@@ -21,6 +21,12 @@ Movimentacao _$MovimentacaoFromJson(Map<String, dynamic> json) => Movimentacao(
   fornecedor: json['fornecedor'] as String?,
   apropriacaoLote: json['apropriacaoLote'] as bool?,
   solicitante: json['solicitante'] as String?,
+  valorItensCentavos: (json['valorItensCentavos'] as num?)?.toInt(),
+  freteCentavos: (json['freteCentavos'] as num?)?.toInt(),
+  despesasCentavos: (json['despesasCentavos'] as num?)?.toInt(),
+  descontoCentavos: (json['descontoCentavos'] as num?)?.toInt(),
+  custoTotalCentavos: (json['custoTotalCentavos'] as num?)?.toInt(),
+  custoUnitarioCentavos: (json['custoUnitarioCentavos'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$MovimentacaoToJson(Movimentacao instance) =>
@@ -39,6 +45,12 @@ Map<String, dynamic> _$MovimentacaoToJson(Movimentacao instance) =>
       'fornecedor': instance.fornecedor,
       'apropriacaoLote': instance.apropriacaoLote,
       'solicitante': instance.solicitante,
+      'valorItensCentavos': instance.valorItensCentavos,
+      'freteCentavos': instance.freteCentavos,
+      'despesasCentavos': instance.despesasCentavos,
+      'descontoCentavos': instance.descontoCentavos,
+      'custoTotalCentavos': instance.custoTotalCentavos,
+      'custoUnitarioCentavos': instance.custoUnitarioCentavos,
     };
 
 const _$MovimentacaoTypeEnumMap = {
