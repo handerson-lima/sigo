@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/authentication/data/auth_repository.dart';
 import '../features/obras/presentation/construtora_obras_provider.dart';
+import '../sync/sync_indicator.dart';
 
 class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
   final String title;
@@ -29,6 +30,26 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
     }
   }
 
+  bool _canPop(BuildContext context) {
+    try {
+      return context.canPop();
+    } catch (_) {
+      try {
+        return Navigator.of(context).canPop();
+      } catch (_) {
+        return false;
+      }
+    }
+  }
+
+  void _pop(BuildContext context) {
+    try {
+      context.pop();
+    } catch (_) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateChangesProvider);
@@ -50,22 +71,24 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
       }
     }
 
+    final hasBack = _canPop(context);
+
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
       iconTheme: const IconThemeData(
         color: Colors.black87,
       ), // For the drawer icon on mobile
-      leading: context.canPop()
+      leading: hasBack
           ? IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.black54),
-              onPressed: () => context.pop(),
+              onPressed: () => _pop(context),
             )
           : null,
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (context.canPop())
+          if (hasBack)
             const Text(
               'Voltar • ',
               style: TextStyle(color: Colors.black54, fontSize: 14),
@@ -88,6 +111,11 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
       ),
       actions: [
         ...?actions,
+        SyncIndicator(
+          construtoraId: cId,
+          obraId: oId,
+        ),
+        const SizedBox(width: 6),
         IconButton(
           icon: const Icon(Icons.notifications_none, color: Colors.black54),
           onPressed: () {},
