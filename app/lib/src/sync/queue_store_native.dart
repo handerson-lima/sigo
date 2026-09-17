@@ -13,6 +13,28 @@ Future<String> queueStore(String action, String input) async {
   final lock = await File('${dir.path}/lock').open(mode: FileMode.append);
   await lock.lock();
   try {
+    if (action == 'getSchemaVersion') {
+      final metaFile = File('${dir.path}/schema_version.json');
+      if (await metaFile.exists()) {
+        return await metaFile.readAsString();
+      }
+      final defaultMeta = {
+        'version': 3,
+        'schema': 'sigo-operations',
+        'migratedAt': DateTime.now().millisecondsSinceEpoch,
+      };
+      await metaFile.writeAsString(jsonEncode(defaultMeta), flush: true);
+      return jsonEncode(defaultMeta);
+    }
+    if (action == 'setSchemaVersion') {
+      final metaFile = File('${dir.path}/schema_version.json');
+      final data = {
+        'schema': 'sigo-operations',
+        ...args,
+      };
+      await metaFile.writeAsString(jsonEncode(data), flush: true);
+      return jsonEncode(data);
+    }
     if (action.startsWith('cache')) {
       final cache = Directory('${dir.path}/read-cache');
       await cache.create(recursive: true);

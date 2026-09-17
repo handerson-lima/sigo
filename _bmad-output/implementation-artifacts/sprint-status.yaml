@@ -64,7 +64,7 @@ development_status:
   2-11-executar-autorizacao: done
   2-12-indicador-sincronizacao: done
   2-13-sistema-carimbo: done
-  2-14-versionamento-migracao: backlog
+  2-14-versionamento-migracao: done
   epic-2-retrospective: optional
 
   2-5-1-firestore-rules: backlog

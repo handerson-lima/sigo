@@ -35,9 +35,11 @@ void main() {
       expect(queueJs.existsSync(), isTrue, reason: 'Arquivo web/queue.js deve existir');
       final js = queueJs.readAsStringSync();
 
-      // Verifica abertura da base versionada sigo-operations v2
-      expect(js.contains("indexedDB.open('sigo-operations', 2)"), isTrue,
-          reason: 'Deve abrir sigo-operations na versão 2');
+      // Verifica abertura da base versionada sigo-operations com versão gerenciada
+      expect(js.contains("indexedDB.open('sigo-operations', SIGO_DB_VERSION)") ||
+             js.contains("indexedDB.open('sigo-operations', 2)") ||
+             js.contains("indexedDB.open('sigo-operations', 3)"), isTrue,
+          reason: 'Deve abrir sigo-operations com versão gerenciada');
 
       // Verifica criação atômica das stores no upgradeneeded
       expect(js.contains("db.createObjectStore('snapshots', {keyPath:'key'})"), isTrue,

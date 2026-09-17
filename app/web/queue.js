@@ -1,13 +1,49 @@
 // Versioned IndexedDB; upgrade only adds stores, never removes pending records.
+const SIGO_DB_VERSION = 3;
 let currentDbPromise = null;
 function getDb() {
   if (currentDbPromise) return currentDbPromise;
   currentDbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open('sigo-operations', 2);
-    request.onupgradeneeded = () => {
+    const request = indexedDB.open('sigo-operations', SIGO_DB_VERSION);
+    request.onupgradeneeded = (event) => {
       const db = request.result;
-      if (!db.objectStoreNames.contains('snapshots')) db.createObjectStore('snapshots', {keyPath:'key'});
-      if (!db.objectStoreNames.contains('operations')) db.createObjectStore('operations', {keyPath:'key'});
+      const oldVersion = event.oldVersion;
+      const tx = request.transaction;
+
+      // Migrations sequenciais e ordenadas por oldVersion
+      // v1: Cria store base operations
+      if (oldVersion < 1) {
+        if (!db.objectStoreNames.contains('operations')) {
+          db.createObjectStore('operations', {keyPath:'key'});
+        }
+      }
+      // v2: Cria store snapshots para cache de leitura
+      if (oldVersion < 2) {
+        if (!db.objectStoreNames.contains('snapshots')) {
+          db.createObjectStore('snapshots', {keyPath:'key'});
+        }
+      }
+      // v3: Cria store meta para versionamento e histórico de migrações
+      if (oldVersion < 3) {
+        if (!db.objectStoreNames.contains('meta')) {
+          db.createObjectStore('meta', {keyPath:'key'});
+        }
+      }
+
+      // Registra metadados de migração sem afetar stores de dados
+      if (tx && db.objectStoreNames.contains('meta')) {
+        try {
+          const metaStore = tx.objectStore('meta');
+          metaStore.put({
+            key: 'schema_version',
+            version: SIGO_DB_VERSION,
+            previousVersion: oldVersion,
+            migratedAt: Date.now(),
+          });
+        } catch (e) {
+          // Fallback defensivo
+        }
+      }
     };
     request.onblocked = () => { currentDbPromise = null; reject(new Error('Feche as outras abas para atualizar a fila.')); };
     request.onsuccess = () => {
@@ -20,7 +56,28 @@ function getDb() {
   return currentDbPromise;
 }
 globalThis.sigoQueue = async (action, json) => {
-  const input = JSON.parse(json), db = await getDb();
+  const input = JSON.parse(json || '{}'), db = await getDb();
+  if (action === 'getSchemaVersion') {
+    return new Promise((resolve) => {
+      try {
+        if (!db.objectStoreNames.contains('meta')) {
+          resolve(JSON.stringify({ version: db.version || SIGO_DB_VERSION }));
+          return;
+        }
+        const tx = db.transaction('meta', 'readonly');
+        const store = tx.objectStore('meta');
+        const req = store.get('schema_version');
+        req.onsuccess = () => {
+          const res = req.result || { version: db.version || SIGO_DB_VERSION };
+          resolve(JSON.stringify(res));
+        };
+        req.onerror = () => resolve(JSON.stringify({ version: db.version || SIGO_DB_VERSION }));
+        tx.onerror = () => resolve(JSON.stringify({ version: db.version || SIGO_DB_VERSION }));
+      } catch (e) {
+        resolve(JSON.stringify({ version: db.version || SIGO_DB_VERSION, error: String(e) }));
+      }
+    });
+  }
  if(action.startsWith('cache')) return new Promise((resolve,reject)=>{
   const tx=db.transaction('snapshots',action==='cacheGet'?'readonly':'readwrite'),store=tx.objectStore('snapshots');let result=null;
   tx.oncomplete=()=>resolve(JSON.stringify(result));tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);

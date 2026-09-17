@@ -51,6 +51,19 @@ class OperationQueue {
 
   bool get isBusy => _busy;
 
+  /// Retorna os metadados de versão do schema local para auditoria e diagnóstico.
+  Future<Map<String, dynamic>> getSchemaVersion() async {
+    try {
+      final res = await store('getSchemaVersion', '{}');
+      if (res.isNotEmpty && res != 'null') {
+        return jsonDecode(res) as Map<String, dynamic>;
+      }
+    } catch (_) {
+      // Retorna fallback seguro se a consulta não puder ser concluída
+    }
+    return const {'version': 3};
+  }
+
   static Future<void> _firebaseUpload(
     Map<String, dynamic> a,
     Uint8List bytes,
