@@ -27,4 +27,4 @@ export function canonical(value: any): string {
 export const hash = (value: any) => createHash('sha256').update(canonical(value)).digest('hex');
 export const moduleName = (value: string) => ({rdo: 'diario', almoxarifado: 'estoque'}[value] || value);
 export function active(data: any): boolean { return data?.isActive === true; }
-export function manager(data: any): boolean { return active(data) && (data.isAdmin === true || data.isOwner === true); }
+export function manager(data: any): boolean { return active(data) && (data.isAdmin === true || data.isOwner === true || data.role === 'admin' || data.role === 'owner'); }

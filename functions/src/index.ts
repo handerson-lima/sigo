@@ -100,7 +100,7 @@ export const stockCommand = callable('stockCommand', async (d, uid) => {
   const payload = {m, type, quantity, o, l, reason: d.reason || d.observacao || '', reversalId: d.reversalId || null, evidence: d.evidence || null, apropriacaoLote: d.apropriacaoLote === true};
   const h = hash(payload), command = db.doc(`construtoras/${c}/commands/${hash([uid, op])}`), mat = db.doc(`construtoras/${c}/materiais/${m}`);
   return db.runTransaction(async tx => {
-    const a = await authority(tx, uid, c); if (!a.can('estoque')) fail('permission-denied', 'Estoque não autorizado');
+    const a = await authority(tx, uid, c, o || undefined); if (!a.can('estoque')) fail('permission-denied', 'Estoque não autorizado');
     if (['estorno', 'ajuste', 'abertura'].includes(type) && (!a.admin || typeof payload.reason !== 'string' || payload.reason.trim().length < 5 || typeof d.evidence !== 'string' || !d.evidence.trim())) fail('permission-denied', 'Correção exige administrador, motivo e evidência');
     const prior = (await tx.get(command)).data();
     if (prior) { if (prior.payloadHash !== h) fail('already-exists', 'operationId com conteúdo diferente'); return prior.result; }

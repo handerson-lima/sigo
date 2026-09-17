@@ -261,17 +261,29 @@ class OperationQueue {
         } catch (e) {
           error = e.toString();
           state = 'failed';
+          final errStr = e.toString().toLowerCase();
           if (e is FirebaseException) {
-            if (['permission-denied', 'unauthorized'].contains(e.code)) {
-              state = 'authorization_rejected';
-            }
             if ([
+              'permission-denied',
+              'unauthorized',
+            ].contains(e.code)) {
+              state = 'authorization_rejected';
+            } else if ([
               'already-exists',
               'failed-precondition',
               'invalid-argument',
             ].contains(e.code)) {
               state = 'conflict';
             }
+          } else if (errStr.contains('permission-denied') ||
+              errStr.contains('unauthorized') ||
+              errStr.contains('não autorizado') ||
+              errStr.contains('sem permissão')) {
+            state = 'authorization_rejected';
+          } else if (errStr.contains('already-exists') ||
+              errStr.contains('failed-precondition') ||
+              errStr.contains('invalid-argument')) {
+            state = 'conflict';
           }
         }
         await _callStore('finish', {

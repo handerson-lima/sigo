@@ -120,4 +120,87 @@ test('idempotencia de comandos: reenvio identico retorna mesmo resultado e diver
   assert.equal(sideEffectCounter, 1);
 });
 
+test('execucao de autorizacao: dev global irrestrito, managers homogeneos e isolamento de escopo',()=>{
+  // 1. Validar helper manager com flags e roles
+  assert.equal(manager({isAdmin: true, isActive: true}), true);
+  assert.equal(manager({isOwner: true, isActive: true}), true);
+  assert.equal(manager({role: 'admin', isActive: true}), true);
+  assert.equal(manager({role: 'owner', isActive: true}), true);
+  assert.equal(manager({role: 'admin', isActive: false}), false);
+  assert.equal(manager({role: 'member', isActive: true}), false);
+  assert.equal(manager(null), false);
+
+  // 2. Simulação da função authority de functions/src/index.ts
+  function evaluateAuthority({devActive, cm, om, o}) {
+    const dev = devActive === true;
+    return {
+      dev,
+      cm,
+      om,
+      admin: dev || manager(cm),
+      obraAdmin: dev || manager(cm) || (active(cm) && manager(om)),
+      can: (mod) => dev || manager(cm) || (active(cm) && (o ? active(om) && (manager(om) || (om?.modules || []).map(moduleName).includes(mod)) : (cm?.modules || []).map(moduleName).includes(mod)))
+    };
+  }
+
+  // Cenário A: Dev global ativo (sem membership na construtora nem na obra)
+  const devAuth = evaluateAuthority({devActive: true, cm: undefined, om: undefined});
+  assert.equal(devAuth.dev, true);
+  assert.equal(devAuth.admin, true);
+  assert.equal(devAuth.obraAdmin, true);
+  assert.equal(devAuth.can('estoque'), true);
+  assert.equal(devAuth.can('diario'), true);
+  assert.equal(devAuth.can('financeiro'), true);
+
+  // Cenário B: Usuário normal com vínculo ativo de admin na construtora
+  const adminAuth = evaluateAuthority({
+    devActive: false,
+    cm: {role: 'admin', isActive: true},
+    om: undefined
+  });
+  assert.equal(adminAuth.dev, false);
+  assert.equal(adminAuth.admin, true);
+  assert.equal(adminAuth.obraAdmin, true);
+  assert.equal(adminAuth.can('estoque'), true);
+  assert.equal(adminAuth.can('diario'), true);
+
+  // Cenário C: Membro operário da construtora ativo apenas para estoque
+  const stockMemberAuth = evaluateAuthority({
+    devActive: false,
+    cm: {role: 'operario', isActive: true, modules: ['almoxarifado']},
+    om: undefined
+  });
+  assert.equal(stockMemberAuth.dev, false);
+  assert.equal(stockMemberAuth.admin, false);
+  assert.equal(stockMemberAuth.can('estoque'), true);
+  assert.equal(stockMemberAuth.can('diario'), false);
+
+  // Cenário D: Membro de obra ativo para diário
+  const diarioMemberAuth = evaluateAuthority({
+    devActive: false,
+    cm: {role: 'member', isActive: true},
+    om: {role: 'member', isActive: true, modules: ['rdo']},
+    o: 'obra-1'
+  });
+  assert.equal(diarioMemberAuth.can('diario'), true);
+  assert.equal(diarioMemberAuth.can('estoque'), false);
+
+  // Cenário E: Membro desativado na construtora
+  const inactiveMemberAuth = evaluateAuthority({
+    devActive: false,
+    cm: {role: 'admin', isActive: false},
+    om: {role: 'admin', isActive: true},
+    o: 'obra-1'
+  });
+  assert.equal(inactiveMemberAuth.admin, false);
+  assert.equal(inactiveMemberAuth.obraAdmin, false);
+  assert.equal(inactiveMemberAuth.can('estoque'), false);
+  assert.equal(inactiveMemberAuth.can('diario'), false);
+
+  // Cenário F: Usuário sem nenhum vínculo
+  const nonMemberAuth = evaluateAuthority({devActive: false, cm: undefined, om: undefined});
+  assert.equal(nonMemberAuth.admin, false);
+  assert.equal(nonMemberAuth.can('estoque'), false);
+});
+
 
