@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 2026-09-16
+last_updated: 09-17-2026 05:47
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -65,7 +65,7 @@ development_status:
   2-12-indicador-sincronizacao: done
   2-13-sistema-carimbo: done
   2-14-versionamento-migracao: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   2-5-1-firestore-rules: backlog
   2-5-2-storage-rules: backlog
@@ -113,9 +113,12 @@ legacy_scope_mapping:
   "1-4-subcolecao-members": "construtoras/{cId}/obras/{oId}/members/{uid}"
   "1-5-descoberta-obras": "Validar queries atuais de construtora_members e members"
   "2-11-executar-autorizacao": "C1: exceção dev global confiável preservada"
-  "3-2-estoque-recebimento": "Backlog: compra/NF completa; entrada simples já tem código"
-  "3-3-estoque-saida": "Parcial: saída central existe; C4 estabiliza; custos completos são futuros"
-  "5-3-modulo-adm": "Financeiro básico existe; documentação e visão 360 continuam backlog"
+  "3-2-estoque-recebimento": "Backlog: compra/NF completa; entrada simples já tem
+    código"
+  "3-3-estoque-saida": "Parcial: saída central existe; C4 estabiliza; custos completos
+    são futuros"
+  "5-3-modulo-adm": "Financeiro básico existe; documentação e visão 360 continuam
+    backlog"
 
 additional_observed_features:
   dev_panel: "implementado e estabilizado via C1 (dev_roles/{uid})"
@@ -140,32 +143,59 @@ action_items:
     owner: "maranduteam"
     status: done
   - epic: 1
-    action: "Identificar devs legitimos antes da migracao de privilegios; nao confiar em autoatribuicoes."
+    action: "Identificar devs legitimos antes da migracao de privilegios; nao confiar
+      em autoatribuicoes."
     owner: "maranduteam"
     status: open
   - epic: 1
-    action: "Aceitar funcionalidades apenas com evidencias; nao inferir conclusao pela presenca de tela."
+    action: "Aceitar funcionalidades apenas com evidencias; nao inferir conclusao
+      pela presenca de tela."
     owner: "maranduteam"
     status: open
   - epic: 1
-    action: "Preparar migracoes/implantacao separadamente; nenhuma executada nesta atualizacao."
+    action: "Preparar migracoes/implantacao separadamente; nenhuma executada nesta
+      atualizacao."
     owner: "maranduteam"
     status: open
   - epic: 1
     id: "epic-1-retro-item-1-modularizar-testes"
-    action: "Dividir app/test/widget_test.dart em arquivos menores por feature (auth_widget_test.dart, navigation_widget_test.dart, etc.)"
+    action: "Dividir app/test/widget_test.dart em arquivos menores por feature (auth_widget_test.dart,
+      navigation_widget_test.dart, etc.)"
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-16.md"
   - epic: 1
     id: "epic-1-retro-item-2-auditoria-dev-prod"
-    action: "Auditar e listar desenvolvedores legítimos na coleção dev_roles antes de qualquer liberação em ambiente de produção"
+    action: "Auditar e listar desenvolvedores legítimos na coleção dev_roles antes
+      de qualquer liberação em ambiente de produção"
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-16.md"
   - epic: 1
     id: "epic-1-retro-item-3-preparar-epic-2-pwa"
-    action: "Iniciar planejamento técnico das histórias do Epic 2 (PWA Service Worker e motor de sincronização offline)"
+    action: "Iniciar planejamento técnico das histórias do Epic 2 (PWA Service Worker
+      e motor de sincronização offline)"
+    owner: "maranduteam"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-16.md"
+  - id: "epic-2-retro-item-1-seguranca-backlog"
+    epic: 2
+    action: "Planejar e executar as 5 historias de regras de seguranca do Firestore/Storage
+      (2-5-1 a 2-5-5) antes do primeiro deploy em producao"
     owner: "maranduteam"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-16.md"
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
+  - id: "epic-2-retro-item-2-teste-e2e-offline"
+    epic: 2
+    action: "Realizar rodada de validacao E2E com Service Worker ativado no navegador
+      com simulacao de modo offline real e cold start"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
+  - id: "epic-2-retro-item-3-modularizar-widget-test"
+    epic: 2
+    action: "Reestruturar e dividir app/test/widget_test.dart em arquivos menores
+      por dominio (carry-over da retro do Epic 1)"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
