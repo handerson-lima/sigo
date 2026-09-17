@@ -24,6 +24,7 @@ class StockHistoryScreen extends StatelessWidget {
     BuildContext context,
     String type, {
     String? reversalId,
+    Map<String, dynamic>? originalMovement,
   }) async {
     final result = await showDialog<Map<String, String>>(
       context: context,
@@ -31,19 +32,24 @@ class StockHistoryScreen extends StatelessWidget {
         type: type,
         material: material,
         reversalId: reversalId,
+        originalMovement: originalMovement,
       ),
     );
     if (result != null) {
       try {
+        final reversalDeltaNum = result['reversalDelta'] != null
+            ? num.tryParse(result['reversalDelta']!)
+            : null;
         await (queue ?? OperationQueue.instance).enqueue('stockCommand', {
           'operationId': const Uuid().v4(),
           'construtoraId': c,
           'materialId': material.id,
           'type': type,
-          'quantity': result['quantity']!,
+          'quantity': result['quantity'] ?? '0',
           'reason': result['reason']!,
           'evidence': result['evidence']!,
           'reversalId': ?reversalId,
+          'reversalDelta': ?reversalDeltaNum,
         });
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -70,9 +76,11 @@ class StockHistoryScreen extends StatelessWidget {
     String docId,
   ) {
     final isAjuste = d['commandType'] == 'ajuste';
+    final isEstorno = d['commandType'] == 'estorno';
+    final isReversed = d['reversedBy'] != null;
     final reversible =
         ['entrada', 'saida', 'ajuste'].contains(d['commandType']) &&
-        d['reversedBy'] == null;
+        !isReversed;
     final nf = d['nfNumber'] as String?;
     final fornecedor = d['fornecedor'] as String?;
     final evidence = d['evidence'] as String?;
@@ -102,9 +110,14 @@ class StockHistoryScreen extends StatelessWidget {
       details.add('Evidência: $evidence');
     }
     if (obs.isNotEmpty) {
-      details.add(isAjuste ? 'Motivo: $obs' : obs);
+      details.add((isAjuste || isEstorno) ? 'Motivo: $obs' : obs);
     }
-    if (d['reversedBy'] != null) details.add('(Estornado)');
+    if (isEstorno && d['reversalId'] != null) {
+      details.add('Ref: ${d['reversalId']}');
+    }
+    if (isReversed) {
+      details.add('(Estornado)');
+    }
 
     Widget titleWidget;
     if (isAjuste) {
@@ -150,10 +163,87 @@ class StockHistoryScreen extends StatelessWidget {
           ),
         ],
       );
-    } else {
-      titleWidget = Text(
-        '${d['type']} · ${d['quantity']} ${material.unit}',
+    } else if (isEstorno) {
+      final deltaUnits = d['deltaUnits'] as num?;
+      final scale = (d['quantityScale'] as num?) ?? 1000;
+      final double signedQty = deltaUnits != null
+          ? deltaUnits / scale
+          : (d['type'] == 'saida'
+              ? -(num.tryParse(d['quantity'].toString())?.toDouble() ?? 0)
+              : (num.tryParse(d['quantity'].toString())?.toDouble() ?? 0));
+      final signStr = signedQty > 0 ? '+' : '';
+      final qtyStr = signedQty % 1 == 0
+          ? signedQty.toInt().toString()
+          : signedQty.toString();
+      final displayVariation = '$signStr$qtyStr ${material.unit}';
+
+      titleWidget = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 6,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.purple.shade100,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.purple.shade700),
+            ),
+            child: Text(
+              '[Estorno Auditado]',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.purple.shade900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            displayVariation,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
       );
+    } else {
+      final baseText = '${d['type']} · ${d['quantity']} ${material.unit}';
+      if (isReversed) {
+        titleWidget = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              baseText,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                decoration: TextDecoration.lineThrough,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 6,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+              child: Text(
+                '[Estornado]',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ],
+        );
+      } else {
+        titleWidget = Text(baseText);
+      }
     }
 
     return ListTile(
@@ -165,6 +255,7 @@ class StockHistoryScreen extends StatelessWidget {
                 context,
                 'estorno',
                 reversalId: docId,
+                originalMovement: d,
               ),
               child: const Text('Estornar'),
             )
@@ -219,14 +310,18 @@ class StockHistoryScreen extends StatelessWidget {
                     if (!snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    return ListView(
-                      children: snapshot.data!.docs
-                          .map((doc) => _buildMovementTile(
-                                context,
-                                doc.data(),
-                                doc.id,
-                              ))
-                          .toList(),
+                    final docs = snapshot.data!.docs;
+                    if (docs.isEmpty) {
+                      return const Center(
+                        child: Text('Nenhuma movimentação registrada.'),
+                      );
+                    }
+                    return ListView.builder(
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final d = docs[index].data();
+                        return _buildMovementTile(context, d, docs[index].id);
+                      },
                     );
                   },
                 ),
@@ -240,11 +335,13 @@ class _CorrectionDialog extends StatefulWidget {
   final String type;
   final mat.Material material;
   final String? reversalId;
+  final Map<String, dynamic>? originalMovement;
 
   const _CorrectionDialog({
     required this.type,
     required this.material,
     this.reversalId,
+    this.originalMovement,
   });
 
   @override
@@ -269,11 +366,23 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
     _reason = TextEditingController();
     _evidence = TextEditingController();
 
-    final currentBalance = widget.material.currentQuantity;
+    final currentBalance = widget.material.quantityUnits != null
+        ? widget.material.quantityUnits! / 1000
+        : widget.material.currentQuantity;
     final balanceDisplay = currentBalance % 1 == 0
         ? currentBalance.toInt().toString()
         : currentBalance.toString();
-    _predictedBalanceDisplay = '$balanceDisplay ${widget.material.unit}';
+
+    if (widget.type == 'estorno') {
+      final revDelta = _calculateReversalDelta();
+      final predicted = currentBalance + revDelta;
+      final pStr = predicted % 1 == 0
+          ? predicted.toInt().toString()
+          : predicted.toString();
+      _predictedBalanceDisplay = '$pStr ${widget.material.unit}';
+    } else {
+      _predictedBalanceDisplay = '$balanceDisplay ${widget.material.unit}';
+    }
   }
 
   @override
@@ -284,8 +393,59 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
     super.dispose();
   }
 
+  double _calculateReversalDelta() {
+    if (widget.originalMovement == null) return 0.0;
+    final orig = widget.originalMovement!;
+    final deltaUnits = orig['deltaUnits'] as num?;
+    final scale = (orig['quantityScale'] as num?) ?? 1000;
+    if (deltaUnits != null) {
+      return -(deltaUnits.toDouble() / scale);
+    }
+    final q = num.tryParse(orig['quantity']?.toString() ?? '')?.toDouble() ?? 0.0;
+    final origType = orig['type'] as String? ?? (orig['commandType'] == 'entrada' ? 'entrada' : 'saida');
+    if (origType == 'saida') {
+      return q;
+    } else {
+      return -q;
+    }
+  }
+
+  String _formatOrigType(Map<String, dynamic> orig) {
+    final cmd = orig['commandType'] as String?;
+    if (cmd == 'ajuste') return 'Ajuste';
+    if (cmd == 'entrada' || orig['type'] == 'entrada') return 'Entrada';
+    if (cmd == 'saida' || orig['type'] == 'saida') return 'Saída';
+    return orig['type']?.toString() ?? 'Movimentação';
+  }
+
+  String _formatOrigQuantity(Map<String, dynamic> orig) {
+    final deltaUnits = orig['deltaUnits'] as num?;
+    final scale = (orig['quantityScale'] as num?) ?? 1000;
+    if (deltaUnits != null) {
+      final q = deltaUnits.abs() / scale;
+      return q % 1 == 0 ? q.toInt().toString() : q.toString();
+    }
+    final q = num.tryParse(orig['quantity']?.toString() ?? '')?.toDouble() ?? 0.0;
+    return q % 1 == 0 ? q.toInt().toString() : q.toString();
+  }
+
+  String _origDetails(Map<String, dynamic> orig) {
+    final parts = <String>[];
+    final nf = orig['nfNumber'] as String?;
+    final forn = orig['fornecedor'] as String?;
+    final resp = orig['responsavelId'] as String?;
+    final obs = (orig['observacao'] ?? orig['reason'] ?? '') as String;
+    if (nf != null && nf.isNotEmpty) parts.add('NF: $nf');
+    if (forn != null && forn.isNotEmpty) parts.add('Fornecedor: $forn');
+    if (resp != null && resp.isNotEmpty) parts.add('Resp: $resp');
+    if (obs.isNotEmpty) parts.add('Obs: $obs');
+    return parts.join(' • ');
+  }
+
   void _updatePredicted(String valText) {
-    final currentBalance = widget.material.currentQuantity;
+    final currentBalance = widget.material.quantityUnits != null
+        ? widget.material.quantityUnits! / 1000
+        : widget.material.currentQuantity;
     final balanceDisplay = currentBalance % 1 == 0
         ? currentBalance.toInt().toString()
         : currentBalance.toString();
@@ -306,10 +466,16 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final currentBalance = widget.material.currentQuantity;
+    final currentBalance = widget.material.quantityUnits != null
+        ? widget.material.quantityUnits! / 1000
+        : widget.material.currentQuantity;
     final balanceDisplay = currentBalance % 1 == 0
         ? currentBalance.toInt().toString()
         : currentBalance.toString();
+
+    final revDelta = widget.type == 'estorno' ? _calculateReversalDelta() : 0.0;
+    final predictedBalance = currentBalance + revDelta;
+    final isNegativeBalance = widget.type == 'estorno' && predictedBalance < 0;
 
     return AlertDialog(
       title: Text(
@@ -326,6 +492,90 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (widget.type == 'estorno' && widget.originalMovement != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.purple.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Movimentação original:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tipo: ${_formatOrigType(widget.originalMovement!)} · Quantidade: ${_formatOrigQuantity(widget.originalMovement!)} ${widget.material.unit}',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      if (_origDetails(widget.originalMovement!).isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          _origDetails(widget.originalMovement!),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                      const Divider(height: 16),
+                      Text(
+                        'Saldo atual: $balanceDisplay ${widget.material.unit}',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Saldo previsto pós-estorno: $_predictedBalanceDisplay',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isNegativeBalance
+                              ? Colors.red.shade900
+                              : Colors.purple.shade900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isNegativeBalance) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade300),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            color: Colors.red.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Saldo insuficiente para estornar esta entrada (saldo atual: $balanceDisplay ${widget.material.unit}, estorno retiraria: ${_formatOrigQuantity(widget.originalMovement!)} ${widget.material.unit}).',
+                            style: TextStyle(
+                              color: Colors.red.shade900,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+              ],
               if (widget.type == 'ajuste') ...[
                 Container(
                   width: double.infinity,
@@ -427,19 +677,25 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
           child: const Text('Cancelar'),
         ),
         FilledButton(
-          onPressed: () {
-            if (_form.currentState!.validate()) {
-              final cleanQuantity = _quantity.text
-                  .replaceAll(',', '.')
-                  .replaceAll('+', '')
-                  .trim();
-              Navigator.pop(context, {
-                'quantity': cleanQuantity,
-                'reason': _reason.text.trim(),
-                'evidence': _evidence.text.trim(),
-              });
-            }
-          },
+          onPressed: (widget.type == 'estorno' && isNegativeBalance)
+              ? null
+              : () {
+                  if (_form.currentState!.validate()) {
+                    final cleanQuantity = widget.type == 'estorno'
+                        ? '0'
+                        : _quantity.text
+                            .replaceAll(',', '.')
+                            .replaceAll('+', '')
+                            .trim();
+                    Navigator.pop(context, {
+                      'quantity': cleanQuantity,
+                      'reason': _reason.text.trim(),
+                      'evidence': _evidence.text.trim(),
+                      if (widget.type == 'estorno')
+                        'reversalDelta': revDelta.toString(),
+                    });
+                  }
+                },
           child: const Text('Registrar'),
         ),
       ],
