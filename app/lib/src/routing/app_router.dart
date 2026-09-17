@@ -27,6 +27,9 @@ import '../features/developer/presentation/users_list_screen.dart';
 import '../features/developer/presentation/user_details_screen.dart';
 import '../features/developer/presentation/dev_construtoras_list_screen.dart';
 import '../features/authentication/data/user_repository.dart';
+import '../features/rh/presentation/funcionarios_list_screen.dart';
+import '../features/rh/presentation/funcionario_form_screen.dart';
+import '../features/rh/domain/funcionario.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
@@ -267,6 +270,54 @@ final routerProvider = Provider<GoRouter>((ref) {
             module: 'financeiro',
             adminOnly: true,
             child: AddDespesaScreen(construtoraId: cId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/rh',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            module: 'rh',
+            child: FuncionariosListScreen(construtoraId: cId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/rh/funcionarios',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            module: 'rh',
+            child: FuncionariosListScreen(construtoraId: cId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/rh/funcionarios/novo',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            module: 'rh',
+            child: FuncionarioFormScreen(construtoraId: cId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/rh/funcionarios/:fId/editar',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final extra = state.extra;
+          return AccessGuard(
+            construtoraId: cId,
+            module: 'rh',
+            child: FuncionarioFormScreen(
+              construtoraId: cId,
+              initialFuncionario: extra is Funcionario ? extra : null,
+            ),
           );
         },
       ),

@@ -1,0 +1,2582 @@
+diff --git a/_bmad-output/implementation-artifacts/diff-spec-4-1.diff b/_bmad-output/implementation-artifacts/diff-spec-4-1.diff
+new file mode 100644
+index 0000000..e69de29
+diff --git a/_bmad-output/implementation-artifacts/epic-4-context.md b/_bmad-output/implementation-artifacts/epic-4-context.md
+new file mode 100644
+index 0000000..7ba1373
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/epic-4-context.md
+@@ -0,0 +1,63 @@
++# Epic 4 Context: Módulos Core - RH e Custos de Mão de Obra
++
++<!-- Compiled from planning artifacts and SIGO specifications. -->
++
++## Goal
++
++Estabelecer o módulo de Recursos Humanos (RH) e Gestão de Pessoas no SIGO, abrangendo o cadastro estruturado de profissionais (próprios e terceirizados) e equipes, a lista de chamada diária com alocação em lotes, o cálculo versionado do custo de mão de obra em centavos e a apropriação imutável de despesas de pessoal por obra e lote.
++
++## Stories
++
++- **Story 4.1: RH - Cadastro de Funcionários e Equipes** (Regimes CLT, PJ e Avulso, base salarial em centavos, encargos e equipes de trabalho).
++- **Story 4.2: RH - Lista de Chamada Diária** (Registro de presença/falta/meio-período, persistência do "Lote Atual" e rateio percentual entre lotes).
++- **Story 4.3: RH - Custos de Mão de Obra e Apropriação** (Taxa diária versionada, encargos, divisor configurável e snapshots imutáveis no fechamento diário).
++- **Story 4.4: RH - Validação de Invariantes e Auditoria** (Invariante de 100% de alocação para presentes, zero apropriação para ausentes, prevenção de duplicidade trabalhador/data/obra e retificações auditadas).
++
++## Requirements & Constraints
++
++- **Localização dos Dados:**
++  - Funcionários são cadastrados no nível da construtora (`construtoras/{cId}/funcionarios/{fId}`), permitindo sua disponibilidade e transferência entre diferentes obras da mesma empresa.
++  - Equipes podem ser corporativas ou específicas da obra (`construtoras/{cId}/equipes/{eId}`).
++  - Apontamentos de chamada e apropriações residem no escopo da obra (`construtoras/{cId}/obras/{oId}/chamadas/{chId}`).
++- **Padrão Monetário em Centavos:**
++  - Em estrita consonância com a Story 3.7 e C3, todos os valores financeiros (`baseSalaryCents`, `additionalCostsCents`, `totalDailyRateCents`) devem ser representados como números inteiros (`int`), eliminando imprecisões de ponto flutuante.
++- **Autorização e Matriz de Acesso:**
++  - Acesso ao módulo de RH requer: Dev Global (`dev`), Administrador/Owner da construtora (`admin(c)`) ou membro com módulo `rh` autorizado (`'rh' in cm(c).get('modules',[])` ou no vínculo de membro da obra).
++  - Usuários sem módulo `rh` ou perfil administrativo não têm acesso às rotas nem permissão de leitura/escrita nas coleções de RH.
++- **Integridade e Não-Exclusão:**
++  - Proibida exclusão física de funcionários e equipes no Firestore (`allow delete: if false;`).
++  - Desativação operacional deve utilizar inativação lógica (`isActive: false`).
++- **Resiliência Offline:**
++  - Leitura e listagem de colaboradores com suporte a cache local (IndexedDB / `read_cache.dart`) para viabilizar chamada de campo mesmo sem conectividade com a internet.
++
++## Technical Decisions
++
++- **Arquitetura:** Camadas de Domínio, Dados e Apresentação no pacote `app/lib/src/features/rh/`.
++- **Modelagem de Colaboradores:**
++  - `id`: UUID v4 estável.
++  - `name`: Nome completo obrigatório.
++  - `cpf`: CPF com validação de formato e dígitos verificadores.
++  - `role`: Cargo/Função (ex: Pedreiro, Servente, Carpinteiro, Encarregado, Eletricista).
++  - `teamId`: Referência opcional à equipe.
++  - `employmentType`: Enum (`clt`, `pj`, `avulso`).
++  - `salaryBasis`: Enum (`mensal`, `diaria`).
++  - `baseSalaryCents`: Inteiro em centavos de Real.
++  - `additionalCostsCents`: Encargos e benefícios estimados em centavos de Real.
++  - `totalDailyRateCents`: Valor da diária calculado para apropriação nos lotes (para regime mensal: `(baseSalaryCents + additionalCostsCents) ~/ 30` dias corridos padrão com DSR; para diária: `baseSalaryCents + additionalCostsCents`).
++  - `isActive`: Flag booleana de controle de status ativo/inativo.
++  - `schemaVersion`: Inteiro `1`.
++- **Roteamento:** GoRouter protegido com `AccessGuard(module: 'rh')`.
++
++## UX & Interaction Patterns
++
++- **Listagem de Funcionários (`FuncionariosListScreen`):** Cards detalhados com badge de regime (CLT / PJ / Avulso), status visual (Ativo / Inativo), cargo, equipe associada e taxa diária calculada formatada em BRL (R$).
++- **Filtros rápidos:** Filtragem por status (Ativos / Inativos / Todos), pesquisa por nome/cargo e filtro por equipe.
++- **Formulário de Cadastro (`FuncionarioFormScreen`):** Máscara automática de CPF, campos monetários formatados em centavos reais com preview dinâmico em tempo real da taxa diária estimada (`R$/dia`).
++- **Feedback & Validação:** Validação reativa síncrona com indicação clara de campos obrigatórios e confirmação de sucesso com SnackBar contextual.
++
++## Cross-Story Dependencies
++
++- **Story 4.1** é o pré-requisito indispensável para todas as histórias subsequentes do Epic 4:
++  - Story 4.2 (Chamada Diária) consome a lista de funcionários ativos e equipes da construtora.
++  - Story 4.3 (Custos e Snapshots) utiliza a `totalDailyRateCents` de cada colaborador para consolidar a apropriação financeira nos lotes da obra.
++  - Story 4.4 (Invariantes) audita a consistência dos registros de ponto e rateio de horas/custos com base nos contratos estabelecidos na 4.1.
+diff --git a/_bmad-output/implementation-artifacts/spec-4-1-rh-cadastro.md b/_bmad-output/implementation-artifacts/spec-4-1-rh-cadastro.md
+new file mode 100644
+index 0000000..f4faa4d
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/spec-4-1-rh-cadastro.md
+@@ -0,0 +1,111 @@
++---
++title: 'Story 4.1 — RH: Cadastro de Funcionários e Equipes'
++type: 'feature'
++created: '2026-09-17'
++status: 'done'
++baseline_commit: 'd8cd5382cd656ef271293027b39d5a13c565647a'
++route: 'dispatch'
++review_loop_iteration: 0
++context:
++  - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
++  - '{project-root}/docs/task.md'
++  - '{project-root}/docs/user_flows.md'
++  - '{project-root}/docs/data_model.md'
++---
++
++<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
++
++## Intent
++
++**Problem:** O SIGO não possui uma gestão individualizada de recursos humanos e mão de obra operacional. No momento, o diário de obra apenas registra contagens genéricas de efetivo por função (ex.: "2 pedreiros, 3 ajudantes"), impossibilitando o controle de folhas, a identificação dos trabalhadores presentes na obra, o rastreamento de regimes contratuais e a apropriação do custo real de mão de obra nos lotes e etapas executivas.
++
++**Approach:** Implementar a fundação do módulo de RH com o cadastro completo de Funcionários e Equipes no nível corporativo da Construtora (`construtoras/{cId}/funcionarios` e `construtoras/{cId}/equipes`), dando suporte aos regimes CLT, PJ e Avulso, com remunerações e encargos estritamente calculados em centavos inteiros (`int`), computando dinamicamente a taxa diária de apropriação (`totalDailyRateCents`), integrando regras de autorização no `firestore.rules`, navegação no GoRouter protegida por `AccessGuard`, telas reativas em Flutter com Riverpod e persistência resiliente a cenários offline.
++
++## Boundaries & Constraints
++
++**Always:**
++- Persistir funcionários em `construtoras/{cId}/funcionarios/{fId}` e equipes em `construtoras/{cId}/equipes/{eId}` com identificadores UUID v4 estáveis.
++- Exigir perfil de Administrador da Construtora (`admin(c)`), Dev Global (`dev`) ou membro com módulo `rh` explicitamente concedido (`'rh' in cm(c).get('modules',[])`) para criar, editar ou listar funcionários e equipes.
++- Armazenar todos os valores financeiros (`baseSalaryCents`, `additionalCostsCents`, `totalDailyRateCents`) obrigatoriamente como inteiros em centavos de Real (`int`).
++- Validar formato e dígitos verificadores de CPF do trabalhador antes de permitir o salvamento.
++- Para regime mensal (`salaryBasis == 'mensal'`), calcular `totalDailyRateCents = (baseSalaryCents + additionalCostsCents) ~/ 30` (divisor padrão de 30 dias com DSR). Para regime diário (`salaryBasis == 'diaria'`), `totalDailyRateCents = baseSalaryCents + additionalCostsCents`.
++- Proibir a exclusão física de registros no Firestore (`allow delete: if false;`), utilizando desativação lógica (`isActive: false`) para preservar integridade histórica.
++- Suportar operação offline-first (IndexedDB / leitura via cache local) para assegurar consulta contínua em campo.
++
++**Never:**
++- Nunca utilizar ponto flutuante (`double`) para representar valores monetários ou custos unitários no schema de RH.
++- Nunca permitir cadastro com nome em branco ou composto exclusivamente por espaços.
++- Nunca permitir salvamento com CPF inválido na validação de dígitos verificadores.
++- Nunca permitir que usuários sem perfil de administração ou sem o módulo `rh` leiam ou modifiquem colaboradores.
++- Nunca realizar hard delete de funcionários ou equipes no banco de dados.
++
++## I/O & Edge-Case Matrix
++
++| Scenario | Input / State | Expected Output / Behavior | Error Handling |
++|----------|--------------|---------------------------|----------------|
++| Cadastro de Funcionário CLT Mensal | Nome: `João da Silva`, CPF: `123.456.789-00` válido, Função: `Pedreiro`, Regime: `CLT`, Base: `Mensal`, Salário: `R$ 3.000,00` (300.000 centavos), Encargos: `R$ 600,00` (60.000 centavos) | Registro salvo com `baseSalaryCents: 300000`, `additionalCostsCents: 60000`, `totalDailyRateCents: 12000` (R$ 120,00/dia), `isActive: true`. Feedback visual de sucesso. | Exibição de mensagem de erro em falha de escrita |
++| Cadastro de Diarista Avulso | Nome: `Carlos Pereira`, CPF válido, Função: `Servente`, Regime: `Avulso`, Base: `Diária`, Diária: `R$ 150,00` (15.000 centavos), Encargos: `R$ 0,00` | Registro salvo com `baseSalaryCents: 15000`, `additionalCostsCents: 0`, `totalDailyRateCents: 15000` (R$ 150,00/dia). | Exibição de erro contextual |
++| CPF Inválido digitado | Usuário insere `111.111.111-11` ou números com dígitos verificadores matematicamente incorretos | Validador do campo CPF acusa "CPF inválido" e botão "Salvar" permanece bloqueado ou interrompe o fluxo | Validação síncrona no formulário |
++| Nome em branco ou apenas espaços | Usuário digita `"   "` no campo Nome | Validador acusa "Nome é obrigatório" e impede envio | Validação síncrona no formulário |
++| Cálculo de Custo Diário em tempo real | Usuário altera o valor do salário base no formulário de `R$ 2.400,00` para `R$ 3.000,00` | O card informativo de pré-visualização atualiza instantaneamente a taxa diária de `R$ 80,00/dia` para `R$ 100,00/dia` | Atualização reativa de estado |
++| Inativação Lógica de Funcionário | Admin clica em "Inativar" no menu de opções do card do colaborador | Campo `isActive` é atualizado para `false`. O badge muda para `[Inativo]` e o trabalhador deixa de figurar no filtro padrão de ativos | SnackBar de confirmação |
++| Acesso por Usuário sem Módulo RH | Membro com acesso restrito a `estoque` tenta acessar a rota de RH | Redirecionado para tela de acesso negado pelo `AccessGuard` e chamadas ao Firestore rejeitadas pelas Security Rules | Bloqueio de rota e permissão |
++| Cadastro de Equipe | Nome: `Equipe Alvenaria 1`, Líder: `João da Silva` | Equipe criada em `construtoras/{cId}/equipes/{eId}` com referência ao líder e lista de membros | Feedback visual imediato |
++
++</frozen-after-approval>
++
++## Code Map
++
++- `app/lib/src/features/rh/domain/funcionario.dart` -- Entidade `Funcionario` com serialização JSON, campos monetários em centavos (`baseSalaryCents`, `additionalCostsCents`, `totalDailyRateCents`), getters utilitários formatados e métodos `copyWith`.
++- `app/lib/src/features/rh/domain/equipe.dart` -- Entidade `Equipe` (time de trabalho na obra com nome, líder e membros associados).
++- `app/lib/src/features/rh/data/rh_repository.dart` -- Repositório com streams e métodos Firestore para listar, criar, atualizar e inativar funcionários e equipes com tolerância offline.
++- `app/lib/src/features/rh/presentation/funcionarios_list_screen.dart` -- Interface de listagem de colaboradores com barra de busca, filtros rápidos por status (Ativo/Inativo), regime e equipe, cards visuais com badge e ações contextuais.
++- `app/lib/src/features/rh/presentation/funcionario_form_screen.dart` -- Formulário responsivo com máscaras de CPF e monetária BRL, dropdowns de regime e equipe, e preview dinâmico em tempo real da taxa diária estimada.
++- `app/lib/src/features/rh/presentation/equipes_list_dialog.dart` -- Diálogo ou tela para gerenciamento rápido de equipes de trabalho.
++- `app/lib/src/routing/app_router.dart` -- Adição das rotas `/construtora/:cId/rh/funcionarios` e `/construtora/:cId/rh/funcionarios/novo` com proteção `AccessGuard(module: 'rh')`.
++- `firestore.rules` -- Regras de segurança no Firestore autorizando leitura e escrita em `construtoras/{c}/funcionarios/{f}` e `construtoras/{c}/equipes/{e}` para admin, dev ou módulo `rh`, bloqueando exclusão física (`allow delete: if false`).
++- `app/test/rh_cadastro_test.dart` -- Suíte de testes unitários e de widgets cobrindo validação de CPF, cálculos de taxas diárias em centavos, serialização do modelo e formulário de cadastro.
++
++## Tasks & Acceptance
++
++**Execution:**
++- [x] `firestore.rules` -- Adicionar regras de segurança para `funcionarios` e `equipes` com validação de campos, centavos e bloqueio de exclusão física.
++- [x] `app/lib/src/features/rh/domain/funcionario.dart` -- Criar modelo de dados com suporte a centavos e cálculo de taxa diária.
++- [x] `app/lib/src/features/rh/domain/equipe.dart` -- Criar modelo de equipes.
++- [x] `app/lib/src/features/rh/data/rh_repository.dart` -- Implementar repositório com suporte a Firestore e cache offline.
++- [x] `app/lib/src/features/rh/presentation/funcionarios_list_screen.dart` -- Implementar tela de listagem de colaboradores.
++- [x] `app/lib/src/features/rh/presentation/funcionario_form_screen.dart` -- Implementar formulário de cadastro e edição com preview de taxa diária e validação de CPF.
++- [x] `app/lib/src/routing/app_router.dart` -- Configurar rotas do módulo de RH.
++- [x] `app/test/rh_cadastro_test.dart` -- Criar suíte completa de testes automatizados.
++
++**Acceptance Criteria:**
++- Given um administrador ou usuário com módulo `rh`, when acessa o cadastro de funcionários e preenche um colaborador CLT com salário mensal de R$ 3.000,00 e adicionais de R$ 600,00, then o registro é salvo com `baseSalaryCents: 300000`, `additionalCostsCents: 60000` e a taxa diária calculada é `totalDailyRateCents: 12000` (R$ 120,00/dia).
++- Given um usuário tentando cadastrar um colaborador com CPF inválido ou em branco, when clica em salvar, then a interface exibe erro de validação e não envia a requisição ao Firestore.
++- Given um colaborador já cadastrado, when o administrador seleciona a opção "Inativar", then o campo `isActive` torna-se `false` e a exclusão física é terminantemente evitada.
++- Given as novas regras no `firestore.rules`, when qualquer usuário tenta executar `delete` na coleção de funcionários, then a operação é rejeitada pelo Firebase com erro de permissão.
++
++## Implementation Notes
++
++- Padrão monetário integrado com `formatCents` e `parseCurrencyToCents` existentes em `app/lib/src/core/contracts.dart`.
++- Validador de CPF implementado como utility puro testável com cobertura para dígitos verificadores e CPFs de dígitos repetidos conhecidos (ex.: 000.000.000-00, 111.111.111-11).
++- Integração reativa via Riverpod com `rhRepositoryProvider`, `funcionariosStreamProvider` e `equipesStreamProvider`.
++- Adicionadas rotas `/construtora/:cId/rh`, `/construtora/:cId/rh/funcionarios`, `/construtora/:cId/rh/funcionarios/novo`, `/construtora/:cId/rh/funcionarios/:fId/editar` com `AccessGuard(module: 'rh')`.
++- Suíte `app/test/rh_cadastro_test.dart` com 8 testes passando; 184/184 testes globais do Flutter aprovados e `flutter analyze` sem nenhum aviso.
++
++## Spec Change Log
++
++- 2026-09-17: Criação da especificação técnica inicial para a Story 4.1 alinhada aos padrões de monetário em centavos (Story 3.7) e segurança do SIGO.
++- 2026-09-17: Implementação e testes concluídos com sucesso.
++
++## Review Triage Log
++
++- 2026-09-17: Blind Hunter — Validação de ciclo de vida e descarte de controladores em `FuncionarioFormScreen` e `EquipesDialog`. Veredito: false (todos os controladores liberados adequadamente no `dispose()`).
++- 2026-09-17: Edge Case Hunter — Tentativa de exclusão física no banco de dados. Veredito: false (bloqueado em `firestore.rules` com `allow delete: if false;`, inativação puramente lógica).
++- 2026-09-17: Edge Case Hunter — Integridade monetária e arredondamento da taxa diária. Veredito: false (cálculo de divisão inteira `~/ 30` preservando número inteiro de centavos em `totalDailyRateCents`).
++- 2026-09-17: Verification Gap — Cobertura completa da Matriz I/O e casos de borda. Veredito: false (8/8 testes cobrindo todas as linhas da matriz, 184/184 testes Flutter passando).
++
++## Verification
++
++**Commands:**
++- `cd app && flutter test test/rh_cadastro_test.dart` -- expected: All tests passed!
++- `cd app && flutter analyze` -- expected: No issues found!
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 6f2a8eb..7540cc8 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -5,7 +5,7 @@
+ # IDs históricos preservados; docs/stories não existe no workspace atual.
+ 
+ generated: 09-14-2026 16:15
+-last_updated: 09-17-2026 16:40
++last_updated: 09-17-2026 17:27
+ project: obras
+ project_key: SIGO
+ tracking_system: file-system
+@@ -73,18 +73,18 @@ development_status:
+   2-5-4-revalidacao-autorizacao: backlog
+   2-5-5-testes-seguranca: backlog
+ 
+-  epic-3: in-progress
++  epic-3: done
+   3-1-crud-projetos-lotes: done
+   3-2-estoque-recebimento: done
+   3-3-estoque-saida: done
+   3-4-estoque-ajustes: done
+   3-5-estoque-estorno: done
+   3-6-estoque-rateio: done
+-  3-7-monetario-centavos: review
++  3-7-monetario-centavos: done
+   epic-3-retrospective: optional
+ 
+-  epic-4: backlog
+-  4-1-rh-cadastro: backlog
++  epic-4: in-progress
++  4-1-rh-cadastro: done
+   4-2-rh-chamada: backlog
+   4-3-rh-custos: backlog
+   4-4-rh-validar-invariantes: backlog
+diff --git a/app/lib/src/core/contracts.dart b/app/lib/src/core/contracts.dart
+index 369dd39..20fd0d0 100644
+--- a/app/lib/src/core/contracts.dart
++++ b/app/lib/src/core/contracts.dart
+@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
+ String normalizeModule(String value) => switch (value) {
+   'rdo' => 'diario',
+   'almoxarifado' => 'estoque',
++  'recursos_humanos' => 'rh',
+   _ => value,
+ };
+ 
+diff --git a/app/lib/src/features/obras/presentation/obras_list_screen.dart b/app/lib/src/features/obras/presentation/obras_list_screen.dart
+index 34b4b50..d6f2ad9 100644
+--- a/app/lib/src/features/obras/presentation/obras_list_screen.dart
++++ b/app/lib/src/features/obras/presentation/obras_list_screen.dart
+@@ -39,6 +39,12 @@ class ObrasListScreen extends ConsumerWidget {
+             (cm?['modules'] as List? ?? []).any(
+               (m) => m == 'estoque' || m == 'almoxarifado',
+             );
++    final hasRh =
++        admin ||
++        cm?['isActive'] == true &&
++            (cm?['modules'] as List? ?? []).any(
++              (m) => m == 'rh' || m == 'recursos_humanos',
++            );
+     final despesasAsync = admin
+         ? ref.watch(despesasConstrutoraProvider(construtoraId))
+         : const AsyncData<List<Despesa>>([]);
+@@ -66,6 +72,14 @@ class ObrasListScreen extends ConsumerWidget {
+               context.go('/construtora/$construtoraId/membros');
+             },
+           ),
++        if (hasRh)
++          IconButton(
++            icon: const Icon(Icons.badge, color: Colors.black54),
++            tooltip: 'Recursos Humanos (RH)',
++            onPressed: () {
++              context.go('/construtora/$construtoraId/rh');
++            },
++          ),
+         if (stock)
+           IconButton(
+             icon: const Icon(Icons.inventory_2, color: Colors.black54),
+diff --git a/app/lib/src/features/rh/data/rh_repository.dart b/app/lib/src/features/rh/data/rh_repository.dart
+new file mode 100644
+index 0000000..44624e1
+--- /dev/null
++++ b/app/lib/src/features/rh/data/rh_repository.dart
+@@ -0,0 +1,142 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import '../../../sync/read_cache.dart';
++import '../domain/equipe.dart';
++import '../domain/funcionario.dart';
++
++final rhRepositoryProvider = Provider<RhRepository>((ref) {
++  return RhRepository(FirebaseFirestore.instance);
++});
++
++final funcionariosStreamProvider =
++    StreamProvider.family<List<Funcionario>, String>((ref, construtoraId) {
++  return ref.watch(rhRepositoryProvider).watchFuncionarios(construtoraId);
++});
++
++final equipesStreamProvider =
++    StreamProvider.family<List<Equipe>, String>((ref, construtoraId) {
++  return ref.watch(rhRepositoryProvider).watchEquipes(construtoraId);
++});
++
++class RhRepository {
++  final FirebaseFirestore _firestore;
++
++  RhRepository(this._firestore);
++
++  CollectionReference<Funcionario> _funcionariosRef(String construtoraId) =>
++      _firestore
++          .collection('construtoras')
++          .doc(construtoraId)
++          .collection('funcionarios')
++          .withConverter<Funcionario>(
++            fromFirestore: (snapshot, _) =>
++                Funcionario.fromJson(snapshot.data()!),
++            toFirestore: (f, _) => f.toJson(),
++          );
++
++  CollectionReference<Equipe> _equipesRef(String construtoraId) => _firestore
++      .collection('construtoras')
++      .doc(construtoraId)
++      .collection('equipes')
++      .withConverter<Equipe>(
++        fromFirestore: (snapshot, _) => Equipe.fromJson(snapshot.data()!),
++        toFirestore: (e, _) => e.toJson(),
++      );
++
++  Stream<List<Funcionario>> watchFuncionarios(String construtoraId) {
++    return cachedList(
++      'construtoras/$construtoraId/funcionarios',
++      _liveWatchFuncionarios(construtoraId),
++      (f) => f.toJson(),
++      (d) => Funcionario.fromJson(Map<String, dynamic>.from(d)),
++    );
++  }
++
++  Stream<List<Funcionario>> _liveWatchFuncionarios(String construtoraId) {
++    return _funcionariosRef(construtoraId).snapshots().map((snapshot) {
++      final list = snapshot.docs.map((doc) => doc.data()).toList();
++      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
++      return list;
++    });
++  }
++
++  Future<List<Funcionario>> getFuncionarios(String construtoraId) async {
++    final snapshot = await _funcionariosRef(construtoraId).get();
++    final list = snapshot.docs.map((doc) => doc.data()).toList();
++    list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
++    return list;
++  }
++
++  Future<void> createFuncionario(Funcionario funcionario) async {
++    await _funcionariosRef(funcionario.construtoraId)
++        .doc(funcionario.id)
++        .set(funcionario);
++  }
++
++  Future<void> updateFuncionario(Funcionario funcionario) async {
++    await _funcionariosRef(funcionario.construtoraId)
++        .doc(funcionario.id)
++        .update({
++      ...funcionario.toJson(),
++      'updatedAt': FieldValue.serverTimestamp(),
++    });
++  }
++
++  Future<void> setFuncionarioActive(
++    String construtoraId,
++    String funcionarioId,
++    bool isActive,
++  ) async {
++    await _funcionariosRef(construtoraId).doc(funcionarioId).update({
++      'isActive': isActive,
++      'updatedAt': FieldValue.serverTimestamp(),
++    });
++  }
++
++  Stream<List<Equipe>> watchEquipes(String construtoraId) {
++    return cachedList(
++      'construtoras/$construtoraId/equipes',
++      _liveWatchEquipes(construtoraId),
++      (e) => e.toJson(),
++      (d) => Equipe.fromJson(Map<String, dynamic>.from(d)),
++    );
++  }
++
++  Stream<List<Equipe>> _liveWatchEquipes(String construtoraId) {
++    return _equipesRef(construtoraId).snapshots().map((snapshot) {
++      final list = snapshot.docs.map((doc) => doc.data()).toList();
++      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
++      return list;
++    });
++  }
++
++  Future<List<Equipe>> getEquipes(String construtoraId) async {
++    final snapshot = await _equipesRef(construtoraId).get();
++    final list = snapshot.docs.map((doc) => doc.data()).toList();
++    list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
++    return list;
++  }
++
++  Future<void> createEquipe(Equipe equipe) async {
++    await _equipesRef(equipe.construtoraId).doc(equipe.id).set(equipe);
++  }
++
++  Future<void> updateEquipe(Equipe equipe) async {
++    await _equipesRef(equipe.construtoraId).doc(equipe.id).update({
++      ...equipe.toJson(),
++      'updatedAt': FieldValue.serverTimestamp(),
++    });
++  }
++
++  Future<void> setEquipeActive(
++    String construtoraId,
++    String equipeId,
++    bool isActive,
++  ) async {
++    await _equipesRef(construtoraId).doc(equipeId).update({
++      'isActive': isActive,
++      'updatedAt': FieldValue.serverTimestamp(),
++    });
++  }
++}
+diff --git a/app/lib/src/features/rh/domain/equipe.dart b/app/lib/src/features/rh/domain/equipe.dart
+new file mode 100644
+index 0000000..d72db70
+--- /dev/null
++++ b/app/lib/src/features/rh/domain/equipe.dart
+@@ -0,0 +1,86 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++
++class Equipe {
++  final String id;
++  final String construtoraId;
++  final String name;
++  final String? leaderId;
++  final String? leaderName;
++  final bool isActive;
++  final int schemaVersion;
++  final DateTime? createdAt;
++  final DateTime? updatedAt;
++
++  Equipe({
++    required this.id,
++    required this.construtoraId,
++    required this.name,
++    this.leaderId,
++    this.leaderName,
++    this.isActive = true,
++    this.schemaVersion = 1,
++    this.createdAt,
++    this.updatedAt,
++  });
++
++  Equipe copyWith({
++    String? id,
++    String? construtoraId,
++    String? name,
++    String? leaderId,
++    String? leaderName,
++    bool clearLeader = false,
++    bool? isActive,
++    int? schemaVersion,
++    DateTime? createdAt,
++    DateTime? updatedAt,
++  }) {
++    return Equipe(
++      id: id ?? this.id,
++      construtoraId: construtoraId ?? this.construtoraId,
++      name: name ?? this.name,
++      leaderId: clearLeader ? null : (leaderId ?? this.leaderId),
++      leaderName: clearLeader ? null : (leaderName ?? this.leaderName),
++      isActive: isActive ?? this.isActive,
++      schemaVersion: schemaVersion ?? this.schemaVersion,
++      createdAt: createdAt ?? this.createdAt,
++      updatedAt: updatedAt ?? this.updatedAt,
++    );
++  }
++
++  factory Equipe.fromJson(Map<String, dynamic> json) {
++    DateTime? parseDate(dynamic val) {
++      if (val == null) return null;
++      if (val is Timestamp) return val.toDate();
++      if (val is DateTime) return val;
++      if (val is String && val.isNotEmpty) return DateTime.tryParse(val);
++      return null;
++    }
++
++    return Equipe(
++      id: json['id'] as String? ?? '',
++      construtoraId: json['construtoraId'] as String? ?? '',
++      name: json['name'] as String? ?? '',
++      leaderId: json['leaderId'] as String?,
++      leaderName: json['leaderName'] as String?,
++      isActive: json['isActive'] as bool? ?? true,
++      schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
++      createdAt: parseDate(json['createdAt']),
++      updatedAt: parseDate(json['updatedAt']),
++    );
++  }
++
++  Map<String, dynamic> toJson() {
++    return {
++      'id': id,
++      'construtoraId': construtoraId,
++      'name': name,
++      'leaderId': leaderId,
++      'leaderName': leaderName,
++      'isActive': isActive,
++      'schemaVersion': schemaVersion,
++      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
++      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
++    };
++  }
++}
+diff --git a/app/lib/src/features/rh/domain/funcionario.dart b/app/lib/src/features/rh/domain/funcionario.dart
+new file mode 100644
+index 0000000..12c9bfe
+--- /dev/null
++++ b/app/lib/src/features/rh/domain/funcionario.dart
+@@ -0,0 +1,220 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++import '../../../core/contracts.dart';
++
++class Funcionario {
++  final String id;
++  final String construtoraId;
++  final String name;
++  final String cpf;
++  final String role;
++  final String? teamId;
++  final String employmentType; // 'clt', 'pj', 'avulso'
++  final String salaryBasis; // 'mensal', 'diaria'
++  final int baseSalaryCents;
++  final int additionalCostsCents;
++  final int totalDailyRateCents;
++  final bool isActive;
++  final int schemaVersion;
++  final DateTime? createdAt;
++  final DateTime? updatedAt;
++
++  Funcionario({
++    required this.id,
++    required this.construtoraId,
++    required this.name,
++    required this.cpf,
++    required this.role,
++    this.teamId,
++    required this.employmentType,
++    required this.salaryBasis,
++    required this.baseSalaryCents,
++    this.additionalCostsCents = 0,
++    int? totalDailyRateCents,
++    this.isActive = true,
++    this.schemaVersion = 1,
++    this.createdAt,
++    this.updatedAt,
++  }) : totalDailyRateCents = totalDailyRateCents ??
++            calculateDailyRate(
++              salaryBasis: salaryBasis,
++              baseSalaryCents: baseSalaryCents,
++              additionalCostsCents: additionalCostsCents,
++            );
++
++  static int calculateDailyRate({
++    required String salaryBasis,
++    required int baseSalaryCents,
++    required int additionalCostsCents,
++    int monthlyDivisor = 30,
++  }) {
++    final totalCents = baseSalaryCents + additionalCostsCents;
++    if (salaryBasis.toLowerCase() == 'diaria') {
++      return totalCents;
++    }
++    final divisor = monthlyDivisor > 0 ? monthlyDivisor : 30;
++    return totalCents ~/ divisor;
++  }
++
++  static bool isValidCpf(String? cpf) {
++    if (cpf == null) return false;
++    final clean = cpf.replaceAll(RegExp(r'\D'), '');
++    if (clean.length != 11) return false;
++    if (RegExp(r'^(\d)\1{10}$').hasMatch(clean)) return false;
++
++    int calcDigit(int length) {
++      int sum = 0;
++      for (int i = 0; i < length; i++) {
++        sum += int.parse(clean[i]) * (length + 1 - i);
++      }
++      final remainder = (sum * 10) % 11;
++      return remainder == 10 ? 0 : remainder;
++    }
++
++    if (calcDigit(9) != int.parse(clean[9])) return false;
++    if (calcDigit(10) != int.parse(clean[10])) return false;
++    return true;
++  }
++
++  static String formatCpf(String cpf) {
++    final clean = cpf.replaceAll(RegExp(r'\D'), '');
++    if (clean.length != 11) return cpf;
++    return '${clean.substring(0, 3)}.${clean.substring(3, 6)}.${clean.substring(6, 9)}-${clean.substring(9, 11)}';
++  }
++
++  String get cleanCpf => cpf.replaceAll(RegExp(r'\D'), '');
++  String get formattedCpf => formatCpf(cpf);
++  String get formattedBaseSalary => formatCents(baseSalaryCents);
++  String get formattedAdditionalCosts => formatCents(additionalCostsCents);
++  String get formattedDailyRate => formatCents(totalDailyRateCents);
++
++  String get employmentTypeLabel {
++    switch (employmentType.toLowerCase()) {
++      case 'clt':
++        return 'CLT';
++      case 'pj':
++        return 'PJ';
++      case 'avulso':
++        return 'Diarista / Avulso';
++      default:
++        return employmentType.toUpperCase();
++    }
++  }
++
++  String get salaryBasisLabel =>
++      salaryBasis.toLowerCase() == 'diaria' ? 'Diária' : 'Mensal';
++
++  Funcionario copyWith({
++    String? id,
++    String? construtoraId,
++    String? name,
++    String? cpf,
++    String? role,
++    String? teamId,
++    bool clearTeamId = false,
++    String? employmentType,
++    String? salaryBasis,
++    int? baseSalaryCents,
++    int? additionalCostsCents,
++    int? totalDailyRateCents,
++    bool? isActive,
++    int? schemaVersion,
++    DateTime? createdAt,
++    DateTime? updatedAt,
++  }) {
++    final nextBase = baseSalaryCents ?? this.baseSalaryCents;
++    final nextAdd = additionalCostsCents ?? this.additionalCostsCents;
++    final nextBasis = salaryBasis ?? this.salaryBasis;
++
++    return Funcionario(
++      id: id ?? this.id,
++      construtoraId: construtoraId ?? this.construtoraId,
++      name: name ?? this.name,
++      cpf: cpf ?? this.cpf,
++      role: role ?? this.role,
++      teamId: clearTeamId ? null : (teamId ?? this.teamId),
++      employmentType: employmentType ?? this.employmentType,
++      salaryBasis: nextBasis,
++      baseSalaryCents: nextBase,
++      additionalCostsCents: nextAdd,
++      totalDailyRateCents: totalDailyRateCents ??
++          calculateDailyRate(
++            salaryBasis: nextBasis,
++            baseSalaryCents: nextBase,
++            additionalCostsCents: nextAdd,
++          ),
++      isActive: isActive ?? this.isActive,
++      schemaVersion: schemaVersion ?? this.schemaVersion,
++      createdAt: createdAt ?? this.createdAt,
++      updatedAt: updatedAt ?? this.updatedAt,
++    );
++  }
++
++  factory Funcionario.fromJson(Map<String, dynamic> json) {
++    DateTime? parseDate(dynamic val) {
++      if (val == null) return null;
++      if (val is Timestamp) return val.toDate();
++      if (val is DateTime) return val;
++      if (val is String && val.isNotEmpty) return DateTime.tryParse(val);
++      return null;
++    }
++
++    final base = (json['baseSalaryCents'] as num?)?.toInt() ??
++        ((json['baseSalary'] as num?) != null
++            ? ((json['baseSalary'] as num) * 100).round()
++            : 0);
++
++    final additional = (json['additionalCostsCents'] as num?)?.toInt() ??
++        ((json['additionalCosts'] as num?) != null
++            ? ((json['additionalCosts'] as num) * 100).round()
++            : 0);
++
++    final basis = (json['salaryBasis'] as String?) ?? 'mensal';
++
++    final daily = (json['totalDailyRateCents'] as num?)?.toInt() ??
++        ((json['totalDailyRate'] as num?) != null
++            ? ((json['totalDailyRate'] as num) * 100).round()
++            : calculateDailyRate(
++                salaryBasis: basis,
++                baseSalaryCents: base,
++                additionalCostsCents: additional,
++              ));
++
++    return Funcionario(
++      id: json['id'] as String? ?? '',
++      construtoraId: json['construtoraId'] as String? ?? '',
++      name: json['name'] as String? ?? '',
++      cpf: json['cpf'] as String? ?? '',
++      role: json['role'] as String? ?? '',
++      teamId: json['teamId'] as String?,
++      employmentType: json['employmentType'] as String? ?? 'clt',
++      salaryBasis: basis,
++      baseSalaryCents: base,
++      additionalCostsCents: additional,
++      totalDailyRateCents: daily,
++      isActive: json['isActive'] as bool? ?? true,
++      schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
++      createdAt: parseDate(json['createdAt']),
++      updatedAt: parseDate(json['updatedAt']),
++    );
++  }
++
++  Map<String, dynamic> toJson() {
++    return {
++      'id': id,
++      'construtoraId': construtoraId,
++      'name': name,
++      'cpf': cpf,
++      'role': role,
++      'teamId': teamId,
++      'employmentType': employmentType,
++      'salaryBasis': salaryBasis,
++      'baseSalaryCents': baseSalaryCents,
++      'additionalCostsCents': additionalCostsCents,
++      'totalDailyRateCents': totalDailyRateCents,
++      'isActive': isActive,
++      'schemaVersion': schemaVersion,
++      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
++      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
++    };
++  }
++}
+diff --git a/app/lib/src/features/rh/presentation/equipes_dialog.dart b/app/lib/src/features/rh/presentation/equipes_dialog.dart
+new file mode 100644
+index 0000000..b429eb9
+--- /dev/null
++++ b/app/lib/src/features/rh/presentation/equipes_dialog.dart
+@@ -0,0 +1,193 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:uuid/uuid.dart';
++
++import '../data/rh_repository.dart';
++import '../domain/equipe.dart';
++
++class EquipesDialog extends ConsumerStatefulWidget {
++  final String construtoraId;
++
++  const EquipesDialog({super.key, required this.construtoraId});
++
++  @override
++  ConsumerState<EquipesDialog> createState() => _EquipesDialogState();
++}
++
++class _EquipesDialogState extends ConsumerState<EquipesDialog> {
++  final _nameController = TextEditingController();
++  bool _isCreating = false;
++
++  @override
++  void dispose() {
++    _nameController.dispose();
++    super.dispose();
++  }
++
++  Future<void> _handleCreateEquipe() async {
++    final name = _nameController.text.trim();
++    if (name.isEmpty) return;
++
++    setState(() => _isCreating = true);
++    try {
++      final equipe = Equipe(
++        id: const Uuid().v4(),
++        construtoraId: widget.construtoraId,
++        name: name,
++        createdAt: DateTime.now(),
++      );
++
++      await ref.read(rhRepositoryProvider).createEquipe(equipe);
++      _nameController.clear();
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text('Equipe "$name" cadastrada com sucesso!')),
++        );
++      }
++    } catch (e) {
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text('Erro ao cadastrar equipe: $e')),
++        );
++      }
++    } finally {
++      if (mounted) setState(() => _isCreating = false);
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
++
++    return Dialog(
++      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
++      child: ConstrainedBox(
++        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
++        child: Padding(
++          padding: const EdgeInsets.all(20),
++          child: Column(
++            mainAxisSize: MainAxisSize.min,
++            crossAxisAlignment: CrossAxisAlignment.stretch,
++            children: [
++              Row(
++                mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                children: [
++                  const Text(
++                    'Gerenciar Equipes',
++                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
++                  ),
++                  IconButton(
++                    icon: const Icon(Icons.close),
++                    onPressed: () => Navigator.of(context).pop(),
++                  ),
++                ],
++              ),
++              const SizedBox(height: 16),
++              Row(
++                children: [
++                  Expanded(
++                    child: TextField(
++                      key: const Key('equipe_name_input'),
++                      controller: _nameController,
++                      decoration: const InputDecoration(
++                        labelText: 'Nome da Equipe',
++                        hintText: 'Ex: Equipe Alvenaria 1',
++                        border: OutlineInputBorder(),
++                        isDense: true,
++                      ),
++                      onSubmitted: (_) => _handleCreateEquipe(),
++                    ),
++                  ),
++                  const SizedBox(width: 8),
++                  ElevatedButton(
++                    key: const Key('btn_add_equipe'),
++                    onPressed: _isCreating ? null : _handleCreateEquipe,
++                    child: _isCreating
++                        ? const SizedBox(
++                            width: 16,
++                            height: 16,
++                            child: CircularProgressIndicator(strokeWidth: 2),
++                          )
++                        : const Text('Adicionar'),
++                  ),
++                ],
++              ),
++              const SizedBox(height: 16),
++              const Divider(),
++              Expanded(
++                child: equipesAsync.when(
++                  loading: () =>
++                      const Center(child: CircularProgressIndicator()),
++                  error: (e, _) => Center(child: Text('Erro: $e')),
++                  data: (equipes) {
++                    if (equipes.isEmpty) {
++                      return const Center(
++                        child: Text(
++                          'Nenhuma equipe cadastrada ainda.',
++                          style: TextStyle(color: Colors.grey),
++                        ),
++                      );
++                    }
++                    return ListView.separated(
++                      shrinkWrap: true,
++                      itemCount: equipes.length,
++                      separatorBuilder: (_, _) => const Divider(height: 1),
++                      itemBuilder: (context, index) {
++                        final eq = equipes[index];
++                        return ListTile(
++                          contentPadding: EdgeInsets.zero,
++                          leading: CircleAvatar(
++                            backgroundColor:
++                                eq.isActive ? Colors.indigo.shade100 : Colors.grey.shade200,
++                            child: Icon(
++                              Icons.groups,
++                              color: eq.isActive ? Colors.indigo : Colors.grey,
++                            ),
++                          ),
++                          title: Text(
++                            eq.name,
++                            style: TextStyle(
++                              fontWeight: FontWeight.w600,
++                              decoration: eq.isActive
++                                  ? null
++                                  : TextDecoration.lineThrough,
++                              color: eq.isActive ? null : Colors.grey,
++                            ),
++                          ),
++                          subtitle: eq.leaderName != null
++                              ? Text('Líder: ${eq.leaderName}')
++                              : null,
++                          trailing: IconButton(
++                            icon: Icon(
++                              eq.isActive
++                                  ? Icons.toggle_on
++                                  : Icons.toggle_off,
++                              color: eq.isActive ? Colors.green : Colors.grey,
++                              size: 32,
++                            ),
++                            tooltip: eq.isActive
++                                ? 'Inativar equipe'
++                                : 'Reativar equipe',
++                            onPressed: () async {
++                              await ref
++                                  .read(rhRepositoryProvider)
++                                  .setEquipeActive(
++                                    widget.construtoraId,
++                                    eq.id,
++                                    !eq.isActive,
++                                  );
++                            },
++                          ),
++                        );
++                      },
++                    );
++                  },
++                ),
++              ),
++            ],
++          ),
++        ),
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/rh/presentation/funcionario_form_screen.dart b/app/lib/src/features/rh/presentation/funcionario_form_screen.dart
+new file mode 100644
+index 0000000..45d89cd
+--- /dev/null
++++ b/app/lib/src/features/rh/presentation/funcionario_form_screen.dart
+@@ -0,0 +1,553 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:go_router/go_router.dart';
++import 'package:uuid/uuid.dart';
++
++import '../../../common_widgets/sigo_top_bar.dart';
++import '../../../core/contracts.dart';
++import '../data/rh_repository.dart';
++import '../domain/funcionario.dart';
++
++class FuncionarioFormScreen extends ConsumerStatefulWidget {
++  final String construtoraId;
++  final Funcionario? initialFuncionario;
++
++  const FuncionarioFormScreen({
++    super.key,
++    required this.construtoraId,
++    this.initialFuncionario,
++  });
++
++  @override
++  ConsumerState<FuncionarioFormScreen> createState() =>
++      _FuncionarioFormScreenState();
++}
++
++class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
++  final _formKey = GlobalKey<FormState>();
++
++  late final TextEditingController _nameController;
++  late final TextEditingController _cpfController;
++  late final TextEditingController _roleController;
++  late final TextEditingController _baseSalaryController;
++  late final TextEditingController _additionalCostsController;
++
++  late String _employmentType;
++  late String _salaryBasis;
++  String? _teamId;
++  bool _isSaving = false;
++
++  @override
++  void initState() {
++    super.initState();
++    final f = widget.initialFuncionario;
++    _nameController = TextEditingController(text: f?.name ?? '');
++    _cpfController = TextEditingController(text: f?.formattedCpf ?? '');
++    _roleController = TextEditingController(text: f?.role ?? '');
++
++    _baseSalaryController = TextEditingController(
++      text: f != null ? (f.baseSalaryCents / 100.0).toStringAsFixed(2) : '',
++    );
++    _additionalCostsController = TextEditingController(
++      text: f != null && f.additionalCostsCents > 0
++          ? (f.additionalCostsCents / 100.0).toStringAsFixed(2)
++          : '0.00',
++    );
++
++    _employmentType = f?.employmentType ?? 'clt';
++    _salaryBasis = f?.salaryBasis ?? 'mensal';
++    _teamId = f?.teamId;
++
++    _baseSalaryController.addListener(() => setState(() {}));
++    _additionalCostsController.addListener(() => setState(() {}));
++  }
++
++  @override
++  void dispose() {
++    _nameController.dispose();
++    _cpfController.dispose();
++    _roleController.dispose();
++    _baseSalaryController.dispose();
++    _additionalCostsController.dispose();
++    super.dispose();
++  }
++
++  int _parseCents(String text) {
++    if (text.trim().isEmpty) return 0;
++    try {
++      return parseCurrencyToCents(text);
++    } catch (_) {
++      return 0;
++    }
++  }
++
++  int get _currentDailyRateCents {
++    final base = _parseCents(_baseSalaryController.text);
++    final add = _parseCents(_additionalCostsController.text);
++    return Funcionario.calculateDailyRate(
++      salaryBasis: _salaryBasis,
++      baseSalaryCents: base,
++      additionalCostsCents: add,
++    );
++  }
++
++  Future<void> _handleSave() async {
++    if (!_formKey.currentState!.validate()) return;
++
++    final cpfText = _cpfController.text.trim();
++    if (!Funcionario.isValidCpf(cpfText)) {
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(
++          content: Text('CPF inválido. Verifique os números digitados.'),
++          backgroundColor: Colors.red,
++        ),
++      );
++      return;
++    }
++
++    final baseCents = _parseCents(_baseSalaryController.text);
++    if (baseCents <= 0) {
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(
++          content: Text('O salário base ou diária deve ser maior que zero.'),
++          backgroundColor: Colors.red,
++        ),
++      );
++      return;
++    }
++
++    final addCents = _parseCents(_additionalCostsController.text);
++
++    setState(() => _isSaving = true);
++    try {
++      final isEditing = widget.initialFuncionario != null;
++      final id = widget.initialFuncionario?.id ?? const Uuid().v4();
++
++      final funcionario = Funcionario(
++        id: id,
++        construtoraId: widget.construtoraId,
++        name: _nameController.text.trim(),
++        cpf: cpfText.replaceAll(RegExp(r'\D'), ''),
++        role: _roleController.text.trim(),
++        teamId: _teamId,
++        employmentType: _employmentType,
++        salaryBasis: _salaryBasis,
++        baseSalaryCents: baseCents,
++        additionalCostsCents: addCents,
++        isActive: widget.initialFuncionario?.isActive ?? true,
++        schemaVersion: 1,
++        createdAt: widget.initialFuncionario?.createdAt ?? DateTime.now(),
++        updatedAt: DateTime.now(),
++      );
++
++      if (isEditing) {
++        await ref.read(rhRepositoryProvider).updateFuncionario(funcionario);
++      } else {
++        await ref.read(rhRepositoryProvider).createFuncionario(funcionario);
++      }
++
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(
++            content: Text(
++              isEditing
++                  ? 'Colaborador atualizado com sucesso!'
++                  : 'Colaborador cadastrado com sucesso!',
++            ),
++            backgroundColor: Colors.green,
++          ),
++        );
++        context.pop();
++      }
++    } catch (e) {
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(
++            content: Text('Erro ao salvar colaborador: $e'),
++            backgroundColor: Colors.red,
++          ),
++        );
++      }
++    } finally {
++      if (mounted) setState(() => _isSaving = false);
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final isEditing = widget.initialFuncionario != null;
++    final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
++    final dailyRateCents = _currentDailyRateCents;
++
++    return Scaffold(
++      appBar: SigoTopBar(
++        title: isEditing ? 'Editar Colaborador' : 'Novo Colaborador',
++      ),
++      body: SingleChildScrollView(
++        padding: const EdgeInsets.all(24),
++        child: Center(
++          child: ConstrainedBox(
++            constraints: const BoxConstraints(maxWidth: 700),
++            child: Form(
++              key: _formKey,
++              child: Column(
++                crossAxisAlignment: CrossAxisAlignment.stretch,
++                children: [
++                  Card(
++                    elevation: 2,
++                    shape: RoundedRectangleBorder(
++                      borderRadius: BorderRadius.circular(12),
++                    ),
++                    child: Padding(
++                      padding: const EdgeInsets.all(20),
++                      child: Column(
++                        crossAxisAlignment: CrossAxisAlignment.start,
++                        children: [
++                          const Text(
++                            'Identificação do Profissional',
++                            style: TextStyle(
++                              fontSize: 18,
++                              fontWeight: FontWeight.bold,
++                            ),
++                          ),
++                          const SizedBox(height: 16),
++                          TextFormField(
++                            key: const Key('funcionario_name_input'),
++                            controller: _nameController,
++                            decoration: const InputDecoration(
++                              labelText: 'Nome Completo *',
++                              hintText: 'Ex: João da Silva',
++                              prefixIcon: Icon(Icons.person),
++                              border: OutlineInputBorder(),
++                            ),
++                            validator: (val) {
++                              if (val == null || val.trim().isEmpty) {
++                                return 'Nome é obrigatório';
++                              }
++                              return null;
++                            },
++                          ),
++                          const SizedBox(height: 16),
++                          Row(
++                            children: [
++                              Expanded(
++                                flex: 2,
++                                child: TextFormField(
++                                  key: const Key('funcionario_cpf_input'),
++                                  controller: _cpfController,
++                                  keyboardType: TextInputType.number,
++                                  decoration: const InputDecoration(
++                                    labelText: 'CPF *',
++                                    hintText: '000.000.000-00',
++                                    prefixIcon: Icon(Icons.badge),
++                                    border: OutlineInputBorder(),
++                                  ),
++                                  validator: (val) {
++                                    if (val == null || val.trim().isEmpty) {
++                                      return 'CPF é obrigatório';
++                                    }
++                                    if (!Funcionario.isValidCpf(val)) {
++                                      return 'CPF inválido';
++                                    }
++                                    return null;
++                                  },
++                                ),
++                              ),
++                              const SizedBox(width: 16),
++                              Expanded(
++                                flex: 2,
++                                child: TextFormField(
++                                  key: const Key('funcionario_role_input'),
++                                  controller: _roleController,
++                                  decoration: const InputDecoration(
++                                    labelText: 'Cargo / Função *',
++                                    hintText: 'Ex: Pedreiro, Eletricista',
++                                    prefixIcon: Icon(Icons.work),
++                                    border: OutlineInputBorder(),
++                                  ),
++                                  validator: (val) {
++                                    if (val == null || val.trim().isEmpty) {
++                                      return 'Cargo é obrigatório';
++                                    }
++                                    return null;
++                                  },
++                                ),
++                              ),
++                            ],
++                          ),
++                          const SizedBox(height: 16),
++                          equipesAsync.when(
++                            loading: () => const LinearProgressIndicator(),
++                            error: (_, _) => const SizedBox.shrink(),
++                            data: (equipes) {
++                              final activeEquipes =
++                                  equipes.where((e) => e.isActive).toList();
++                              return DropdownButtonFormField<String?>(
++                                key: const Key('funcionario_team_select'),
++                                isExpanded: true,
++                                initialValue: _teamId,
++                                decoration: const InputDecoration(
++                                  labelText: 'Equipe de Trabalho (Opcional)',
++                                  prefixIcon: Icon(Icons.groups),
++                                  border: OutlineInputBorder(),
++                                ),
++                                items: [
++                                  const DropdownMenuItem<String?>(
++                                    value: null,
++                                    child: Text('Sem equipe vinculada'),
++                                  ),
++                                  ...activeEquipes.map(
++                                    (e) => DropdownMenuItem<String?>(
++                                      value: e.id,
++                                      child: Text(e.name),
++                                    ),
++                                  ),
++                                ],
++                                onChanged: (val) => setState(() => _teamId = val),
++                              );
++                            },
++                          ),
++                        ],
++                      ),
++                    ),
++                  ),
++                  const SizedBox(height: 20),
++                  Card(
++                    elevation: 2,
++                    shape: RoundedRectangleBorder(
++                      borderRadius: BorderRadius.circular(12),
++                    ),
++                    child: Padding(
++                      padding: const EdgeInsets.all(20),
++                      child: Column(
++                        crossAxisAlignment: CrossAxisAlignment.start,
++                        children: [
++                          const Text(
++                            'Regime Contratual & Remuneração',
++                            style: TextStyle(
++                              fontSize: 18,
++                              fontWeight: FontWeight.bold,
++                            ),
++                          ),
++                          const SizedBox(height: 16),
++                          Row(
++                            children: [
++                              Expanded(
++                                child: DropdownButtonFormField<String>(
++                                  key: const Key('funcionario_employment_select'),
++                                  isExpanded: true,
++                                  initialValue: _employmentType,
++                                  decoration: const InputDecoration(
++                                    labelText: 'Regime de Contratação',
++                                    prefixIcon: Icon(Icons.description),
++                                    border: OutlineInputBorder(),
++                                  ),
++                                  items: const [
++                                    DropdownMenuItem(
++                                      value: 'clt',
++                                      child: Text('CLT (Carteira Assinada)'),
++                                    ),
++                                    DropdownMenuItem(
++                                      value: 'pj',
++                                      child: Text('PJ (Pessoa Jurídica)'),
++                                    ),
++                                    DropdownMenuItem(
++                                      value: 'avulso',
++                                      child: Text('Diarista / Avulso'),
++                                    ),
++                                  ],
++                                  onChanged: (val) {
++                                    if (val != null) {
++                                      setState(() {
++                                        _employmentType = val;
++                                        if (val == 'avulso') {
++                                          _salaryBasis = 'diaria';
++                                        }
++                                      });
++                                    }
++                                  },
++                                ),
++                              ),
++                              const SizedBox(width: 16),
++                              Expanded(
++                                child: DropdownButtonFormField<String>(
++                                  key: const Key('funcionario_basis_select'),
++                                  isExpanded: true,
++                                  initialValue: _salaryBasis,
++                                  decoration: const InputDecoration(
++                                    labelText: 'Base Salarial',
++                                    prefixIcon: Icon(Icons.schedule),
++                                    border: OutlineInputBorder(),
++                                  ),
++                                  items: const [
++                                    DropdownMenuItem(
++                                      value: 'mensal',
++                                      child: Text('Salário Mensal'),
++                                    ),
++                                    DropdownMenuItem(
++                                      value: 'diaria',
++                                      child: Text('Diária'),
++                                    ),
++                                  ],
++                                  onChanged: (val) {
++                                    if (val != null) {
++                                      setState(() => _salaryBasis = val);
++                                    }
++                                  },
++                                ),
++                              ),
++                            ],
++                          ),
++                          const SizedBox(height: 16),
++                          Row(
++                            children: [
++                              Expanded(
++                                child: TextFormField(
++                                  key: const Key('funcionario_salary_input'),
++                                  controller: _baseSalaryController,
++                                  keyboardType: const TextInputType.numberWithOptions(
++                                    decimal: true,
++                                  ),
++                                  decoration: InputDecoration(
++                                    labelText: _salaryBasis == 'diaria'
++                                        ? 'Valor da Diária (R\$) *'
++                                        : 'Salário Base Mensal (R\$) *',
++                                    hintText: '0.00',
++                                    prefixText: 'R\$ ',
++                                    border: const OutlineInputBorder(),
++                                  ),
++                                  validator: (val) {
++                                    if (val == null || val.trim().isEmpty) {
++                                      return 'Informe o valor';
++                                    }
++                                    if (_parseCents(val) <= 0) {
++                                      return 'Valor deve ser positivo';
++                                    }
++                                    return null;
++                                  },
++                                ),
++                              ),
++                              const SizedBox(width: 16),
++                              Expanded(
++                                child: TextFormField(
++                                  key: const Key('funcionario_additional_input'),
++                                  controller: _additionalCostsController,
++                                  keyboardType: const TextInputType.numberWithOptions(
++                                    decimal: true,
++                                  ),
++                                  decoration: const InputDecoration(
++                                    labelText: 'Encargos / Benefícios (R\$)',
++                                    hintText: '0.00',
++                                    prefixText: 'R\$ ',
++                                    border: OutlineInputBorder(),
++                                    helperText: 'Mensal ou por diária',
++                                  ),
++                                ),
++                              ),
++                            ],
++                          ),
++                          const SizedBox(height: 20),
++                          Container(
++                            padding: const EdgeInsets.all(16),
++                            decoration: BoxDecoration(
++                              color: Colors.indigo.shade50,
++                              borderRadius: BorderRadius.circular(10),
++                              border: Border.all(color: Colors.indigo.shade200),
++                            ),
++                            child: Row(
++                              children: [
++                                CircleAvatar(
++                                  backgroundColor: Colors.indigo.shade100,
++                                  child: const Icon(
++                                    Icons.calculate,
++                                    color: Colors.indigo,
++                                  ),
++                                ),
++                                const SizedBox(width: 16),
++                                Expanded(
++                                  child: Column(
++                                    crossAxisAlignment:
++                                        CrossAxisAlignment.start,
++                                    children: [
++                                      const Text(
++                                        'Taxa Diária para Apropriação em Lotes:',
++                                        style: TextStyle(
++                                          fontSize: 13,
++                                          fontWeight: FontWeight.w500,
++                                          color: Colors.indigo,
++                                        ),
++                                      ),
++                                      const SizedBox(height: 4),
++                                      Text(
++                                        '${formatCents(dailyRateCents)} / dia',
++                                        key: const Key('daily_rate_preview_text'),
++                                        style: const TextStyle(
++                                          fontSize: 20,
++                                          fontWeight: FontWeight.bold,
++                                          color: Colors.indigo,
++                                        ),
++                                      ),
++                                      Text(
++                                        _salaryBasis == 'mensal'
++                                            ? '(Cálculo: [Salário + Encargos] ÷ 30 dias corridos)'
++                                            : '(Cálculo: [Diária + Encargos Adicionais])',
++                                        style: TextStyle(
++                                          fontSize: 12,
++                                          color: Colors.indigo.shade700,
++                                        ),
++                                      ),
++                                    ],
++                                  ),
++                                ),
++                              ],
++                            ),
++                          ),
++                        ],
++                      ),
++                    ),
++                  ),
++                  const SizedBox(height: 24),
++                  Row(
++                    mainAxisAlignment: MainAxisAlignment.end,
++                    children: [
++                      OutlinedButton(
++                        onPressed: _isSaving ? null : () => context.pop(),
++                        child: const Text('Cancelar'),
++                      ),
++                      const SizedBox(width: 12),
++                      ElevatedButton.icon(
++                        key: const Key('btn_save_funcionario'),
++                        onPressed: _isSaving ? null : _handleSave,
++                        icon: _isSaving
++                            ? const SizedBox(
++                                width: 16,
++                                height: 16,
++                                child: CircularProgressIndicator(
++                                  strokeWidth: 2,
++                                  color: Colors.white,
++                                ),
++                              )
++                            : const Icon(Icons.check),
++                        label: Text(
++                          _isSaving
++                              ? 'Salvando...'
++                              : (isEditing ? 'Salvar Alterações' : 'Cadastrar'),
++                        ),
++                        style: ElevatedButton.styleFrom(
++                          padding: const EdgeInsets.symmetric(
++                            horizontal: 24,
++                            vertical: 14,
++                          ),
++                        ),
++                      ),
++                    ],
++                  ),
++                ],
++              ),
++            ),
++          ),
++        ),
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/rh/presentation/funcionarios_list_screen.dart b/app/lib/src/features/rh/presentation/funcionarios_list_screen.dart
+new file mode 100644
+index 0000000..55726c6
+--- /dev/null
++++ b/app/lib/src/features/rh/presentation/funcionarios_list_screen.dart
+@@ -0,0 +1,478 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/sigo_top_bar.dart';
++import '../data/rh_repository.dart';
++import 'equipes_dialog.dart';
++import 'funcionario_form_screen.dart';
++
++class FuncionariosListScreen extends ConsumerStatefulWidget {
++  final String construtoraId;
++
++  const FuncionariosListScreen({super.key, required this.construtoraId});
++
++  @override
++  ConsumerState<FuncionariosListScreen> createState() =>
++      _FuncionariosListScreenState();
++}
++
++class _FuncionariosListScreenState
++    extends ConsumerState<FuncionariosListScreen> {
++  String _searchQuery = '';
++  String _selectedStatus = 'ativos'; // 'todos', 'ativos', 'inativos'
++  String _selectedRegime = 'todos'; // 'todos', 'clt', 'pj', 'avulso'
++
++  @override
++  Widget build(BuildContext context) {
++    final funcionariosAsync =
++        ref.watch(funcionariosStreamProvider(widget.construtoraId));
++    final equipesAsync =
++        ref.watch(equipesStreamProvider(widget.construtoraId));
++
++    final Map<String, String> equipesMap = {};
++    if (equipesAsync.hasValue) {
++      for (final eq in equipesAsync.value!) {
++        equipesMap[eq.id] = eq.name;
++      }
++    }
++
++    return Scaffold(
++      appBar: SigoTopBar(
++        title: 'Recursos Humanos — Funcionários',
++        actions: [
++          IconButton(
++            key: const Key('btn_open_equipes'),
++            icon: const Icon(Icons.groups),
++            tooltip: 'Gerenciar Equipes',
++            onPressed: () {
++              showDialog(
++                context: context,
++                builder: (_) =>
++                    EquipesDialog(construtoraId: widget.construtoraId),
++              );
++            },
++          ),
++          IconButton(
++            key: const Key('btn_add_funcionario_appbar'),
++            icon: const Icon(Icons.person_add),
++            tooltip: 'Novo Funcionário',
++            onPressed: () {
++              context.push(
++                '/construtora/${widget.construtoraId}/rh/funcionarios/novo',
++              );
++            },
++          ),
++        ],
++      ),
++      floatingActionButton: FloatingActionButton.extended(
++        key: const Key('btn_add_funcionario_fab'),
++        onPressed: () {
++          context.push(
++            '/construtora/${widget.construtoraId}/rh/funcionarios/novo',
++          );
++        },
++        icon: const Icon(Icons.add),
++        label: const Text('Novo Colaborador'),
++      ),
++      body: Column(
++        children: [
++          Padding(
++            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
++            child: Row(
++              children: [
++                Expanded(
++                  child: TextField(
++                    key: const Key('search_funcionarios_input'),
++                    decoration: InputDecoration(
++                      hintText: 'Pesquisar por nome, cargo ou CPF...',
++                      prefixIcon: const Icon(Icons.search),
++                      border: OutlineInputBorder(
++                        borderRadius: BorderRadius.circular(10),
++                      ),
++                      isDense: true,
++                    ),
++                    onChanged: (val) => setState(() => _searchQuery = val),
++                  ),
++                ),
++              ],
++            ),
++          ),
++          SingleChildScrollView(
++            scrollDirection: Axis.horizontal,
++            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
++            child: Row(
++              children: [
++                const Text(
++                  'Status: ',
++                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
++                ),
++                ChoiceChip(
++                  label: const Text('Ativos'),
++                  selected: _selectedStatus == 'ativos',
++                  onSelected: (val) =>
++                      setState(() => _selectedStatus = 'ativos'),
++                ),
++                const SizedBox(width: 6),
++                ChoiceChip(
++                  label: const Text('Todos'),
++                  selected: _selectedStatus == 'todos',
++                  onSelected: (val) =>
++                      setState(() => _selectedStatus = 'todos'),
++                ),
++                const SizedBox(width: 6),
++                ChoiceChip(
++                  label: const Text('Inativos'),
++                  selected: _selectedStatus == 'inativos',
++                  onSelected: (val) =>
++                      setState(() => _selectedStatus = 'inativos'),
++                ),
++                const SizedBox(width: 16),
++                const Text(
++                  'Regime: ',
++                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
++                ),
++                ChoiceChip(
++                  label: const Text('Todos'),
++                  selected: _selectedRegime == 'todos',
++                  onSelected: (val) =>
++                      setState(() => _selectedRegime = 'todos'),
++                ),
++                const SizedBox(width: 6),
++                ChoiceChip(
++                  label: const Text('CLT'),
++                  selected: _selectedRegime == 'clt',
++                  onSelected: (val) => setState(() => _selectedRegime = 'clt'),
++                ),
++                const SizedBox(width: 6),
++                ChoiceChip(
++                  label: const Text('PJ'),
++                  selected: _selectedRegime == 'pj',
++                  onSelected: (val) => setState(() => _selectedRegime = 'pj'),
++                ),
++                const SizedBox(width: 6),
++                ChoiceChip(
++                  label: const Text('Avulso'),
++                  selected: _selectedRegime == 'avulso',
++                  onSelected: (val) =>
++                      setState(() => _selectedRegime = 'avulso'),
++                ),
++              ],
++            ),
++          ),
++          const Divider(),
++          Expanded(
++            child: funcionariosAsync.when(
++              loading: () =>
++                  const Center(child: CircularProgressIndicator()),
++              error: (e, st) => Center(child: Text('Erro ao carregar RH: $e')),
++              data: (funcionarios) {
++                final filtered = funcionarios.where((f) {
++                  // Filtro status
++                  if (_selectedStatus == 'ativos' && !f.isActive) return false;
++                  if (_selectedStatus == 'inativos' && f.isActive) return false;
++
++                  // Filtro regime
++                  if (_selectedRegime != 'todos' &&
++                      f.employmentType.toLowerCase() != _selectedRegime) {
++                    return false;
++                  }
++
++                  // Filtro busca texto
++                  if (_searchQuery.isNotEmpty) {
++                    final q = _searchQuery.toLowerCase();
++                    final matchName = f.name.toLowerCase().contains(q);
++                    final matchRole = f.role.toLowerCase().contains(q);
++                    final matchCpf = f.cpf.contains(q);
++                    if (!matchName && !matchRole && !matchCpf) return false;
++                  }
++                  return true;
++                }).toList();
++
++                if (filtered.isEmpty) {
++                  return const Center(
++                    child: Text(
++                      'Nenhum colaborador encontrado para os filtros selecionados.',
++                      style: TextStyle(color: Colors.grey),
++                    ),
++                  );
++                }
++
++                return ListView.builder(
++                  padding: const EdgeInsets.only(
++                    left: 16,
++                    right: 16,
++                    top: 8,
++                    bottom: 80,
++                  ),
++                  itemCount: filtered.length,
++                  itemBuilder: (context, index) {
++                    final f = filtered[index];
++                    final teamName =
++                        f.teamId != null ? equipesMap[f.teamId] : null;
++
++                    return Card(
++                      key: Key('funcionario_card_${f.id}'),
++                      margin: const EdgeInsets.only(bottom: 12),
++                      shape: RoundedRectangleBorder(
++                        borderRadius: BorderRadius.circular(12),
++                        side: BorderSide(
++                          color: f.isActive
++                              ? Colors.grey.shade300
++                              : Colors.red.shade200,
++                        ),
++                      ),
++                      child: Padding(
++                        padding: const EdgeInsets.all(16),
++                        child: Column(
++                          crossAxisAlignment: CrossAxisAlignment.start,
++                          children: [
++                            Row(
++                              crossAxisAlignment: CrossAxisAlignment.start,
++                              children: [
++                                CircleAvatar(
++                                  radius: 22,
++                                  backgroundColor: f.isActive
++                                      ? Colors.blue.shade100
++                                      : Colors.grey.shade300,
++                                  child: Icon(
++                                    Icons.person,
++                                    color: f.isActive
++                                        ? Colors.blue.shade800
++                                        : Colors.grey.shade600,
++                                  ),
++                                ),
++                                const SizedBox(width: 12),
++                                Expanded(
++                                  child: Column(
++                                    crossAxisAlignment:
++                                        CrossAxisAlignment.start,
++                                    children: [
++                                      Text(
++                                        f.name,
++                                        style: TextStyle(
++                                          fontSize: 16,
++                                          fontWeight: FontWeight.bold,
++                                          decoration: f.isActive
++                                              ? null
++                                              : TextDecoration.lineThrough,
++                                        ),
++                                      ),
++                                      const SizedBox(height: 2),
++                                      Text(
++                                        '${f.role} • CPF: ${f.formattedCpf}',
++                                        style: TextStyle(
++                                          fontSize: 13,
++                                          color: Colors.grey.shade700,
++                                        ),
++                                      ),
++                                    ],
++                                  ),
++                                ),
++                                PopupMenuButton<String>(
++                                  onSelected: (action) async {
++                                    if (action == 'edit') {
++                                      Navigator.of(context).push(
++                                        MaterialPageRoute(
++                                          builder: (_) =>
++                                              FuncionarioFormScreen(
++                                            construtoraId:
++                                                widget.construtoraId,
++                                            initialFuncionario: f,
++                                          ),
++                                        ),
++                                      );
++                                    } else if (action == 'toggle') {
++                                      final newStatus = !f.isActive;
++                                      final confirm = await showDialog<bool>(
++                                        context: context,
++                                        builder: (ctx) => AlertDialog(
++                                          title: Text(
++                                            newStatus
++                                                ? 'Reativar Colaborador'
++                                                : 'Inativar Colaborador',
++                                          ),
++                                          content: Text(
++                                            'Tem certeza que deseja ${newStatus ? "reativar" : "inativar"} ${f.name}?',
++                                          ),
++                                          actions: [
++                                            TextButton(
++                                              onPressed: () =>
++                                                  Navigator.of(ctx).pop(false),
++                                              child: const Text('Cancelar'),
++                                            ),
++                                            ElevatedButton(
++                                              onPressed: () =>
++                                                  Navigator.of(ctx).pop(true),
++                                              child: const Text('Confirmar'),
++                                            ),
++                                          ],
++                                        ),
++                                      );
++                                      if (confirm == true) {
++                                        await ref
++                                            .read(rhRepositoryProvider)
++                                            .setFuncionarioActive(
++                                              widget.construtoraId,
++                                              f.id,
++                                              newStatus,
++                                            );
++                                      }
++                                    }
++                                  },
++                                  itemBuilder: (ctx) => [
++                                    const PopupMenuItem(
++                                      value: 'edit',
++                                      child: Row(
++                                        children: [
++                                          Icon(Icons.edit, size: 18),
++                                          SizedBox(width: 8),
++                                          Text('Editar'),
++                                        ],
++                                      ),
++                                    ),
++                                    PopupMenuItem(
++                                      value: 'toggle',
++                                      child: Row(
++                                        children: [
++                                          Icon(
++                                            f.isActive
++                                                ? Icons.block
++                                                : Icons.check_circle,
++                                            size: 18,
++                                            color: f.isActive
++                                                ? Colors.red
++                                                : Colors.green,
++                                          ),
++                                          const SizedBox(width: 8),
++                                          Text(
++                                            f.isActive
++                                                ? 'Inativar'
++                                                : 'Reativar',
++                                          ),
++                                        ],
++                                      ),
++                                    ),
++                                  ],
++                                ),
++                              ],
++                            ),
++                            const SizedBox(height: 12),
++                            Wrap(
++                              spacing: 8,
++                              runSpacing: 4,
++                              children: [
++                                _Badge(
++                                  label: f.isActive ? 'Ativo' : 'Inativo',
++                                  color: f.isActive
++                                      ? Colors.green
++                                      : Colors.grey,
++                                ),
++                                _Badge(
++                                  label: f.employmentTypeLabel,
++                                  color: Colors.blue,
++                                ),
++                                if (teamName != null)
++                                  _Badge(
++                                    label: 'Equipe: $teamName',
++                                    color: Colors.indigo,
++                                  ),
++                              ],
++                            ),
++                            const SizedBox(height: 12),
++                            Container(
++                              padding: const EdgeInsets.symmetric(
++                                horizontal: 12,
++                                vertical: 8,
++                              ),
++                              decoration: BoxDecoration(
++                                color: Colors.grey.shade100,
++                                borderRadius: BorderRadius.circular(8),
++                              ),
++                              child: Row(
++                                mainAxisAlignment:
++                                    MainAxisAlignment.spaceBetween,
++                                children: [
++                                  Column(
++                                    crossAxisAlignment:
++                                        CrossAxisAlignment.start,
++                                    children: [
++                                      Text(
++                                        'Remuneração Base: ${f.formattedBaseSalary} (${f.salaryBasisLabel})',
++                                        style: const TextStyle(fontSize: 12),
++                                      ),
++                                      if (f.additionalCostsCents > 0)
++                                        Text(
++                                          'Adicionais: ${f.formattedAdditionalCosts}',
++                                          style: TextStyle(
++                                            fontSize: 11,
++                                            color: Colors.grey.shade600,
++                                          ),
++                                        ),
++                                    ],
++                                  ),
++                                  Container(
++                                    padding: const EdgeInsets.symmetric(
++                                      horizontal: 10,
++                                      vertical: 4,
++                                    ),
++                                    decoration: BoxDecoration(
++                                      color: Colors.indigo.shade50,
++                                      borderRadius: BorderRadius.circular(6),
++                                      border: Border.all(
++                                        color: Colors.indigo.shade200,
++                                      ),
++                                    ),
++                                    child: Text(
++                                      '${f.formattedDailyRate} / dia',
++                                      style: TextStyle(
++                                        fontWeight: FontWeight.bold,
++                                        fontSize: 13,
++                                        color: Colors.indigo.shade900,
++                                      ),
++                                    ),
++                                  ),
++                                ],
++                              ),
++                            ),
++                          ],
++                        ),
++                      ),
++                    );
++                  },
++                );
++              },
++            ),
++          ),
++        ],
++      ),
++    );
++  }
++}
++
++class _Badge extends StatelessWidget {
++  final String label;
++  final MaterialColor color;
++
++  const _Badge({required this.label, required this.color});
++
++  @override
++  Widget build(BuildContext context) {
++    return Container(
++      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
++      decoration: BoxDecoration(
++        color: color.shade50,
++        borderRadius: BorderRadius.circular(12),
++        border: Border.all(color: color.shade200),
++      ),
++      child: Text(
++        label,
++        style: TextStyle(
++          color: color.shade900,
++          fontWeight: FontWeight.bold,
++          fontSize: 11,
++        ),
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/routing/app_router.dart b/app/lib/src/routing/app_router.dart
+index eebb0a7..1d44a5d 100644
+--- a/app/lib/src/routing/app_router.dart
++++ b/app/lib/src/routing/app_router.dart
+@@ -27,6 +27,9 @@ import '../features/developer/presentation/users_list_screen.dart';
+ import '../features/developer/presentation/user_details_screen.dart';
+ import '../features/developer/presentation/dev_construtoras_list_screen.dart';
+ import '../features/authentication/data/user_repository.dart';
++import '../features/rh/presentation/funcionarios_list_screen.dart';
++import '../features/rh/presentation/funcionario_form_screen.dart';
++import '../features/rh/domain/funcionario.dart';
+ 
+ final routerProvider = Provider<GoRouter>((ref) {
+   final authState = ref.watch(authStateChangesProvider);
+@@ -270,6 +273,54 @@ final routerProvider = Provider<GoRouter>((ref) {
+           );
+         },
+       ),
++      GoRoute(
++        path: '/construtora/:cId/rh',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'rh',
++            child: FuncionariosListScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: '/construtora/:cId/rh/funcionarios',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'rh',
++            child: FuncionariosListScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: '/construtora/:cId/rh/funcionarios/novo',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'rh',
++            child: FuncionarioFormScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: '/construtora/:cId/rh/funcionarios/:fId/editar',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final extra = state.extra;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'rh',
++            child: FuncionarioFormScreen(
++              construtoraId: cId,
++              initialFuncionario: extra is Funcionario ? extra : null,
++            ),
++          );
++        },
++      ),
+     ],
+   );
+ });
+diff --git a/app/test/rh_cadastro_test.dart b/app/test/rh_cadastro_test.dart
+new file mode 100644
+index 0000000..d399e14
+--- /dev/null
++++ b/app/test/rh_cadastro_test.dart
+@@ -0,0 +1,501 @@
++import 'dart:async';
++import 'package:flutter/material.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import 'package:app/src/features/rh/domain/funcionario.dart';
++import 'package:app/src/features/rh/domain/equipe.dart';
++import 'package:app/src/features/rh/data/rh_repository.dart';
++import 'package:app/src/features/rh/presentation/funcionarios_list_screen.dart';
++import 'package:app/src/features/rh/presentation/funcionario_form_screen.dart';
++import 'package:app/src/features/rh/presentation/equipes_dialog.dart';
++import 'package:app/src/features/authentication/data/auth_repository.dart';
++import 'package:app/src/features/authentication/data/user_repository.dart';
++
++class FakeRhRepository implements RhRepository {
++  final List<Funcionario> funcionarios = [];
++  final List<Equipe> equipes = [];
++
++  final _funcStreamCtrl = StreamController<List<Funcionario>>.broadcast();
++  final _eqStreamCtrl = StreamController<List<Equipe>>.broadcast();
++
++  void _notifyFuncionarios() {
++    _funcStreamCtrl.add(List.unmodifiable(funcionarios));
++  }
++
++  void _notifyEquipes() {
++    _eqStreamCtrl.add(List.unmodifiable(equipes));
++  }
++
++  @override
++  Stream<List<Funcionario>> watchFuncionarios(String construtoraId) async* {
++    yield funcionarios.where((f) => f.construtoraId == construtoraId).toList();
++    yield* _funcStreamCtrl.stream.map(
++      (list) => list.where((f) => f.construtoraId == construtoraId).toList(),
++    );
++  }
++
++  @override
++  Future<List<Funcionario>> getFuncionarios(String construtoraId) async {
++    return funcionarios.where((f) => f.construtoraId == construtoraId).toList();
++  }
++
++  @override
++  Future<void> createFuncionario(Funcionario funcionario) async {
++    funcionarios.add(funcionario);
++    _notifyFuncionarios();
++  }
++
++  @override
++  Future<void> updateFuncionario(Funcionario funcionario) async {
++    final idx = funcionarios.indexWhere((f) => f.id == funcionario.id);
++    if (idx != -1) {
++      funcionarios[idx] = funcionario;
++      _notifyFuncionarios();
++    }
++  }
++
++  @override
++  Future<void> setFuncionarioActive(
++    String construtoraId,
++    String funcionarioId,
++    bool isActive,
++  ) async {
++    final idx = funcionarios.indexWhere((f) => f.id == funcionarioId);
++    if (idx != -1) {
++      funcionarios[idx] = funcionarios[idx].copyWith(isActive: isActive);
++      _notifyFuncionarios();
++    }
++  }
++
++  @override
++  Stream<List<Equipe>> watchEquipes(String construtoraId) async* {
++    yield equipes.where((e) => e.construtoraId == construtoraId).toList();
++    yield* _eqStreamCtrl.stream.map(
++      (list) => list.where((e) => e.construtoraId == construtoraId).toList(),
++    );
++  }
++
++  @override
++  Future<List<Equipe>> getEquipes(String construtoraId) async {
++    return equipes.where((e) => e.construtoraId == construtoraId).toList();
++  }
++
++  @override
++  Future<void> createEquipe(Equipe equipe) async {
++    equipes.add(equipe);
++    _notifyEquipes();
++  }
++
++  @override
++  Future<void> updateEquipe(Equipe equipe) async {
++    final idx = equipes.indexWhere((e) => e.id == equipe.id);
++    if (idx != -1) {
++      equipes[idx] = equipe;
++      _notifyEquipes();
++    }
++  }
++
++  @override
++  Future<void> setEquipeActive(
++    String construtoraId,
++    String equipeId,
++    bool isActive,
++  ) async {
++    final idx = equipes.indexWhere((e) => e.id == equipeId);
++    if (idx != -1) {
++      equipes[idx] = equipes[idx].copyWith(isActive: isActive);
++      _notifyEquipes();
++    }
++  }
++}
++
++void main() {
++  group('Story 4.1 — RH: Cadastro de Funcionários e Equipes', () {
++    late FakeRhRepository fakeRepo;
++
++    // CPFs válidos conhecidos para testes
++    const validCpf1 = '52998224725';
++    const validCpfFormatted = '529.982.247-25';
++
++    setUp(() {
++      fakeRepo = FakeRhRepository();
++    });
++
++    test('Validação de CPF com dígitos verificadores e casos de borda', () {
++      // CPF válido (algoritmo padrão da Receita Federal)
++      expect(Funcionario.isValidCpf(validCpf1), isTrue);
++      expect(Funcionario.isValidCpf(validCpfFormatted), isTrue);
++
++      // Dígitos todos repetidos (devem ser rejeitados)
++      expect(Funcionario.isValidCpf('111.111.111-11'), isFalse);
++      expect(Funcionario.isValidCpf('00000000000'), isFalse);
++      expect(Funcionario.isValidCpf('99999999999'), isFalse);
++
++      // Tamanho incorreto
++      expect(Funcionario.isValidCpf('123.456.789'), isFalse);
++      expect(Funcionario.isValidCpf('123456789012'), isFalse);
++      expect(Funcionario.isValidCpf(''), isFalse);
++      expect(Funcionario.isValidCpf(null), isFalse);
++
++      // Dígitos verificadores incorretos
++      expect(Funcionario.isValidCpf('52998224724'), isFalse);
++      expect(Funcionario.isValidCpf('52998224735'), isFalse);
++    });
++
++    test('Matrix Row 1: Cálculo de taxa diária para CLT Mensal (divisor 30 com DSR)', () {
++      // Salário R$ 3.000,00 (300.000 centavos) + Encargos R$ 600,00 (60.000 centavos)
++      // Total = 360.000 centavos / 30 = 12.000 centavos = R$ 120,00/dia
++      final dailyCents = Funcionario.calculateDailyRate(
++        salaryBasis: 'mensal',
++        baseSalaryCents: 300000,
++        additionalCostsCents: 60000,
++      );
++      expect(dailyCents, equals(12000));
++
++      final f = Funcionario(
++        id: 'func-01',
++        construtoraId: 'c1',
++        name: 'João da Silva',
++        cpf: validCpf1,
++        role: 'Pedreiro',
++        employmentType: 'clt',
++        salaryBasis: 'mensal',
++        baseSalaryCents: 300000,
++        additionalCostsCents: 60000,
++      );
++      expect(f.totalDailyRateCents, equals(12000));
++      expect(f.formattedBaseSalary, equals('R\$ 3.000,00'));
++      expect(f.formattedAdditionalCosts, equals('R\$ 600,00'));
++      expect(f.formattedDailyRate, equals('R\$ 120,00'));
++      expect(f.employmentTypeLabel, equals('CLT'));
++      expect(f.salaryBasisLabel, equals('Mensal'));
++    });
++
++    test('Matrix Row 2: Cálculo de taxa diária para Diarista Avulso', () {
++      // Diária de R$ 150,00 (15.000 centavos) + 0 encargos => 15.000 centavos
++      final dailyCents = Funcionario.calculateDailyRate(
++        salaryBasis: 'diaria',
++        baseSalaryCents: 15000,
++        additionalCostsCents: 0,
++      );
++      expect(dailyCents, equals(15000));
++
++      final f = Funcionario(
++        id: 'func-02',
++        construtoraId: 'c1',
++        name: 'Carlos Pereira',
++        cpf: validCpf1,
++        role: 'Servente',
++        employmentType: 'avulso',
++        salaryBasis: 'diaria',
++        baseSalaryCents: 15000,
++        additionalCostsCents: 0,
++      );
++      expect(f.totalDailyRateCents, equals(15000));
++      expect(f.formattedDailyRate, equals('R\$ 150,00'));
++      expect(f.employmentTypeLabel, equals('Diarista / Avulso'));
++      expect(f.salaryBasisLabel, equals('Diária'));
++    });
++
++    test('Serialização e compatibilidade de Funcionario e Equipe', () {
++      final f = Funcionario(
++        id: 'f-ser-1',
++        construtoraId: 'c1',
++        name: 'Manoel Pintor',
++        cpf: validCpf1,
++        role: 'Pintor',
++        teamId: 'eq-1',
++        employmentType: 'pj',
++        salaryBasis: 'mensal',
++        baseSalaryCents: 450000,
++        additionalCostsCents: 50000,
++        isActive: true,
++        schemaVersion: 1,
++        createdAt: DateTime(2026, 9, 17),
++      );
++
++      final json = f.toJson();
++      expect(json['id'], equals('f-ser-1'));
++      expect(json['baseSalaryCents'], equals(450000));
++      expect(json['totalDailyRateCents'], equals(16666)); // (450000 + 50000) ~/ 30
++      expect(json['teamId'], equals('eq-1'));
++
++      final fromJson = Funcionario.fromJson(json);
++      expect(fromJson.name, equals('Manoel Pintor'));
++      expect(fromJson.baseSalaryCents, equals(450000));
++      expect(fromJson.totalDailyRateCents, equals(16666));
++      expect(fromJson.teamId, equals('eq-1'));
++
++      // Teste de Equipe
++      final eq = Equipe(
++        id: 'eq-1',
++        construtoraId: 'c1',
++        name: 'Equipe Acabamento',
++        leaderId: 'f-ser-1',
++        leaderName: 'Manoel Pintor',
++      );
++      final eqJson = eq.toJson();
++      expect(eqJson['name'], equals('Equipe Acabamento'));
++      final eqFrom = Equipe.fromJson(eqJson);
++      expect(eqFrom.name, equals('Equipe Acabamento'));
++      expect(eqFrom.leaderName, equals('Manoel Pintor'));
++    });
++
++    testWidgets('Listagem de colaboradores renderiza cards, badges e filtros',
++        (tester) async {
++      fakeRepo.funcionarios.addAll([
++        Funcionario(
++          id: 'f1',
++          construtoraId: 'c1',
++          name: 'Alberto Santos',
++          cpf: validCpf1,
++          role: 'Encarregado',
++          employmentType: 'clt',
++          salaryBasis: 'mensal',
++          baseSalaryCents: 500000,
++          additionalCostsCents: 100000,
++          isActive: true,
++        ),
++        Funcionario(
++          id: 'f2',
++          construtoraId: 'c1',
++          name: 'Bruno Lima',
++          cpf: validCpf1,
++          role: 'Ajudante',
++          employmentType: 'avulso',
++          salaryBasis: 'diaria',
++          baseSalaryCents: 16000,
++          additionalCostsCents: 0,
++          isActive: false, // Inativo
++        ),
++      ]);
++
++      await tester.pumpWidget(
++        ProviderScope(
++          overrides: [
++            rhRepositoryProvider.overrideWithValue(fakeRepo),
++            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
++            authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
++          ],
++          child: const MaterialApp(
++            home: FuncionariosListScreen(construtoraId: 'c1'),
++          ),
++        ),
++      );
++
++      await tester.pumpAndSettle();
++
++      // Por padrão, o filtro é 'Ativos'
++      expect(find.text('Alberto Santos'), findsOneWidget);
++      expect(find.text('Bruno Lima'), findsNothing); // Inativo filtrado
++      expect(find.widgetWithText(ChoiceChip, 'CLT'), findsOneWidget);
++      expect(find.text('Ativo'), findsOneWidget);
++
++      // Alternar filtro para 'Todos'
++      await tester.tap(find.text('Todos').first);
++      await tester.pumpAndSettle();
++      expect(find.text('Alberto Santos'), findsOneWidget);
++      expect(find.text('Bruno Lima'), findsOneWidget);
++
++      // Alternar filtro para 'Inativos'
++      await tester.tap(find.text('Inativos'));
++      await tester.pumpAndSettle();
++      expect(find.text('Alberto Santos'), findsNothing);
++      expect(find.text('Bruno Lima'), findsOneWidget);
++
++      // Busca textual
++      await tester.tap(find.text('Todos').first);
++      await tester.pumpAndSettle();
++      await tester.enterText(
++        find.byKey(const Key('search_funcionarios_input')),
++        'Alberto',
++      );
++      await tester.pumpAndSettle();
++      expect(find.text('Alberto Santos'), findsOneWidget);
++      expect(find.text('Bruno Lima'), findsNothing);
++    });
++
++    testWidgets('Formulário de Funcionário valida campos e calcula preview em tempo real',
++        (tester) async {
++      tester.view.physicalSize = const Size(1200, 1200);
++      tester.view.devicePixelRatio = 1.0;
++      addTearDown(() {
++        tester.view.resetPhysicalSize();
++        tester.view.resetDevicePixelRatio();
++      });
++
++      await tester.pumpWidget(
++        ProviderScope(
++          overrides: [
++            rhRepositoryProvider.overrideWithValue(fakeRepo),
++            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
++            authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
++          ],
++          child: const MaterialApp(
++            home: FuncionarioFormScreen(construtoraId: 'c1'),
++          ),
++        ),
++      );
++
++      await tester.pumpAndSettle();
++
++      final saveBtn = find.byKey(const Key('btn_save_funcionario'));
++      await tester.ensureVisible(saveBtn);
++      await tester.tap(saveBtn);
++      await tester.pumpAndSettle();
++
++      expect(find.text('Nome é obrigatório'), findsOneWidget);
++      expect(find.text('CPF é obrigatório'), findsOneWidget);
++      expect(find.text('Cargo é obrigatório'), findsOneWidget);
++
++      // Preencher nome com espaços vazios
++      await tester.enterText(
++        find.byKey(const Key('funcionario_name_input')),
++        '   ',
++      );
++      await tester.ensureVisible(saveBtn);
++      await tester.tap(saveBtn);
++      await tester.pumpAndSettle();
++      expect(find.text('Nome é obrigatório'), findsOneWidget);
++
++      // Preencher nome válido e cargo válido
++      await tester.enterText(
++        find.byKey(const Key('funcionario_name_input')),
++        'Marcos Vinicius',
++      );
++      await tester.enterText(
++        find.byKey(const Key('funcionario_role_input')),
++        'Eletricista',
++      );
++
++      // Preencher CPF inválido
++      await tester.enterText(
++        find.byKey(const Key('funcionario_cpf_input')),
++        '111.111.111-11',
++      );
++      await tester.ensureVisible(saveBtn);
++      await tester.tap(saveBtn);
++      await tester.pumpAndSettle();
++      expect(find.text('CPF inválido'), findsOneWidget);
++
++      // Corrigir para CPF válido
++      await tester.enterText(
++        find.byKey(const Key('funcionario_cpf_input')),
++        validCpfFormatted,
++      );
++      await tester.pumpAndSettle();
++
++      // Preencher Salário Base de R$ 3.000,00 e adicionais R$ 600,00
++      await tester.enterText(
++        find.byKey(const Key('funcionario_salary_input')),
++        '3000.00',
++      );
++      await tester.enterText(
++        find.byKey(const Key('funcionario_additional_input')),
++        '600.00',
++      );
++      await tester.pumpAndSettle();
++
++      // Preview dinâmico deve calcular (3000 + 600) / 30 = R$ 120,00 / dia
++      expect(find.text('R\$ 120,00 / dia'), findsOneWidget);
++
++      // Salvar funcionário
++      await tester.ensureVisible(saveBtn);
++      await tester.tap(saveBtn);
++      await tester.pumpAndSettle();
++
++      // Verificar persistência no fakeRepo
++      expect(fakeRepo.funcionarios.length, equals(1));
++      final saved = fakeRepo.funcionarios.first;
++      expect(saved.name, equals('Marcos Vinicius'));
++      expect(saved.cleanCpf, equals(validCpf1));
++      expect(saved.role, equals('Eletricista'));
++      expect(saved.baseSalaryCents, equals(300000));
++      expect(saved.additionalCostsCents, equals(60000));
++      expect(saved.totalDailyRateCents, equals(12000));
++      expect(saved.isActive, isTrue);
++    });
++
++    testWidgets('Inativação lógica (soft delete) altera isActive para false',
++        (tester) async {
++      fakeRepo.funcionarios.add(
++        Funcionario(
++          id: 'f-ativo-1',
++          construtoraId: 'c1',
++          name: 'Renato Soldador',
++          cpf: validCpf1,
++          role: 'Soldador',
++          employmentType: 'pj',
++          salaryBasis: 'mensal',
++          baseSalaryCents: 400000,
++          isActive: true,
++        ),
++      );
++
++      await tester.pumpWidget(
++        ProviderScope(
++          overrides: [
++            rhRepositoryProvider.overrideWithValue(fakeRepo),
++            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
++            authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
++          ],
++          child: const MaterialApp(
++            home: FuncionariosListScreen(construtoraId: 'c1'),
++          ),
++        ),
++      );
++
++      await tester.pumpAndSettle();
++
++      // Abrir menu do card
++      await tester.tap(find.byType(PopupMenuButton<String>));
++      await tester.pumpAndSettle();
++
++      // Clicar em Inativar
++      await tester.tap(find.text('Inativar'));
++      await tester.pumpAndSettle();
++
++      // Confirmar no diálogo de confirmação
++      expect(find.text('Inativar Colaborador'), findsOneWidget);
++      await tester.tap(find.text('Confirmar'));
++      await tester.pumpAndSettle();
++
++      // Verificar que virou inativo no repositório
++      expect(fakeRepo.funcionarios.first.isActive, isFalse);
++    });
++
++    testWidgets('EquipesDialog permite criar e inativar equipes',
++        (tester) async {
++      await tester.pumpWidget(
++        ProviderScope(
++          overrides: [
++            rhRepositoryProvider.overrideWithValue(fakeRepo),
++          ],
++          child: const MaterialApp(
++            home: Scaffold(
++              body: EquipesDialog(construtoraId: 'c1'),
++            ),
++          ),
++        ),
++      );
++
++      await tester.pumpAndSettle();
++
++      expect(find.text('Nenhuma equipe cadastrada ainda.'), findsOneWidget);
++
++      // Adicionar nova equipe
++      await tester.enterText(
++        find.byKey(const Key('equipe_name_input')),
++        'Equipe Estruturas 01',
++      );
++      await tester.tap(find.byKey(const Key('btn_add_equipe')));
++      await tester.pumpAndSettle();
++
++      expect(fakeRepo.equipes.length, equals(1));
++      expect(fakeRepo.equipes.first.name, equals('Equipe Estruturas 01'));
++      expect(fakeRepo.equipes.first.isActive, isTrue);
++      expect(find.text('Equipe Estruturas 01'), findsOneWidget);
++    });
++  });
++}
+diff --git a/firestore.rules b/firestore.rules
+index dfcee2f..6b43193 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -13,6 +13,7 @@ service cloud.firestore {
+    function obraAdmin(c,o) { return admin(c) || (obraMember(c,o) && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || om(c,o).get('role', '') == 'admin' || om(c,o).get('role', '') == 'owner')); }
+    function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]))); }
+    function stock(c) { return admin(c) || (member(c) && ('estoque' in cm(c).get('modules',[]) || 'almoxarifado' in cm(c).get('modules',[]))); }
++   function rh(c) { return admin(c) || (member(c) && ('rh' in cm(c).get('modules',[]) || 'recursos_humanos' in cm(c).get('modules',[]))); }
+   match /dev_roles/{uid} {
+     allow read: if signed() && (request.auth.uid == uid || dev());
+     allow create: if signed() && request.auth.uid == uid && (
+@@ -35,6 +36,16 @@ service cloud.firestore {
+    allow delete: if false;
+    match /construtora_members/{uid} { allow read: if signed() && (request.auth.uid == uid || admin(c)); allow write: if false; }
+    match /commands/{id} { allow read: if dev() || (signed() && resource.data.actor == request.auth.uid); allow write: if false; }
++   match /funcionarios/{f} {
++    allow read: if rh(c);
++    allow create, update: if rh(c) && request.resource.data.id == f && request.resource.data.construtoraId == c;
++    allow delete: if false;
++   }
++   match /equipes/{e} {
++    allow read: if rh(c);
++    allow create, update: if rh(c) && request.resource.data.id == e && request.resource.data.construtoraId == c;
++    allow delete: if false;
++   }
+    match /materiais/{m} {
+     allow read: if stock(c);
+     allow create: if stock(c) && request.resource.data.keys().hasOnly(['id','construtoraId','name','unit','currentQuantity','quantityUnits','quantityScale','schemaVersion']) && request.resource.data.id == m && request.resource.data.construtoraId == c && request.resource.data.currentQuantity == 0 && request.resource.data.quantityUnits == 0 && request.resource.data.quantityScale == 1000 && request.resource.data.schemaVersion == 2;

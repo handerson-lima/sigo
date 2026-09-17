@@ -13,6 +13,7 @@ service cloud.firestore {
    function obraAdmin(c,o) { return admin(c) || (obraMember(c,o) && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || om(c,o).get('role', '') == 'admin' || om(c,o).get('role', '') == 'owner')); }
    function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]))); }
    function stock(c) { return admin(c) || (member(c) && ('estoque' in cm(c).get('modules',[]) || 'almoxarifado' in cm(c).get('modules',[]))); }
+   function rh(c) { return admin(c) || (member(c) && ('rh' in cm(c).get('modules',[]) || 'recursos_humanos' in cm(c).get('modules',[]))); }
   match /dev_roles/{uid} {
     allow read: if signed() && (request.auth.uid == uid || dev());
     allow create: if signed() && request.auth.uid == uid && (
@@ -35,6 +36,16 @@ service cloud.firestore {
    allow delete: if false;
    match /construtora_members/{uid} { allow read: if signed() && (request.auth.uid == uid || admin(c)); allow write: if false; }
    match /commands/{id} { allow read: if dev() || (signed() && resource.data.actor == request.auth.uid); allow write: if false; }
+   match /funcionarios/{f} {
+    allow read: if rh(c);
+    allow create, update: if rh(c) && request.resource.data.id == f && request.resource.data.construtoraId == c;
+    allow delete: if false;
+   }
+   match /equipes/{e} {
+    allow read: if rh(c);
+    allow create, update: if rh(c) && request.resource.data.id == e && request.resource.data.construtoraId == c;
+    allow delete: if false;
+   }
    match /materiais/{m} {
     allow read: if stock(c);
     allow create: if stock(c) && request.resource.data.keys().hasOnly(['id','construtoraId','name','unit','currentQuantity','quantityUnits','quantityScale','schemaVersion']) && request.resource.data.id == m && request.resource.data.construtoraId == c && request.resource.data.currentQuantity == 0 && request.resource.data.quantityUnits == 0 && request.resource.data.quantityScale == 1000 && request.resource.data.schemaVersion == 2;

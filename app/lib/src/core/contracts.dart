@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 String normalizeModule(String value) => switch (value) {
   'rdo' => 'diario',
   'almoxarifado' => 'estoque',
+  'recursos_humanos' => 'rh',
   _ => value,
 };
 

@@ -39,6 +39,12 @@ class ObrasListScreen extends ConsumerWidget {
             (cm?['modules'] as List? ?? []).any(
               (m) => m == 'estoque' || m == 'almoxarifado',
             );
+    final hasRh =
+        admin ||
+        cm?['isActive'] == true &&
+            (cm?['modules'] as List? ?? []).any(
+              (m) => m == 'rh' || m == 'recursos_humanos',
+            );
     final despesasAsync = admin
         ? ref.watch(despesasConstrutoraProvider(construtoraId))
         : const AsyncData<List<Despesa>>([]);
@@ -64,6 +70,14 @@ class ObrasListScreen extends ConsumerWidget {
             tooltip: 'Gerenciar Membros',
             onPressed: () {
               context.go('/construtora/$construtoraId/membros');
+            },
+          ),
+        if (hasRh)
+          IconButton(
+            icon: const Icon(Icons.badge, color: Colors.black54),
+            tooltip: 'Recursos Humanos (RH)',
+            onPressed: () {
+              context.go('/construtora/$construtoraId/rh');
             },
           ),
         if (stock)
