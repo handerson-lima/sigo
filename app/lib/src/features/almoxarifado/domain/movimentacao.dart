@@ -17,6 +17,9 @@ class Movimentacao {
   final String? obraId; // Para qual obra foi encaminhado (nas saídas)
   final String? loteId; // Para qual lote foi encaminhado (opcional)
   final String? observacao;
+  final String? evidence; // Caminho/URL da foto ou anexo da NF
+  final String? nfNumber; // Número da Nota Fiscal
+  final String? fornecedor; // Razão social ou nome do fornecedor
 
   Movimentacao({
     required this.id,
@@ -28,6 +31,9 @@ class Movimentacao {
     this.obraId,
     this.loteId,
     this.observacao,
+    this.evidence,
+    this.nfNumber,
+    this.fornecedor,
   });
 
   factory Movimentacao.fromJson(Map<String, dynamic> json) =>

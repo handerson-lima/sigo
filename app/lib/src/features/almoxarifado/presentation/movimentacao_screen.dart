@@ -33,13 +33,30 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
   final _obsController = TextEditingController();
   final _obraController = TextEditingController();
   final _loteController = TextEditingController();
+  final _nfController = TextEditingController();
+  final _fornecedorController = TextEditingController();
+  final _evidenceController = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _obsController.dispose();
+    _obraController.dispose();
+    _loteController.dispose();
+    _nfController.dispose();
+    _fornecedorController.dispose();
+    _evidenceController.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     final q = double.tryParse(_quantityController.text) ?? 0;
     if (!q.isFinite || q <= 0) return;
+
+    final isSaida = widget.type == MovimentacaoType.saida;
 
     setState(() => _isLoading = true);
 
@@ -59,6 +76,15 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
             ? null
             : _loteController.text.trim(),
         observacao: _obsController.text.trim(),
+        nfNumber: !isSaida && _nfController.text.trim().isNotEmpty
+            ? _nfController.text.trim()
+            : null,
+        fornecedor: !isSaida && _fornecedorController.text.trim().isNotEmpty
+            ? _fornecedorController.text.trim()
+            : null,
+        evidence: !isSaida && _evidenceController.text.trim().isNotEmpty
+            ? _evidenceController.text.trim()
+            : null,
       );
 
       await ref
@@ -152,11 +178,34 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                   ),
                 ),
               ],
+              if (!isSaida) ...[
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _nfController,
+                  decoration: const InputDecoration(
+                    labelText: 'Número da Nota Fiscal (NF)',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _fornecedorController,
+                  decoration: const InputDecoration(
+                    labelText: 'Fornecedor',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _evidenceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Evidência / Comprovante (URL ou Referência)',
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               TextFormField(
                 controller: _obsController,
                 decoration: const InputDecoration(
-                  labelText: 'Observação (Ex: NF, Motivo, Entregador)',
+                  labelText: 'Observação (Ex: Motivo, Entregador)',
                 ),
               ),
               const SizedBox(height: 32),

@@ -75,7 +75,7 @@ development_status:
 
   epic-3: in-progress
   3-1-crud-projetos-lotes: done
-  3-2-estoque-recebimento: backlog
+  3-2-estoque-recebimento: done
   3-3-estoque-saida: backlog
   3-4-estoque-ajustes: backlog
   3-5-estoque-estorno: backlog

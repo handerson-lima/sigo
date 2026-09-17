@@ -65,6 +65,9 @@ class AlmoxarifadoRepository {
       'obraId': mov.obraId,
       'loteId': mov.loteId,
       'observacao': mov.observacao,
+      'evidence': mov.evidence,
+      'nfNumber': mov.nfNumber,
+      'fornecedor': mov.fornecedor,
     });
   }
 }

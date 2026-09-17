@@ -1,0 +1,219 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 9967922..9bc35f2 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -75,7 +75,7 @@ development_status:
+ 
+   epic-3: in-progress
+   3-1-crud-projetos-lotes: done
+-  3-2-estoque-recebimento: backlog
++  3-2-estoque-recebimento: done
+   3-3-estoque-saida: backlog
+   3-4-estoque-ajustes: backlog
+   3-5-estoque-estorno: backlog
+diff --git a/app/lib/src/features/almoxarifado/data/almoxarifado_repository.dart b/app/lib/src/features/almoxarifado/data/almoxarifado_repository.dart
+index 2e8399a..a525afe 100644
+--- a/app/lib/src/features/almoxarifado/data/almoxarifado_repository.dart
++++ b/app/lib/src/features/almoxarifado/data/almoxarifado_repository.dart
+@@ -65,6 +65,9 @@ class AlmoxarifadoRepository {
+       'obraId': mov.obraId,
+       'loteId': mov.loteId,
+       'observacao': mov.observacao,
++      'evidence': mov.evidence,
++      'nfNumber': mov.nfNumber,
++      'fornecedor': mov.fornecedor,
+     });
+   }
+ }
+diff --git a/app/lib/src/features/almoxarifado/domain/movimentacao.dart b/app/lib/src/features/almoxarifado/domain/movimentacao.dart
+index e25b84e..965efb8 100644
+--- a/app/lib/src/features/almoxarifado/domain/movimentacao.dart
++++ b/app/lib/src/features/almoxarifado/domain/movimentacao.dart
+@@ -17,6 +17,9 @@ class Movimentacao {
+   final String? obraId; // Para qual obra foi encaminhado (nas saídas)
+   final String? loteId; // Para qual lote foi encaminhado (opcional)
+   final String? observacao;
++  final String? evidence; // Caminho/URL da foto ou anexo da NF
++  final String? nfNumber; // Número da Nota Fiscal
++  final String? fornecedor; // Razão social ou nome do fornecedor
+ 
+   Movimentacao({
+     required this.id,
+@@ -28,6 +31,9 @@ class Movimentacao {
+     this.obraId,
+     this.loteId,
+     this.observacao,
++    this.evidence,
++    this.nfNumber,
++    this.fornecedor,
+   });
+ 
+   factory Movimentacao.fromJson(Map<String, dynamic> json) =>
+diff --git a/app/lib/src/features/almoxarifado/domain/movimentacao.g.dart b/app/lib/src/features/almoxarifado/domain/movimentacao.g.dart
+index 6542d3a..21215fd 100644
+--- a/app/lib/src/features/almoxarifado/domain/movimentacao.g.dart
++++ b/app/lib/src/features/almoxarifado/domain/movimentacao.g.dart
+@@ -16,6 +16,9 @@ Movimentacao _$MovimentacaoFromJson(Map<String, dynamic> json) => Movimentacao(
+   obraId: json['obraId'] as String?,
+   loteId: json['loteId'] as String?,
+   observacao: json['observacao'] as String?,
++  evidence: json['evidence'] as String?,
++  nfNumber: json['nfNumber'] as String?,
++  fornecedor: json['fornecedor'] as String?,
+ );
+ 
+ Map<String, dynamic> _$MovimentacaoToJson(Movimentacao instance) =>
+@@ -29,6 +32,9 @@ Map<String, dynamic> _$MovimentacaoToJson(Movimentacao instance) =>
+       'obraId': instance.obraId,
+       'loteId': instance.loteId,
+       'observacao': instance.observacao,
++      'evidence': instance.evidence,
++      'nfNumber': instance.nfNumber,
++      'fornecedor': instance.fornecedor,
+     };
+ 
+ const _$MovimentacaoTypeEnumMap = {
+diff --git a/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart b/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart
+index 016c7e6..f26d088 100644
+--- a/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart
++++ b/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart
+@@ -33,14 +33,31 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+   final _obsController = TextEditingController();
+   final _obraController = TextEditingController();
+   final _loteController = TextEditingController();
++  final _nfController = TextEditingController();
++  final _fornecedorController = TextEditingController();
++  final _evidenceController = TextEditingController();
+   bool _isLoading = false;
+ 
++  @override
++  void dispose() {
++    _quantityController.dispose();
++    _obsController.dispose();
++    _obraController.dispose();
++    _loteController.dispose();
++    _nfController.dispose();
++    _fornecedorController.dispose();
++    _evidenceController.dispose();
++    super.dispose();
++  }
++
+   Future<void> _submit() async {
+     if (!_formKey.currentState!.validate()) return;
+ 
+     final q = double.tryParse(_quantityController.text) ?? 0;
+     if (!q.isFinite || q <= 0) return;
+ 
++    final isSaida = widget.type == MovimentacaoType.saida;
++
+     setState(() => _isLoading = true);
+ 
+     try {
+@@ -59,6 +76,15 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+             ? null
+             : _loteController.text.trim(),
+         observacao: _obsController.text.trim(),
++        nfNumber: !isSaida && _nfController.text.trim().isNotEmpty
++            ? _nfController.text.trim()
++            : null,
++        fornecedor: !isSaida && _fornecedorController.text.trim().isNotEmpty
++            ? _fornecedorController.text.trim()
++            : null,
++        evidence: !isSaida && _evidenceController.text.trim().isNotEmpty
++            ? _evidenceController.text.trim()
++            : null,
+       );
+ 
+       await ref
+@@ -152,11 +178,34 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+                   ),
+                 ),
+               ],
++              if (!isSaida) ...[
++                const SizedBox(height: 16),
++                TextFormField(
++                  controller: _nfController,
++                  decoration: const InputDecoration(
++                    labelText: 'Número da Nota Fiscal (NF)',
++                  ),
++                ),
++                const SizedBox(height: 16),
++                TextFormField(
++                  controller: _fornecedorController,
++                  decoration: const InputDecoration(
++                    labelText: 'Fornecedor',
++                  ),
++                ),
++                const SizedBox(height: 16),
++                TextFormField(
++                  controller: _evidenceController,
++                  decoration: const InputDecoration(
++                    labelText: 'Evidência / Comprovante (URL ou Referência)',
++                  ),
++                ),
++              ],
+               const SizedBox(height: 16),
+               TextFormField(
+                 controller: _obsController,
+                 decoration: const InputDecoration(
+-                  labelText: 'Observação (Ex: NF, Motivo, Entregador)',
++                  labelText: 'Observação (Ex: Motivo, Entregador)',
+                 ),
+               ),
+               const SizedBox(height: 32),
+diff --git a/app/lib/src/features/almoxarifado/presentation/stock_history_screen.dart b/app/lib/src/features/almoxarifado/presentation/stock_history_screen.dart
+index c94358b..dbe3608 100644
+--- a/app/lib/src/features/almoxarifado/presentation/stock_history_screen.dart
++++ b/app/lib/src/features/almoxarifado/presentation/stock_history_screen.dart
+@@ -174,11 +174,28 @@ class StockHistoryScreen extends StatelessWidget {
+                         'ajuste',
+                       ].contains(d['commandType']) &&
+                       d['reversedBy'] == null;
++                  final nf = d['nfNumber'] as String?;
++                  final fornecedor = d['fornecedor'] as String?;
++                  final evidence = d['evidence'] as String?;
++                  final obs = (d['observacao'] ?? d['reason'] ?? '') as String;
++                  final details = <String>[];
++                  if (nf != null && nf.isNotEmpty) details.add('NF: $nf');
++                  if (fornecedor != null && fornecedor.isNotEmpty) {
++                    details.add('Fornecedor: $fornecedor');
++                  }
++                  if (evidence != null && evidence.isNotEmpty) {
++                    details.add('Evidência: $evidence');
++                  }
++                  if (obs.isNotEmpty) details.add(obs);
++                  if (d['reversedBy'] != null) details.add('(Estornado)');
++
+                   return ListTile(
+                     title: Text(
+                       '${d['type']} · ${d['quantity']} ${material.unit}',
+                     ),
+-                    subtitle: Text(d['observacao'] ?? ''),
++                    subtitle: details.isEmpty
++                        ? null
++                        : Text(details.join(' • ')),
+                     trailing: canManage && reversible
+                         ? TextButton(
+                             onPressed: () => correction(
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index 4d29ed9..17839ad 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -97,7 +97,7 @@ export const stockCommand = callable('stockCommand', async (d, uid) => {
+   if ((type === 'entrada' || type === 'saida') && quantity <= 0) throw new Error('Quantidade positiva obrigatória');
+   const o = d.obraId ? id(d.obraId) : null, l = d.loteId ? id(d.loteId) : null;
+   if (type === 'saida' && !o || l && !o || d.apropriacaoLote === true && !l) throw new Error('Destino obrigatório');
+-  const payload = {m, type, quantity, o, l, reason: d.reason || d.observacao || '', reversalId: d.reversalId || null, evidence: d.evidence || null, apropriacaoLote: d.apropriacaoLote === true};
++  const payload = {m, type, quantity, o, l, reason: d.reason || d.observacao || '', reversalId: d.reversalId || null, evidence: d.evidence || null, nfNumber: d.nfNumber || null, fornecedor: d.fornecedor || null, apropriacaoLote: d.apropriacaoLote === true};
+   const h = hash(payload), command = db.doc(`construtoras/${c}/commands/${hash([uid, op])}`), mat = db.doc(`construtoras/${c}/materiais/${m}`);
+   return db.runTransaction(async tx => {
+     const a = await authority(tx, uid, c, o || undefined); if (!a.can('estoque')) fail('permission-denied', 'Estoque não autorizado');
+@@ -126,7 +126,7 @@ export const stockCommand = callable('stockCommand', async (d, uid) => {
+     if (!Number.isSafeInteger(next) || next < 0) fail('failed-precondition', 'Saldo insuficiente ou fora do limite');
+     const movementId = hash([uid, op]), result = {movementId, quantityUnits: next, quantityScale: SCALE};
+     tx.update(mat, {quantityUnits: next, quantityScale: SCALE, currentQuantity: next / SCALE, schemaVersion: 2});
+-    tx.create(mat.collection('movimentacoes').doc(movementId), {id: movementId, materialId: m, type: delta < 0 ? 'saida' : 'entrada', commandType: type, quantity: Math.abs(delta) / SCALE, quantityUnits: Math.abs(delta), deltaUnits: delta, quantityScale: SCALE, date: admin.firestore.Timestamp.now(), responsavelId: uid, obraId: o, loteId: l, observacao: payload.reason, evidence: d.evidence || null, reversalId: payload.reversalId, openingBalanceUnits: type === 'abertura' ? balance : null});
++    tx.create(mat.collection('movimentacoes').doc(movementId), {id: movementId, materialId: m, type: delta < 0 ? 'saida' : 'entrada', commandType: type, quantity: Math.abs(delta) / SCALE, quantityUnits: Math.abs(delta), deltaUnits: delta, quantityScale: SCALE, date: admin.firestore.Timestamp.now(), responsavelId: uid, obraId: o, loteId: l, observacao: payload.reason, evidence: d.evidence || null, nfNumber: d.nfNumber || null, fornecedor: d.fornecedor || null, reversalId: payload.reversalId, openingBalanceUnits: type === 'abertura' ? balance : null});
+     if (original) tx.update(original, {reversedBy: movementId});
+     tx.create(command, {payloadHash: h, result, actor: uid, at: stamp()}); audit(tx, uid, 'stockCommand', mat.path, {operationId: op, type});
+     return result;

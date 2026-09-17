@@ -174,11 +174,28 @@ class StockHistoryScreen extends StatelessWidget {
                         'ajuste',
                       ].contains(d['commandType']) &&
                       d['reversedBy'] == null;
+                  final nf = d['nfNumber'] as String?;
+                  final fornecedor = d['fornecedor'] as String?;
+                  final evidence = d['evidence'] as String?;
+                  final obs = (d['observacao'] ?? d['reason'] ?? '') as String;
+                  final details = <String>[];
+                  if (nf != null && nf.isNotEmpty) details.add('NF: $nf');
+                  if (fornecedor != null && fornecedor.isNotEmpty) {
+                    details.add('Fornecedor: $fornecedor');
+                  }
+                  if (evidence != null && evidence.isNotEmpty) {
+                    details.add('Evidência: $evidence');
+                  }
+                  if (obs.isNotEmpty) details.add(obs);
+                  if (d['reversedBy'] != null) details.add('(Estornado)');
+
                   return ListTile(
                     title: Text(
                       '${d['type']} · ${d['quantity']} ${material.unit}',
                     ),
-                    subtitle: Text(d['observacao'] ?? ''),
+                    subtitle: details.isEmpty
+                        ? null
+                        : Text(details.join(' • ')),
                     trailing: canManage && reversible
                         ? TextButton(
                             onPressed: () => correction(
