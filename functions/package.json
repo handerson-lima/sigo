@@ -12,6 +12,7 @@
     "test:integration": "npm run build && node --test test/integration.cjs",
     "test:browser": "node --test test/queue-browser.cjs",
     "test:emulators": "npm run build && firebase emulators:exec --config ../firebase.json --project demo-sigo --only auth,firestore,storage \"node --test test/integration.cjs\"",
+    "test:rules": "firebase emulators:exec --config ../firebase.test.json --project demo-sigo --only auth,firestore,storage \"node --test test/security-rules.test.cjs\"",
     "test:pwa": "node --test test/pwa-browser.cjs",
     "seed": "node scripts/seed-mock.cjs"
   },

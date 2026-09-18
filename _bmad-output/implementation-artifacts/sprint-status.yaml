@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-17-2026 18:25
+last_updated: 09-17-2026 21:12
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -67,11 +67,11 @@ development_status:
   2-14-versionamento-migracao: done
   epic-2-retrospective: done
 
-  2-5-1-firestore-rules: backlog
-  2-5-2-storage-rules: backlog
-  2-5-3-validar-membership: backlog
-  2-5-4-revalidacao-autorizacao: backlog
-  2-5-5-testes-seguranca: backlog
+  2-5-1-firestore-rules: done
+  2-5-2-storage-rules: done
+  2-5-3-validar-membership: done
+  2-5-4-revalidacao-autorizacao: done
+  2-5-5-testes-seguranca: done
 
   epic-3: done
   3-1-crud-projetos-lotes: done
