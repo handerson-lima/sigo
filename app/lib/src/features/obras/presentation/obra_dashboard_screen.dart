@@ -246,6 +246,14 @@ class ObraDashboardScreen extends ConsumerWidget {
                           '/construtora/$construtoraId/obra/$obraId/compras',
                         ),
                       ),
+                    if (canAdm || canFinanceiro)
+                      SigoModuleCard(
+                        icon: Icons.query_stats_rounded,
+                        title: 'Visão 360 Custos',
+                        onTap: () => context.go(
+                          '/construtora/$construtoraId/obra/$obraId/custos-360',
+                        ),
+                      ),
                     if (canEstoque)
                       SigoModuleCard(
                         icon: Icons.inventory_2,

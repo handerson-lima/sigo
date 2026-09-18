@@ -1,0 +1,2510 @@
+diff --git a/app/lib/src/common_widgets/sigo_sidebar.dart b/app/lib/src/common_widgets/sigo_sidebar.dart
+index 7d25fbc..c3497af 100644
+--- a/app/lib/src/common_widgets/sigo_sidebar.dart
++++ b/app/lib/src/common_widgets/sigo_sidebar.dart
+@@ -253,6 +253,16 @@ class SigoSidebar extends ConsumerWidget {
+                         context.go('/construtora/$cId/obra/$oId/compras');
+                       },
+                     ),
++                  if (canAdm || canFinanceiro)
++                    _NavItem(
++                      icon: Icons.query_stats_rounded,
++                      title: 'Visão 360 Custos',
++                      isActive: activeRoute.contains('/custos-360'),
++                      onTap: () {
++                        Scaffold.maybeOf(context)?.closeDrawer();
++                        context.go('/construtora/$cId/obra/$oId/custos-360');
++                      },
++                    ),
+                   const SizedBox(height: 24),
+                   const Padding(
+                     padding: EdgeInsets.only(left: 16, bottom: 8),
+diff --git a/app/lib/src/features/custos_360/data/custos_360_repository.dart b/app/lib/src/features/custos_360/data/custos_360_repository.dart
+new file mode 100644
+index 0000000..831a1c2
+--- /dev/null
++++ b/app/lib/src/features/custos_360/data/custos_360_repository.dart
+@@ -0,0 +1,329 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import '../../almoxarifado/domain/movimentacao.dart';
++import '../../despesas_adm/domain/despesa_adm.dart';
++import '../../lotes/domain/lote.dart';
++import '../../rh/domain/chamada_diaria.dart';
++import '../domain/custo_lote_consolidado.dart';
++import '../domain/rateio_indireto_math.dart';
++
++final custos360RepositoryProvider = Provider<Custos360Repository>((ref) {
++  return Custos360Repository(FirebaseFirestore.instance);
++});
++
++class Custos360Repository {
++  final FirebaseFirestore _firestore;
++
++  Custos360Repository([FirebaseFirestore? firestore])
++      : _firestore = firestore ?? FirebaseFirestore.instance;
++
++  CollectionReference<Map<String, dynamic>> _obrasRef(String construtoraId) =>
++      _firestore.collection('construtoras').doc(construtoraId).collection('obras');
++
++  CollectionReference<Map<String, dynamic>> _lotesRef(
++          String construtoraId, String obraId) =>
++      _obrasRef(construtoraId).doc(obraId).collection('lotes');
++
++  CollectionReference<Map<String, dynamic>> _despesasRef(
++          String construtoraId, String obraId) =>
++      _obrasRef(construtoraId).doc(obraId).collection('despesas_adm');
++
++  CollectionReference<Map<String, dynamic>> _chamadasRef(
++          String construtoraId, String obraId) =>
++      _obrasRef(construtoraId).doc(obraId).collection('chamadas');
++
++  DocumentReference<Map<String, dynamic>> _resumoObraDoc(
++          String construtoraId, String obraId) =>
++      _obrasRef(construtoraId)
++          .doc(obraId)
++          .collection('resumo_custos')
++          .doc('consolidado');
++
++  DocumentReference<Map<String, dynamic>> _resumoLoteDoc(
++          String construtoraId, String obraId, String loteId) =>
++      _lotesRef(construtoraId, obraId)
++          .doc(loteId)
++          .collection('resumo_custos')
++          .doc('consolidado');
++
++  /// Observa em tempo real a consolidação matricial dos custos da obra e seus lotes
++  Stream<ResumoCustosObra> watchResumoObra(String construtoraId, String obraId) {
++    return _lotesRef(construtoraId, obraId).snapshots().asyncMap((lotesSnap) async {
++      final lotes = lotesSnap.docs.map((doc) => Lote.fromJson(doc.data())).toList();
++      return await consolidarCustos(construtoraId, obraId, lotes);
++    });
++  }
++
++  /// Calcula a consolidação dos 4 cubos em tempo real e persiste snapshot em background
++  Future<ResumoCustosObra> consolidarCustos(
++    String construtoraId,
++    String obraId,
++    List<Lote> lotes,
++  ) async {
++    // 1. Obter Despesas Administrativas da Obra
++    final despesasSnap = await _despesasRef(construtoraId, obraId).get();
++    final despesas = despesasSnap.docs
++        .map((d) => DespesaAdm.fromJson(d.data()))
++        .where((d) => d.status != StatusDespesaAdm.cancelado)
++        .toList();
++
++    // 2. Obter Chamadas Diárias de RH da Obra
++    final chamadasSnap = await _chamadasRef(construtoraId, obraId).get();
++    final chamadas = chamadasSnap.docs
++        .map((d) => ChamadaDiaria.fromMap(d.data()))
++        .toList();
++
++    // 3. Obter Movimentações de Saída de Almoxarifado da Obra
++    List<Movimentacao> movimentacoes = [];
++    try {
++      final movSnap = await _firestore
++          .collectionGroup('movimentacoes')
++          .where('obraId', isEqualTo: obraId)
++          .get();
++      movimentacoes = movSnap.docs
++          .map((d) => Movimentacao.fromJson(d.data()))
++          .where((m) => m.reversedBy == null)
++          .toList();
++    } catch (_) {
++      // Caso o índice collectionGroup esteja pendente ou indisponível
++      movimentacoes = [];
++    }
++
++    // Estruturas de agregação por Lote
++    final materiaisMap = <String, int>{for (final l in lotes) l.id: 0};
++    final moMap = <String, int>{for (final l in lotes) l.id: 0};
++    final despesasDiretasMap = <String, int>{for (final l in lotes) l.id: 0};
++    var totalDespesasIndiretasCents = 0;
++
++    // Agregação de Materiais
++    for (final mov in movimentacoes) {
++      if (mov.apropriacaoLote == true &&
++          mov.loteId != null &&
++          materiaisMap.containsKey(mov.loteId)) {
++        final custo = mov.custoTotalCentavos ??
++            (mov.valorItensCentavos ?? 0) +
++                (mov.freteCentavos ?? 0) +
++                (mov.despesasCentavos ?? 0) -
++                (mov.descontoCentavos ?? 0);
++
++        if (mov.commandType == 'estorno') {
++          materiaisMap[mov.loteId!] = (materiaisMap[mov.loteId!] ?? 0) - custo;
++        } else {
++          materiaisMap[mov.loteId!] = (materiaisMap[mov.loteId!] ?? 0) + custo;
++        }
++      }
++    }
++
++    // Agregação de Mão de Obra
++    for (final chamada in chamadas) {
++      for (final lotSummary in chamada.lotCostSummaries) {
++        if (moMap.containsKey(lotSummary.lotId)) {
++          moMap[lotSummary.lotId] =
++              (moMap[lotSummary.lotId] ?? 0) + lotSummary.totalCostCents;
++        }
++      }
++    }
++
++    // Agregação de Despesas Administrativas (Diretas e Indiretas)
++    for (final desp in despesas) {
++      if (desp.loteId != null &&
++          desp.loteId!.isNotEmpty &&
++          despesasDiretasMap.containsKey(desp.loteId)) {
++        despesasDiretasMap[desp.loteId!] =
++            (despesasDiretasMap[desp.loteId!] ?? 0) + desp.valorTotalCents;
++      } else {
++        totalDespesasIndiretasCents += desp.valorTotalCents;
++      }
++    }
++
++    // Rateio Indireto Matemático sem resíduos de centavos
++    final lotesIds = lotes.map((l) => l.id).toList();
++    final rateioMap = RateioIndiretoMath.distribuir(
++      totalDespesasIndiretasCents: totalDespesasIndiretasCents,
++      lotesIds: lotesIds,
++    );
++
++    // Ler orçamentos persistidos para cada lote
++    final lotesCustos = <CustoLoteConsolidado>[];
++    var totalGeralMat = 0;
++    var totalGeralMo = 0;
++    var totalGeralDd = 0;
++    var orcamentoTotalPrevisto = 0;
++
++    for (final lote in lotes) {
++      final mat = materiaisMap[lote.id] ?? 0;
++      final mo = moMap[lote.id] ?? 0;
++      final dd = despesasDiretasMap[lote.id] ?? 0;
++      final ri = rateioMap[lote.id] ?? 0;
++
++      totalGeralMat += mat;
++      totalGeralMo += mo;
++      totalGeralDd += dd;
++
++      var orcamentoLote = 0;
++      try {
++        final resumoLoteDoc =
++            await _resumoLoteDoc(construtoraId, obraId, lote.id).get();
++        if (resumoLoteDoc.exists && resumoLoteDoc.data() != null) {
++          orcamentoLote =
++              (resumoLoteDoc.data()!['orcamentoPrevistoCents'] as num?)?.toInt() ?? 0;
++        }
++      } catch (_) {}
++
++      orcamentoTotalPrevisto += orcamentoLote;
++
++      final consolidado = CustoLoteConsolidado(
++        loteId: lote.id,
++        loteNome: lote.name,
++        materiaisCents: mat,
++        maoDeObraCents: mo,
++        despesasDiretasCents: dd,
++        rateioIndiretoCents: ri,
++        orcamentoPrevistoCents: orcamentoLote,
++      );
++
++      lotesCustos.add(consolidado);
++
++      // Persiste em background o snapshot do lote
++      _resumoLoteDoc(construtoraId, obraId, lote.id)
++          .set(consolidado.toMap(), SetOptions(merge: true))
++          .catchError((_) {});
++    }
++
++    final totalGeral = totalGeralMat + totalGeralMo + totalGeralDd + totalDespesasIndiretasCents;
++
++    final resumoObra = ResumoCustosObra(
++      obraId: obraId,
++      totalGeralCents: totalGeral,
++      totalMateriaisCents: totalGeralMat,
++      totalMaoDeObraCents: totalGeralMo,
++      totalDespesasDiretasCents: totalGeralDd,
++      totalDespesasIndiretasCents: totalDespesasIndiretasCents,
++      orcamentoTotalPrevistoCents: orcamentoTotalPrevisto,
++      lotesCustos: lotesCustos,
++    );
++
++    // Persiste snapshot consolidado da obra
++    _resumoObraDoc(construtoraId, obraId)
++        .set(resumoObra.toMap(), SetOptions(merge: true))
++        .catchError((_) {});
++
++    return resumoObra;
++  }
++
++  /// Busca o extrato detalhado de todos os lançamentos que compõem os 4 cubos de um lote
++  Future<List<ExtratoItemCusto>> buscarExtratoLote({
++    required String construtoraId,
++    required String obraId,
++    required String loteId,
++  }) async {
++    final itens = <ExtratoItemCusto>[];
++
++    // 1. Materiais
++    try {
++      final movSnap = await _firestore
++          .collectionGroup('movimentacoes')
++          .where('obraId', isEqualTo: obraId)
++          .where('loteId', isEqualTo: loteId)
++          .get();
++
++      for (final doc in movSnap.docs) {
++        final mov = Movimentacao.fromJson(doc.data());
++        if (mov.reversedBy != null || mov.apropriacaoLote != true) continue;
++
++        final isEstorno = mov.commandType == 'estorno';
++        final val = mov.custoTotalCentavos ?? (mov.valorItensCentavos ?? 0);
++        itens.add(ExtratoItemCusto(
++          id: mov.id,
++          cubo: CuboCusto.material,
++          descricao: isEstorno
++              ? 'Estorno Material: ${mov.observacao ?? mov.materialId}'
++              : 'Saída Material: ${mov.observacao ?? mov.materialId}',
++          data: mov.date,
++          valorCents: isEstorno ? -val : val,
++          documentoReferencia: mov.nfNumber,
++          responsavelNome: mov.solicitante,
++        ));
++      }
++    } catch (_) {}
++
++    // 2. Mão de Obra
++    final chamadasSnap = await _chamadasRef(construtoraId, obraId).get();
++    for (final doc in chamadasSnap.docs) {
++      final chamada = ChamadaDiaria.fromMap(doc.data());
++      if (chamada.status == 'cancelada') continue;
++      for (final lotSummary in chamada.lotCostSummaries) {
++        if (lotSummary.lotId == loteId && lotSummary.totalCostCents > 0) {
++          itens.add(ExtratoItemCusto(
++            id: '${chamada.id}_${lotSummary.lotId}',
++            cubo: CuboCusto.maoDeObra,
++            descricao: 'Equipe diária (${lotSummary.workerCount} colaboradores)',
++            data: DateTime.tryParse(chamada.date) ?? DateTime.now(),
++            valorCents: lotSummary.totalCostCents,
++            documentoReferencia: 'Chamada #${chamada.id.substring(0, chamada.id.length > 8 ? 8 : chamada.id.length)}',
++            responsavelNome: chamada.createdByUid,
++          ));
++        }
++      }
++    }
++
++    // 3. Despesas Diretas
++    final despesasSnap = await _despesasRef(construtoraId, obraId).get();
++    for (final doc in despesasSnap.docs) {
++      final desp = DespesaAdm.fromJson(doc.data());
++      if (desp.status != StatusDespesaAdm.cancelado && desp.loteId == loteId) {
++        itens.add(ExtratoItemCusto(
++          id: desp.id,
++          cubo: CuboCusto.despesaDireta,
++          descricao: '${desp.categoria.label}: ${desp.descricao}',
++          data: desp.dataVencimento,
++          valorCents: desp.valorTotalCents,
++          documentoReferencia: desp.comprovanteNome ?? desp.id,
++          responsavelNome: desp.responsavelId,
++        ));
++      }
++    }
++
++    // 4. Rateio Indireto (Lançamento sintético consolidado do lote)
++    try {
++      final resumoLoteDoc = await _resumoLoteDoc(construtoraId, obraId, loteId).get();
++      if (resumoLoteDoc.exists && resumoLoteDoc.data() != null) {
++        final rateioCents = (resumoLoteDoc.data()!['rateioIndiretoCents'] as num?)?.toInt() ?? 0;
++        if (rateioCents > 0) {
++          itens.add(ExtratoItemCusto(
++            id: 'rateio_indireto_$loteId',
++            cubo: CuboCusto.rateioIndireto,
++            descricao: 'Cota-parte das Despesas Gerais da Obra (Rateio Indireto)',
++            data: DateTime.now(),
++            valorCents: rateioCents,
++            documentoReferencia: 'Rateio Algébrico AD-7',
++            responsavelNome: 'Sistema SIGO',
++          ));
++        }
++      }
++    } catch (_) {}
++
++    // Ordenar itens do mais recente para o mais antigo
++    itens.sort((a, b) => b.data.compareTo(a.data));
++    return itens;
++  }
++
++  /// Atualiza o orçamento previsto para um lote
++  Future<void> atualizarOrcamentoLote({
++    required String construtoraId,
++    required String obraId,
++    required String loteId,
++    required int orcamentoPrevistoCents,
++  }) async {
++    await _resumoLoteDoc(construtoraId, obraId, loteId).set({
++      'orcamentoPrevistoCents': orcamentoPrevistoCents,
++      'ultimaAtualizacao': FieldValue.serverTimestamp(),
++    }, SetOptions(merge: true));
++
++    // Também espelha em lote para conveniência
++    await _lotesRef(construtoraId, obraId).doc(loteId).set({
++      'orcamentoPrevistoCents': orcamentoPrevistoCents,
++    }, SetOptions(merge: true));
++  }
++}
+diff --git a/app/lib/src/features/custos_360/domain/custo_lote_consolidado.dart b/app/lib/src/features/custos_360/domain/custo_lote_consolidado.dart
+new file mode 100644
+index 0000000..f51e8ec
+--- /dev/null
++++ b/app/lib/src/features/custos_360/domain/custo_lote_consolidado.dart
+@@ -0,0 +1,298 @@
++import '../../../core/contracts.dart';
++
++enum CuboCusto {
++  material,
++  maoDeObra,
++  despesaDireta,
++  rateioIndireto;
++
++  String get label => switch (this) {
++        CuboCusto.material => 'Materiais',
++        CuboCusto.maoDeObra => 'Mão de Obra',
++        CuboCusto.despesaDireta => 'Despesas Diretas',
++        CuboCusto.rateioIndireto => 'Rateio Indireto',
++      };
++}
++
++class ExtratoItemCusto {
++  final String id;
++  final CuboCusto cubo;
++  final String descricao;
++  final DateTime data;
++  final int valorCents;
++  final String? documentoReferencia;
++  final String? responsavelNome;
++
++  const ExtratoItemCusto({
++    required this.id,
++    required this.cubo,
++    required this.descricao,
++    required this.data,
++    required this.valorCents,
++    this.documentoReferencia,
++    this.responsavelNome,
++  });
++
++  double get valor => valorCents / 100.0;
++
++  Map<String, dynamic> toMap() => {
++        'id': id,
++        'cubo': cubo.name,
++        'descricao': descricao,
++        'data': data.toIso8601String(),
++        'valorCents': valorCents,
++        'documentoReferencia': documentoReferencia,
++        'responsavelNome': responsavelNome,
++      };
++
++  factory ExtratoItemCusto.fromMap(Map<String, dynamic> map) {
++    final cuboName = map['cubo'] as String?;
++    final cubo = CuboCusto.values.firstWhere(
++      (c) => c.name == cuboName,
++      orElse: () => CuboCusto.material,
++    );
++
++    final dataRaw = map['data'];
++    final data = dataRaw != null ? readDate(dataRaw) : DateTime.now();
++
++    return ExtratoItemCusto(
++      id: map['id'] as String? ?? '',
++      cubo: cubo,
++      descricao: map['descricao'] as String? ?? '',
++      data: data,
++      valorCents: (map['valorCents'] as num?)?.toInt() ?? 0,
++      documentoReferencia: map['documentoReferencia'] as String?,
++      responsavelNome: map['responsavelNome'] as String?,
++    );
++  }
++
++  @override
++  bool operator ==(Object other) =>
++      identical(this, other) ||
++      other is ExtratoItemCusto &&
++          runtimeType == other.runtimeType &&
++          id == other.id &&
++          cubo == other.cubo &&
++          valorCents == other.valorCents;
++
++  @override
++  int get hashCode => id.hashCode ^ cubo.hashCode ^ valorCents.hashCode;
++}
++
++class CustoLoteConsolidado {
++  final String loteId;
++  final String loteNome;
++  final int materiaisCents;
++  final int maoDeObraCents;
++  final int despesasDiretasCents;
++  final int rateioIndiretoCents;
++  final int totalCustoLoteCents;
++  final int orcamentoPrevistoCents;
++  final int varianciaCents;
++  final double percentualConsumido;
++  final DateTime ultimaAtualizacao;
++
++  CustoLoteConsolidado({
++    required this.loteId,
++    required this.loteNome,
++    required this.materiaisCents,
++    required this.maoDeObraCents,
++    required this.despesasDiretasCents,
++    required this.rateioIndiretoCents,
++    int? totalCustoLoteCents,
++    this.orcamentoPrevistoCents = 0,
++    int? varianciaCents,
++    double? percentualConsumido,
++    DateTime? ultimaAtualizacao,
++  })  : totalCustoLoteCents = totalCustoLoteCents ??
++            (materiaisCents +
++                maoDeObraCents +
++                despesasDiretasCents +
++                rateioIndiretoCents),
++        varianciaCents = varianciaCents ??
++            ((totalCustoLoteCents ??
++                    (materiaisCents +
++                        maoDeObraCents +
++                        despesasDiretasCents +
++                        rateioIndiretoCents)) -
++                orcamentoPrevistoCents),
++        percentualConsumido = percentualConsumido ??
++            (orcamentoPrevistoCents > 0
++                ? (totalCustoLoteCents ??
++                        (materiaisCents +
++                            maoDeObraCents +
++                            despesasDiretasCents +
++                            rateioIndiretoCents)) /
++                    orcamentoPrevistoCents.toDouble()
++                : 0.0),
++        ultimaAtualizacao = ultimaAtualizacao ?? DateTime.now();
++
++  double get totalCustoLote => totalCustoLoteCents / 100.0;
++  double get materiais => materiaisCents / 100.0;
++  double get maoDeObra => maoDeObraCents / 100.0;
++  double get despesasDiretas => despesasDiretasCents / 100.0;
++  double get rateioIndireto => rateioIndiretoCents / 100.0;
++  double get orcamentoPrevisto => orcamentoPrevistoCents / 100.0;
++  double get variancia => varianciaCents / 100.0;
++
++  bool get temDesvioPositivo => varianciaCents > 0;
++  bool get estourado => orcamentoPrevistoCents > 0 && totalCustoLoteCents > orcamentoPrevistoCents;
++  bool get emAlerta =>
++      orcamentoPrevistoCents > 0 &&
++      percentualConsumido >= 0.85 &&
++      percentualConsumido <= 1.0;
++
++  CustoLoteConsolidado copyWith({
++    String? loteId,
++    String? loteNome,
++    int? materiaisCents,
++    int? maoDeObraCents,
++    int? despesasDiretasCents,
++    int? rateioIndiretoCents,
++    int? orcamentoPrevistoCents,
++    DateTime? ultimaAtualizacao,
++  }) {
++    return CustoLoteConsolidado(
++      loteId: loteId ?? this.loteId,
++      loteNome: loteNome ?? this.loteNome,
++      materiaisCents: materiaisCents ?? this.materiaisCents,
++      maoDeObraCents: maoDeObraCents ?? this.maoDeObraCents,
++      despesasDiretasCents: despesasDiretasCents ?? this.despesasDiretasCents,
++      rateioIndiretoCents: rateioIndiretoCents ?? this.rateioIndiretoCents,
++      orcamentoPrevistoCents:
++          orcamentoPrevistoCents ?? this.orcamentoPrevistoCents,
++      ultimaAtualizacao: ultimaAtualizacao ?? this.ultimaAtualizacao,
++    );
++  }
++
++  Map<String, dynamic> toMap() => {
++        'loteId': loteId,
++        'loteNome': loteNome,
++        'materiaisCents': materiaisCents,
++        'maoDeObraCents': maoDeObraCents,
++        'despesasDiretasCents': despesasDiretasCents,
++        'rateioIndiretoCents': rateioIndiretoCents,
++        'totalCustoLoteCents': totalCustoLoteCents,
++        'orcamentoPrevistoCents': orcamentoPrevistoCents,
++        'varianciaCents': varianciaCents,
++        'percentualConsumido': percentualConsumido,
++        'ultimaAtualizacao': ultimaAtualizacao.toIso8601String(),
++      };
++
++  factory CustoLoteConsolidado.fromMap(Map<String, dynamic> map) {
++    final mat = (map['materiaisCents'] as num?)?.toInt() ?? 0;
++    final mo = (map['maoDeObraCents'] as num?)?.toInt() ?? 0;
++    final dd = (map['despesasDiretasCents'] as num?)?.toInt() ?? 0;
++    final ri = (map['rateioIndiretoCents'] as num?)?.toInt() ?? 0;
++    final total = (map['totalCustoLoteCents'] as num?)?.toInt() ?? (mat + mo + dd + ri);
++    final orcamento = (map['orcamentoPrevistoCents'] as num?)?.toInt() ?? 0;
++
++    final dataRaw = map['ultimaAtualizacao'];
++    final data = dataRaw != null ? readDate(dataRaw) : DateTime.now();
++
++    return CustoLoteConsolidado(
++      loteId: map['loteId'] as String? ?? '',
++      loteNome: map['loteNome'] as String? ?? '',
++      materiaisCents: mat,
++      maoDeObraCents: mo,
++      despesasDiretasCents: dd,
++      rateioIndiretoCents: ri,
++      totalCustoLoteCents: total,
++      orcamentoPrevistoCents: orcamento,
++      varianciaCents: (map['varianciaCents'] as num?)?.toInt() ?? (total - orcamento),
++      percentualConsumido: (map['percentualConsumido'] as num?)?.toDouble() ??
++          (orcamento > 0 ? total / orcamento.toDouble() : 0.0),
++      ultimaAtualizacao: data,
++    );
++  }
++
++  @override
++  bool operator ==(Object other) =>
++      identical(this, other) ||
++      other is CustoLoteConsolidado &&
++          runtimeType == other.runtimeType &&
++          loteId == other.loteId &&
++          totalCustoLoteCents == other.totalCustoLoteCents &&
++          orcamentoPrevistoCents == other.orcamentoPrevistoCents;
++
++  @override
++  int get hashCode =>
++      loteId.hashCode ^
++      totalCustoLoteCents.hashCode ^
++      orcamentoPrevistoCents.hashCode;
++}
++
++class ResumoCustosObra {
++  final String obraId;
++  final int totalGeralCents;
++  final int totalMateriaisCents;
++  final int totalMaoDeObraCents;
++  final int totalDespesasDiretasCents;
++  final int totalDespesasIndiretasCents;
++  final int orcamentoTotalPrevistoCents;
++  final List<CustoLoteConsolidado> lotesCustos;
++  final DateTime apuradoEm;
++
++  ResumoCustosObra({
++    required this.obraId,
++    required this.totalGeralCents,
++    required this.totalMateriaisCents,
++    required this.totalMaoDeObraCents,
++    required this.totalDespesasDiretasCents,
++    required this.totalDespesasIndiretasCents,
++    required this.orcamentoTotalPrevistoCents,
++    this.lotesCustos = const [],
++    DateTime? apuradoEm,
++  }) : apuradoEm = apuradoEm ?? DateTime.now();
++
++  double get totalGeral => totalGeralCents / 100.0;
++  double get totalMateriais => totalMateriaisCents / 100.0;
++  double get totalMaoDeObra => totalMaoDeObraCents / 100.0;
++  double get totalDespesasDiretas => totalDespesasDiretasCents / 100.0;
++  double get totalDespesasIndiretas => totalDespesasIndiretasCents / 100.0;
++  double get orcamentoTotalPrevisto => orcamentoTotalPrevistoCents / 100.0;
++
++  double get varianciaGeralCents =>
++      (totalGeralCents - orcamentoTotalPrevistoCents).toDouble();
++  double get percentualConsumidoGeral => orcamentoTotalPrevistoCents > 0
++      ? totalGeralCents / orcamentoTotalPrevistoCents.toDouble()
++      : 0.0;
++
++  Map<String, dynamic> toMap() => {
++        'obraId': obraId,
++        'totalGeralCents': totalGeralCents,
++        'totalMateriaisCents': totalMateriaisCents,
++        'totalMaoDeObraCents': totalMaoDeObraCents,
++        'totalDespesasDiretasCents': totalDespesasDiretasCents,
++        'totalDespesasIndiretasCents': totalDespesasIndiretasCents,
++        'orcamentoTotalPrevistoCents': orcamentoTotalPrevistoCents,
++        'lotesCustos': lotesCustos.map((l) => l.toMap()).toList(),
++        'apuradoEm': apuradoEm.toIso8601String(),
++      };
++
++  factory ResumoCustosObra.fromMap(Map<String, dynamic> map) {
++    final lotesRaw = map['lotesCustos'] as List<dynamic>? ?? [];
++    final lotesCustos = lotesRaw
++        .map((e) => CustoLoteConsolidado.fromMap(
++            Map<String, dynamic>.from(e as Map)))
++        .toList();
++
++    final dataRaw = map['apuradoEm'];
++    final data = dataRaw != null ? readDate(dataRaw) : DateTime.now();
++
++    return ResumoCustosObra(
++      obraId: map['obraId'] as String? ?? '',
++      totalGeralCents: (map['totalGeralCents'] as num?)?.toInt() ?? 0,
++      totalMateriaisCents: (map['totalMateriaisCents'] as num?)?.toInt() ?? 0,
++      totalMaoDeObraCents: (map['totalMaoDeObraCents'] as num?)?.toInt() ?? 0,
++      totalDespesasDiretasCents:
++          (map['totalDespesasDiretasCents'] as num?)?.toInt() ?? 0,
++      totalDespesasIndiretasCents:
++          (map['totalDespesasIndiretasCents'] as num?)?.toInt() ?? 0,
++      orcamentoTotalPrevistoCents:
++          (map['orcamentoTotalPrevistoCents'] as num?)?.toInt() ?? 0,
++      lotesCustos: lotesCustos,
++      apuradoEm: data,
++    );
++  }
++}
+diff --git a/app/lib/src/features/custos_360/domain/rateio_indireto_math.dart b/app/lib/src/features/custos_360/domain/rateio_indireto_math.dart
+new file mode 100644
+index 0000000..15fd6e6
+--- /dev/null
++++ b/app/lib/src/features/custos_360/domain/rateio_indireto_math.dart
+@@ -0,0 +1,33 @@
++/// Algoritmo de Rateio Indireto de Despesas Gerais da Obra.
++///
++/// Garante a invariante algébrica estrita da conservação de centavos:
++/// sum(rateioIndiretoCents) == totalDespesasIndiretasCents.
++/// Não utiliza números de ponto flutuante para dinheiro.
++class RateioIndiretoMath {
++  /// Distribui [totalDespesasIndiretasCents] igualmente entre [lotesIds].
++  /// O resto da divisão inteira é distribuído de forma determinística,
++  /// 1 centavo para cada um dos primeiros lotes até exaurir o resto.
++  static Map<String, int> distribuir({
++    required int totalDespesasIndiretasCents,
++    required List<String> lotesIds,
++  }) {
++    if (lotesIds.isEmpty) {
++      return const {};
++    }
++    if (totalDespesasIndiretasCents <= 0) {
++      return {for (final id in lotesIds) id: 0};
++    }
++
++    final n = lotesIds.length;
++    final baseQuota = totalDespesasIndiretasCents ~/ n;
++    final resto = totalDespesasIndiretasCents % n;
++
++    final resultado = <String, int>{};
++    for (var i = 0; i < n; i++) {
++      final extra = i < resto ? 1 : 0;
++      resultado[lotesIds[i]] = baseQuota + extra;
++    }
++
++    return resultado;
++  }
++}
+diff --git a/app/lib/src/features/custos_360/presentation/controllers/custos_360_controller.dart b/app/lib/src/features/custos_360/presentation/controllers/custos_360_controller.dart
+new file mode 100644
+index 0000000..b98b11e
+--- /dev/null
++++ b/app/lib/src/features/custos_360/presentation/controllers/custos_360_controller.dart
+@@ -0,0 +1,74 @@
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import '../../data/custos_360_repository.dart';
++import '../../domain/custo_lote_consolidado.dart';
++
++final resumoCustosObraStreamProvider = StreamProvider.family<
++    ResumoCustosObra,
++    ({String construtoraId, String obraId})>((ref, arg) {
++  final repo = ref.watch(custos360RepositoryProvider);
++  return repo.watchResumoObra(arg.construtoraId, arg.obraId);
++});
++
++final loteCustoConsolidadoProvider = Provider.family<
++    CustoLoteConsolidado?,
++    ({String construtoraId, String obraId, String loteId})>((ref, arg) {
++  final resumoAsync = ref.watch(
++    resumoCustosObraStreamProvider(
++      (construtoraId: arg.construtoraId, obraId: arg.obraId),
++    ),
++  );
++
++  return resumoAsync.when(
++    data: (resumo) {
++      try {
++        return resumo.lotesCustos.firstWhere((l) => l.loteId == arg.loteId);
++      } catch (_) {
++        return null;
++      }
++    },
++    loading: () => null,
++    error: (err, stack) => null,
++  );
++});
++
++final extratoLoteFutureProvider = FutureProvider.family<
++    List<ExtratoItemCusto>,
++    ({String construtoraId, String obraId, String loteId})>((ref, arg) {
++  final repo = ref.watch(custos360RepositoryProvider);
++  return repo.buscarExtratoLote(
++    construtoraId: arg.construtoraId,
++    obraId: arg.obraId,
++    loteId: arg.loteId,
++  );
++});
++
++class Custos360Controller {
++  final Custos360Repository _repository;
++
++  Custos360Controller(this._repository);
++
++  Future<bool> atualizarOrcamentoLote({
++    required String construtoraId,
++    required String obraId,
++    required String loteId,
++    required int orcamentoPrevistoCents,
++  }) async {
++    try {
++      await _repository.atualizarOrcamentoLote(
++        construtoraId: construtoraId,
++        obraId: obraId,
++        loteId: loteId,
++        orcamentoPrevistoCents: orcamentoPrevistoCents,
++      );
++      return true;
++    } catch (_) {
++      return false;
++    }
++  }
++}
++
++final custos360ControllerProvider = Provider<Custos360Controller>((ref) {
++  final repo = ref.watch(custos360RepositoryProvider);
++  return Custos360Controller(repo);
++});
+diff --git a/app/lib/src/features/custos_360/presentation/lote_custo_detalhe_screen.dart b/app/lib/src/features/custos_360/presentation/lote_custo_detalhe_screen.dart
+new file mode 100644
+index 0000000..2139536
+--- /dev/null
++++ b/app/lib/src/features/custos_360/presentation/lote_custo_detalhe_screen.dart
+@@ -0,0 +1,504 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import 'controllers/custos_360_controller.dart';
++import '../domain/custo_lote_consolidado.dart';
++import 'widgets/cubo_custo_card.dart';
++
++class LoteCustoDetalheScreen extends ConsumerStatefulWidget {
++  final String construtoraId;
++  final String obraId;
++  final String loteId;
++
++  const LoteCustoDetalheScreen({
++    super.key,
++    required this.construtoraId,
++    required this.obraId,
++    required this.loteId,
++  });
++
++  @override
++  ConsumerState<LoteCustoDetalheScreen> createState() =>
++      _LoteCustoDetalheScreenState();
++}
++
++class _LoteCustoDetalheScreenState
++    extends ConsumerState<LoteCustoDetalheScreen>
++    with SingleTickerProviderStateMixin {
++  late TabController _tabController;
++
++  @override
++  void initState() {
++    super.initState();
++    _tabController = TabController(length: 5, vsync: this);
++  }
++
++  @override
++  void dispose() {
++    _tabController.dispose();
++    super.dispose();
++  }
++
++  String _formatarMoeda(int cents) {
++    final valor = cents / 100.0;
++    final valorStr = valor.toStringAsFixed(2).replaceAll('.', ',');
++    final partes = valorStr.split(',');
++    final inteira = partes[0].replaceAllMapped(
++      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
++      (Match m) => '${m[1]}.',
++    );
++    return 'R\$ $inteira,${partes[1]}';
++  }
++
++  void _abrirDialogoEditarOrcamento(
++      BuildContext context, CustoLoteConsolidado? loteCusto) {
++    final controller = TextEditingController(
++      text: loteCusto != null && loteCusto.orcamentoPrevistoCents > 0
++          ? (loteCusto.orcamentoPrevistoCents / 100.0).toStringAsFixed(2)
++          : '',
++    );
++
++    showDialog(
++      context: context,
++      builder: (dialogCtx) => AlertDialog(
++        title: const Text('Definir Meta Orçamentária'),
++        content: Column(
++          mainAxisSize: MainAxisSize.min,
++          crossAxisAlignment: CrossAxisAlignment.start,
++          children: [
++            Text('Informe o teto orçamentário previsto para ${loteCusto?.loteNome ?? "o lote"}:'),
++            const SizedBox(height: 12),
++            TextField(
++              controller: controller,
++              keyboardType: const TextInputType.numberWithOptions(decimal: true),
++              autofocus: true,
++              decoration: const InputDecoration(
++                prefixText: 'R\$ ',
++                labelText: 'Orçamento Previsto (R\$)',
++                border: OutlineInputBorder(),
++              ),
++            ),
++          ],
++        ),
++        actions: [
++          TextButton(
++            onPressed: () => Navigator.of(dialogCtx).pop(),
++            child: const Text('Cancelar'),
++          ),
++          FilledButton(
++            onPressed: () async {
++              final text = controller.text.replaceAll(',', '.').trim();
++              final valorDouble = double.tryParse(text) ?? 0.0;
++              final cents = (valorDouble * 100).round();
++
++              Navigator.of(dialogCtx).pop();
++
++              final sucesso = await ref
++                  .read(custos360ControllerProvider)
++                  .atualizarOrcamentoLote(
++                    construtoraId: widget.construtoraId,
++                    obraId: widget.obraId,
++                    loteId: widget.loteId,
++                    orcamentoPrevistoCents: cents,
++                  );
++
++              if (context.mounted) {
++                if (sucesso) {
++                  ref.invalidate(
++                    resumoCustosObraStreamProvider(
++                      (construtoraId: widget.construtoraId, obraId: widget.obraId),
++                    ),
++                  );
++                  ScaffoldMessenger.of(context).showSnackBar(
++                    const SnackBar(
++                      content: Text('Orçamento previsto atualizado com sucesso!'),
++                      backgroundColor: Colors.green,
++                    ),
++                  );
++                } else {
++                  ScaffoldMessenger.of(context).showSnackBar(
++                    const SnackBar(
++                      content: Text('Falha ao atualizar orçamento.'),
++                      backgroundColor: Colors.red,
++                    ),
++                  );
++                }
++              }
++            },
++            child: const Text('Salvar Meta'),
++          ),
++        ],
++      ),
++    );
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final loteCusto = ref.watch(
++      loteCustoConsolidadoProvider(
++        (
++          construtoraId: widget.construtoraId,
++          obraId: widget.obraId,
++          loteId: widget.loteId,
++        ),
++      ),
++    );
++
++    final extratoAsync = ref.watch(
++      extratoLoteFutureProvider(
++        (
++          construtoraId: widget.construtoraId,
++          obraId: widget.obraId,
++          loteId: widget.loteId,
++        ),
++      ),
++    );
++
++    final titulo = loteCusto?.loteNome ?? 'Detalhe de Custos do Lote';
++
++    return Scaffold(
++      appBar: AppBar(
++        title: Text(titulo),
++        actions: [
++          IconButton(
++            icon: const Icon(Icons.edit_calendar_outlined),
++            tooltip: 'Definir Orçamento',
++            onPressed: () => _abrirDialogoEditarOrcamento(context, loteCusto),
++          ),
++          IconButton(
++            icon: const Icon(Icons.refresh),
++            tooltip: 'Atualizar Extrato',
++            onPressed: () {
++              ref.invalidate(
++                extratoLoteFutureProvider(
++                  (
++                    construtoraId: widget.construtoraId,
++                    obraId: widget.obraId,
++                    loteId: widget.loteId,
++                  ),
++                ),
++              );
++            },
++          ),
++        ],
++      ),
++      body: SingleChildScrollView(
++        padding: const EdgeInsets.all(16.0),
++        child: Column(
++          crossAxisAlignment: CrossAxisAlignment.start,
++          children: [
++            if (loteCusto != null) ...[
++              _buildHeaderLote(context, loteCusto),
++              const SizedBox(height: 20),
++
++              // 4 Cubos do Lote
++              const Text(
++                'Composição dos 4 Cubos do Lote',
++                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
++              ),
++              const SizedBox(height: 12),
++
++              LayoutBuilder(
++                builder: (context, constraints) {
++                  final isWide = constraints.maxWidth > 700;
++                  return GridView.count(
++                    crossAxisCount: isWide ? 4 : 2,
++                    crossAxisSpacing: 12,
++                    mainAxisSpacing: 12,
++                    shrinkWrap: true,
++                    physics: const NeverScrollableScrollPhysics(),
++                    childAspectRatio: isWide ? 1.5 : 1.1,
++                    children: [
++                      CuboCustoCard(
++                        cubo: CuboCusto.material,
++                        valorCents: loteCusto.materiaisCents,
++                        totalReferenciaCents: loteCusto.totalCustoLoteCents,
++                        onTap: () => _tabController.animateTo(1),
++                      ),
++                      CuboCustoCard(
++                        cubo: CuboCusto.maoDeObra,
++                        valorCents: loteCusto.maoDeObraCents,
++                        totalReferenciaCents: loteCusto.totalCustoLoteCents,
++                        onTap: () => _tabController.animateTo(2),
++                      ),
++                      CuboCustoCard(
++                        cubo: CuboCusto.despesaDireta,
++                        valorCents: loteCusto.despesasDiretasCents,
++                        totalReferenciaCents: loteCusto.totalCustoLoteCents,
++                        onTap: () => _tabController.animateTo(3),
++                      ),
++                      CuboCustoCard(
++                        cubo: CuboCusto.rateioIndireto,
++                        valorCents: loteCusto.rateioIndiretoCents,
++                        totalReferenciaCents: loteCusto.totalCustoLoteCents,
++                        onTap: () => _tabController.animateTo(4),
++                      ),
++                    ],
++                  );
++                },
++              ),
++              const SizedBox(height: 24),
++            ],
++
++            // Seção de Extrato com Abas
++            Wrap(
++              alignment: WrapAlignment.spaceBetween,
++              crossAxisAlignment: WrapCrossAlignment.center,
++              children: [
++                const Text(
++                  'Extrato Analítico de Lançamentos',
++                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
++                ),
++                TextButton.icon(
++                  onPressed: () => _abrirDialogoEditarOrcamento(context, loteCusto),
++                  icon: const Icon(Icons.tune, size: 16),
++                  label: const Text('Ajustar Meta'),
++                ),
++              ],
++            ),
++            const SizedBox(height: 8),
++
++            TabBar(
++              controller: _tabController,
++              isScrollable: true,
++              tabAlignment: TabAlignment.start,
++              labelColor: Theme.of(context).colorScheme.primary,
++              unselectedLabelColor: Colors.grey,
++              tabs: const [
++                Tab(text: 'Todos'),
++                Tab(text: 'Materiais'),
++                Tab(text: 'Mão de Obra'),
++                Tab(text: 'Despesas Diretas'),
++                Tab(text: 'Rateio Indireto'),
++              ],
++            ),
++            const SizedBox(height: 12),
++
++            SizedBox(
++              height: 480,
++              child: extratoAsync.when(
++                data: (extrato) {
++                  return TabBarView(
++                    controller: _tabController,
++                    children: [
++                      _buildListaExtrato(extrato, null),
++                      _buildListaExtrato(extrato, CuboCusto.material),
++                      _buildListaExtrato(extrato, CuboCusto.maoDeObra),
++                      _buildListaExtrato(extrato, CuboCusto.despesaDireta),
++                      _buildListaExtrato(extrato, CuboCusto.rateioIndireto),
++                    ],
++                  );
++                },
++                loading: () => const Center(
++                  child: CircularProgressIndicator(),
++                ),
++                error: (e, _) => Center(
++                  child: Text('Erro ao carregar extrato do lote: $e'),
++                ),
++              ),
++            ),
++          ],
++        ),
++      ),
++    );
++  }
++
++  Widget _buildHeaderLote(BuildContext context, CustoLoteConsolidado lote) {
++    Color corBadge;
++    String textoBadge;
++    if (lote.estourado) {
++      corBadge = Colors.red.shade700;
++      textoBadge = 'Orçamento Estourado';
++    } else if (lote.emAlerta) {
++      corBadge = Colors.orange.shade800;
++      textoBadge = 'Alerta Orçamentário (>=85%)';
++    } else if (lote.orcamentoPrevistoCents > 0) {
++      corBadge = Colors.green.shade700;
++      textoBadge = 'Dentro do Orçamento';
++    } else {
++      corBadge = Colors.grey.shade600;
++      textoBadge = 'Sem Meta Definida';
++    }
++
++    return Card(
++      elevation: 2,
++      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
++      child: Padding(
++        padding: const EdgeInsets.all(20.0),
++        child: Column(
++          crossAxisAlignment: CrossAxisAlignment.start,
++          children: [
++            Row(
++              mainAxisAlignment: MainAxisAlignment.spaceBetween,
++              children: [
++                Text(
++                  'Custo Acumulado do Lote',
++                  style: TextStyle(
++                    fontSize: 14,
++                    color: Colors.grey.shade700,
++                    fontWeight: FontWeight.w500,
++                  ),
++                ),
++                Container(
++                  padding:
++                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
++                  decoration: BoxDecoration(
++                    color: corBadge.withValues(alpha: 0.12),
++                    borderRadius: BorderRadius.circular(12),
++                    border: Border.all(color: corBadge, width: 0.8),
++                  ),
++                  child: Text(
++                    textoBadge,
++                    style: TextStyle(
++                      color: corBadge,
++                      fontWeight: FontWeight.bold,
++                      fontSize: 12,
++                    ),
++                  ),
++                ),
++              ],
++            ),
++            const SizedBox(height: 8),
++            Text(
++              _formatarMoeda(lote.totalCustoLoteCents),
++              style: TextStyle(
++                fontSize: 28,
++                fontWeight: FontWeight.bold,
++                color: Theme.of(context).colorScheme.primary,
++              ),
++            ),
++            const Divider(height: 24),
++            Row(
++              mainAxisAlignment: MainAxisAlignment.spaceBetween,
++              children: [
++                Column(
++                  crossAxisAlignment: CrossAxisAlignment.start,
++                  children: [
++                    Text('Meta Orçamentária',
++                        style: TextStyle(
++                            fontSize: 12, color: Colors.grey.shade600)),
++                    const SizedBox(height: 2),
++                    Text(_formatarMoeda(lote.orcamentoPrevistoCents),
++                        style: const TextStyle(
++                            fontWeight: FontWeight.w600, fontSize: 14)),
++                  ],
++                ),
++                Column(
++                  crossAxisAlignment: CrossAxisAlignment.end,
++                  children: [
++                    Text(
++                      lote.temDesvioPositivo ? 'Desvio Acima' : 'Saldo Restante',
++                      style: TextStyle(
++                          fontSize: 12, color: Colors.grey.shade600),
++                    ),
++                    const SizedBox(height: 2),
++                    Text(
++                      _formatarMoeda(lote.varianciaCents.abs()),
++                      style: TextStyle(
++                        fontWeight: FontWeight.bold,
++                        fontSize: 14,
++                        color: lote.temDesvioPositivo
++                            ? Colors.red.shade700
++                            : Colors.green.shade700,
++                      ),
++                    ),
++                  ],
++                ),
++              ],
++            ),
++            if (lote.orcamentoPrevistoCents > 0) ...[
++              const SizedBox(height: 12),
++              LinearProgressIndicator(
++                value: lote.percentualConsumido.clamp(0.0, 1.0),
++                color: corBadge,
++                backgroundColor: Colors.grey.shade200,
++                minHeight: 8,
++                borderRadius: BorderRadius.circular(4),
++              ),
++              const SizedBox(height: 4),
++              Align(
++                alignment: Alignment.centerRight,
++                child: Text(
++                  '${(lote.percentualConsumido * 100).toStringAsFixed(1)}% consumido',
++                  style: TextStyle(
++                    fontSize: 11,
++                    color: corBadge,
++                    fontWeight: FontWeight.w600,
++                  ),
++                ),
++              ),
++            ],
++          ],
++        ),
++      ),
++    );
++  }
++
++  Widget _buildListaExtrato(List<ExtratoItemCusto> todos, CuboCusto? filtro) {
++    final filtrados = filtro != null
++        ? todos.where((item) => item.cubo == filtro).toList()
++        : todos;
++
++    if (filtrados.isEmpty) {
++      return Center(
++        child: Column(
++          mainAxisAlignment: MainAxisAlignment.center,
++          children: [
++            Icon(Icons.inbox_outlined, size: 40, color: Colors.grey.shade400),
++            const SizedBox(height: 8),
++            Text(
++              filtro != null
++                  ? 'Nenhum lançamento no cubo ${filtro.label}.'
++                  : 'Nenhum lançamento de custo encontrado para este lote.',
++              style: TextStyle(color: Colors.grey.shade600),
++            ),
++          ],
++        ),
++      );
++    }
++
++    return ListView.separated(
++      itemCount: filtrados.length,
++      separatorBuilder: (_, _) => const Divider(height: 1),
++      itemBuilder: (context, index) {
++        final item = filtrados[index];
++        final (cor, icone) = switch (item.cubo) {
++          CuboCusto.material => (Colors.orange.shade700, Icons.inventory_2_outlined),
++          CuboCusto.maoDeObra => (Colors.blue.shade700, Icons.groups_outlined),
++          CuboCusto.despesaDireta => (Colors.purple.shade700, Icons.receipt_long_outlined),
++          CuboCusto.rateioIndireto => (Colors.teal.shade700, Icons.pie_chart_outline_rounded),
++        };
++
++        return ListTile(
++          leading: CircleAvatar(
++            backgroundColor: cor.withValues(alpha: 0.12),
++            child: Icon(icone, color: cor, size: 20),
++          ),
++          title: Text(
++            item.descricao,
++            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
++          ),
++          subtitle: Text(
++            '${_formatarData(item.data)}${item.documentoReferencia != null ? " • Doc: ${item.documentoReferencia}" : ""}${item.responsavelNome != null ? " • ${item.responsavelNome}" : ""}',
++            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
++          ),
++          trailing: Text(
++            _formatarMoeda(item.valorCents),
++            style: TextStyle(
++              fontWeight: FontWeight.bold,
++              fontSize: 14,
++              color: item.valorCents < 0 ? Colors.green.shade700 : Colors.black87,
++            ),
++          ),
++        );
++      },
++    );
++  }
++
++  String _formatarData(DateTime data) {
++    final d = data.day.toString().padLeft(2, '0');
++    final m = data.month.toString().padLeft(2, '0');
++    final y = data.year;
++    return '$d/$m/$y';
++  }
++}
+diff --git a/app/lib/src/features/custos_360/presentation/visao_360_custos_screen.dart b/app/lib/src/features/custos_360/presentation/visao_360_custos_screen.dart
+new file mode 100644
+index 0000000..de7f9d6
+--- /dev/null
++++ b/app/lib/src/features/custos_360/presentation/visao_360_custos_screen.dart
+@@ -0,0 +1,547 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:go_router/go_router.dart';
++
++import 'controllers/custos_360_controller.dart';
++import '../domain/custo_lote_consolidado.dart';
++import 'widgets/cubo_custo_card.dart';
++
++class Visao360CustosScreen extends ConsumerWidget {
++  final String construtoraId;
++  final String obraId;
++
++  const Visao360CustosScreen({
++    super.key,
++    required this.construtoraId,
++    required this.obraId,
++  });
++
++  String _formatarMoeda(int cents) {
++    final valor = cents / 100.0;
++    final valorStr = valor.toStringAsFixed(2).replaceAll('.', ',');
++    final partes = valorStr.split(',');
++    final inteira = partes[0].replaceAllMapped(
++      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
++      (Match m) => '${m[1]}.',
++    );
++    return 'R\$ $inteira,${partes[1]}';
++  }
++
++  @override
++  Widget build(BuildContext context, WidgetRef ref) {
++    final resumoAsync = ref.watch(
++      resumoCustosObraStreamProvider(
++        (construtoraId: construtoraId, obraId: obraId),
++      ),
++    );
++
++    return Scaffold(
++      appBar: AppBar(
++        title: const Text('Visão 360º de Custos'),
++        actions: [
++          IconButton(
++            icon: const Icon(Icons.refresh),
++            tooltip: 'Recalcular Projeções',
++            onPressed: () => ref.refresh(
++              resumoCustosObraStreamProvider(
++                (construtoraId: construtoraId, obraId: obraId),
++              ),
++            ),
++          ),
++        ],
++      ),
++      body: resumoAsync.when(
++        data: (resumo) {
++          final totalGeralCents = resumo.totalGeralCents;
++
++          return RefreshIndicator(
++            onRefresh: () async {
++              ref.invalidate(
++                resumoCustosObraStreamProvider(
++                  (construtoraId: construtoraId, obraId: obraId),
++                ),
++              );
++            },
++            child: SingleChildScrollView(
++              physics: const AlwaysScrollableScrollPhysics(),
++              padding: const EdgeInsets.all(16.0),
++              child: Column(
++                crossAxisAlignment: CrossAxisAlignment.start,
++                children: [
++                  // Card de Resumo Geral Executivo
++                  _buildCardTotalObra(context, resumo),
++                  const SizedBox(height: 20),
++
++                  // Seção dos 4 Cubos de Custo
++                  const Text(
++                    'Composição pelos 4 Cubos de Custo',
++                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
++                  ),
++                  const SizedBox(height: 12),
++
++                  LayoutBuilder(
++                    builder: (context, constraints) {
++                      final isWide = constraints.maxWidth > 700;
++                      return GridView.count(
++                        crossAxisCount: isWide ? 4 : 2,
++                        crossAxisSpacing: 12,
++                        mainAxisSpacing: 12,
++                        shrinkWrap: true,
++                        physics: const NeverScrollableScrollPhysics(),
++                        childAspectRatio: isWide ? 1.5 : 1.1,
++                        children: [
++                          CuboCustoCard(
++                            cubo: CuboCusto.material,
++                            valorCents: resumo.totalMateriaisCents,
++                            totalReferenciaCents: totalGeralCents,
++                          ),
++                          CuboCustoCard(
++                            cubo: CuboCusto.maoDeObra,
++                            valorCents: resumo.totalMaoDeObraCents,
++                            totalReferenciaCents: totalGeralCents,
++                          ),
++                          CuboCustoCard(
++                            cubo: CuboCusto.despesaDireta,
++                            valorCents: resumo.totalDespesasDiretasCents,
++                            totalReferenciaCents: totalGeralCents,
++                          ),
++                          CuboCustoCard(
++                            cubo: CuboCusto.rateioIndireto,
++                            valorCents: resumo.totalDespesasIndiretasCents,
++                            totalReferenciaCents: totalGeralCents,
++                          ),
++                        ],
++                      );
++                    },
++                  ),
++                  const SizedBox(height: 24),
++
++                  // Barra de Distribuição Percentual
++                  if (totalGeralCents > 0) ...[
++                    _buildBarraDistribuicao(context, resumo),
++                    const SizedBox(height: 24),
++                  ],
++
++                  // Matriz de Lotes da Obra
++                  Row(
++                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                    children: [
++                      Text(
++                        'Matriz de Custos por Lote (${resumo.lotesCustos.length})',
++                        style: const TextStyle(
++                          fontSize: 18,
++                          fontWeight: FontWeight.bold,
++                        ),
++                      ),
++                    ],
++                  ),
++                  const SizedBox(height: 12),
++
++                  if (resumo.lotesCustos.isEmpty)
++                    Card(
++                      child: Padding(
++                        padding: const EdgeInsets.all(24.0),
++                        child: Center(
++                          child: Column(
++                            children: [
++                              Icon(Icons.layers_clear_outlined,
++                                  size: 48, color: Colors.grey.shade400),
++                              const SizedBox(height: 8),
++                              const Text(
++                                'Nenhum lote cadastrado nesta obra.',
++                                style: TextStyle(fontWeight: FontWeight.w600),
++                              ),
++                              const SizedBox(height: 4),
++                              Text(
++                                'Cadastre lotes no módulo de Obras/Lotes para apurar os 4 cubos.',
++                                style: TextStyle(
++                                    fontSize: 12, color: Colors.grey.shade600),
++                              ),
++                            ],
++                          ),
++                        ),
++                      ),
++                    )
++                  else
++                    ListView.separated(
++                      shrinkWrap: true,
++                      physics: const NeverScrollableScrollPhysics(),
++                      itemCount: resumo.lotesCustos.length,
++                      separatorBuilder: (_, _) => const SizedBox(height: 10),
++                      itemBuilder: (context, index) {
++                        final loteCusto = resumo.lotesCustos[index];
++                        return _buildCardLote(context, loteCusto, totalGeralCents);
++                      },
++                    ),
++                  const SizedBox(height: 40),
++                ],
++              ),
++            ),
++          );
++        },
++        loading: () => const Center(
++          child: Column(
++            mainAxisAlignment: MainAxisAlignment.center,
++            children: [
++              CircularProgressIndicator(),
++              SizedBox(height: 16),
++              Text('Consolidando 4 cubos de custos...'),
++            ],
++          ),
++        ),
++        error: (err, stack) => Center(
++          child: Padding(
++            padding: const EdgeInsets.all(24.0),
++            child: Column(
++              mainAxisAlignment: MainAxisAlignment.center,
++              children: [
++                const Icon(Icons.error_outline, color: Colors.red, size: 48),
++                const SizedBox(height: 12),
++                Text('Erro ao carregar Visão 360: $err',
++                    textAlign: TextAlign.center),
++                const SizedBox(height: 12),
++                ElevatedButton.icon(
++                  onPressed: () => ref.refresh(
++                    resumoCustosObraStreamProvider(
++                      (construtoraId: construtoraId, obraId: obraId),
++                    ),
++                  ),
++                  icon: const Icon(Icons.refresh),
++                  label: const Text('Tentar Novamente'),
++                ),
++              ],
++            ),
++          ),
++        ),
++      ),
++    );
++  }
++
++  Widget _buildCardTotalObra(BuildContext context, ResumoCustosObra resumo) {
++    final orcamentoTotal = resumo.orcamentoTotalPrevistoCents;
++    final totalGeral = resumo.totalGeralCents;
++    final variancia = totalGeral - orcamentoTotal;
++    final desvioPositivo = orcamentoTotal > 0 && totalGeral > orcamentoTotal;
++
++    return Card(
++      elevation: 3,
++      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
++      child: Container(
++        decoration: BoxDecoration(
++          borderRadius: BorderRadius.circular(16),
++          gradient: LinearGradient(
++            colors: [
++              Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
++              Colors.white,
++            ],
++            begin: Alignment.topLeft,
++            end: Alignment.bottomRight,
++          ),
++        ),
++        padding: const EdgeInsets.all(20.0),
++        child: Column(
++          crossAxisAlignment: CrossAxisAlignment.start,
++          children: [
++            Wrap(
++              alignment: WrapAlignment.spaceBetween,
++              crossAxisAlignment: WrapCrossAlignment.center,
++              children: [
++                const Text(
++                  'Custo Total Realizado da Obra',
++                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
++                ),
++                Text(
++                  'Atualizado em ${_formatarData(resumo.apuradoEm)}',
++                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
++                ),
++              ],
++            ),
++            const SizedBox(height: 8),
++            Text(
++              _formatarMoeda(totalGeral),
++              style: TextStyle(
++                fontSize: 28,
++                fontWeight: FontWeight.bold,
++                color: Theme.of(context).colorScheme.primary,
++              ),
++            ),
++            const Divider(height: 24),
++            Row(
++              mainAxisAlignment: MainAxisAlignment.spaceBetween,
++              children: [
++                Column(
++                  crossAxisAlignment: CrossAxisAlignment.start,
++                  children: [
++                    Text('Orçamento Previsto',
++                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
++                    const SizedBox(height: 2),
++                    Text(_formatarMoeda(orcamentoTotal),
++                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
++                  ],
++                ),
++                Column(
++                  crossAxisAlignment: CrossAxisAlignment.end,
++                  children: [
++                    Text('Variação Orçamentária',
++                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
++                    const SizedBox(height: 2),
++                    Text(
++                      _formatarMoeda(variancia.abs()),
++                      style: TextStyle(
++                        fontWeight: FontWeight.bold,
++                        fontSize: 14,
++                        color: desvioPositivo ? Colors.red.shade700 : Colors.green.shade700,
++                      ),
++                    ),
++                  ],
++                ),
++              ],
++            ),
++          ],
++        ),
++      ),
++    );
++  }
++
++  Widget _buildBarraDistribuicao(BuildContext context, ResumoCustosObra resumo) {
++    final total = resumo.totalGeralCents.toDouble();
++    final pMat = resumo.totalMateriaisCents / total;
++    final pMo = resumo.totalMaoDeObraCents / total;
++    final pDd = resumo.totalDespesasDiretasCents / total;
++    final pRi = resumo.totalDespesasIndiretasCents / total;
++
++    return Column(
++      crossAxisAlignment: CrossAxisAlignment.start,
++      children: [
++        const Text(
++          'Distribuição Relativa dos Gastos',
++          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
++        ),
++        const SizedBox(height: 8),
++        ClipRRect(
++          borderRadius: BorderRadius.circular(8),
++          child: SizedBox(
++            height: 18,
++            child: Row(
++              children: [
++                if (pMat > 0)
++                  Expanded(
++                    flex: (pMat * 1000).toInt(),
++                    child: Container(color: Colors.orange.shade700),
++                  ),
++                if (pMo > 0)
++                  Expanded(
++                    flex: (pMo * 1000).toInt(),
++                    child: Container(color: Colors.blue.shade700),
++                  ),
++                if (pDd > 0)
++                  Expanded(
++                    flex: (pDd * 1000).toInt(),
++                    child: Container(color: Colors.purple.shade700),
++                  ),
++                if (pRi > 0)
++                  Expanded(
++                    flex: (pRi * 1000).toInt(),
++                    child: Container(color: Colors.teal.shade700),
++                  ),
++              ],
++            ),
++          ),
++        ),
++      ],
++    );
++  }
++
++  Widget _buildCardLote(
++    BuildContext context,
++    CustoLoteConsolidado lote,
++    int totalObraCents,
++  ) {
++    final percObra = totalObraCents > 0
++        ? (lote.totalCustoLoteCents / totalObraCents.toDouble()) * 100.0
++        : 0.0;
++
++    Color corBadge;
++    String textoBadge;
++    if (lote.estourado) {
++      corBadge = Colors.red.shade700;
++      textoBadge = 'Estourado';
++    } else if (lote.emAlerta) {
++      corBadge = Colors.orange.shade800;
++      textoBadge = 'Alerta';
++    } else if (lote.orcamentoPrevistoCents > 0) {
++      corBadge = Colors.green.shade700;
++      textoBadge = 'No Orçamento';
++    } else {
++      corBadge = Colors.grey.shade600;
++      textoBadge = 'Sem Meta';
++    }
++
++    return Card(
++      elevation: 1.5,
++      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
++      child: InkWell(
++        borderRadius: BorderRadius.circular(12),
++        onTap: () {
++          context.go(
++            '/construtora/$construtoraId/obra/$obraId/custos-360/lotes/${lote.loteId}',
++          );
++        },
++        child: Padding(
++          padding: const EdgeInsets.all(16.0),
++          child: Column(
++            crossAxisAlignment: CrossAxisAlignment.start,
++            children: [
++              Row(
++                mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                children: [
++                  Expanded(
++                    child: Text(
++                      lote.loteNome,
++                      style: const TextStyle(
++                        fontSize: 16,
++                        fontWeight: FontWeight.bold,
++                      ),
++                      overflow: TextOverflow.ellipsis,
++                    ),
++                  ),
++                  Container(
++                    padding: const EdgeInsets.symmetric(
++                        horizontal: 8, vertical: 4),
++                    decoration: BoxDecoration(
++                      color: corBadge.withValues(alpha: 0.12),
++                      borderRadius: BorderRadius.circular(12),
++                      border: Border.all(color: corBadge, width: 0.5),
++                    ),
++                    child: Text(
++                      textoBadge,
++                      style: TextStyle(
++                        color: corBadge,
++                        fontWeight: FontWeight.bold,
++                        fontSize: 11,
++                      ),
++                    ),
++                  ),
++                ],
++              ),
++              const SizedBox(height: 10),
++              Row(
++                mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                children: [
++                  Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      Text(
++                        'Total Realizado',
++                        style: TextStyle(
++                            fontSize: 11, color: Colors.grey.shade600),
++                      ),
++                      Text(
++                        _formatarMoeda(lote.totalCustoLoteCents),
++                        style: const TextStyle(
++                          fontSize: 16,
++                          fontWeight: FontWeight.bold,
++                        ),
++                      ),
++                    ],
++                  ),
++                  Column(
++                    crossAxisAlignment: CrossAxisAlignment.end,
++                    children: [
++                      Text(
++                        'Participação na Obra',
++                        style: TextStyle(
++                            fontSize: 11, color: Colors.grey.shade600),
++                      ),
++                      Text(
++                        '${percObra.toStringAsFixed(1)}%',
++                        style: const TextStyle(
++                          fontSize: 14,
++                          fontWeight: FontWeight.w600,
++                        ),
++                      ),
++                    ],
++                  ),
++                ],
++              ),
++              const SizedBox(height: 10),
++              // Barra de progresso do orçamento
++              if (lote.orcamentoPrevistoCents > 0) ...[
++                LinearProgressIndicator(
++                  value: lote.percentualConsumido.clamp(0.0, 1.0),
++                  color: corBadge,
++                  backgroundColor: Colors.grey.shade200,
++                  minHeight: 6,
++                  borderRadius: BorderRadius.circular(3),
++                ),
++                const SizedBox(height: 4),
++                Row(
++                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                  children: [
++                    Text(
++                      'Meta: ${_formatarMoeda(lote.orcamentoPrevistoCents)}',
++                      style: TextStyle(
++                          fontSize: 11, color: Colors.grey.shade600),
++                    ),
++                    Text(
++                      '${(lote.percentualConsumido * 100).toStringAsFixed(1)}% consumido',
++                      style: TextStyle(
++                        fontSize: 11,
++                        color: corBadge,
++                        fontWeight: FontWeight.w600,
++                      ),
++                    ),
++                  ],
++                ),
++              ],
++              const Divider(height: 18),
++              // Mini indicadores dos 4 cubos
++              SingleChildScrollView(
++                scrollDirection: Axis.horizontal,
++                child: Row(
++                  children: [
++                    _miniCuboIndicator('Mat', lote.materiaisCents, Colors.orange.shade700),
++                    const SizedBox(width: 8),
++                    _miniCuboIndicator('M.O.', lote.maoDeObraCents, Colors.blue.shade700),
++                    const SizedBox(width: 8),
++                    _miniCuboIndicator('Dir', lote.despesasDiretasCents, Colors.purple.shade700),
++                    const SizedBox(width: 8),
++                    _miniCuboIndicator('Ind', lote.rateioIndiretoCents, Colors.teal.shade700),
++                    const SizedBox(width: 8),
++                    const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
++                  ],
++                ),
++              ),
++            ],
++          ),
++        ),
++      ),
++    );
++  }
++
++  Widget _miniCuboIndicator(String label, int cents, Color color) {
++    return Row(
++      children: [
++        Container(
++          width: 8,
++          height: 8,
++          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
++        ),
++        const SizedBox(width: 4),
++        Text(
++          '$label: ${_formatarMoeda(cents)}',
++          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
++        ),
++      ],
++    );
++  }
++
++  String _formatarData(DateTime data) {
++    final d = data.day.toString().padLeft(2, '0');
++    final m = data.month.toString().padLeft(2, '0');
++    final y = data.year;
++    final h = data.hour.toString().padLeft(2, '0');
++    final min = data.minute.toString().padLeft(2, '0');
++    return '$d/$m/$y às $h:$min';
++  }
++}
+diff --git a/app/lib/src/features/custos_360/presentation/widgets/cubo_custo_card.dart b/app/lib/src/features/custos_360/presentation/widgets/cubo_custo_card.dart
+new file mode 100644
+index 0000000..27149e3
+--- /dev/null
++++ b/app/lib/src/features/custos_360/presentation/widgets/cubo_custo_card.dart
+@@ -0,0 +1,135 @@
++import 'package:flutter/material.dart';
++import '../../domain/custo_lote_consolidado.dart';
++
++class CuboCustoCard extends StatelessWidget {
++  final CuboCusto cubo;
++  final int valorCents;
++  final int totalReferenciaCents;
++  final VoidCallback? onTap;
++
++  const CuboCustoCard({
++    super.key,
++    required this.cubo,
++    required this.valorCents,
++    required this.totalReferenciaCents,
++    this.onTap,
++  });
++
++  String _formatarMoeda(int cents) {
++    final valor = cents / 100.0;
++    final valorStr = valor.toStringAsFixed(2).replaceAll('.', ',');
++    final partes = valorStr.split(',');
++    final inteira = partes[0].replaceAllMapped(
++      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
++      (Match m) => '${m[1]}.',
++    );
++    return 'R\$ $inteira,${partes[1]}';
++  }
++
++  (Color, IconData, String) _configCubo(BuildContext context) {
++    switch (cubo) {
++      case CuboCusto.material:
++        return (Colors.orange.shade700, Icons.inventory_2_outlined, 'Almoxarifado');
++      case CuboCusto.maoDeObra:
++        return (Colors.blue.shade700, Icons.groups_outlined, 'Equipes e Diárias');
++      case CuboCusto.despesaDireta:
++        return (Colors.purple.shade700, Icons.receipt_long_outlined, 'Lançamentos Diretos');
++      case CuboCusto.rateioIndireto:
++        return (Colors.teal.shade700, Icons.pie_chart_outline_rounded, 'Despesas Comuns');
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final (cor, icone, subtitulo) = _configCubo(context);
++    final percentual = totalReferenciaCents > 0
++        ? (valorCents / totalReferenciaCents.toDouble()) * 100.0
++        : 0.0;
++
++    return Card(
++      elevation: 1.5,
++      shape: RoundedRectangleBorder(
++        borderRadius: BorderRadius.circular(12),
++        side: BorderSide(color: cor.withValues(alpha: 0.25), width: 1),
++      ),
++      child: InkWell(
++        onTap: onTap,
++        borderRadius: BorderRadius.circular(12),
++        child: Padding(
++          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
++          child: FittedBox(
++            fit: BoxFit.scaleDown,
++            alignment: Alignment.centerLeft,
++            child: SizedBox(
++              width: 170,
++              child: Column(
++                crossAxisAlignment: CrossAxisAlignment.start,
++                mainAxisSize: MainAxisSize.min,
++                children: [
++                  Row(
++                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                    children: [
++                      Container(
++                        padding: const EdgeInsets.all(6),
++                        decoration: BoxDecoration(
++                          color: cor.withValues(alpha: 0.12),
++                          borderRadius: BorderRadius.circular(8),
++                        ),
++                        child: Icon(icone, color: cor, size: 20),
++                      ),
++                      Container(
++                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
++                        decoration: BoxDecoration(
++                          color: cor.withValues(alpha: 0.1),
++                          borderRadius: BorderRadius.circular(10),
++                        ),
++                        child: Text(
++                          '${percentual.toStringAsFixed(1)}%',
++                          style: TextStyle(
++                            color: cor,
++                            fontWeight: FontWeight.bold,
++                            fontSize: 11,
++                          ),
++                        ),
++                      ),
++                    ],
++                  ),
++                  const SizedBox(height: 6),
++                  Text(
++                    cubo.label,
++                    style: const TextStyle(
++                      fontSize: 13,
++                      fontWeight: FontWeight.w600,
++                    ),
++                    maxLines: 1,
++                    overflow: TextOverflow.ellipsis,
++                  ),
++                  Text(
++                    subtitulo,
++                    style: TextStyle(
++                      fontSize: 10,
++                      color: Colors.grey.shade600,
++                    ),
++                    maxLines: 1,
++                    overflow: TextOverflow.ellipsis,
++                  ),
++                  const SizedBox(height: 4),
++                  Text(
++                    _formatarMoeda(valorCents),
++                    style: TextStyle(
++                      fontSize: 16,
++                      fontWeight: FontWeight.bold,
++                      color: cor,
++                    ),
++                    maxLines: 1,
++                    overflow: TextOverflow.ellipsis,
++                  ),
++                ],
++              ),
++            ),
++          ),
++        ),
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart b/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart
+index 6a69b82..5a56042 100644
+--- a/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart
++++ b/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart
+@@ -246,6 +246,14 @@ class ObraDashboardScreen extends ConsumerWidget {
+                           '/construtora/$construtoraId/obra/$obraId/compras',
+                         ),
+                       ),
++                    if (canAdm || canFinanceiro)
++                      SigoModuleCard(
++                        icon: Icons.query_stats_rounded,
++                        title: 'Visão 360 Custos',
++                        onTap: () => context.go(
++                          '/construtora/$construtoraId/obra/$obraId/custos-360',
++                        ),
++                      ),
+                     if (canEstoque)
+                       SigoModuleCard(
+                         icon: Icons.inventory_2,
+diff --git a/app/lib/src/routing/app_router.dart b/app/lib/src/routing/app_router.dart
+index b20fd94..ad0a10b 100644
+--- a/app/lib/src/routing/app_router.dart
++++ b/app/lib/src/routing/app_router.dart
+@@ -45,6 +45,8 @@ import '../features/fornecedores/presentation/fornecedor_form_screen.dart';
+ import '../features/compras_parcelas/presentation/compras_list_screen.dart';
+ import '../features/compras_parcelas/presentation/compra_form_screen.dart';
+ import '../features/compras_parcelas/presentation/compra_detalhes_screen.dart';
++import '../features/custos_360/presentation/visao_360_custos_screen.dart';
++import '../features/custos_360/presentation/lote_custo_detalhe_screen.dart';
+ 
+ final routerProvider = Provider<GoRouter>((ref) {
+   final authState = ref.watch(authStateChangesProvider);
+@@ -536,6 +538,37 @@ final routerProvider = Provider<GoRouter>((ref) {
+           );
+         },
+       ),
++      GoRoute(
++        path: '/construtora/:cId/obra/:oId/custos-360',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'adm',
++            child: Visao360CustosScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: '/construtora/:cId/obra/:oId/custos-360/lotes/:loteId',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final loteId = state.pathParameters['loteId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'adm',
++            child: LoteCustoDetalheScreen(
++              construtoraId: cId,
++              obraId: oId,
++              loteId: loteId,
++            ),
++          );
++        },
++      ),
+       GoRoute(
+         path: '/construtora/:cId/fornecedores',
+         builder: (context, state) {
+diff --git a/app/test/custos_360_domain_test.dart b/app/test/custos_360_domain_test.dart
+new file mode 100644
+index 0000000..34a2adb
+--- /dev/null
++++ b/app/test/custos_360_domain_test.dart
+@@ -0,0 +1,147 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:app/src/features/custos_360/domain/custo_lote_consolidado.dart';
++
++void main() {
++  group('CustoLoteConsolidado & ResumoCustosObra Domain Tests', () {
++    test('soma exata dos 4 cubos compõe totalCustoLoteCents', () {
++      final loteCusto = CustoLoteConsolidado(
++        loteId: 'lote-101',
++        loteNome: 'Lote 101 - Quadra A',
++        materiaisCents: 500000, // R$ 5.000,00
++        maoDeObraCents: 800000, // R$ 8.000,00
++        despesasDiretasCents: 200000, // R$ 2.000,00
++        rateioIndiretoCents: 150000, // R$ 1.500,00
++        orcamentoPrevistoCents: 2000000, // R$ 20.000,00
++      );
++
++      expect(loteCusto.totalCustoLoteCents, 1650000); // R$ 16.500,00
++      expect(loteCusto.totalCustoLote, 16500.0);
++      expect(loteCusto.materiais, 5000.0);
++      expect(loteCusto.maoDeObra, 8000.0);
++      expect(loteCusto.despesasDiretas, 2000.0);
++      expect(loteCusto.rateioIndireto, 1500.0);
++      expect(loteCusto.orcamentoPrevisto, 20000.0);
++      expect(loteCusto.varianciaCents, -350000); // Sobrou R$ 3.500,00
++      expect(loteCusto.variancia, -3500.0);
++      expect(loteCusto.temDesvioPositivo, isFalse);
++      expect(loteCusto.estourado, isFalse);
++      expect(loteCusto.percentualConsumido, 1650000 / 2000000);
++      expect(loteCusto.emAlerta, isFalse);
++    });
++
++    test('alerta orçamentário quando consumo entre 85% e 100%', () {
++      final loteEmAlerta = CustoLoteConsolidado(
++        loteId: 'lote-102',
++        loteNome: 'Lote 102',
++        materiaisCents: 450000,
++        maoDeObraCents: 450000,
++        despesasDiretasCents: 0,
++        rateioIndiretoCents: 0,
++        orcamentoPrevistoCents: 1000000, // 900.000 de 1.000.000 = 90%
++      );
++
++      expect(loteEmAlerta.percentualConsumido, 0.9);
++      expect(loteEmAlerta.emAlerta, isTrue);
++      expect(loteEmAlerta.estourado, isFalse);
++    });
++
++    test('estouro orçamentário com desvio positivo', () {
++      final loteEstourado = CustoLoteConsolidado(
++        loteId: 'lote-103',
++        loteNome: 'Lote 103',
++        materiaisCents: 600000,
++        maoDeObraCents: 600000,
++        despesasDiretasCents: 0,
++        rateioIndiretoCents: 0,
++        orcamentoPrevistoCents: 1000000, // 1.200.000 de 1.000.000 = 120%
++      );
++
++      expect(loteEstourado.totalCustoLoteCents, 1200000);
++      expect(loteEstourado.varianciaCents, 200000);
++      expect(loteEstourado.variancia, 2000.0);
++      expect(loteEstourado.temDesvioPositivo, isTrue);
++      expect(loteEstourado.estourado, isTrue);
++      expect(loteEstourado.emAlerta, isFalse);
++    });
++
++    test('lote zerado inicial sem orçamento não quebra e mantém tudo em 0', () {
++      final loteZerado = CustoLoteConsolidado(
++        loteId: 'lote-zero',
++        loteNome: 'Lote Novo',
++        materiaisCents: 0,
++        maoDeObraCents: 0,
++        despesasDiretasCents: 0,
++        rateioIndiretoCents: 0,
++        orcamentoPrevistoCents: 0,
++      );
++
++      expect(loteZerado.totalCustoLoteCents, 0);
++      expect(loteZerado.percentualConsumido, 0.0);
++      expect(loteZerado.estourado, isFalse);
++      expect(loteZerado.emAlerta, isFalse);
++    });
++
++    test('serialização e desserialização de CustoLoteConsolidado e ResumoCustosObra', () {
++      final lote = CustoLoteConsolidado(
++        loteId: 'lote-1',
++        loteNome: 'Lote 1',
++        materiaisCents: 1000,
++        maoDeObraCents: 2000,
++        despesasDiretasCents: 500,
++        rateioIndiretoCents: 250,
++        orcamentoPrevistoCents: 5000,
++      );
++
++      final map = lote.toMap();
++      final recovered = CustoLoteConsolidado.fromMap(map);
++
++      expect(recovered.loteId, lote.loteId);
++      expect(recovered.loteNome, lote.loteNome);
++      expect(recovered.totalCustoLoteCents, lote.totalCustoLoteCents);
++      expect(recovered.orcamentoPrevistoCents, lote.orcamentoPrevistoCents);
++      expect(recovered.varianciaCents, lote.varianciaCents);
++
++      final resumo = ResumoCustosObra(
++        obraId: 'obra-sp-01',
++        totalGeralCents: 3750,
++        totalMateriaisCents: 1000,
++        totalMaoDeObraCents: 2000,
++        totalDespesasDiretasCents: 500,
++        totalDespesasIndiretasCents: 250,
++        orcamentoTotalPrevistoCents: 5000,
++        lotesCustos: [recovered],
++      );
++
++      final resumoMap = resumo.toMap();
++      final recoveredResumo = ResumoCustosObra.fromMap(resumoMap);
++
++      expect(recoveredResumo.obraId, 'obra-sp-01');
++      expect(recoveredResumo.totalGeralCents, 3750);
++      expect(recoveredResumo.lotesCustos.length, 1);
++      expect(recoveredResumo.lotesCustos.first.loteNome, 'Lote 1');
++    });
++
++    test('ExtratoItemCusto toMap e fromMap', () {
++      final item = ExtratoItemCusto(
++        id: 'ext-1',
++        cubo: CuboCusto.material,
++        descricao: 'Cimento CP-II 50kg (10 sc)',
++        data: DateTime(2026, 9, 18, 14, 30),
++        valorCents: 45000,
++        documentoReferencia: 'NF-12345',
++        responsavelNome: 'Almoxarife Carlos',
++      );
++
++      final map = item.toMap();
++      final rec = ExtratoItemCusto.fromMap(map);
++
++      expect(rec.id, 'ext-1');
++      expect(rec.cubo, CuboCusto.material);
++      expect(rec.descricao, 'Cimento CP-II 50kg (10 sc)');
++      expect(rec.valorCents, 45000);
++      expect(rec.valor, 450.0);
++      expect(rec.documentoReferencia, 'NF-12345');
++      expect(rec.responsavelNome, 'Almoxarife Carlos');
++    });
++  });
++}
+diff --git a/app/test/custos_360_presentation_test.dart b/app/test/custos_360_presentation_test.dart
+new file mode 100644
+index 0000000..430f5bc
+--- /dev/null
++++ b/app/test/custos_360_presentation_test.dart
+@@ -0,0 +1,174 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:flutter_test/flutter_test.dart';
++
++import 'package:app/src/features/custos_360/domain/custo_lote_consolidado.dart';
++import 'package:app/src/features/custos_360/presentation/controllers/custos_360_controller.dart';
++import 'package:app/src/features/custos_360/presentation/lote_custo_detalhe_screen.dart';
++import 'package:app/src/features/custos_360/presentation/visao_360_custos_screen.dart';
++import 'package:app/src/features/custos_360/presentation/widgets/cubo_custo_card.dart';
++
++void main() {
++  group('CuboCustoCard Widget Test', () {
++    testWidgets('exibe informações formatadas e percentual correto', (tester) async {
++      await tester.pumpWidget(
++        MaterialApp(
++          home: Scaffold(
++            body: CuboCustoCard(
++              cubo: CuboCusto.material,
++              valorCents: 250000, // R$ 2.500,00
++              totalReferenciaCents: 1000000, // 25.0%
++            ),
++          ),
++        ),
++      );
++
++      expect(find.text('Materiais'), findsOneWidget);
++      expect(find.text('Almoxarifado'), findsOneWidget);
++      expect(find.text('25.0%'), findsOneWidget);
++      expect(find.text('R\$ 2.500,00'), findsOneWidget);
++    });
++  });
++
++  group('Visao360CustosScreen Widget Test', () {
++    testWidgets('renderiza kpis executivos, cubos e lista de lotes com orçado vs realizado', (tester) async {
++      final mockLote1 = CustoLoteConsolidado(
++        loteId: 'lote-1',
++        loteNome: 'Lote 01 - Fundações',
++        materiaisCents: 500000,
++        maoDeObraCents: 800000,
++        despesasDiretasCents: 200000,
++        rateioIndiretoCents: 100000,
++        orcamentoPrevistoCents: 2000000,
++      );
++
++      final mockLote2 = CustoLoteConsolidado(
++        loteId: 'lote-2',
++        loteNome: 'Lote 02 - Alvenaria',
++        materiaisCents: 600000,
++        maoDeObraCents: 600000,
++        despesasDiretasCents: 100000,
++        rateioIndiretoCents: 100000,
++        orcamentoPrevistoCents: 1000000, // Estourado (1.400.000 > 1.000.000)
++      );
++
++      final mockResumo = ResumoCustosObra(
++        obraId: 'obra-01',
++        totalGeralCents: 3000000,
++        totalMateriaisCents: 1100000,
++        totalMaoDeObraCents: 1400000,
++        totalDespesasDiretasCents: 300000,
++        totalDespesasIndiretasCents: 200000,
++        orcamentoTotalPrevistoCents: 3000000,
++        lotesCustos: [mockLote1, mockLote2],
++      );
++
++      await tester.pumpWidget(
++        ProviderScope(
++          overrides: [
++            resumoCustosObraStreamProvider(
++              (construtoraId: 'c1', obraId: 'o1'),
++            ).overrideWith((ref) => Stream.value(mockResumo)),
++          ],
++          child: const MaterialApp(
++            home: Visao360CustosScreen(
++              construtoraId: 'c1',
++              obraId: 'o1',
++            ),
++          ),
++        ),
++      );
++
++      await tester.pumpAndSettle();
++
++      // Verifica Cabeçalho e KPIs
++      expect(find.text('Visão 360º de Custos'), findsOneWidget);
++      expect(find.text('Custo Total Realizado da Obra'), findsOneWidget);
++      expect(find.text('R\$ 30.000,00'), findsWidgets);
++
++      // Verifica 4 Cubos
++      expect(find.text('Materiais'), findsOneWidget);
++      expect(find.text('Mão de Obra'), findsOneWidget);
++      expect(find.text('Despesas Diretas'), findsOneWidget);
++      expect(find.text('Rateio Indireto'), findsOneWidget);
++
++      // Verifica Lotes
++      expect(find.text('Lote 01 - Fundações'), findsOneWidget);
++      expect(find.text('Lote 02 - Alvenaria'), findsOneWidget);
++      expect(find.text('No Orçamento'), findsOneWidget);
++      expect(find.text('Estourado'), findsOneWidget);
++    });
++  });
++
++  group('LoteCustoDetalheScreen Widget Test', () {
++    testWidgets('renderiza detalhamento do lote com abas de extrato analítico', (tester) async {
++      final mockLote = CustoLoteConsolidado(
++        loteId: 'lote-10',
++        loteNome: 'Lote 10 - Estrutura',
++        materiaisCents: 400000,
++        maoDeObraCents: 600000,
++        despesasDiretasCents: 100000,
++        rateioIndiretoCents: 50000,
++        orcamentoPrevistoCents: 1500000,
++      );
++
++      final mockResumo = ResumoCustosObra(
++        obraId: 'obra-10',
++        totalGeralCents: 1150000,
++        totalMateriaisCents: 400000,
++        totalMaoDeObraCents: 600000,
++        totalDespesasDiretasCents: 100000,
++        totalDespesasIndiretasCents: 50000,
++        orcamentoTotalPrevistoCents: 1500000,
++        lotesCustos: [mockLote],
++      );
++
++      final mockExtrato = [
++        ExtratoItemCusto(
++          id: 'ext-1',
++          cubo: CuboCusto.material,
++          descricao: 'Aço CA-50 10mm (50 barras)',
++          data: DateTime(2026, 9, 18),
++          valorCents: 350000,
++          documentoReferencia: 'NF-9988',
++        ),
++        ExtratoItemCusto(
++          id: 'ext-2',
++          cubo: CuboCusto.maoDeObra,
++          descricao: 'Equipe de Armadores',
++          data: DateTime(2026, 9, 18),
++          valorCents: 600000,
++          documentoReferencia: 'Chamada #102',
++        ),
++      ];
++
++      await tester.pumpWidget(
++        ProviderScope(
++          overrides: [
++            resumoCustosObraStreamProvider(
++              (construtoraId: 'c1', obraId: 'o1'),
++            ).overrideWith((ref) => Stream.value(mockResumo)),
++            extratoLoteFutureProvider(
++              (construtoraId: 'c1', obraId: 'o1', loteId: 'lote-10'),
++            ).overrideWith((ref) => Future.value(mockExtrato)),
++          ],
++          child: const MaterialApp(
++            home: LoteCustoDetalheScreen(
++              construtoraId: 'c1',
++              obraId: 'o1',
++              loteId: 'lote-10',
++            ),
++          ),
++        ),
++      );
++
++      await tester.pumpAndSettle();
++
++      expect(find.text('Lote 10 - Estrutura'), findsWidgets);
++      expect(find.text('Custo Acumulado do Lote'), findsOneWidget);
++      expect(find.text('Extrato Analítico de Lançamentos'), findsOneWidget);
++      expect(find.text('Aço CA-50 10mm (50 barras)'), findsOneWidget);
++      expect(find.text('Equipe de Armadores'), findsOneWidget);
++    });
++  });
++}
+diff --git a/app/test/custos_360_rateio_test.dart b/app/test/custos_360_rateio_test.dart
+new file mode 100644
+index 0000000..aeed313
+--- /dev/null
++++ b/app/test/custos_360_rateio_test.dart
+@@ -0,0 +1,97 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:app/src/features/custos_360/domain/rateio_indireto_math.dart';
++
++void main() {
++  group('RateioIndiretoMath', () {
++    test('distribui R\$ 100,00 (10000 cents) entre 3 lotes com resto de 1 centavo alocado determinístico no 1º lote', () {
++      final lotes = ['lote-1', 'lote-2', 'lote-3'];
++      final res = RateioIndiretoMath.distribuir(
++        totalDespesasIndiretasCents: 10000,
++        lotesIds: lotes,
++      );
++
++      expect(res['lote-1'], 3334);
++      expect(res['lote-2'], 3333);
++      expect(res['lote-3'], 3333);
++
++      final soma = res.values.fold(0, (acc, v) => acc + v);
++      expect(soma, 10000);
++    });
++
++    test('distribui com resto de 2 centavos entre 3 lotes (lote-1 e lote-2 recebem 1 centavo extra)', () {
++      final lotes = ['lote-1', 'lote-2', 'lote-3'];
++      final res = RateioIndiretoMath.distribuir(
++        totalDespesasIndiretasCents: 10001,
++        lotesIds: lotes,
++      );
++
++      expect(res['lote-1'], 3334);
++      expect(res['lote-2'], 3334);
++      expect(res['lote-3'], 3333);
++
++      final soma = res.values.fold(0, (acc, v) => acc + v);
++      expect(soma, 10001);
++    });
++
++    test('distribuição exata sem resto (9000 cents entre 3 lotes)', () {
++      final lotes = ['lote-A', 'lote-B', 'lote-C'];
++      final res = RateioIndiretoMath.distribuir(
++        totalDespesasIndiretasCents: 9000,
++        lotesIds: lotes,
++      );
++
++      expect(res['lote-A'], 3000);
++      expect(res['lote-B'], 3000);
++      expect(res['lote-C'], 3000);
++      expect(res.values.fold(0, (acc, v) => acc + v), 9000);
++    });
++
++    test('lote único recebe 100% da despesa indireta', () {
++      final lotes = ['lote-unico'];
++      final res = RateioIndiretoMath.distribuir(
++        totalDespesasIndiretasCents: 54321,
++        lotesIds: lotes,
++      );
++
++      expect(res['lote-unico'], 54321);
++    });
++
++    test('despesa indireta zero ou negativa retorna zero para todos os lotes', () {
++      final lotes = ['l1', 'l2'];
++      final resZero = RateioIndiretoMath.distribuir(
++        totalDespesasIndiretasCents: 0,
++        lotesIds: lotes,
++      );
++      expect(resZero['l1'], 0);
++      expect(resZero['l2'], 0);
++
++      final resNeg = RateioIndiretoMath.distribuir(
++        totalDespesasIndiretasCents: -500,
++        lotesIds: lotes,
++      );
++      expect(resNeg['l1'], 0);
++      expect(resNeg['l2'], 0);
++    });
++
++    test('sem lotes cadastrados não gera divisão por zero', () {
++      final res = RateioIndiretoMath.distribuir(
++        totalDespesasIndiretasCents: 50000,
++        lotesIds: [],
++      );
++      expect(res.isEmpty, isTrue);
++    });
++
++    test('conservação estrita de centavos para valores elevados e número arbitrário de lotes', () {
++      final lotes = List.generate(17, (i) => 'lote-$i');
++      const totalCents = 123456789; // R$ 1.234.567,89
++
++      final res = RateioIndiretoMath.distribuir(
++        totalDespesasIndiretasCents: totalCents,
++        lotesIds: lotes,
++      );
++
++      final soma = res.values.fold(0, (acc, v) => acc + v);
++      expect(soma, totalCents, reason: 'A soma dos rateios deve ser rigorosamente idêntica ao total.');
++    });
++  });
++}
+diff --git a/firestore.rules b/firestore.rules
+index 6ba30fb..8b358d2 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -105,6 +105,16 @@ service cloud.firestore {
+         && request.resource.data.loteId == l;
+       allow delete: if false;
+      }
++     match /resumo_custos/{doc} {
++      allow read: if admin(c) || obraMember(c,o);
++      allow create, update: if (admin(c) || obraAdmin(c,o) || module(c,o,'adm') || adm(c) || module(c,o,'financeiro') || module(c,o,'rh') || module(c,o,'almoxarifado'));
++      allow delete: if false;
++     }
++    }
++    match /resumo_custos/{doc} {
++     allow read: if admin(c) || obraMember(c,o);
++     allow create, update: if (admin(c) || obraAdmin(c,o) || module(c,o,'adm') || adm(c) || module(c,o,'financeiro') || module(c,o,'rh') || module(c,o,'almoxarifado'));
++     allow delete: if false;
+     }
+     match /compras/{compraId} {
+      allow read: if admin(c) || obraMember(c,o);

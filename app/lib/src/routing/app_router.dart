@@ -45,6 +45,8 @@ import '../features/fornecedores/presentation/fornecedor_form_screen.dart';
 import '../features/compras_parcelas/presentation/compras_list_screen.dart';
 import '../features/compras_parcelas/presentation/compra_form_screen.dart';
 import '../features/compras_parcelas/presentation/compra_detalhes_screen.dart';
+import '../features/custos_360/presentation/visao_360_custos_screen.dart';
+import '../features/custos_360/presentation/lote_custo_detalhe_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
@@ -532,6 +534,37 @@ final routerProvider = Provider<GoRouter>((ref) {
               construtoraId: cId,
               obraId: oId,
               despesaId: despesaId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/custos-360',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'adm',
+            child: Visao360CustosScreen(construtoraId: cId, obraId: oId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/custos-360/lotes/:loteId',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          final loteId = state.pathParameters['loteId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'adm',
+            child: LoteCustoDetalheScreen(
+              construtoraId: cId,
+              obraId: oId,
+              loteId: loteId,
             ),
           );
         },

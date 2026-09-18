@@ -105,6 +105,16 @@ service cloud.firestore {
         && request.resource.data.loteId == l;
       allow delete: if false;
      }
+     match /resumo_custos/{doc} {
+      allow read: if admin(c) || obraMember(c,o);
+      allow create, update: if (admin(c) || obraAdmin(c,o) || module(c,o,'adm') || adm(c) || module(c,o,'financeiro') || module(c,o,'rh') || module(c,o,'almoxarifado'));
+      allow delete: if false;
+     }
+    }
+    match /resumo_custos/{doc} {
+     allow read: if admin(c) || obraMember(c,o);
+     allow create, update: if (admin(c) || obraAdmin(c,o) || module(c,o,'adm') || adm(c) || module(c,o,'financeiro') || module(c,o,'rh') || module(c,o,'almoxarifado'));
+     allow delete: if false;
     }
     match /compras/{compraId} {
      allow read: if admin(c) || obraMember(c,o);

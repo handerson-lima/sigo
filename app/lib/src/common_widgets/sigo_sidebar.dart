@@ -253,6 +253,16 @@ class SigoSidebar extends ConsumerWidget {
                         context.go('/construtora/$cId/obra/$oId/compras');
                       },
                     ),
+                  if (canAdm || canFinanceiro)
+                    _NavItem(
+                      icon: Icons.query_stats_rounded,
+                      title: 'Visão 360 Custos',
+                      isActive: activeRoute.contains('/custos-360'),
+                      onTap: () {
+                        Scaffold.maybeOf(context)?.closeDrawer();
+                        context.go('/construtora/$cId/obra/$oId/custos-360');
+                      },
+                    ),
                   const SizedBox(height: 24),
                   const Padding(
                     padding: EdgeInsets.only(left: 16, bottom: 8),
