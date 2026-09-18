@@ -1,0 +1,1771 @@
+diff --git a/_bmad-output/implementation-artifacts/spec-4-4-rh-invariantes-auditoria.md b/_bmad-output/implementation-artifacts/spec-4-4-rh-invariantes-auditoria.md
+index 7169a87..2bd6147 100644
+--- a/_bmad-output/implementation-artifacts/spec-4-4-rh-invariantes-auditoria.md
++++ b/_bmad-output/implementation-artifacts/spec-4-4-rh-invariantes-auditoria.md
+@@ -2,8 +2,8 @@
+ title: 'Story 4.4 — RH: Validação de Invariantes e Auditoria'
+ type: 'feature'
+ created: '2026-09-17'
+-status: 'in-progress'
+-baseline_commit: '297136a01b36e16915c89c2034921dac76c5c8dc'
++status: 'in-review'
++baseline_commit: 'e51ac13a1340815c6e3e2585721938fec3d9a366'
+ route: 'dispatch'
+ review_loop_iteration: 0
+ context:
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index ae67d67..4c63e4c 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -5,7 +5,7 @@
+ # IDs históricos preservados; docs/stories não existe no workspace atual.
+ 
+ generated: 09-14-2026 16:15
+-last_updated: 09-17-2026 21:12
++last_updated: 09-17-2026 22:08
+ project: obras
+ project_key: SIGO
+ tracking_system: file-system
+@@ -87,7 +87,7 @@ development_status:
+   4-1-rh-cadastro: done
+   4-2-rh-chamada: done
+   4-3-rh-custos: done
+-  4-4-rh-validar-invariantes: ready-for-dev
++  4-4-rh-validar-invariantes: in-progress
+   epic-4-retrospective: optional
+ 
+   epic-5: backlog
+diff --git a/app/lib/src/features/rh/data/chamada_repository.dart b/app/lib/src/features/rh/data/chamada_repository.dart
+index 8dad738..bc6c9da 100644
+--- a/app/lib/src/features/rh/data/chamada_repository.dart
++++ b/app/lib/src/features/rh/data/chamada_repository.dart
+@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import '../../../sync/read_cache.dart';
+ import '../domain/chamada_diaria.dart';
+ 
++import '../domain/rh_invariante_validator.dart';
++
+ final chamadaRepositoryProvider = Provider<ChamadaRepository>((ref) {
+   return ChamadaRepository(FirebaseFirestore.instance);
+ });
+@@ -77,10 +79,63 @@ class ChamadaRepository {
+     return doc.data();
+   }
+ 
++  Future<ChamadaDiaria?> findChamadaByDate(
++    String construtoraId,
++    String obraId,
++    String date,
++  ) async {
++    final query = await _chamadasRef(construtoraId, obraId)
++        .where('date', isEqualTo: date)
++        .limit(1)
++        .get();
++    if (query.docs.isEmpty) return null;
++    return query.docs.first.data();
++  }
++
++  Future<List<({String obraId, String date, ApontamentoTrabalhador apontamento})>>
++      findCrossObraApontamentos({
++    required String construtoraId,
++    required String currentObraId,
++    required String date,
++  }) async {
++    final snapshot = await _firestore
++        .collectionGroup('chamadas')
++        .where('construtoraId', isEqualTo: construtoraId)
++        .where('date', isEqualTo: date)
++        .get();
++
++    final result =
++        <({String obraId, String date, ApontamentoTrabalhador apontamento})>[];
++    for (final doc in snapshot.docs) {
++      final data = doc.data();
++      final chObraId = data['obraId'] as String? ?? '';
++      final status = data['status'] as String? ?? '';
++      if (chObraId == currentObraId || status == 'cancelada') continue;
++
++      final chamada = ChamadaDiaria.fromMap(data, id: doc.id);
++      for (final worker in chamada.workers) {
++        if (worker.status != PresencaStatus.falta) {
++          result.add((obraId: chObraId, date: date, apontamento: worker));
++        }
++      }
++    }
++    return result;
++  }
++
+   Future<void> saveChamada(ChamadaDiaria chamada) async {
+-    if (!chamada.isValid) {
++    final erros = RhInvarianteValidator.validarChamada(
++      apontamentos: chamada.workers,
++    );
++    if (erros.isNotEmpty) {
++      throw ArgumentError(
++        'Invariantes de RH violadas: ${erros.join("; ")}',
++      );
++    }
++    if (chamada.isRetificada &&
++        (chamada.motivoRetificacao == null ||
++            chamada.motivoRetificacao!.trim().length < 10)) {
+       throw ArgumentError(
+-        'Chamada possui colaboradores com alocações inválidas ou lista vazia.',
++        'Retificação de chamada exige justificativa com ao menos 10 caracteres.',
+       );
+     }
+     await _chamadasRef(chamada.construtoraId, chamada.obraId)
+diff --git a/app/lib/src/features/rh/domain/chamada_audit_entry.dart b/app/lib/src/features/rh/domain/chamada_audit_entry.dart
+new file mode 100644
+index 0000000..067ee2a
+--- /dev/null
++++ b/app/lib/src/features/rh/domain/chamada_audit_entry.dart
+@@ -0,0 +1,99 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++
++class ChamadaAuditEntry {
++  final String id;
++  final String userId;
++  final String userName;
++  final DateTime timestamp;
++  final String motivo;
++  final int totalCostCentsAnterior;
++  final int totalCostCentsNovo;
++  final int versaoAnterior;
++  final Map<String, dynamic>? snapshotAnterior;
++
++  const ChamadaAuditEntry({
++    required this.id,
++    required this.userId,
++    required this.userName,
++    required this.timestamp,
++    required this.motivo,
++    required this.totalCostCentsAnterior,
++    required this.totalCostCentsNovo,
++    required this.versaoAnterior,
++    this.snapshotAnterior,
++  });
++
++  Map<String, dynamic> toMap() => {
++        'id': id,
++        'userId': userId,
++        'userName': userName,
++        'timestamp': timestamp.toIso8601String(),
++        'motivo': motivo,
++        'totalCostCentsAnterior': totalCostCentsAnterior,
++        'totalCostCentsNovo': totalCostCentsNovo,
++        'versaoAnterior': versaoAnterior,
++        if (snapshotAnterior != null) 'snapshotAnterior': snapshotAnterior,
++      };
++
++  factory ChamadaAuditEntry.fromMap(Map<String, dynamic> map) {
++    DateTime parseDate(dynamic value) {
++      if (value is Timestamp) return value.toDate();
++      if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
++      return DateTime.now();
++    }
++
++    return ChamadaAuditEntry(
++      id: map['id'] as String? ?? '',
++      userId: map['userId'] as String? ?? '',
++      userName: map['userName'] as String? ?? '',
++      timestamp: parseDate(map['timestamp']),
++      motivo: map['motivo'] as String? ?? '',
++      totalCostCentsAnterior:
++          (map['totalCostCentsAnterior'] as num?)?.toInt() ?? 0,
++      totalCostCentsNovo: (map['totalCostCentsNovo'] as num?)?.toInt() ?? 0,
++      versaoAnterior: (map['versaoAnterior'] as num?)?.toInt() ?? 1,
++      snapshotAnterior: map['snapshotAnterior'] != null
++          ? Map<String, dynamic>.from(map['snapshotAnterior'] as Map)
++          : null,
++    );
++  }
++
++  ChamadaAuditEntry copyWith({
++    String? id,
++    String? userId,
++    String? userName,
++    DateTime? timestamp,
++    String? motivo,
++    int? totalCostCentsAnterior,
++    int? totalCostCentsNovo,
++    int? versaoAnterior,
++    Map<String, dynamic>? snapshotAnterior,
++  }) {
++    return ChamadaAuditEntry(
++      id: id ?? this.id,
++      userId: userId ?? this.userId,
++      userName: userName ?? this.userName,
++      timestamp: timestamp ?? this.timestamp,
++      motivo: motivo ?? this.motivo,
++      totalCostCentsAnterior:
++          totalCostCentsAnterior ?? this.totalCostCentsAnterior,
++      totalCostCentsNovo: totalCostCentsNovo ?? this.totalCostCentsNovo,
++      versaoAnterior: versaoAnterior ?? this.versaoAnterior,
++      snapshotAnterior: snapshotAnterior ?? this.snapshotAnterior,
++    );
++  }
++
++  @override
++  bool operator ==(Object other) =>
++      identical(this, other) ||
++      other is ChamadaAuditEntry &&
++          runtimeType == other.runtimeType &&
++          id == other.id &&
++          userId == other.userId &&
++          motivo == other.motivo &&
++          versaoAnterior == other.versaoAnterior;
++
++  @override
++  int get hashCode =>
++      id.hashCode ^ userId.hashCode ^ motivo.hashCode ^ versaoAnterior.hashCode;
++}
+diff --git a/app/lib/src/features/rh/domain/chamada_diaria.dart b/app/lib/src/features/rh/domain/chamada_diaria.dart
+index 4df516d..b20564e 100644
+--- a/app/lib/src/features/rh/domain/chamada_diaria.dart
++++ b/app/lib/src/features/rh/domain/chamada_diaria.dart
+@@ -1,6 +1,9 @@
+ import 'package:cloud_firestore/cloud_firestore.dart';
+ import '../../../core/contracts.dart';
++import 'chamada_audit_entry.dart';
++import 'chamada_status.dart';
+ import 'custo_mao_de_obra.dart';
++import 'rh_invariante_validator.dart';
+ 
+ enum PresencaStatus {
+   presente('presente', 'Presente', 'P'),
+@@ -169,7 +172,7 @@ class ChamadaDiaria {
+   final String? teamName;
+   final String createdByUid;
+   final String? defaultLotId;
+-  final String status; // 'confirmada' | 'retificada' | 'cancelada'
++  final String status; // 'confirmada' | 'fechada' | 'retificada' | 'cancelada'
+   final String? observacoes;
+   final List<ApontamentoTrabalhador> workers;
+   final int totalDayCostCents;
+@@ -177,6 +180,11 @@ class ChamadaDiaria {
+   final CostPolicy? costPolicy;
+   final List<WorkerCostSnapshot> costSnapshots;
+   final List<LotCostSummary> lotCostSummaries;
++  final int versaoAuditoria;
++  final List<ChamadaAuditEntry> auditTrail;
++  final String? retificadoPor;
++  final DateTime? retificadoEm;
++  final String? motivoRetificacao;
+   final DateTime createdAt;
+   final DateTime updatedAt;
+   final int schemaVersion;
+@@ -190,7 +198,7 @@ class ChamadaDiaria {
+     this.teamName,
+     required this.createdByUid,
+     this.defaultLotId,
+-    this.status = 'confirmada',
++    this.status = 'fechada',
+     this.observacoes,
+     this.workers = const [],
+     this.totalDayCostCents = 0,
+@@ -198,11 +206,19 @@ class ChamadaDiaria {
+     this.costPolicy,
+     this.costSnapshots = const [],
+     this.lotCostSummaries = const [],
++    this.versaoAuditoria = 1,
++    this.auditTrail = const [],
++    this.retificadoPor,
++    this.retificadoEm,
++    this.motivoRetificacao,
+     required this.createdAt,
+     required this.updatedAt,
+     this.schemaVersion = 1,
+   });
+ 
++  ChamadaStatus get chamadaStatus => ChamadaStatus.fromValue(status);
++  bool get isRetificada => chamadaStatus == ChamadaStatus.retificada;
++
+   int get totalWorkers => workers.length;
+   int get presentCount =>
+       workers.where((w) => w.status == PresencaStatus.presente).length;
+@@ -212,7 +228,8 @@ class ChamadaDiaria {
+       workers.where((w) => w.status == PresencaStatus.falta).length;
+ 
+   bool get isValid =>
+-      workers.isNotEmpty && workers.every((w) => w.isValidAllocation);
++      workers.isNotEmpty &&
++      RhInvarianteValidator.validarChamada(apontamentos: workers).isEmpty;
+ 
+   String get formattedTotalCost => formatCents(totalDayCostCents);
+ 
+@@ -234,6 +251,12 @@ class ChamadaDiaria {
+       if (costPolicy != null) 'costPolicy': costPolicy!.toMap(),
+       'costSnapshots': costSnapshots.map((s) => s.toMap()).toList(),
+       'lotCostSummaries': lotCostSummaries.map((s) => s.toMap()).toList(),
++      'versaoAuditoria': versaoAuditoria,
++      'auditTrail': auditTrail.map((a) => a.toMap()).toList(),
++      if (retificadoPor != null) 'retificadoPor': retificadoPor,
++      if (retificadoEm != null)
++        'retificadoEm': Timestamp.fromDate(retificadoEm!),
++      if (motivoRetificacao != null) 'motivoRetificacao': motivoRetificacao,
+       'createdAt': Timestamp.fromDate(createdAt),
+       'updatedAt': Timestamp.fromDate(updatedAt),
+       'schemaVersion': schemaVersion,
+@@ -247,9 +270,17 @@ class ChamadaDiaria {
+       return DateTime.now();
+     }
+ 
++    DateTime? parseNullableDate(dynamic value) {
++      if (value == null) return null;
++      if (value is Timestamp) return value.toDate();
++      if (value is String) return DateTime.tryParse(value);
++      return null;
++    }
++
+     final rawWorkers = map['workers'] as List<dynamic>? ?? [];
+     final rawCostSnapshots = map['costSnapshots'] as List<dynamic>? ?? [];
+     final rawLotCostSummaries = map['lotCostSummaries'] as List<dynamic>? ?? [];
++    final rawAuditTrail = map['auditTrail'] as List<dynamic>? ?? [];
+ 
+     return ChamadaDiaria(
+       id: id ?? map['id'] as String? ?? '',
+@@ -260,7 +291,7 @@ class ChamadaDiaria {
+       teamName: map['teamName'] as String?,
+       createdByUid: map['createdByUid'] as String? ?? '',
+       defaultLotId: map['defaultLotId'] as String?,
+-      status: map['status'] as String? ?? 'confirmada',
++      status: map['status'] as String? ?? 'fechada',
+       observacoes: map['observacoes'] as String?,
+       workers: rawWorkers
+           .map((w) =>
+@@ -279,6 +310,14 @@ class ChamadaDiaria {
+           .map((l) =>
+               LotCostSummary.fromMap(Map<String, dynamic>.from(l as Map)))
+           .toList(),
++      versaoAuditoria: (map['versaoAuditoria'] as num?)?.toInt() ?? 1,
++      auditTrail: rawAuditTrail
++          .map((a) =>
++              ChamadaAuditEntry.fromMap(Map<String, dynamic>.from(a as Map)))
++          .toList(),
++      retificadoPor: map['retificadoPor'] as String?,
++      retificadoEm: parseNullableDate(map['retificadoEm']),
++      motivoRetificacao: map['motivoRetificacao'] as String?,
+       createdAt: parseDate(map['createdAt']),
+       updatedAt: parseDate(map['updatedAt']),
+       schemaVersion: (map['schemaVersion'] as num?)?.toInt() ?? 1,
+@@ -302,6 +341,11 @@ class ChamadaDiaria {
+     CostPolicy? costPolicy,
+     List<WorkerCostSnapshot>? costSnapshots,
+     List<LotCostSummary>? lotCostSummaries,
++    int? versaoAuditoria,
++    List<ChamadaAuditEntry>? auditTrail,
++    String? retificadoPor,
++    DateTime? retificadoEm,
++    String? motivoRetificacao,
+     DateTime? createdAt,
+     DateTime? updatedAt,
+     int? schemaVersion,
+@@ -323,6 +367,11 @@ class ChamadaDiaria {
+       costPolicy: costPolicy ?? this.costPolicy,
+       costSnapshots: costSnapshots ?? this.costSnapshots,
+       lotCostSummaries: lotCostSummaries ?? this.lotCostSummaries,
++      versaoAuditoria: versaoAuditoria ?? this.versaoAuditoria,
++      auditTrail: auditTrail ?? this.auditTrail,
++      retificadoPor: retificadoPor ?? this.retificadoPor,
++      retificadoEm: retificadoEm ?? this.retificadoEm,
++      motivoRetificacao: motivoRetificacao ?? this.motivoRetificacao,
+       createdAt: createdAt ?? this.createdAt,
+       updatedAt: updatedAt ?? this.updatedAt,
+       schemaVersion: schemaVersion ?? this.schemaVersion,
+diff --git a/app/lib/src/features/rh/domain/chamada_status.dart b/app/lib/src/features/rh/domain/chamada_status.dart
+new file mode 100644
+index 0000000..7c86149
+--- /dev/null
++++ b/app/lib/src/features/rh/domain/chamada_status.dart
+@@ -0,0 +1,16 @@
++enum ChamadaStatus {
++  emAberto('em_aberto', 'Em Aberto'),
++  fechada('fechada', 'Fechada'),
++  retificada('retificada', 'Retificada');
++
++  final String value;
++  final String label;
++
++  const ChamadaStatus(this.value, this.label);
++
++  static ChamadaStatus fromValue(String? val) {
++    if (val == 'fechada' || val == 'confirmada') return ChamadaStatus.fechada;
++    if (val == 'retificada') return ChamadaStatus.retificada;
++    return ChamadaStatus.emAberto;
++  }
++}
+diff --git a/app/lib/src/features/rh/domain/rh_invariante_validator.dart b/app/lib/src/features/rh/domain/rh_invariante_validator.dart
+new file mode 100644
+index 0000000..a33fd77
+--- /dev/null
++++ b/app/lib/src/features/rh/domain/rh_invariante_validator.dart
+@@ -0,0 +1,102 @@
++import 'chamada_diaria.dart';
++
++class RhInvarianteValidator {
++  static List<String> validarApontamento(ApontamentoTrabalhador apontamento) {
++    final erros = <String>[];
++
++    switch (apontamento.status) {
++      case PresencaStatus.presente:
++        if (apontamento.allocations.isEmpty) {
++          erros.add(
++            'Trabalhador presente deve ter ao menos 1 lote alocado: ${apontamento.workerName}.',
++          );
++        } else if (apontamento.totalPercentage != 100) {
++          erros.add(
++            'Alocação de trabalhador presente deve somar exatamente 100% '
++            '(atual: ${apontamento.totalPercentage}% para ${apontamento.workerName}).',
++          );
++        }
++        break;
++
++      case PresencaStatus.meioPeriodo:
++        if (apontamento.allocations.isEmpty) {
++          erros.add(
++            'Trabalhador em meio-período deve ter ao menos 1 lote alocado: ${apontamento.workerName}.',
++          );
++        } else if (apontamento.totalPercentage != 50) {
++          erros.add(
++            'Alocação de trabalhador em meio-período deve somar exatamente 50% '
++            '(atual: ${apontamento.totalPercentage}% para ${apontamento.workerName}).',
++          );
++        }
++        break;
++
++      case PresencaStatus.falta:
++        if (apontamento.allocations.isNotEmpty) {
++          erros.add(
++            'Trabalhador com falta não pode ter lotes alocados: ${apontamento.workerName}.',
++          );
++        }
++        break;
++    }
++
++    return erros;
++  }
++
++  static List<String> validarChamada({
++    required List<ApontamentoTrabalhador> apontamentos,
++    Set<String>? lotesValidosDaObra,
++  }) {
++    final erros = <String>[];
++    final operariosVistos = <String>{};
++
++    for (final ap in apontamentos) {
++      // Unicidade nominal na chamada
++      if (!operariosVistos.add(ap.workerId)) {
++        erros.add(
++          'Colaborador duplicado na chamada: ${ap.workerName} (ID: ${ap.workerId}).',
++        );
++      }
++
++      // Invariantes de presença
++      erros.addAll(validarApontamento(ap));
++
++      // Pertencimento de lotes à obra
++      if (lotesValidosDaObra != null && lotesValidosDaObra.isNotEmpty) {
++        for (final alloc in ap.allocations) {
++          if (!lotesValidosDaObra.contains(alloc.lotId)) {
++            erros.add(
++              'Lote inválido ou não pertencente à obra: ${alloc.lotName} (ID: ${alloc.lotId}).',
++            );
++          }
++        }
++      }
++    }
++
++    return erros;
++  }
++
++  static String? validarConflitoCrossObra({
++    required String workerId,
++    required String workerName,
++    required PresencaStatus statusNovo,
++    required PresencaStatus statusExistenteEmOutraObra,
++    required String nomeOutraObra,
++  }) {
++    if (statusExistenteEmOutraObra == PresencaStatus.falta) {
++      return null;
++    }
++
++    if (statusExistenteEmOutraObra == PresencaStatus.presente) {
++      return 'Colaborador $workerName já possui apontamento em tempo integral (100%) na obra "$nomeOutraObra" nesta mesma data.';
++    }
++
++    if (statusExistenteEmOutraObra == PresencaStatus.meioPeriodo) {
++      if (statusNovo == PresencaStatus.presente) {
++        return 'Colaborador $workerName já possui meio-período (50%) na obra "$nomeOutraObra". Alocação em tempo integral (100%) excederia o limite diário de 100%.';
++      }
++    }
++
++    return null;
++  }
++}
+diff --git a/app/lib/src/features/rh/presentation/chamada_form_screen.dart b/app/lib/src/features/rh/presentation/chamada_form_screen.dart
+index cd1ef73..f712784 100644
+--- a/app/lib/src/features/rh/presentation/chamada_form_screen.dart
++++ b/app/lib/src/features/rh/presentation/chamada_form_screen.dart
+@@ -10,14 +10,17 @@ import '../../lotes/data/lote_repository.dart';
+ import '../../lotes/domain/lote.dart';
+ import '../data/custo_mao_de_obra_service.dart';
+ import '../data/rh_repository.dart';
++import '../domain/chamada_audit_entry.dart';
+ import '../domain/custo_mao_de_obra.dart';
+ import '../domain/equipe.dart';
+ import '../domain/funcionario.dart';
++import '../domain/rh_invariante_validator.dart';
+ import '../data/chamada_repository.dart';
+ import '../data/lote_persistido_service.dart';
+ import '../domain/chamada_diaria.dart';
+ import 'widgets/apontamento_worker_card.dart';
+ import 'widgets/resumo_custos_chamada_dialog.dart';
++import 'widgets/retificacao_chamada_dialog.dart';
+ 
+ class ChamadaFormScreen extends ConsumerStatefulWidget {
+   final String construtoraId;
+@@ -54,7 +57,15 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
+       _workers.where((w) => w.status == PresencaStatus.falta).length;
+ 
+   bool get _isFormValid =>
+-      _workers.isNotEmpty && _workers.every((w) => w.isValidAllocation);
++      _workers.isNotEmpty &&
++      RhInvarianteValidator.validarChamada(apontamentos: _workers).isEmpty;
++
++  List<String> _validarInvariantes(List<Lote> lotes) {
++    return RhInvarianteValidator.validarChamada(
++      apontamentos: _workers,
++      lotesValidosDaObra: lotes.map((l) => l.id).toSet(),
++    );
++  }
+ 
+   @override
+   void initState() {
+@@ -82,12 +93,45 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
+         });
+         return;
+       }
++    } else {
++      _checkExistingChamadaForDate(_selectedDate);
+     }
+     setState(() {
+       _initialized = true;
+     });
+   }
+ 
++  Future<void> _checkExistingChamadaForDate(DateTime date) async {
++    if (widget.chamadaId != null) return;
++    final dateStr = DateFormat('yyyy-MM-dd').format(date);
++    final repo = ref.read(chamadaRepositoryProvider);
++    final existing = await repo.findChamadaByDate(
++      widget.construtoraId,
++      widget.obraId,
++      dateStr,
++    );
++    if (existing != null && mounted) {
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(
++          backgroundColor: Colors.amber.shade900,
++          duration: const Duration(seconds: 5),
++          content: Text(
++            'Já existe uma chamada registrada em $dateStr para esta obra.',
++          ),
++          action: SnackBarAction(
++            label: 'Ver Chamada',
++            textColor: Colors.white,
++            onPressed: () {
++              context.pushReplacement(
++                '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/${existing.id}',
++              );
++            },
++          ),
++        ),
++      );
++    }
++  }
++
+   Future<void> _pickDate() async {
+     final picked = await showDatePicker(
+       context: context,
+@@ -99,6 +143,7 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
+       setState(() {
+         _selectedDate = picked;
+       });
++      _checkExistingChamadaForDate(picked);
+     }
+   }
+ 
+@@ -200,45 +245,145 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
+   Future<void> _saveChamada(
+     List<Equipe> equipes,
+     List<Funcionario> allFuncionarios,
++    List<Lote> lotes,
+   ) async {
+-    if (!_isFormValid) return;
++    final erros = _validarInvariantes(lotes);
++    if (erros.isNotEmpty) {
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(
++          backgroundColor: Colors.red,
++          content: Text('Invariantes violadas: ${erros.first}'),
++        ),
++      );
++      return;
++    }
+ 
+     setState(() {
+       _isSaving = true;
+     });
+ 
+-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
+-    final equipeName = _selectedTeamId != null
+-        ? equipes.where((e) => e.id == _selectedTeamId).firstOrNull?.name
+-        : null;
++    try {
++      // 1. Checagem de conflitos Cross-Obra na mesma data
++      final crossApontamentos =
++          await ref.read(chamadaRepositoryProvider).findCrossObraApontamentos(
++                construtoraId: widget.construtoraId,
++                currentObraId: widget.obraId,
++                date: _formattedDate,
++              );
++
++      for (final cross in crossApontamentos) {
++        final workerInCurrent = _workers
++            .where((w) => w.workerId == cross.apontamento.workerId)
++            .firstOrNull;
++        if (workerInCurrent != null &&
++            workerInCurrent.status != PresencaStatus.falta) {
++          final conflito = RhInvarianteValidator.validarConflitoCrossObra(
++            workerId: workerInCurrent.workerId,
++            workerName: workerInCurrent.workerName,
++            statusNovo: workerInCurrent.status,
++            statusExistenteEmOutraObra: cross.apontamento.status,
++            nomeOutraObra: cross.obraId,
++          );
++          if (conflito != null) {
++            if (mounted) {
++              ScaffoldMessenger.of(context).showSnackBar(
++                SnackBar(
++                  backgroundColor: Colors.red.shade800,
++                  content: Text(conflito),
++                  duration: const Duration(seconds: 5),
++                ),
++              );
++            }
++            setState(() {
++              _isSaving = false;
++            });
++            return;
++          }
++        }
++      }
+ 
+-    final costResult = CustoMaoDeObraService.computeChamadaCosts(
+-      funcionarios: allFuncionarios,
+-      apontamentos: _workers,
+-    );
++      final costResult = CustoMaoDeObraService.computeChamadaCosts(
++        funcionarios: allFuncionarios,
++        apontamentos: _workers,
++      );
+ 
+-    final chamada = ChamadaDiaria(
+-      id: _existingChamada?.id ?? const Uuid().v4(),
+-      construtoraId: widget.construtoraId,
+-      obraId: widget.obraId,
+-      date: _formattedDate,
+-      teamId: _selectedTeamId,
+-      teamName: equipeName,
+-      createdByUid: uid,
+-      defaultLotId: _defaultLotId,
+-      status: _existingChamada != null ? 'retificada' : 'confirmada',
+-      workers: _workers,
+-      totalDayCostCents: costResult.totalDayCostCents,
+-      costPolicyVersion: 'v1',
+-      costPolicy: const CostPolicy(),
+-      costSnapshots: costResult.costSnapshots,
+-      lotCostSummaries: costResult.lotCostSummaries,
+-      createdAt: _existingChamada?.createdAt ?? DateTime.now(),
+-      updatedAt: DateTime.now(),
+-      schemaVersion: 1,
+-    );
++      final user = FirebaseAuth.instance.currentUser;
++      final uid = user?.uid ?? 'unknown';
++      final userName = user?.displayName ?? uid;
++      final equipeName = _selectedTeamId != null
++          ? equipes.where((e) => e.id == _selectedTeamId).firstOrNull?.name
++          : null;
++
++      String? motivoRetificacao;
++      ChamadaAuditEntry? auditEntry;
++
++      // 2. Fluxo de retificação para chamadas já fechadas/retificadas
++      if (_existingChamada != null) {
++        if (!mounted) return;
++        final motivo = await showDialog<String>(
++          context: context,
++          barrierDismissible: false,
++          builder: (ctx) => RetificacaoChamadaDialog(
++            totalCostCentsAnterior: _existingChamada!.totalDayCostCents,
++            totalCostCentsNovo: costResult.totalDayCostCents,
++          ),
++        );
++
++        if (motivo == null) {
++          setState(() {
++            _isSaving = false;
++          });
++          return;
++        }
++
++        motivoRetificacao = motivo;
++        auditEntry = ChamadaAuditEntry(
++          id: const Uuid().v4(),
++          userId: uid,
++          userName: userName,
++          timestamp: DateTime.now(),
++          motivo: motivo,
++          totalCostCentsAnterior: _existingChamada!.totalDayCostCents,
++          totalCostCentsNovo: costResult.totalDayCostCents,
++          versaoAnterior: _existingChamada!.versaoAuditoria,
++          snapshotAnterior: _existingChamada!.toMap(),
++        );
++      }
++
++      final novaVersao = _existingChamada != null
++          ? _existingChamada!.versaoAuditoria + 1
++          : 1;
++      final novoAuditTrail = _existingChamada != null
++          ? [..._existingChamada!.auditTrail, ?auditEntry]
++          : <ChamadaAuditEntry>[];
++
++      final chamada = ChamadaDiaria(
++        id: _existingChamada?.id ?? const Uuid().v4(),
++        construtoraId: widget.construtoraId,
++        obraId: widget.obraId,
++        date: _formattedDate,
++        teamId: _selectedTeamId,
++        teamName: equipeName,
++        createdByUid: _existingChamada?.createdByUid ?? uid,
++        defaultLotId: _defaultLotId,
++        status: _existingChamada != null ? 'retificada' : 'fechada',
++        observacoes: _existingChamada?.observacoes,
++        workers: _workers,
++        totalDayCostCents: costResult.totalDayCostCents,
++        costPolicyVersion: 'v1',
++        costPolicy: const CostPolicy(),
++        costSnapshots: costResult.costSnapshots,
++        lotCostSummaries: costResult.lotCostSummaries,
++        versaoAuditoria: novaVersao,
++        auditTrail: novoAuditTrail,
++        retificadoPor: _existingChamada != null ? userName : null,
++        retificadoEm: _existingChamada != null ? DateTime.now() : null,
++        motivoRetificacao: motivoRetificacao,
++        createdAt: _existingChamada?.createdAt ?? DateTime.now(),
++        updatedAt: DateTime.now(),
++        schemaVersion: 1,
++      );
+ 
+-    try {
+       await ref.read(chamadaRepositoryProvider).saveChamada(chamada);
+       if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+@@ -246,8 +391,8 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
+             backgroundColor: Colors.green,
+             content: Text(
+               _existingChamada != null
+-                  ? 'Chamada retificada com sucesso!'
+-                  : 'Chamada diária salva com sucesso!',
++                  ? 'Chamada retificada e registrada na auditoria com sucesso!'
++                  : 'Chamada diária salva e fechada com sucesso!',
+             ),
+           ),
+         );
+@@ -434,6 +579,66 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
+                         ),
+                       ),
+ 
++                      // Banner de Feedback Preventivo de Invariantes
++                      Builder(
++                        builder: (context) {
++                          final erros = _validarInvariantes(lotes);
++                          if (erros.isEmpty) return const SizedBox.shrink();
++                          return Container(
++                            width: double.infinity,
++                            margin: const EdgeInsets.symmetric(
++                              horizontal: 16,
++                              vertical: 8,
++                            ),
++                            padding: const EdgeInsets.symmetric(
++                              horizontal: 12,
++                              vertical: 10,
++                            ),
++                            decoration: BoxDecoration(
++                              color: theme.colorScheme.errorContainer,
++                              borderRadius: BorderRadius.circular(8),
++                              border: Border.all(
++                                color: theme.colorScheme.error.withValues(alpha: 0.5),
++                              ),
++                            ),
++                            child: Row(
++                              crossAxisAlignment: CrossAxisAlignment.start,
++                              children: [
++                                Icon(
++                                  Icons.warning_amber_rounded,
++                                  color: theme.colorScheme.error,
++                                  size: 20,
++                                ),
++                                const SizedBox(width: 8),
++                                Expanded(
++                                  child: Column(
++                                    crossAxisAlignment: CrossAxisAlignment.start,
++                                    children: [
++                                      Text(
++                                        'Invariantes de RH Pendentes (${erros.length}):',
++                                        style: TextStyle(
++                                          fontWeight: FontWeight.bold,
++                                          fontSize: 12,
++                                          color: theme.colorScheme.onErrorContainer,
++                                        ),
++                                      ),
++                                      const SizedBox(height: 2),
++                                      Text(
++                                        erros.first,
++                                        style: TextStyle(
++                                          fontSize: 11,
++                                          color: theme.colorScheme.onErrorContainer,
++                                        ),
++                                      ),
++                                    ],
++                                  ),
++                                ),
++                              ],
++                            ),
++                          );
++                        },
++                      ),
++
+                       // Lista de Operários
+                       Expanded(
+                         child: _workers.isEmpty
+@@ -597,7 +802,9 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
+                                       label: Text(
+                                         _isSaving
+                                             ? 'Salvando Chamada...'
+-                                            : 'Salvar Chamada Diária',
++                                            : (_existingChamada != null
++                                                ? 'Retificar Chamada Diária'
++                                                : 'Salvar Chamada Diária'),
+                                         style: const TextStyle(
+                                           fontSize: 16,
+                                           fontWeight: FontWeight.bold,
+@@ -605,7 +812,7 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
+                                       ),
+                                       onPressed: (_isFormValid && !_isSaving)
+                                           ? () => _saveChamada(
+-                                              equipes, allFuncionarios)
++                                              equipes, allFuncionarios, lotes)
+                                           : null,
+                                     ),
+                                   ),
+diff --git a/app/lib/src/features/rh/presentation/chamadas_list_screen.dart b/app/lib/src/features/rh/presentation/chamadas_list_screen.dart
+index ba87d6e..60b1bce 100644
+--- a/app/lib/src/features/rh/presentation/chamadas_list_screen.dart
++++ b/app/lib/src/features/rh/presentation/chamadas_list_screen.dart
+@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
+ import '../../../common_widgets/sigo_sidebar.dart';
+ import '../data/chamada_repository.dart';
+ import '../domain/chamada_diaria.dart';
++import 'widgets/chamada_audit_timeline_dialog.dart';
+ 
+ class ChamadasListScreen extends ConsumerStatefulWidget {
+   final String construtoraId;
+@@ -211,22 +212,86 @@ class _ChamadaCard extends StatelessWidget {
+                       ),
+                     ],
+                   ),
+-                  if (isRetificada)
+-                    Container(
+-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+-                      decoration: BoxDecoration(
+-                        color: Colors.purple.withValues(alpha: 0.15),
+-                        borderRadius: BorderRadius.circular(8),
+-                      ),
+-                      child: const Text(
+-                        'Retificada',
+-                        style: TextStyle(
+-                          fontSize: 11,
+-                          fontWeight: FontWeight.bold,
+-                          color: Colors.purple,
++                  Row(
++                    children: [
++                      if (isRetificada) ...[
++                        Container(
++                          padding: const EdgeInsets.symmetric(
++                            horizontal: 8,
++                            vertical: 3,
++                          ),
++                          decoration: BoxDecoration(
++                            color: Colors.amber.shade100,
++                            borderRadius: BorderRadius.circular(8),
++                            border: Border.all(color: Colors.amber.shade800),
++                          ),
++                          child: Row(
++                            mainAxisSize: MainAxisSize.min,
++                            children: [
++                              Icon(
++                                Icons.history_edu,
++                                size: 13,
++                                color: Colors.amber.shade900,
++                              ),
++                              const SizedBox(width: 4),
++                              Text(
++                                'Retificada v${chamada.versaoAuditoria}',
++                                style: TextStyle(
++                                  fontSize: 11,
++                                  fontWeight: FontWeight.bold,
++                                  color: Colors.amber.shade900,
++                                ),
++                              ),
++                            ],
++                          ),
++                        ),
++                        const SizedBox(width: 6),
++                      ] else ...[
++                        Container(
++                          padding: const EdgeInsets.symmetric(
++                            horizontal: 8,
++                            vertical: 3,
++                          ),
++                          decoration: BoxDecoration(
++                            color: Colors.green.withValues(alpha: 0.12),
++                            borderRadius: BorderRadius.circular(8),
++                          ),
++                          child: const Row(
++                            mainAxisSize: MainAxisSize.min,
++                            children: [
++                              Icon(
++                                Icons.verified_outlined,
++                                size: 13,
++                                color: Colors.green,
++                              ),
++                              SizedBox(width: 4),
++                              Text(
++                                'Fechada',
++                                style: TextStyle(
++                                  fontSize: 11,
++                                  fontWeight: FontWeight.bold,
++                                  color: Colors.green,
++                                ),
++                              ),
++                            ],
++                          ),
+                         ),
++                        const SizedBox(width: 6),
++                      ],
++                      IconButton(
++                        icon: const Icon(Icons.history, size: 20),
++                        tooltip: 'Trilha de Auditoria',
++                        onPressed: () {
++                          showDialog(
++                            context: context,
++                            builder: (ctx) => ChamadaAuditTimelineDialog(
++                              chamada: chamada,
++                            ),
++                          );
++                        },
+                       ),
+-                    ),
++                    ],
++                  ),
+                 ],
+               ),
+               const SizedBox(height: 8),
+@@ -239,6 +304,17 @@ class _ChamadaCard extends StatelessWidget {
+                   color: colorScheme.onSurfaceVariant,
+                 ),
+               ),
++              if (isRetificada && chamada.retificadoPor != null) ...[
++                const SizedBox(height: 4),
++                Text(
++                  'Última alteração: ${chamada.retificadoPor} '
++                  '(${chamada.motivoRetificacao ?? "sem motivo"})',
++                  style: theme.textTheme.bodySmall?.copyWith(
++                    fontStyle: FontStyle.italic,
++                    color: Colors.amber.shade900,
++                  ),
++                ),
++              ],
+               const SizedBox(height: 12),
+ 
+               // Badges de Presença
+diff --git a/app/lib/src/features/rh/presentation/widgets/chamada_audit_timeline_dialog.dart b/app/lib/src/features/rh/presentation/widgets/chamada_audit_timeline_dialog.dart
+new file mode 100644
+index 0000000..292a786
+--- /dev/null
++++ b/app/lib/src/features/rh/presentation/widgets/chamada_audit_timeline_dialog.dart
+@@ -0,0 +1,149 @@
++import 'package:flutter/material.dart';
++import 'package:intl/intl.dart';
++import '../../../../core/contracts.dart';
++import '../../domain/chamada_diaria.dart';
++
++class ChamadaAuditTimelineDialog extends StatelessWidget {
++  final ChamadaDiaria chamada;
++
++  const ChamadaAuditTimelineDialog({
++    super.key,
++    required this.chamada,
++  });
++
++  @override
++  Widget build(BuildContext context) {
++    final theme = Theme.of(context);
++    final auditTrail = chamada.auditTrail;
++
++    return AlertDialog(
++      title: Row(
++        children: [
++          Icon(Icons.history, color: theme.colorScheme.primary),
++          const SizedBox(width: 8),
++          const Text('Trilha de Auditoria'),
++        ],
++      ),
++      content: SizedBox(
++        width: 480,
++        child: auditTrail.isEmpty
++            ? Padding(
++                padding: const EdgeInsets.symmetric(vertical: 24.0),
++                child: Column(
++                  mainAxisSize: MainAxisSize.min,
++                  children: [
++                    Icon(
++                      Icons.verified_outlined,
++                      size: 48,
++                      color: theme.colorScheme.primary.withValues(alpha: 0.5),
++                    ),
++                    const SizedBox(height: 12),
++                    Text(
++                      'Esta chamada é original (versão ${chamada.versaoAuditoria}) e não possui retificações.',
++                      textAlign: TextAlign.center,
++                      style: theme.textTheme.bodyMedium,
++                    ),
++                  ],
++                ),
++              )
++            : ListView.separated(
++                shrinkWrap: true,
++                itemCount: auditTrail.length,
++                separatorBuilder: (_, _) => const Divider(height: 16),
++                itemBuilder: (context, index) {
++                  final entry = auditTrail[index];
++                  final diffCents =
++                      entry.totalCostCentsNovo - entry.totalCostCentsAnterior;
++                  final diffFormatted =
++                      'Δ ${diffCents >= 0 ? '+' : ''}${formatCents(diffCents)}';
++                  final dateStr =
++                      DateFormat('dd/MM/yyyy HH:mm').format(entry.timestamp);
++
++                  return Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      Row(
++                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                        children: [
++                          Container(
++                            padding: const EdgeInsets.symmetric(
++                              horizontal: 8,
++                              vertical: 2,
++                            ),
++                            decoration: BoxDecoration(
++                              color: theme.colorScheme.secondaryContainer,
++                              borderRadius: BorderRadius.circular(4),
++                            ),
++                            child: Text(
++                              'Revisão v${entry.versaoAnterior} ➔ v${entry.versaoAnterior + 1}',
++                              style: theme.textTheme.labelSmall?.copyWith(
++                                fontWeight: FontWeight.bold,
++                              ),
++                            ),
++                          ),
++                          Text(
++                            dateStr,
++                            style: theme.textTheme.bodySmall?.copyWith(
++                              color: theme.colorScheme.onSurfaceVariant,
++                            ),
++                          ),
++                        ],
++                      ),
++                      const SizedBox(height: 6),
++                      Text(
++                        'Por: ${entry.userName.isNotEmpty ? entry.userName : entry.userId}',
++                        style: theme.textTheme.bodySmall?.copyWith(
++                          fontWeight: FontWeight.w600,
++                        ),
++                      ),
++                      const SizedBox(height: 4),
++                      Text(
++                        'Motivo: "${entry.motivo}"',
++                        style: theme.textTheme.bodyMedium?.copyWith(
++                          fontStyle: FontStyle.italic,
++                        ),
++                      ),
++                      const SizedBox(height: 6),
++                      Wrap(
++                        crossAxisAlignment: WrapCrossAlignment.center,
++                        spacing: 6,
++                        runSpacing: 4,
++                        children: [
++                          Text(
++                            'Impacto: ',
++                            style: theme.textTheme.bodySmall,
++                          ),
++                          Text(
++                            diffFormatted,
++                            style: TextStyle(
++                              fontSize: 12,
++                              fontWeight: FontWeight.bold,
++                              color: diffCents > 0
++                                  ? Colors.orange.shade800
++                                  : (diffCents < 0
++                                      ? Colors.green.shade800
++                                      : Colors.grey),
++                            ),
++                          ),
++                          Text(
++                            '(${formatCents(entry.totalCostCentsAnterior)} ➔ ${formatCents(entry.totalCostCentsNovo)})',
++                            style: theme.textTheme.bodySmall?.copyWith(
++                              color: theme.colorScheme.onSurfaceVariant,
++                            ),
++                          ),
++                        ],
++                      ),
++                    ],
++                  );
++                },
++              ),
++      ),
++      actions: [
++        TextButton(
++          onPressed: () => Navigator.of(context).pop(),
++          child: const Text('Fechar'),
++        ),
++      ],
++    );
++  }
++}
+diff --git a/app/lib/src/features/rh/presentation/widgets/retificacao_chamada_dialog.dart b/app/lib/src/features/rh/presentation/widgets/retificacao_chamada_dialog.dart
+new file mode 100644
+index 0000000..7435ab2
+--- /dev/null
++++ b/app/lib/src/features/rh/presentation/widgets/retificacao_chamada_dialog.dart
+@@ -0,0 +1,168 @@
++import 'package:flutter/material.dart';
++import '../../../../core/contracts.dart';
++
++class RetificacaoChamadaDialog extends StatefulWidget {
++  final int totalCostCentsAnterior;
++  final int totalCostCentsNovo;
++
++  const RetificacaoChamadaDialog({
++    super.key,
++    required this.totalCostCentsAnterior,
++    required this.totalCostCentsNovo,
++  });
++
++  @override
++  State<RetificacaoChamadaDialog> createState() =>
++      _RetificacaoChamadaDialogState();
++}
++
++class _RetificacaoChamadaDialogState extends State<RetificacaoChamadaDialog> {
++  final _motivoController = TextEditingController();
++  final _formKey = GlobalKey<FormState>();
++
++  @override
++  void dispose() {
++    _motivoController.dispose();
++    super.dispose();
++  }
++
++  bool get _isMotivoValido => _motivoController.text.trim().length >= 10;
++
++  @override
++  Widget build(BuildContext context) {
++    final theme = Theme.of(context);
++    final diffCents = widget.totalCostCentsNovo - widget.totalCostCentsAnterior;
++    final diffFormatted =
++        '${diffCents >= 0 ? '+' : ''}${formatCents(diffCents)}';
++
++    return AlertDialog(
++      title: Row(
++        children: [
++          Icon(Icons.history_edu, color: theme.colorScheme.primary),
++          const SizedBox(width: 8),
++          const Text('Retificação de Chamada'),
++        ],
++      ),
++      content: SingleChildScrollView(
++        child: Form(
++          key: _formKey,
++          child: Column(
++            mainAxisSize: MainAxisSize.min,
++            crossAxisAlignment: CrossAxisAlignment.start,
++            children: [
++              Text(
++                'Esta chamada já se encontra encerrada no sistema. Qualquer alteração exigirá justificativa formal para a trilha de auditoria contábil.',
++                style: theme.textTheme.bodyMedium?.copyWith(
++                  color: theme.colorScheme.onSurfaceVariant,
++                ),
++              ),
++              const SizedBox(height: 16),
++              // Comparativo de custos
++              Container(
++                padding: const EdgeInsets.all(12),
++                decoration: BoxDecoration(
++                  color: theme.colorScheme.surfaceContainerHighest,
++                  borderRadius: BorderRadius.circular(8),
++                ),
++                child: Column(
++                  children: [
++                    Row(
++                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                      children: [
++                        const Text('Custo Anterior:'),
++                        Text(
++                          formatCents(widget.totalCostCentsAnterior),
++                          style: const TextStyle(fontWeight: FontWeight.w600),
++                        ),
++                      ],
++                    ),
++                    const SizedBox(height: 4),
++                    Row(
++                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                      children: [
++                        const Text('Novo Custo:'),
++                        Text(
++                          formatCents(widget.totalCostCentsNovo),
++                          style: TextStyle(
++                            fontWeight: FontWeight.bold,
++                            color: theme.colorScheme.primary,
++                          ),
++                        ),
++                      ],
++                    ),
++                    const Divider(height: 12),
++                    Row(
++                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                      children: [
++                        const Text('Diferença (Δ):'),
++                        Text(
++                          diffFormatted,
++                          style: TextStyle(
++                            fontWeight: FontWeight.bold,
++                            color: diffCents > 0
++                                ? Colors.orange.shade800
++                                : (diffCents < 0 ? Colors.green.shade800 : Colors.grey),
++                          ),
++                        ),
++                      ],
++                    ),
++                  ],
++                ),
++              ),
++              const SizedBox(height: 16),
++              TextFormField(
++                controller: _motivoController,
++                maxLines: 3,
++                decoration: const InputDecoration(
++                  labelText: 'Motivo da Retificação *',
++                  hintText: 'Ex.: Correção de apontamento do colaborador X...',
++                  border: OutlineInputBorder(),
++                  helperText: 'Mínimo de 10 caracteres',
++                ),
++                onChanged: (_) => setState(() {}),
++                validator: (val) {
++                  if (val == null || val.trim().length < 10) {
++                    return 'Justificativa obrigatória (mínimo 10 caracteres)';
++                  }
++                  return null;
++                },
++              ),
++              const SizedBox(height: 12),
++              Row(
++                children: [
++                  Icon(Icons.info_outline, size: 16, color: theme.colorScheme.error),
++                  const SizedBox(width: 6),
++                  Expanded(
++                    child: Text(
++                      'Esta ação será registrada permanentemente na trilha de auditoria contábil.',
++                      style: theme.textTheme.bodySmall?.copyWith(
++                        color: theme.colorScheme.error,
++                      ),
++                    ),
++                  ),
++                ],
++              ),
++            ],
++          ),
++        ),
++      ),
++      actions: [
++        TextButton(
++          onPressed: () => Navigator.of(context).pop(null),
++          child: const Text('Cancelar'),
++        ),
++        FilledButton.icon(
++          icon: const Icon(Icons.check),
++          label: const Text('Confirmar Retificação'),
++          onPressed: _isMotivoValido
++              ? () {
++                  if (_formKey.currentState?.validate() ?? false) {
++                    Navigator.of(context).pop(_motivoController.text.trim());
++                  }
++                }
++              : null,
++        ),
++      ],
++    );
++  }
++}
+diff --git a/app/test/rh_invariantes_auditoria_test.dart b/app/test/rh_invariantes_auditoria_test.dart
+new file mode 100644
+index 0000000..88eb4d0
+--- /dev/null
++++ b/app/test/rh_invariantes_auditoria_test.dart
+@@ -0,0 +1,408 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:app/src/features/rh/domain/chamada_audit_entry.dart';
++import 'package:app/src/features/rh/domain/chamada_diaria.dart';
++import 'package:app/src/features/rh/domain/chamada_status.dart';
++import 'package:app/src/features/rh/domain/rh_invariante_validator.dart';
++import 'package:app/src/features/rh/presentation/widgets/chamada_audit_timeline_dialog.dart';
++import 'package:app/src/features/rh/presentation/widgets/retificacao_chamada_dialog.dart';
++
++void main() {
++  group('Story 4.4 — RH: Validação de Invariantes e Auditoria', () {
++    group('1. Invariantes de Presença e Alocação de Lotes (RhInvarianteValidator)', () {
++      test('Presente com 100% em lotes válidos é aceito', () {
++        const ap = ApontamentoTrabalhador(
++          workerId: 'w1',
++          workerName: 'João Silva',
++          workerRole: 'Pedreiro',
++          status: PresencaStatus.presente,
++          allocations: [
++            AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 100),
++          ],
++        );
++
++        final erros = RhInvarianteValidator.validarApontamento(ap);
++        expect(erros, isEmpty);
++      });
++
++      test('Presente com menos de 100% de alocação é rejeitado com mensagem descritiva', () {
++        const ap = ApontamentoTrabalhador(
++          workerId: 'w1',
++          workerName: 'João Silva',
++          workerRole: 'Pedreiro',
++          status: PresencaStatus.presente,
++          allocations: [
++            AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 80),
++          ],
++        );
++
++        final erros = RhInvarianteValidator.validarApontamento(ap);
++        expect(erros, hasLength(1));
++        expect(erros.first, contains('somar exatamente 100%'));
++        expect(erros.first, contains('atual: 80%'));
++      });
++
++      test('Presente sem lotes alocados é rejeitado', () {
++        const ap = ApontamentoTrabalhador(
++          workerId: 'w1',
++          workerName: 'João Silva',
++          workerRole: 'Pedreiro',
++          status: PresencaStatus.presente,
++          allocations: [],
++        );
++
++        final erros = RhInvarianteValidator.validarApontamento(ap);
++        expect(erros, hasLength(1));
++        expect(erros.first, contains('ao menos 1 lote alocado'));
++      });
++
++      test('Meio-período com exatamente 50% de alocação é aceito', () {
++        const ap = ApontamentoTrabalhador(
++          workerId: 'w2',
++          workerName: 'Carlos Souza',
++          workerRole: 'Ajudante',
++          status: PresencaStatus.meioPeriodo,
++          allocations: [
++            AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 50),
++          ],
++        );
++
++        final erros = RhInvarianteValidator.validarApontamento(ap);
++        expect(erros, isEmpty);
++      });
++
++      test('Meio-período com 100% de alocação é rejeitado', () {
++        const ap = ApontamentoTrabalhador(
++          workerId: 'w2',
++          workerName: 'Carlos Souza',
++          workerRole: 'Ajudante',
++          status: PresencaStatus.meioPeriodo,
++          allocations: [
++            AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 100),
++          ],
++        );
++
++        final erros = RhInvarianteValidator.validarApontamento(ap);
++        expect(erros, hasLength(1));
++        expect(erros.first, contains('somar exatamente 50%'));
++        expect(erros.first, contains('atual: 100%'));
++      });
++
++      test('Falta com lote alocado é estritamente rejeitado', () {
++        const ap = ApontamentoTrabalhador(
++          workerId: 'w3',
++          workerName: 'Marcos Dias',
++          workerRole: 'Eletricista',
++          status: PresencaStatus.falta,
++          allocations: [
++            AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 100),
++          ],
++        );
++
++        final erros = RhInvarianteValidator.validarApontamento(ap);
++        expect(erros, hasLength(1));
++        expect(erros.first, contains('não pode ter lotes alocados'));
++      });
++
++      test('Falta sem lotes alocados é aceita', () {
++        const ap = ApontamentoTrabalhador(
++          workerId: 'w3',
++          workerName: 'Marcos Dias',
++          workerRole: 'Eletricista',
++          status: PresencaStatus.falta,
++          allocations: [],
++        );
++
++        final erros = RhInvarianteValidator.validarApontamento(ap);
++        expect(erros, isEmpty);
++      });
++    });
++
++    group('2. Unicidade Nominal e Validação de Lotes da Obra', () {
++      test('Detecta colaborador duplicado na lista de apontamentos', () {
++        const workers = [
++          ApontamentoTrabalhador(
++            workerId: 'w1',
++            workerName: 'João Silva',
++            workerRole: 'Pedreiro',
++            status: PresencaStatus.presente,
++            allocations: [
++              AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 100),
++            ],
++          ),
++          ApontamentoTrabalhador(
++            workerId: 'w1',
++            workerName: 'João Silva',
++            workerRole: 'Pedreiro',
++            status: PresencaStatus.falta,
++            allocations: [],
++          ),
++        ];
++
++        final erros = RhInvarianteValidator.validarChamada(
++          apontamentos: workers,
++        );
++
++        expect(erros, anyElement(contains('Colaborador duplicado na chamada')));
++      });
++
++      test('Detecta lote que não pertence à obra', () {
++        const workers = [
++          ApontamentoTrabalhador(
++            workerId: 'w1',
++            workerName: 'João Silva',
++            workerRole: 'Pedreiro',
++            status: PresencaStatus.presente,
++            allocations: [
++              AlocacaoLote(lotId: 'lote_alienigena', lotName: 'Outra Obra', percentage: 100),
++            ],
++          ),
++        ];
++
++        final erros = RhInvarianteValidator.validarChamada(
++          apontamentos: workers,
++          lotesValidosDaObra: {'l1', 'l2'},
++        );
++
++        expect(erros, anyElement(contains('não pertencente à obra')));
++      });
++    });
++
++    group('3. Validação de Conflito Cross-Obra no Mesmo Dia', () {
++      test('Bloqueia apontamento quando colaborador já está 100% em outra obra', () {
++        final conflito = RhInvarianteValidator.validarConflitoCrossObra(
++          workerId: 'w1',
++          workerName: 'João Silva',
++          statusNovo: PresencaStatus.presente,
++          statusExistenteEmOutraObra: PresencaStatus.presente,
++          nomeOutraObra: 'Residencial Aurora',
++        );
++
++        expect(conflito, isNotNull);
++        expect(conflito, contains('tempo integral (100%) na obra "Residencial Aurora"'));
++      });
++
++      test('Bloqueia tempo integral quando colaborador já tem meio-período (50%) em outra obra', () {
++        final conflito = RhInvarianteValidator.validarConflitoCrossObra(
++          workerId: 'w1',
++          workerName: 'João Silva',
++          statusNovo: PresencaStatus.presente,
++          statusExistenteEmOutraObra: PresencaStatus.meioPeriodo,
++          nomeOutraObra: 'Residencial Aurora',
++        );
++
++        expect(conflito, isNotNull);
++        expect(conflito, contains('excederia o limite diário de 100%'));
++      });
++
++      test('Permite meio-período quando colaborador tem meio-período em outra obra (50% + 50% = 100%)', () {
++        final conflito = RhInvarianteValidator.validarConflitoCrossObra(
++          workerId: 'w1',
++          workerName: 'João Silva',
++          statusNovo: PresencaStatus.meioPeriodo,
++          statusExistenteEmOutraObra: PresencaStatus.meioPeriodo,
++          nomeOutraObra: 'Residencial Aurora',
++        );
++
++        expect(conflito, isNull);
++      });
++
++      test('Permite qualquer apontamento se na outra obra o colaborador foi marcado com Falta', () {
++        final conflito = RhInvarianteValidator.validarConflitoCrossObra(
++          workerId: 'w1',
++          workerName: 'João Silva',
++          statusNovo: PresencaStatus.presente,
++          statusExistenteEmOutraObra: PresencaStatus.falta,
++          nomeOutraObra: 'Residencial Aurora',
++        );
++
++        expect(conflito, isNull);
++      });
++    });
++
++    group('4. Entidades de Auditoria e Imutabilidade (ChamadaAuditEntry & ChamadaDiaria)', () {
++      test('ChamadaAuditEntry serializa e desserializa perfeitamente', () {
++        final entry = ChamadaAuditEntry(
++          id: 'audit-1',
++          userId: 'usr-123',
++          userName: 'Engenheiro Chefe',
++          timestamp: DateTime(2026, 9, 17, 18, 30),
++          motivo: 'Ajuste no lote de alocação do operário João',
++          totalCostCentsAnterior: 150000,
++          totalCostCentsNovo: 160000,
++          versaoAnterior: 1,
++          snapshotAnterior: {'status': 'fechada', 'total': 150000},
++        );
++
++        final map = entry.toMap();
++        final from = ChamadaAuditEntry.fromMap(map);
++
++        expect(from.id, equals('audit-1'));
++        expect(from.userName, equals('Engenheiro Chefe'));
++        expect(from.motivo, equals('Ajuste no lote de alocação do operário João'));
++        expect(from.totalCostCentsAnterior, equals(150000));
++        expect(from.totalCostCentsNovo, equals(160000));
++        expect(from.versaoAnterior, equals(1));
++        expect(from.snapshotAnterior, isNotNull);
++      });
++
++      test('ChamadaDiaria suporta status fechada e retificada com trilha de auditoria', () {
++        final agora = DateTime.now();
++        final audit = ChamadaAuditEntry(
++          id: 'audit-1',
++          userId: 'usr-1',
++          userName: 'Admin',
++          timestamp: agora,
++          motivo: 'Retificação de horas e lotes',
++          totalCostCentsAnterior: 100000,
++          totalCostCentsNovo: 120000,
++          versaoAnterior: 1,
++        );
++
++        final chamada = ChamadaDiaria(
++          id: 'ch-1',
++          construtoraId: 'c1',
++          obraId: 'o1',
++          date: '2026-09-17',
++          createdByUid: 'usr-1',
++          status: 'retificada',
++          versaoAuditoria: 2,
++          auditTrail: [audit],
++          retificadoPor: 'Admin',
++          retificadoEm: agora,
++          motivoRetificacao: 'Retificação de horas e lotes',
++          createdAt: agora,
++          updatedAt: agora,
++          workers: const [
++            ApontamentoTrabalhador(
++              workerId: 'w1',
++              workerName: 'Pedro',
++              workerRole: 'Pedreiro',
++              status: PresencaStatus.presente,
++              allocations: [
++                AlocacaoLote(lotId: 'l1', lotName: 'Lote 1', percentage: 100),
++              ],
++            ),
++          ],
++        );
++
++        expect(chamada.isRetificada, isTrue);
++        expect(chamada.chamadaStatus, equals(ChamadaStatus.retificada));
++        expect(chamada.versaoAuditoria, equals(2));
++        expect(chamada.auditTrail, hasLength(1));
++        expect(chamada.isValid, isTrue);
++
++        final map = chamada.toMap();
++        final reconstructed = ChamadaDiaria.fromMap(map);
++
++        expect(reconstructed.status, equals('retificada'));
++        expect(reconstructed.isRetificada, isTrue);
++        expect(reconstructed.versaoAuditoria, equals(2));
++        expect(reconstructed.auditTrail, hasLength(1));
++        expect(reconstructed.retificadoPor, equals('Admin'));
++      });
++    });
++
++    group('5. Diálogos de Interface e Governança', () {
++      testWidgets('RetificacaoChamadaDialog exige justificativa com ao menos 10 caracteres',
++          (tester) async {
++        String? resultado;
++
++        await tester.pumpWidget(
++          MaterialApp(
++            home: Scaffold(
++              body: Builder(
++                builder: (context) => ElevatedButton(
++                  onPressed: () async {
++                    resultado = await showDialog<String>(
++                      context: context,
++                      builder: (_) => const RetificacaoChamadaDialog(
++                        totalCostCentsAnterior: 100000,
++                        totalCostCentsNovo: 120000,
++                      ),
++                    );
++                  },
++                  child: const Text('Abrir Diálogo'),
++                ),
++              ),
++            ),
++          ),
++        );
++
++        await tester.tap(find.text('Abrir Diálogo'));
++        await tester.pumpAndSettle();
++
++        expect(find.text('Retificação de Chamada'), findsOneWidget);
++        expect(find.text('Custo Anterior:'), findsOneWidget);
++        expect(find.text('Novo Custo:'), findsOneWidget);
++
++        final botaoConfirmar = find.widgetWithText(FilledButton, 'Confirmar Retificação');
++        expect(tester.widget<FilledButton>(botaoConfirmar).onPressed, isNull);
++
++        // Digitar motivo curto (< 10 chars)
++        await tester.enterText(find.byType(TextFormField), 'Curto');
++        await tester.pumpAndSettle();
++        expect(tester.widget<FilledButton>(botaoConfirmar).onPressed, isNull);
++
++        // Digitar motivo válido (>= 10 chars)
++        await tester.enterText(
++          find.byType(TextFormField),
++          'Correção na alocação de lotes do operário',
++        );
++        await tester.pumpAndSettle();
++
++        expect(tester.widget<FilledButton>(botaoConfirmar).onPressed, isNotNull);
++
++        await tester.tap(botaoConfirmar);
++        await tester.pumpAndSettle();
++
++        expect(resultado, equals('Correção na alocação de lotes do operário'));
++      });
++
++      testWidgets('ChamadaAuditTimelineDialog renderiza linha do tempo de retificações',
++          (tester) async {
++        final agora = DateTime(2026, 9, 17, 14, 0);
++        final entry = ChamadaAuditEntry(
++          id: 'aud-1',
++          userId: 'usr-1',
++          userName: 'Engenheiro Responsável',
++          timestamp: agora,
++          motivo: 'Ajuste de lote após conferência do mestre de obras',
++          totalCostCentsAnterior: 200000,
++          totalCostCentsNovo: 195000,
++          versaoAnterior: 1,
++        );
++
++        final chamada = ChamadaDiaria(
++          id: 'ch-1',
++          construtoraId: 'c1',
++          obraId: 'o1',
++          date: '2026-09-17',
++          createdByUid: 'usr-1',
++          status: 'retificada',
++          versaoAuditoria: 2,
++          auditTrail: [entry],
++          createdAt: agora,
++          updatedAt: agora,
++        );
++
++        await tester.pumpWidget(
++          MaterialApp(
++            home: Scaffold(
++              body: ChamadaAuditTimelineDialog(chamada: chamada),
++            ),
++          ),
++        );
++
++        expect(find.text('Trilha de Auditoria'), findsOneWidget);
++        expect(find.text('Revisão v1 ➔ v2'), findsOneWidget);
++        expect(find.text('Por: Engenheiro Responsável'), findsOneWidget);
++        expect(
++          find.text('Motivo: "Ajuste de lote após conferência do mestre de obras"'),
++          findsOneWidget,
++        );
++        expect(find.text('Δ -R\$ 50,00'), findsOneWidget);
++      });
++    });
++  });
++}
+diff --git a/firestore.rules b/firestore.rules
+index 345cf8a..8c644aa 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -68,7 +68,20 @@ service cloud.firestore {
+     match /diarios/{id} { allow read: if module(c,o,'diario'); allow write: if false; }
+     match /chamadas/{ch} {
+      allow read: if rh(c) || module(c,o,'rh');
+-     allow create, update: if (rh(c) || module(c,o,'rh')) && request.resource.data.id == ch && request.resource.data.construtoraId == c && request.resource.data.obraId == o && request.resource.data.schemaVersion == 1 && (!('totalDayCostCents' in request.resource.data) || (request.resource.data.totalDayCostCents is int && request.resource.data.totalDayCostCents >= 0));
++     allow create: if (rh(c) || module(c,o,'rh'))
++       && request.resource.data.id == ch
++       && request.resource.data.construtoraId == c
++       && request.resource.data.obraId == o
++       && request.resource.data.schemaVersion == 1
++       && (!('totalDayCostCents' in request.resource.data) || (request.resource.data.totalDayCostCents is int && request.resource.data.totalDayCostCents >= 0));
++     allow update: if (rh(c) || module(c,o,'rh'))
++       && request.resource.data.id == ch
++       && request.resource.data.construtoraId == c
++       && request.resource.data.obraId == o
++       && request.resource.data.schemaVersion == 1
++       && (!('totalDayCostCents' in request.resource.data) || (request.resource.data.totalDayCostCents is int && request.resource.data.totalDayCostCents >= 0))
++       && (!('status' in resource.data) || (resource.data.status != 'fechada' && resource.data.status != 'confirmada') || request.resource.data.status == 'retificada')
++       && (request.resource.data.status != 'retificada' || (request.resource.data.motivoRetificacao is string && request.resource.data.motivoRetificacao.size() >= 10));
+      allow delete: if false;
+     }
+    }

@@ -68,7 +68,20 @@ service cloud.firestore {
     match /diarios/{id} { allow read: if module(c,o,'diario'); allow write: if false; }
     match /chamadas/{ch} {
      allow read: if rh(c) || module(c,o,'rh');
-     allow create, update: if (rh(c) || module(c,o,'rh')) && request.resource.data.id == ch && request.resource.data.construtoraId == c && request.resource.data.obraId == o && request.resource.data.schemaVersion == 1 && (!('totalDayCostCents' in request.resource.data) || (request.resource.data.totalDayCostCents is int && request.resource.data.totalDayCostCents >= 0));
+     allow create: if (rh(c) || module(c,o,'rh'))
+       && request.resource.data.id == ch
+       && request.resource.data.construtoraId == c
+       && request.resource.data.obraId == o
+       && request.resource.data.schemaVersion == 1
+       && (!('totalDayCostCents' in request.resource.data) || (request.resource.data.totalDayCostCents is int && request.resource.data.totalDayCostCents >= 0));
+     allow update: if (rh(c) || module(c,o,'rh'))
+       && request.resource.data.id == ch
+       && request.resource.data.construtoraId == c
+       && request.resource.data.obraId == o
+       && request.resource.data.schemaVersion == 1
+       && (!('totalDayCostCents' in request.resource.data) || (request.resource.data.totalDayCostCents is int && request.resource.data.totalDayCostCents >= 0))
+       && (!('status' in resource.data) || (resource.data.status != 'fechada' && resource.data.status != 'confirmada') || request.resource.data.status == 'retificada')
+       && (request.resource.data.status != 'retificada' || (request.resource.data.motivoRetificacao is string && request.resource.data.motivoRetificacao.size() >= 10));
      allow delete: if false;
     }
    }

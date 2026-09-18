@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../sync/read_cache.dart';
 import '../domain/chamada_diaria.dart';
 
+import '../domain/rh_invariante_validator.dart';
+
 final chamadaRepositoryProvider = Provider<ChamadaRepository>((ref) {
   return ChamadaRepository(FirebaseFirestore.instance);
 });
@@ -77,10 +79,63 @@ class ChamadaRepository {
     return doc.data();
   }
 
+  Future<ChamadaDiaria?> findChamadaByDate(
+    String construtoraId,
+    String obraId,
+    String date,
+  ) async {
+    final query = await _chamadasRef(construtoraId, obraId)
+        .where('date', isEqualTo: date)
+        .limit(1)
+        .get();
+    if (query.docs.isEmpty) return null;
+    return query.docs.first.data();
+  }
+
+  Future<List<({String obraId, String date, ApontamentoTrabalhador apontamento})>>
+      findCrossObraApontamentos({
+    required String construtoraId,
+    required String currentObraId,
+    required String date,
+  }) async {
+    final snapshot = await _firestore
+        .collectionGroup('chamadas')
+        .where('construtoraId', isEqualTo: construtoraId)
+        .where('date', isEqualTo: date)
+        .get();
+
+    final result =
+        <({String obraId, String date, ApontamentoTrabalhador apontamento})>[];
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final chObraId = data['obraId'] as String? ?? '';
+      final status = data['status'] as String? ?? '';
+      if (chObraId == currentObraId || status == 'cancelada') continue;
+
+      final chamada = ChamadaDiaria.fromMap(data, id: doc.id);
+      for (final worker in chamada.workers) {
+        if (worker.status != PresencaStatus.falta) {
+          result.add((obraId: chObraId, date: date, apontamento: worker));
+        }
+      }
+    }
+    return result;
+  }
+
   Future<void> saveChamada(ChamadaDiaria chamada) async {
-    if (!chamada.isValid) {
+    final erros = RhInvarianteValidator.validarChamada(
+      apontamentos: chamada.workers,
+    );
+    if (erros.isNotEmpty) {
       throw ArgumentError(
-        'Chamada possui colaboradores com alocações inválidas ou lista vazia.',
+        'Invariantes de RH violadas: ${erros.join("; ")}',
+      );
+    }
+    if (chamada.isRetificada &&
+        (chamada.motivoRetificacao == null ||
+            chamada.motivoRetificacao!.trim().length < 10)) {
+      throw ArgumentError(
+        'Retificação de chamada exige justificativa com ao menos 10 caracteres.',
       );
     }
     await _chamadasRef(chamada.construtoraId, chamada.obraId)

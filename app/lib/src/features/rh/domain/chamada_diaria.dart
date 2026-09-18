@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/contracts.dart';
+import 'chamada_audit_entry.dart';
+import 'chamada_status.dart';
 import 'custo_mao_de_obra.dart';
+import 'rh_invariante_validator.dart';
 
 enum PresencaStatus {
   presente('presente', 'Presente', 'P'),
@@ -169,7 +172,7 @@ class ChamadaDiaria {
   final String? teamName;
   final String createdByUid;
   final String? defaultLotId;
-  final String status; // 'confirmada' | 'retificada' | 'cancelada'
+  final String status; // 'confirmada' | 'fechada' | 'retificada' | 'cancelada'
   final String? observacoes;
   final List<ApontamentoTrabalhador> workers;
   final int totalDayCostCents;
@@ -177,6 +180,11 @@ class ChamadaDiaria {
   final CostPolicy? costPolicy;
   final List<WorkerCostSnapshot> costSnapshots;
   final List<LotCostSummary> lotCostSummaries;
+  final int versaoAuditoria;
+  final List<ChamadaAuditEntry> auditTrail;
+  final String? retificadoPor;
+  final DateTime? retificadoEm;
+  final String? motivoRetificacao;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int schemaVersion;
@@ -190,7 +198,7 @@ class ChamadaDiaria {
     this.teamName,
     required this.createdByUid,
     this.defaultLotId,
-    this.status = 'confirmada',
+    this.status = 'fechada',
     this.observacoes,
     this.workers = const [],
     this.totalDayCostCents = 0,
@@ -198,10 +206,18 @@ class ChamadaDiaria {
     this.costPolicy,
     this.costSnapshots = const [],
     this.lotCostSummaries = const [],
+    this.versaoAuditoria = 1,
+    this.auditTrail = const [],
+    this.retificadoPor,
+    this.retificadoEm,
+    this.motivoRetificacao,
     required this.createdAt,
     required this.updatedAt,
     this.schemaVersion = 1,
   });
+
+  ChamadaStatus get chamadaStatus => ChamadaStatus.fromValue(status);
+  bool get isRetificada => chamadaStatus == ChamadaStatus.retificada;
 
   int get totalWorkers => workers.length;
   int get presentCount =>
@@ -212,7 +228,8 @@ class ChamadaDiaria {
       workers.where((w) => w.status == PresencaStatus.falta).length;
 
   bool get isValid =>
-      workers.isNotEmpty && workers.every((w) => w.isValidAllocation);
+      workers.isNotEmpty &&
+      RhInvarianteValidator.validarChamada(apontamentos: workers).isEmpty;
 
   String get formattedTotalCost => formatCents(totalDayCostCents);
 
@@ -234,6 +251,12 @@ class ChamadaDiaria {
       if (costPolicy != null) 'costPolicy': costPolicy!.toMap(),
       'costSnapshots': costSnapshots.map((s) => s.toMap()).toList(),
       'lotCostSummaries': lotCostSummaries.map((s) => s.toMap()).toList(),
+      'versaoAuditoria': versaoAuditoria,
+      'auditTrail': auditTrail.map((a) => a.toMap()).toList(),
+      if (retificadoPor != null) 'retificadoPor': retificadoPor,
+      if (retificadoEm != null)
+        'retificadoEm': Timestamp.fromDate(retificadoEm!),
+      if (motivoRetificacao != null) 'motivoRetificacao': motivoRetificacao,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'schemaVersion': schemaVersion,
@@ -247,9 +270,17 @@ class ChamadaDiaria {
       return DateTime.now();
     }
 
+    DateTime? parseNullableDate(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.tryParse(value);
+      return null;
+    }
+
     final rawWorkers = map['workers'] as List<dynamic>? ?? [];
     final rawCostSnapshots = map['costSnapshots'] as List<dynamic>? ?? [];
     final rawLotCostSummaries = map['lotCostSummaries'] as List<dynamic>? ?? [];
+    final rawAuditTrail = map['auditTrail'] as List<dynamic>? ?? [];
 
     return ChamadaDiaria(
       id: id ?? map['id'] as String? ?? '',
@@ -260,7 +291,7 @@ class ChamadaDiaria {
       teamName: map['teamName'] as String?,
       createdByUid: map['createdByUid'] as String? ?? '',
       defaultLotId: map['defaultLotId'] as String?,
-      status: map['status'] as String? ?? 'confirmada',
+      status: map['status'] as String? ?? 'fechada',
       observacoes: map['observacoes'] as String?,
       workers: rawWorkers
           .map((w) =>
@@ -279,6 +310,14 @@ class ChamadaDiaria {
           .map((l) =>
               LotCostSummary.fromMap(Map<String, dynamic>.from(l as Map)))
           .toList(),
+      versaoAuditoria: (map['versaoAuditoria'] as num?)?.toInt() ?? 1,
+      auditTrail: rawAuditTrail
+          .map((a) =>
+              ChamadaAuditEntry.fromMap(Map<String, dynamic>.from(a as Map)))
+          .toList(),
+      retificadoPor: map['retificadoPor'] as String?,
+      retificadoEm: parseNullableDate(map['retificadoEm']),
+      motivoRetificacao: map['motivoRetificacao'] as String?,
       createdAt: parseDate(map['createdAt']),
       updatedAt: parseDate(map['updatedAt']),
       schemaVersion: (map['schemaVersion'] as num?)?.toInt() ?? 1,
@@ -302,6 +341,11 @@ class ChamadaDiaria {
     CostPolicy? costPolicy,
     List<WorkerCostSnapshot>? costSnapshots,
     List<LotCostSummary>? lotCostSummaries,
+    int? versaoAuditoria,
+    List<ChamadaAuditEntry>? auditTrail,
+    String? retificadoPor,
+    DateTime? retificadoEm,
+    String? motivoRetificacao,
     DateTime? createdAt,
     DateTime? updatedAt,
     int? schemaVersion,
@@ -323,6 +367,11 @@ class ChamadaDiaria {
       costPolicy: costPolicy ?? this.costPolicy,
       costSnapshots: costSnapshots ?? this.costSnapshots,
       lotCostSummaries: lotCostSummaries ?? this.lotCostSummaries,
+      versaoAuditoria: versaoAuditoria ?? this.versaoAuditoria,
+      auditTrail: auditTrail ?? this.auditTrail,
+      retificadoPor: retificadoPor ?? this.retificadoPor,
+      retificadoEm: retificadoEm ?? this.retificadoEm,
+      motivoRetificacao: motivoRetificacao ?? this.motivoRetificacao,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       schemaVersion: schemaVersion ?? this.schemaVersion,

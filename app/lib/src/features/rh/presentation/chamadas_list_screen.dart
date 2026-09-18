@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../common_widgets/sigo_sidebar.dart';
 import '../data/chamada_repository.dart';
 import '../domain/chamada_diaria.dart';
+import 'widgets/chamada_audit_timeline_dialog.dart';
 
 class ChamadasListScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -211,22 +212,86 @@ class _ChamadaCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (isRetificada)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'Retificada',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.purple,
+                  Row(
+                    children: [
+                      if (isRetificada) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber.shade800),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.history_edu,
+                                size: 13,
+                                color: Colors.amber.shade900,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Retificada v${chamada.versaoAuditoria}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber.shade900,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 6),
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.verified_outlined,
+                                size: 13,
+                                color: Colors.green,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Fechada',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      IconButton(
+                        icon: const Icon(Icons.history, size: 20),
+                        tooltip: 'Trilha de Auditoria',
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => ChamadaAuditTimelineDialog(
+                              chamada: chamada,
+                            ),
+                          );
+                        },
                       ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -239,6 +304,17 @@ class _ChamadaCard extends StatelessWidget {
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
+              if (isRetificada && chamada.retificadoPor != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Última alteração: ${chamada.retificadoPor} '
+                  '(${chamada.motivoRetificacao ?? "sem motivo"})',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontStyle: FontStyle.italic,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
 
               // Badges de Presença

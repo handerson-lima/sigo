@@ -10,14 +10,17 @@ import '../../lotes/data/lote_repository.dart';
 import '../../lotes/domain/lote.dart';
 import '../data/custo_mao_de_obra_service.dart';
 import '../data/rh_repository.dart';
+import '../domain/chamada_audit_entry.dart';
 import '../domain/custo_mao_de_obra.dart';
 import '../domain/equipe.dart';
 import '../domain/funcionario.dart';
+import '../domain/rh_invariante_validator.dart';
 import '../data/chamada_repository.dart';
 import '../data/lote_persistido_service.dart';
 import '../domain/chamada_diaria.dart';
 import 'widgets/apontamento_worker_card.dart';
 import 'widgets/resumo_custos_chamada_dialog.dart';
+import 'widgets/retificacao_chamada_dialog.dart';
 
 class ChamadaFormScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -54,7 +57,15 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
       _workers.where((w) => w.status == PresencaStatus.falta).length;
 
   bool get _isFormValid =>
-      _workers.isNotEmpty && _workers.every((w) => w.isValidAllocation);
+      _workers.isNotEmpty &&
+      RhInvarianteValidator.validarChamada(apontamentos: _workers).isEmpty;
+
+  List<String> _validarInvariantes(List<Lote> lotes) {
+    return RhInvarianteValidator.validarChamada(
+      apontamentos: _workers,
+      lotesValidosDaObra: lotes.map((l) => l.id).toSet(),
+    );
+  }
 
   @override
   void initState() {
@@ -82,10 +93,43 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
         });
         return;
       }
+    } else {
+      _checkExistingChamadaForDate(_selectedDate);
     }
     setState(() {
       _initialized = true;
     });
+  }
+
+  Future<void> _checkExistingChamadaForDate(DateTime date) async {
+    if (widget.chamadaId != null) return;
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final repo = ref.read(chamadaRepositoryProvider);
+    final existing = await repo.findChamadaByDate(
+      widget.construtoraId,
+      widget.obraId,
+      dateStr,
+    );
+    if (existing != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.amber.shade900,
+          duration: const Duration(seconds: 5),
+          content: Text(
+            'Já existe uma chamada registrada em $dateStr para esta obra.',
+          ),
+          action: SnackBarAction(
+            label: 'Ver Chamada',
+            textColor: Colors.white,
+            onPressed: () {
+              context.pushReplacement(
+                '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/${existing.id}',
+              );
+            },
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _pickDate() async {
@@ -99,6 +143,7 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
       setState(() {
         _selectedDate = picked;
       });
+      _checkExistingChamadaForDate(picked);
     }
   }
 
@@ -200,45 +245,145 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
   Future<void> _saveChamada(
     List<Equipe> equipes,
     List<Funcionario> allFuncionarios,
+    List<Lote> lotes,
   ) async {
-    if (!_isFormValid) return;
+    final erros = _validarInvariantes(lotes);
+    if (erros.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('Invariantes violadas: ${erros.first}'),
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isSaving = true;
     });
 
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
-    final equipeName = _selectedTeamId != null
-        ? equipes.where((e) => e.id == _selectedTeamId).firstOrNull?.name
-        : null;
-
-    final costResult = CustoMaoDeObraService.computeChamadaCosts(
-      funcionarios: allFuncionarios,
-      apontamentos: _workers,
-    );
-
-    final chamada = ChamadaDiaria(
-      id: _existingChamada?.id ?? const Uuid().v4(),
-      construtoraId: widget.construtoraId,
-      obraId: widget.obraId,
-      date: _formattedDate,
-      teamId: _selectedTeamId,
-      teamName: equipeName,
-      createdByUid: uid,
-      defaultLotId: _defaultLotId,
-      status: _existingChamada != null ? 'retificada' : 'confirmada',
-      workers: _workers,
-      totalDayCostCents: costResult.totalDayCostCents,
-      costPolicyVersion: 'v1',
-      costPolicy: const CostPolicy(),
-      costSnapshots: costResult.costSnapshots,
-      lotCostSummaries: costResult.lotCostSummaries,
-      createdAt: _existingChamada?.createdAt ?? DateTime.now(),
-      updatedAt: DateTime.now(),
-      schemaVersion: 1,
-    );
-
     try {
+      // 1. Checagem de conflitos Cross-Obra na mesma data
+      final crossApontamentos =
+          await ref.read(chamadaRepositoryProvider).findCrossObraApontamentos(
+                construtoraId: widget.construtoraId,
+                currentObraId: widget.obraId,
+                date: _formattedDate,
+              );
+
+      for (final cross in crossApontamentos) {
+        final workerInCurrent = _workers
+            .where((w) => w.workerId == cross.apontamento.workerId)
+            .firstOrNull;
+        if (workerInCurrent != null &&
+            workerInCurrent.status != PresencaStatus.falta) {
+          final conflito = RhInvarianteValidator.validarConflitoCrossObra(
+            workerId: workerInCurrent.workerId,
+            workerName: workerInCurrent.workerName,
+            statusNovo: workerInCurrent.status,
+            statusExistenteEmOutraObra: cross.apontamento.status,
+            nomeOutraObra: cross.obraId,
+          );
+          if (conflito != null) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: Colors.red.shade800,
+                  content: Text(conflito),
+                  duration: const Duration(seconds: 5),
+                ),
+              );
+            }
+            setState(() {
+              _isSaving = false;
+            });
+            return;
+          }
+        }
+      }
+
+      final costResult = CustoMaoDeObraService.computeChamadaCosts(
+        funcionarios: allFuncionarios,
+        apontamentos: _workers,
+      );
+
+      final user = FirebaseAuth.instance.currentUser;
+      final uid = user?.uid ?? 'unknown';
+      final userName = user?.displayName ?? uid;
+      final equipeName = _selectedTeamId != null
+          ? equipes.where((e) => e.id == _selectedTeamId).firstOrNull?.name
+          : null;
+
+      String? motivoRetificacao;
+      ChamadaAuditEntry? auditEntry;
+
+      // 2. Fluxo de retificação para chamadas já fechadas/retificadas
+      if (_existingChamada != null) {
+        if (!mounted) return;
+        final motivo = await showDialog<String>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => RetificacaoChamadaDialog(
+            totalCostCentsAnterior: _existingChamada!.totalDayCostCents,
+            totalCostCentsNovo: costResult.totalDayCostCents,
+          ),
+        );
+
+        if (motivo == null) {
+          setState(() {
+            _isSaving = false;
+          });
+          return;
+        }
+
+        motivoRetificacao = motivo;
+        auditEntry = ChamadaAuditEntry(
+          id: const Uuid().v4(),
+          userId: uid,
+          userName: userName,
+          timestamp: DateTime.now(),
+          motivo: motivo,
+          totalCostCentsAnterior: _existingChamada!.totalDayCostCents,
+          totalCostCentsNovo: costResult.totalDayCostCents,
+          versaoAnterior: _existingChamada!.versaoAuditoria,
+          snapshotAnterior: _existingChamada!.toMap(),
+        );
+      }
+
+      final novaVersao = _existingChamada != null
+          ? _existingChamada!.versaoAuditoria + 1
+          : 1;
+      final novoAuditTrail = _existingChamada != null
+          ? [..._existingChamada!.auditTrail, ?auditEntry]
+          : <ChamadaAuditEntry>[];
+
+      final chamada = ChamadaDiaria(
+        id: _existingChamada?.id ?? const Uuid().v4(),
+        construtoraId: widget.construtoraId,
+        obraId: widget.obraId,
+        date: _formattedDate,
+        teamId: _selectedTeamId,
+        teamName: equipeName,
+        createdByUid: _existingChamada?.createdByUid ?? uid,
+        defaultLotId: _defaultLotId,
+        status: _existingChamada != null ? 'retificada' : 'fechada',
+        observacoes: _existingChamada?.observacoes,
+        workers: _workers,
+        totalDayCostCents: costResult.totalDayCostCents,
+        costPolicyVersion: 'v1',
+        costPolicy: const CostPolicy(),
+        costSnapshots: costResult.costSnapshots,
+        lotCostSummaries: costResult.lotCostSummaries,
+        versaoAuditoria: novaVersao,
+        auditTrail: novoAuditTrail,
+        retificadoPor: _existingChamada != null ? userName : null,
+        retificadoEm: _existingChamada != null ? DateTime.now() : null,
+        motivoRetificacao: motivoRetificacao,
+        createdAt: _existingChamada?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
+        schemaVersion: 1,
+      );
+
       await ref.read(chamadaRepositoryProvider).saveChamada(chamada);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -246,8 +391,8 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
             backgroundColor: Colors.green,
             content: Text(
               _existingChamada != null
-                  ? 'Chamada retificada com sucesso!'
-                  : 'Chamada diária salva com sucesso!',
+                  ? 'Chamada retificada e registrada na auditoria com sucesso!'
+                  : 'Chamada diária salva e fechada com sucesso!',
             ),
           ),
         );
@@ -434,6 +579,66 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
                         ),
                       ),
 
+                      // Banner de Feedback Preventivo de Invariantes
+                      Builder(
+                        builder: (context) {
+                          final erros = _validarInvariantes(lotes);
+                          if (erros.isEmpty) return const SizedBox.shrink();
+                          return Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.errorContainer,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: theme.colorScheme.error.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: theme.colorScheme.error,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Invariantes de RH Pendentes (${erros.length}):',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: theme.colorScheme.onErrorContainer,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        erros.first,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: theme.colorScheme.onErrorContainer,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+
                       // Lista de Operários
                       Expanded(
                         child: _workers.isEmpty
@@ -597,7 +802,9 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
                                       label: Text(
                                         _isSaving
                                             ? 'Salvando Chamada...'
-                                            : 'Salvar Chamada Diária',
+                                            : (_existingChamada != null
+                                                ? 'Retificar Chamada Diária'
+                                                : 'Salvar Chamada Diária'),
                                         style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
@@ -605,7 +812,7 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
                                       ),
                                       onPressed: (_isFormValid && !_isSaving)
                                           ? () => _saveChamada(
-                                              equipes, allFuncionarios)
+                                              equipes, allFuncionarios, lotes)
                                           : null,
                                     ),
                                   ),

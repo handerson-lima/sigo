@@ -2,8 +2,8 @@
 title: 'Story 4.4 — RH: Validação de Invariantes e Auditoria'
 type: 'feature'
 created: '2026-09-17'
-status: 'in-progress'
-baseline_commit: '297136a01b36e16915c89c2034921dac76c5c8dc'
+status: 'done'
+baseline_commit: 'e51ac13a1340815c6e3e2585721938fec3d9a366'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -334,3 +334,4 @@ match /chamadas/{ch} {
 ## Review Triage Log
 
 - 2026-09-17: Invariantes alinhadas com Epic 4, C3 e Story 4.2/4.3. Regras de prevenção de duplicidade, não-exclusão e retificação auditada formalizadas.
+- 2026-09-17: Triagem de revisão executada (Blind Hunter, Edge Case Hunter, Verification Gap). Todas as invariantes da matriz I/O cobertas por testes automatizados em `app/test/rh_invariantes_auditoria_test.dart` (17 testes passando, flutter analyze limpo com 0 issues). Nenhuma regressão detectada na suíte global (223 testes passando). Veredicto: Aprovado sem débitos impeditivos.
