@@ -87,7 +87,7 @@ development_status:
   4-1-rh-cadastro: done
   4-2-rh-chamada: done
   4-3-rh-custos: done
-  4-4-rh-validar-invariantes: backlog
+  4-4-rh-validar-invariantes: ready-for-dev
   epic-4-retrospective: optional
 
   epic-5: backlog
