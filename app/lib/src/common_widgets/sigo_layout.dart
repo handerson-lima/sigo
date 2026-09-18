@@ -62,7 +62,10 @@ class SigoLayout extends StatelessWidget {
             actions: actions,
             activeRoute: activeRoute,
           ),
-          drawer: SigoSidebar(activeRoute: activeRoute),
+          drawer: SigoSidebar(
+            activeRoute: activeRoute,
+            isCollapsed: false,
+          ),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
             child: child,

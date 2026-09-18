@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/authentication/data/auth_repository.dart';
 import '../features/obras/presentation/construtora_obras_provider.dart';
 import '../sync/sync_indicator.dart';
+import 'sidebar_state.dart';
 
 class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
   final String title;
@@ -72,19 +73,46 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
     }
 
     final hasBack = _canPop(context);
+    final hasDrawer = Scaffold.maybeOf(context)?.hasDrawer ?? false;
+    final isSidebarCollapsed = ref.watch(sidebarCollapsedProvider);
+
+    void handleMenuPressed() {
+      if (hasDrawer) {
+        Scaffold.of(context).openDrawer();
+      } else {
+        ref.read(sidebarCollapsedProvider.notifier).toggle();
+      }
+    }
 
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
+      centerTitle: false,
+      titleSpacing: 8,
       iconTheme: const IconThemeData(
         color: Colors.black87,
-      ), // For the drawer icon on mobile
-      leading: hasBack
-          ? IconButton(
+      ),
+      leadingWidth: hasBack ? 96 : 56,
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            key: const Key('sigo-hamburger-button'),
+            icon: const Icon(Icons.menu, color: Colors.black87),
+            tooltip: hasDrawer
+                ? 'Abrir menu'
+                : (isSidebarCollapsed ? 'Expandir menu' : 'Recolher menu'),
+            onPressed: handleMenuPressed,
+          ),
+          if (hasBack)
+            IconButton(
+              key: const Key('sigo-back-button'),
               icon: const Icon(Icons.arrow_back, color: Colors.black54),
+              tooltip: 'Voltar',
               onPressed: () => _pop(context),
-            )
-          : null,
+            ),
+        ],
+      ),
       title: cId != null && oId != null
           ? Row(
               mainAxisSize: MainAxisSize.min,
