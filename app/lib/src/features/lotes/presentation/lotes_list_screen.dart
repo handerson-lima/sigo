@@ -95,7 +95,27 @@ class _LoteCard extends ConsumerWidget {
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const Spacer(),
-              Text('Fase: ${lote.phase}', style: const TextStyle(fontSize: 12)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text('Fase: ${lote.phase}',
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.fact_check, size: 20, color: Colors.black54),
+                    tooltip: 'Vistorias de Qualidade',
+                    onPressed: () {
+                      context.go(
+                        '/construtora/${lote.construtoraId}/obra/${lote.obraId}/lotes/${lote.id}/validacoes',
+                      );
+                    },
+                  ),
+                ],
+              ),
               Text('Status: ${lote.status.name}', style: const TextStyle(fontSize: 12)),
             ],
           ),
@@ -228,6 +248,20 @@ class _EditLoteSheetState extends ConsumerState<_EditLoteSheet> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Salvar Alterações'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                context.go(
+                  '/construtora/${widget.lote.construtoraId}/obra/${widget.lote.obraId}/lotes/${widget.lote.id}/validacoes',
+                );
+              },
+              icon: const Icon(Icons.fact_check),
+              label: const Text('Vistorias de Qualidade do Lote'),
             ),
           ),
         ],

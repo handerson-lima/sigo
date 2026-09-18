@@ -11,10 +11,11 @@ service cloud.firestore {
    function om(c,o) { return get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)).data; }
    function obraMember(c,o) { return member(c) && omExists(c,o) && om(c,o).get('isActive', false) == true; }
    function obraAdmin(c,o) { return admin(c) || (obraMember(c,o) && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || om(c,o).get('role', '') == 'admin' || om(c,o).get('role', '') == 'owner')); }
-   function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]))); }
+   function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]) || m == 'validacao' && 'qualidade' in om(c,o).get('modules',[]))); }
    function stock(c) { return admin(c) || (member(c) && ('estoque' in cm(c).get('modules',[]) || 'almoxarifado' in cm(c).get('modules',[]))); }
    function rh(c) { return admin(c) || (member(c) && ('rh' in cm(c).get('modules',[]) || 'recursos_humanos' in cm(c).get('modules',[]))); }
    function epi(c) { return admin(c) || (member(c) && ('epi' in cm(c).get('modules',[]))); }
+   function validacao(c) { return admin(c) || (member(c) && ('validacao' in cm(c).get('modules',[]) || 'qualidade' in cm(c).get('modules',[]))); }
   match /dev_roles/{uid} {
     allow read: if signed() && (request.auth.uid == uid || dev());
     allow create: if signed() && request.auth.uid == uid && (
@@ -52,6 +53,11 @@ service cloud.firestore {
     allow create, update: if (admin(c) || epi(c)) && request.resource.data.id == epiId && request.resource.data.construtoraId == c;
     allow delete: if false;
    }
+   match /validacao_templates/{tId} {
+    allow read: if member(c);
+    allow create, update: if (admin(c) || validacao(c)) && request.resource.data.id == tId && request.resource.data.construtoraId == c;
+    allow delete: if false;
+   }
    match /materiais/{m} {
     allow read: if stock(c);
     allow create: if stock(c) && request.resource.data.keys().hasOnly(['id','construtoraId','name','unit','currentQuantity','quantityUnits','quantityScale','schemaVersion']) && request.resource.data.id == m && request.resource.data.construtoraId == c && request.resource.data.currentQuantity == 0 && request.resource.data.quantityUnits == 0 && request.resource.data.quantityScale == 1000 && request.resource.data.schemaVersion == 2;
@@ -70,7 +76,20 @@ service cloud.firestore {
     allow update: if admin(c) && request.resource.data.id == resource.data.id && request.resource.data.construtoraId == resource.data.construtoraId;
     allow delete: if false;
     match /members/{uid} { allow read: if signed() && (request.auth.uid == uid || obraAdmin(c,o)); allow write: if false; }
-    match /lotes/{l} { allow read: if module(c,o,'lotes'); allow create, update: if obraAdmin(c,o) && request.resource.data.id == l && request.resource.data.obraId == o; allow delete: if false; }
+    match /lotes/{l} {
+     allow read: if module(c,o,'lotes');
+     allow create, update: if obraAdmin(c,o) && request.resource.data.id == l && request.resource.data.obraId == o;
+     allow delete: if false;
+     match /validacoes/{v} {
+      allow read: if obraMember(c,o) || admin(c);
+      allow create, update: if (module(c,o,'validacao') || validacao(c) || obraAdmin(c,o))
+        && request.resource.data.id == v
+        && request.resource.data.construtoraId == c
+        && request.resource.data.obraId == o
+        && request.resource.data.loteId == l;
+      allow delete: if false;
+     }
+    }
     match /diarios/{id} { allow read: if module(c,o,'diario'); allow write: if false; }
     match /chamadas/{ch} {
      allow read: if rh(c) || module(c,o,'rh');

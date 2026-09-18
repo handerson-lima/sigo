@@ -85,30 +85,55 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
               onPressed: () => _pop(context),
             )
           : null,
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (hasBack)
-            const Text(
-              'Voltar • ',
-              style: TextStyle(color: Colors.black54, fontSize: 14),
-            ),
-          Flexible(
-            child: Text(
-              title,
-              style: const TextStyle(color: Colors.black54, fontSize: 14),
+      title: cId != null && oId != null
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        if (hasBack)
+                          const TextSpan(
+                            text: 'Voltar • ',
+                            style:
+                                TextStyle(color: Colors.black54, fontSize: 14),
+                          ),
+                        TextSpan(
+                          text: title,
+                          style: const TextStyle(
+                              color: Colors.black54, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ObraSwitcher(
+                  construtoraId: cId,
+                  currentObraId: oId,
+                ),
+              ],
+            )
+          : Text.rich(
+              TextSpan(
+                children: [
+                  if (hasBack)
+                    const TextSpan(
+                      text: 'Voltar • ',
+                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                    ),
+                  TextSpan(
+                    text: title,
+                    style: const TextStyle(color: Colors.black54, fontSize: 14),
+                  ),
+                ],
+              ),
               overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
-          ),
-          if (cId != null && oId != null) ...[
-            const SizedBox(width: 12),
-            ObraSwitcher(
-              construtoraId: cId,
-              currentObraId: oId,
-            ),
-          ],
-        ],
-      ),
       actions: [
         ...?actions,
         SyncIndicator(

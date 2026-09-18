@@ -34,6 +34,9 @@ import '../features/rh/presentation/chamadas_list_screen.dart';
 import '../features/rh/presentation/chamada_form_screen.dart';
 import '../features/epi/presentation/catalogo_epis_screen.dart';
 import '../features/epi/presentation/entrega_epi_screen.dart';
+import '../features/validacao/presentation/templates_list_screen.dart';
+import '../features/validacao/presentation/lote_validacoes_screen.dart';
+import '../features/validacao/presentation/validacao_form_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
@@ -392,6 +395,73 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: EntregaEpiScreen(
               construtoraId: cId,
               obraId: oId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/validacao/templates',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            module: 'validacao',
+            child: TemplatesListScreen(construtoraId: cId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/lotes/:loteId/validacoes',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          final loteId = state.pathParameters['loteId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'validacao',
+            child: LoteValidacoesScreen(
+              construtoraId: cId,
+              obraId: oId,
+              loteId: loteId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/lotes/:loteId/validacoes/nova',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          final loteId = state.pathParameters['loteId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'validacao',
+            child: ValidacaoFormScreen(
+              construtoraId: cId,
+              obraId: oId,
+              loteId: loteId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/lotes/:loteId/validacoes/:validacaoId',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          final loteId = state.pathParameters['loteId']!;
+          final validacaoId = state.pathParameters['validacaoId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'validacao',
+            child: ValidacaoFormScreen(
+              construtoraId: cId,
+              obraId: oId,
+              loteId: loteId,
+              validacaoId: validacaoId,
             ),
           );
         },

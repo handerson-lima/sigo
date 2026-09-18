@@ -2,10 +2,11 @@
 title: 'Story 5.2 — Módulo Validação: Templates de Inspeção e Checklists de Lote com Evidências Fotográficas'
 type: 'feature'
 created: '2026-09-18'
-status: 'ready-for-dev'
-baseline_commit: '44ab2f1'
+status: 'done'
+baseline_commit: '2b2e6f2e17b468c68c749274661f3c278a58a7b4'
 route: 'dispatch'
 review_loop_iteration: 0
+followup_review_recommended: false
 context:
   - '{project-root}/_bmad-output/specs/spec-5-2-modulo-validacao/SPEC.md'
   - '{project-root}/_bmad-output/planning-artifacts/architecture/architecture-epic-5/ARCHITECTURE-SPINE.md'
@@ -202,3 +203,55 @@ app/lib/src/features/validacao/
 4. `/construtora/:cId/obra/:oId/lotes/:loteId/validacoes/:validacaoId`: Visualizar / preencher vistoria do lote.
 
 </frozen-after-approval>
+
+## Review Triage Log
+
+### 2026-09-18 — Review pass
+- verdicts: 10 findings — high 0, medium 0, low 0, false 10, maybe-false 0
+- findings:
+  - `[false]` `[reject]` Risco de exclusão acidental de vistorias — Refutado: Firestore security rules definem estritamente `allow delete: if false;` na subcoleção `/validacoes/{v}` e em `/validacao_templates/{tId}`.
+  - `[false]` `[reject]` Adulteração de histórico retroativo após modificação de template — Refutado: A vistoria grava um snapshot estático dos itens e o `templateVersion`, desacoplando versões futuras do template corporativo.
+  - `[false]` `[reject]` Aprovação de vistoria contendo item não-conforme — Refutado: `calcularStatusFinal()` retorna deterministicamente `reprovado` sempre que `hasNaoConforme` é verdadeiro.
+  - `[false]` `[reject]` Conclusão de vistoria reprovada sem comprovação fotográfica — Refutado: `validarParaConclusao()` bloqueia conclusão e lista erro para qualquer item não-conforme sem foto ou sem observação.
+  - `[false]` `[reject]` Evidências fotográficas sem rastreabilidade — Refutado: `WatermarkService` grava carimbo indelével com data/hora, identificação do lote e nome/UID do inspetor nos bytes da imagem.
+  - `[false]` `[reject]` Acesso não autorizado de membros de outras construtoras ou obras — Refutado: Protegido via `AccessGuard` nas rotas do Flutter e checagem de membership e módulo `validacao` em `firestore.rules` e `storage.rules`.
+  - `[false]` `[reject]` Incompatibilidade com offline/read_cache — Refutado: `ValidacaoRepository` integra com `cachedList` e armazenamento resiliente local.
+  - `[false]` `[reject]` Overflow de layout em telas de canteiro — Refutado: `DropdownButtonFormField` usa `isExpanded: true` e `sigo_top_bar` utiliza `Text.rich` com `TextOverflow.ellipsis`.
+  - `[false]` `[reject]` Regressão em outros módulos do sistema — Refutado: 100% dos 239 testes de todas as histórias e módulos executados com sucesso (`flutter test`).
+  - `[false]` `[reject]` Violação de convenções de análise estática — Refutado: `flutter analyze` reportou 0 erros e 0 warnings no projeto.
+
+## Auto Run Result
+
+Status: done
+Blocking condition: none
+
+### Summary of Implemented Change
+Implementação completa da Story 5.2 — Módulo Validação:
+1. Catálogo corporativo de templates de inspeção (`validacao_templates`) por disciplina com versionamento incremental automático (`version`).
+2. Execução de checklists de validação por lote (`validacoes`), com fixação imutável da versão do template aplicado (`templateVersion`).
+3. Máquina de estados determinística (`pendente`, `aprovado`, `reprovado`, `reaberto`) com selo consolidado de qualidade no mapa de lotes.
+4. Obrigatoriedade de fotos de evidência com carimbo indelével auditável (`WatermarkService`) e justificativa textual para qualquer item não-conforme.
+5. Regras de segurança Firestore e Storage com RBAC estrito e imutabilidade (`allow delete: if false;`).
+
+### Files Changed
+- `app/lib/src/features/validacao/domain/validacao_template.dart`: Modelos de domínio `ValidacaoTemplate` e `ChecklistTemplateItem`.
+- `app/lib/src/features/validacao/domain/validacao_vistoria.dart`: Modelos de domínio `ValidacaoVistoria`, `ItemRespondido` e enums de status e conformidade.
+- `app/lib/src/features/validacao/data/validacao_repository.dart`: Repositório com suporte a Firestore, Storage e cache offline `read_cache`.
+- `app/lib/src/features/validacao/presentation/templates_list_screen.dart`: Gestão de templates corporativos da construtora.
+- `app/lib/src/features/validacao/presentation/template_form_dialog.dart`: Diálogo de cadastro/edição com versionamento incremental de templates.
+- `app/lib/src/features/validacao/presentation/lote_validacoes_screen.dart`: Histórico de vistorias do lote com status consolidado.
+- `app/lib/src/features/validacao/presentation/validacao_form_screen.dart`: Preenchimento do checklist com validação de evidências e anexação de fotos com carimbo.
+- `app/lib/src/routing/app_router.dart`: 4 rotas protegidas para templates e vistorias de lote.
+- `app/lib/src/core/contracts.dart`: Mapeamento do módulo `qualidade` para `validacao` em `normalizeModule`.
+- `app/lib/src/common_widgets/sigo_top_bar.dart`: Tratamento resiliente de título no AppBar prevenindo overflow de layout.
+- `app/lib/src/features/obras/presentation/obras_list_screen.dart`: Atalho para templates corporativos no AppBar da construtora.
+- `app/lib/src/features/lotes/presentation/lotes_list_screen.dart`: Atalho direto para vistorias de qualidade no card e bottom sheet do lote.
+- `firestore.rules`: Regras para `validacao_templates` e subcoleção `validacoes` nos lotes com imutabilidade física.
+- `storage.rules`: Regras de upload para evidências fotográficas com restrição de tamanho e formato.
+- `app/test/validacao_modulo_test.dart`: Testes unitários do domínio e validação de invariantes.
+- `app/test/validacao_presentation_test.dart`: Testes de widget das telas de templates e vistorias.
+
+### Verification Performed
+- `flutter test`: 239 testes executados com 100% de aprovação.
+- `flutter analyze`: 0 apontamentos encontrados.
+- `dtd` / `hot_reload`: recarga a quente executada com sucesso no app conectado.

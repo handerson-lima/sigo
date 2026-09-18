@@ -45,6 +45,12 @@ class ObrasListScreen extends ConsumerWidget {
             (cm?['modules'] as List? ?? []).any(
               (m) => m == 'rh' || m == 'recursos_humanos',
             );
+    final hasValidacao =
+        admin ||
+        cm?['isActive'] == true &&
+            (cm?['modules'] as List? ?? []).any(
+              (m) => m == 'validacao' || m == 'qualidade',
+            );
     final despesasAsync = admin
         ? ref.watch(despesasConstrutoraProvider(construtoraId))
         : const AsyncData<List<Despesa>>([]);
@@ -97,6 +103,14 @@ class ObrasListScreen extends ConsumerWidget {
             tooltip: 'Financeiro Global',
             onPressed: () {
               context.go('/construtora/$construtoraId/financeiro');
+            },
+          ),
+        if (hasValidacao)
+          IconButton(
+            icon: const Icon(Icons.rule, color: Colors.black54),
+            tooltip: 'Templates de Validação',
+            onPressed: () {
+              context.go('/construtora/$construtoraId/validacao/templates');
             },
           ),
       ],
