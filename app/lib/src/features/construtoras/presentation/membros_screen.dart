@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import 'add_membro_dialog.dart';
 import '../data/membros_repository.dart';
 import '../domain/membro.dart';
@@ -18,11 +19,31 @@ class MembrosScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final membrosAsync = ref.watch(membrosProvider(construtoraId));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestão de Membros'),
+    return SigoLayout(
+      title: 'Gestão de Membros',
+      activeRoute: '/construtora/$construtoraId/membros',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.person_add),
+          tooltip: 'Convidar Membro',
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (context) => AddMembroDialog(construtoraId: construtoraId),
+            );
+          },
+        ),
+      ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) => AddMembroDialog(construtoraId: construtoraId),
+          );
+        },
+        child: const Icon(Icons.person_add),
       ),
-      body: membrosAsync.when(
+      child: membrosAsync.when(
         data: (membros) {
           if (membros.isEmpty) {
             return const Center(child: Text('Nenhum membro encontrado.'));
@@ -43,15 +64,6 @@ class MembrosScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Erro: $err')),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (context) => AddMembroDialog(construtoraId: construtoraId),
-          );
-        },
-        child: const Icon(Icons.person_add),
       ),
     );
   }

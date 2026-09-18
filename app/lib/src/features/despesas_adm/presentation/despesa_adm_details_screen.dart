@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../common_widgets/sigo_top_bar.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import '../../authentication/data/auth_repository.dart';
 import '../data/despesas_adm_repository.dart';
 import '../domain/despesa_adm.dart';
@@ -67,30 +67,29 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
       despesaId: despesaId,
     )));
 
-    return Scaffold(
-      appBar: SigoTopBar(
-        title: 'Detalhes da Despesa',
-        actions: [
-          despesaAsync.maybeWhen(
-            data: (despesa) {
-              if (despesa == null || despesa.status == StatusDespesaAdm.pago) {
-                return const SizedBox();
-              }
-              return IconButton(
-                icon: const Icon(Icons.edit),
-                tooltip: 'Editar Despesa',
-                onPressed: () {
-                  context.push(
-                    '/construtora/$construtoraId/obra/$obraId/despesas/$despesaId/editar',
-                  );
-                },
-              );
-            },
-            orElse: () => const SizedBox(),
-          ),
-        ],
-      ),
-      body: despesaAsync.when(
+    return SigoLayout(
+      title: 'Detalhes da Despesa',
+      activeRoute: '/construtora/$construtoraId/obra/$obraId/despesas/$despesaId',
+      actions: [
+        despesaAsync.maybeWhen(
+          data: (despesa) {
+            if (despesa == null || despesa.status == StatusDespesaAdm.pago) {
+              return const SizedBox();
+            }
+            return IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: 'Editar Despesa',
+              onPressed: () {
+                context.push(
+                  '/construtora/$construtoraId/obra/$obraId/despesas/$despesaId/editar',
+                );
+              },
+            );
+          },
+          orElse: () => const SizedBox(),
+        ),
+      ],
+      child: despesaAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Erro: $err')),
         data: (despesa) {

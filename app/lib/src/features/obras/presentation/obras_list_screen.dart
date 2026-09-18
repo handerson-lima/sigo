@@ -57,6 +57,18 @@ class ObrasListScreen extends ConsumerWidget {
             (cm?['modules'] as List? ?? []).any(
               (m) => m == 'epi' || m == 'rh' || m == 'seguranca',
             );
+    final hasFornecedores =
+        admin ||
+        cm?['isActive'] == true &&
+            (cm?['modules'] as List? ?? []).any(
+              (m) =>
+                  m == 'fornecedores' ||
+                  m == 'compras' ||
+                  m == 'financeiro' ||
+                  m == 'adm' ||
+                  m == 'almoxarifado' ||
+                  m == 'estoque',
+            );
     final despesasAsync = admin
         ? ref.watch(despesasConstrutoraProvider(construtoraId))
         : const AsyncData<List<Despesa>>([]);
@@ -125,6 +137,14 @@ class ObrasListScreen extends ConsumerWidget {
             tooltip: 'Catálogo de EPIs',
             onPressed: () {
               context.go('/construtora/$construtoraId/epis');
+            },
+          ),
+        if (hasFornecedores)
+          IconButton(
+            icon: const Icon(Icons.storefront, color: Colors.black54),
+            tooltip: 'Fornecedores',
+            onPressed: () {
+              context.go('/construtora/$construtoraId/fornecedores');
             },
           ),
       ],

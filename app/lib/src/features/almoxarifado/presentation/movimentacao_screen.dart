@@ -12,6 +12,7 @@ import '../domain/material.dart' as mat;
 import '../domain/movimentacao.dart';
 import '../../obras/presentation/construtora_obras_provider.dart';
 import '../../lotes/presentation/obra_lotes_provider.dart';
+import '../../fornecedores/presentation/widgets/fornecedor_autocomplete_field.dart';
 
 class MovimentacaoScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -517,11 +518,15 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _fornecedorController,
-                  decoration: const InputDecoration(
-                    labelText: 'Fornecedor',
-                  ),
+                FornecedorAutocompleteField(
+                  construtoraId: widget.construtoraId,
+                  labelText: 'Fornecedor',
+                  initialValue: _fornecedorController.text,
+                  onSelected: (f) {
+                    setState(() {
+                      _fornecedorController.text = f.nomeExibicao;
+                    });
+                  },
                 ),
                 const SizedBox(height: 10),
                 TextFormField(

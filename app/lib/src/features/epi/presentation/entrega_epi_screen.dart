@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../authentication/data/auth_repository.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import '../../rh/data/rh_repository.dart';
 import '../../rh/domain/funcionario.dart';
 import '../data/epi_repository.dart';
@@ -209,12 +210,10 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
     final funcionariosAsync = ref.watch(funcionariosStreamProvider(widget.construtoraId));
     final episAsync = ref.watch(catalogoEpisStreamProvider(widget.construtoraId));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Entrega de EPI'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+    return SigoLayout(
+      title: 'Entrega de EPI',
+      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/epis/entrega',
+      child: SingleChildScrollView(
         child: Form(
           key: _formKey,
           child: Column(

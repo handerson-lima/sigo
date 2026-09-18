@@ -59,6 +59,21 @@ service cloud.firestore {
     allow create, update: if (admin(c) || validacao(c)) && request.resource.data.id == tId && request.resource.data.construtoraId == c;
     allow delete: if false;
    }
+   match /fornecedores/{fId} {
+    allow read: if member(c);
+    allow create: if (admin(c) || stock(c) || adm(c))
+      && request.resource.data.id == fId
+      && request.resource.data.construtoraId == c
+      && request.resource.data.documento is string
+      && (request.resource.data.documento.size() == 11 || request.resource.data.documento.size() == 14)
+      && request.resource.data.status in ['ativo', 'inativo'];
+    allow update: if (admin(c) || stock(c) || adm(c))
+      && request.resource.data.id == fId
+      && request.resource.data.construtoraId == c
+      && request.resource.data.documento == resource.data.documento
+      && request.resource.data.status in ['ativo', 'inativo'];
+    allow delete: if false;
+   }
    match /materiais/{m} {
     allow read: if stock(c);
     allow create: if stock(c) && request.resource.data.keys().hasOnly(['id','construtoraId','name','unit','currentQuantity','quantityUnits','quantityScale','schemaVersion']) && request.resource.data.id == m && request.resource.data.construtoraId == c && request.resource.data.currentQuantity == 0 && request.resource.data.quantityUnits == 0 && request.resource.data.quantityScale == 1000 && request.resource.data.schemaVersion == 2;
@@ -90,6 +105,22 @@ service cloud.firestore {
         && request.resource.data.loteId == l;
       allow delete: if false;
      }
+    }
+    match /compras/{compraId} {
+     allow read: if admin(c) || obraMember(c,o);
+     allow create: if (admin(c) || obraAdmin(c,o) || module(c,o,'compras') || module(c,o,'almoxarifado') || module(c,o,'adm') || adm(c))
+       && request.resource.data.id == compraId
+       && request.resource.data.construtoraId == c
+       && request.resource.data.obraId == o
+       && request.resource.data.totalCompraCents is int
+       && request.resource.data.totalCompraCents > 0
+       && request.resource.data.status in ['aberto', 'parcial', 'pago', 'cancelado'];
+     allow update: if (admin(c) || obraAdmin(c,o) || module(c,o,'compras') || module(c,o,'almoxarifado') || module(c,o,'adm') || adm(c))
+       && request.resource.data.id == compraId
+       && request.resource.data.construtoraId == c
+       && request.resource.data.obraId == o
+       && request.resource.data.status in ['aberto', 'parcial', 'pago', 'cancelado'];
+     allow delete: if false;
     }
     match /diarios/{id} { allow read: if module(c,o,'diario'); allow write: if false; }
     match /chamadas/{ch} {

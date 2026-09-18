@@ -54,11 +54,23 @@ class ObraDashboardScreen extends ConsumerWidget {
         (activeMember.isAdmin ||
             activeMember.modules.map(normalizeModule).contains('adm') ||
             activeMember.modules.map(normalizeModule).contains('financeiro'));
+    final canCompras = activeMember != null &&
+        activeMember.isActive &&
+        (activeMember.isAdmin ||
+            activeMember.modules.map(normalizeModule).contains('compras') ||
+            activeMember.modules.map(normalizeModule).contains('almoxarifado') ||
+            activeMember.modules.map(normalizeModule).contains('adm') ||
+            activeMember.modules.map(normalizeModule).contains('financeiro'));
     final canEpi = activeMember != null &&
         activeMember.isActive &&
         (activeMember.isAdmin ||
             activeMember.modules.map(normalizeModule).contains('epi') ||
             activeMember.modules.map(normalizeModule).contains('rh'));
+    final canValidacao = activeMember != null &&
+        activeMember.isActive &&
+        (activeMember.isAdmin ||
+            activeMember.modules.map(normalizeModule).contains('validacao') ||
+            activeMember.modules.map(normalizeModule).contains('qualidade'));
     final lotesAsync = canLotes
         ? ref.watch(
             obraLotesProvider((construtoraId: construtoraId, obraId: obraId)),
@@ -110,18 +122,26 @@ class ObraDashboardScreen extends ConsumerWidget {
                     subtitle: Text('ID da Obra: $obraId'),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
 
-                // Módulos (Cards)
-                Text(
-                  'Módulos Disponíveis',
-                  style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                // Categoria 1: Canteiro & Produção
+                Row(
+                  children: [
+                    Icon(Icons.construction, size: 20, color: Colors.blueGrey[700]),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Canteiro & Produção',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueGrey[800],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Wrap(
-                  spacing: 24,
-                  runSpacing: 24,
+                  spacing: 20,
+                  runSpacing: 20,
                   children: [
                     if (canLotes)
                       SigoModuleCard(
@@ -140,12 +160,90 @@ class ObraDashboardScreen extends ConsumerWidget {
                           '/construtora/$construtoraId/obra/$obraId/diarios',
                         ),
                       ),
+                    if (canValidacao)
+                      SigoModuleCard(
+                        icon: Icons.rule,
+                        title: 'Validação & Qualidade',
+                        onTap: () => context.go(
+                          '/construtora/$construtoraId/obra/$obraId/lotes',
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Categoria 2: Pessoas & Segurança
+                Row(
+                  children: [
+                    Icon(Icons.health_and_safety_outlined, size: 20, color: Colors.blueGrey[700]),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Pessoas & Segurança',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueGrey[800],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 20,
+                  children: [
                     if (canRh)
                       SigoModuleCard(
                         icon: Icons.playlist_add_check,
                         title: 'Chamada Diária (RH)',
                         onTap: () => context.go(
                           '/construtora/$construtoraId/obra/$obraId/rh/chamadas',
+                        ),
+                      ),
+                    if (canEpi)
+                      SigoModuleCard(
+                        icon: Icons.health_and_safety,
+                        title: 'Entrega de EPIs',
+                        onTap: () => context.go(
+                          '/construtora/$construtoraId/obra/$obraId/epis/entrega',
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Categoria 3: Gestão & Suprimentos
+                Row(
+                  children: [
+                    Icon(Icons.account_balance, size: 20, color: Colors.blueGrey[700]),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Gestão & Suprimentos',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueGrey[800],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 20,
+                  children: [
+                    if (canAdm)
+                      SigoModuleCard(
+                        icon: Icons.receipt_long,
+                        title: 'Contas a Pagar / ADM',
+                        onTap: () => context.go(
+                          '/construtora/$construtoraId/obra/$obraId/despesas',
+                        ),
+                      ),
+                    if (canCompras)
+                      SigoModuleCard(
+                        icon: Icons.shopping_cart_outlined,
+                        title: 'Compras e NF',
+                        onTap: () => context.go(
+                          '/construtora/$construtoraId/obra/$obraId/compras',
                         ),
                       ),
                     if (canEstoque)
@@ -162,22 +260,6 @@ class ObraDashboardScreen extends ConsumerWidget {
                         title: 'Financeiro',
                         onTap: () => context.go(
                           '/construtora/$construtoraId/financeiro',
-                        ),
-                      ),
-                    if (canAdm)
-                      SigoModuleCard(
-                        icon: Icons.receipt_long,
-                        title: 'Contas a Pagar / ADM',
-                        onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/$obraId/despesas',
-                        ),
-                      ),
-                    if (canEpi)
-                      SigoModuleCard(
-                        icon: Icons.health_and_safety,
-                        title: 'Entrega de EPIs',
-                        onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/$obraId/epis/entrega',
                         ),
                       ),
                   ],

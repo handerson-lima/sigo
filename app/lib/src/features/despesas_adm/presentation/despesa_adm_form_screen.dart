@@ -11,6 +11,7 @@ import '../../lotes/presentation/obra_lotes_provider.dart';
 import '../data/despesas_adm_repository.dart';
 import '../domain/despesa_adm.dart';
 import '../domain/parcelamento_math.dart';
+import '../../fornecedores/presentation/widgets/fornecedor_autocomplete_field.dart';
 
 class DespesaAdmFormScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -35,6 +36,7 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
   final _descricaoController = TextEditingController();
   final _valorController = TextEditingController();
   final _fornecedorController = TextEditingController();
+  String? _fornecedorId;
 
   CategoriaDespesa _categoria = CategoriaDespesa.locacao;
   String? _selectedLoteId;
@@ -73,6 +75,7 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
         _valorController.text =
             (despesa.valorTotalCents / 100.0).toStringAsFixed(2);
         _fornecedorController.text = despesa.fornecedorNome ?? '';
+        _fornecedorId = despesa.fornecedorId;
         _categoria = despesa.categoria;
         _selectedLoteId = despesa.loteId;
         _dataEmissao = despesa.dataEmissao;
@@ -226,6 +229,7 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
         fornecedorNome: _fornecedorController.text.trim().isNotEmpty
             ? _fornecedorController.text.trim()
             : null,
+        fornecedorId: _fornecedorId,
         loteId: _selectedLoteId,
         valorTotalCents: totalCents,
         status: StatusDespesaAdm.pendente,
@@ -349,13 +353,15 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                     const SizedBox(height: 16),
 
                     // Fornecedor
-                    TextFormField(
-                      controller: _fornecedorController,
-                      decoration: const InputDecoration(
-                        labelText: 'Fornecedor / Prestador de Serviço',
-                        hintText: 'Nome da empresa ou fornecedor',
-                        border: OutlineInputBorder(),
-                      ),
+                    FornecedorAutocompleteField(
+                      construtoraId: widget.construtoraId,
+                      initialValue: _fornecedorController.text,
+                      onSelected: (f) {
+                        setState(() {
+                          _fornecedorId = f.id;
+                          _fornecedorController.text = f.nomeExibicao;
+                        });
+                      },
                     ),
                     const SizedBox(height: 16),
 

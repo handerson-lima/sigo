@@ -1,0 +1,771 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index d3e8230..8a3cabc 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -5,7 +5,7 @@
+ # IDs históricos preservados; docs/stories não existe no workspace atual.
+ 
+ generated: 09-14-2026 16:15
+-last_updated: 09-18-2026 07:54
++last_updated: 09-18-2026 14:18
+ project: obras
+ project_key: SIGO
+ tracking_system: file-system
+@@ -94,7 +94,7 @@ development_status:
+   5-1-modulo-epi: done
+   5-2-modulo-validacao: done
+   5-3-modulo-adm: done
+-  5-4-fornecedores: backlog
++  5-4-fornecedores: in-progress
+   5-5-parcelas-recebimento: backlog
+   5-6-visao-360-custos: backlog
+   epic-5-retrospective: optional
+diff --git a/app/lib/src/common_widgets/sigo_module_card.dart b/app/lib/src/common_widgets/sigo_module_card.dart
+index f62223c..e908e7b 100644
+--- a/app/lib/src/common_widgets/sigo_module_card.dart
++++ b/app/lib/src/common_widgets/sigo_module_card.dart
+@@ -20,7 +20,7 @@ class SigoModuleCard extends StatelessWidget {
+       child: Container(
+         width: 180,
+         height: 180,
+-        padding: const EdgeInsets.all(24),
++        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+         decoration: BoxDecoration(
+           color: Colors.white,
+           borderRadius: BorderRadius.circular(16),
+@@ -36,25 +36,29 @@ class SigoModuleCard extends StatelessWidget {
+           mainAxisAlignment: MainAxisAlignment.center,
+           children: [
+             Container(
+-              padding: const EdgeInsets.all(16),
++              padding: const EdgeInsets.all(12),
+               decoration: BoxDecoration(
+                 color: Colors.amber[100]?.withValues(alpha: 0.5),
+                 shape: BoxShape.circle,
+               ),
+               child: Icon(
+                 icon,
+-                size: 32,
++                size: 30,
+                 color: Colors.amber[900],
+               ),
+             ),
+-            const SizedBox(height: 16),
+-            Text(
+-              title,
+-              textAlign: TextAlign.center,
+-              style: const TextStyle(
+-                fontWeight: FontWeight.bold,
+-                fontSize: 14,
+-                color: Colors.black87,
++            const SizedBox(height: 12),
++            Flexible(
++              child: Text(
++                title,
++                textAlign: TextAlign.center,
++                maxLines: 2,
++                overflow: TextOverflow.ellipsis,
++                style: const TextStyle(
++                  fontWeight: FontWeight.bold,
++                  fontSize: 14,
++                  color: Colors.black87,
++                ),
+               ),
+             ),
+           ],
+diff --git a/app/lib/src/common_widgets/sigo_sidebar.dart b/app/lib/src/common_widgets/sigo_sidebar.dart
+index 68b4790..3ed5c53 100644
+--- a/app/lib/src/common_widgets/sigo_sidebar.dart
++++ b/app/lib/src/common_widgets/sigo_sidebar.dart
+@@ -82,6 +82,42 @@ class SigoSidebar extends ConsumerWidget {
+     final canMembros = isDev ||
+         (obra != null && obra.isActive && obra.isAdmin) ||
+         isConstrutoraAdmin;
++
++    final canAdm = isDev ||
++        (obra != null &&
++            obra.isActive &&
++            (obra.isAdmin ||
++                obra.modules.map(normalizeModule).contains('adm') ||
++                obra.modules.map(normalizeModule).contains('financeiro')));
++
++    final canEpi = isDev ||
++        (obra != null &&
++            obra.isActive &&
++            (obra.isAdmin ||
++                obra.modules.map(normalizeModule).contains('epi') ||
++                obra.modules.map(normalizeModule).contains('rh')));
++
++    final canEpiCatalogo = isDev ||
++        isConstrutoraAdmin ||
++        (construtoraMember != null &&
++            construtoraMember['isActive'] == true &&
++            (construtoraModules.contains('epi') ||
++                construtoraModules.contains('rh') ||
++                construtoraModules.contains('seguranca')));
++
++    final canValidacao = isDev ||
++        isConstrutoraAdmin ||
++        (construtoraMember != null &&
++            construtoraMember['isActive'] == true &&
++            (construtoraModules.contains('validacao') ||
++                construtoraModules.contains('qualidade')));
++
++    final canFornecedores = isDev ||
++        isConstrutoraAdmin ||
++        canEstoque ||
++        canAdm ||
++        canFinanceiro ||
++        (construtoraMember != null && construtoraMember['isActive'] == true);
+     return Container(
+       width: 250,
+       color: const Color(0xFF0F172A),
+@@ -177,6 +213,26 @@ class SigoSidebar extends ConsumerWidget {
+                         context.go('/construtora/$cId/obra/$oId/rh/chamadas');
+                       },
+                     ),
++                  if (canEpi)
++                    _NavItem(
++                      icon: Icons.health_and_safety,
++                      title: 'Entrega de EPIs',
++                      isActive: activeRoute.contains('/epis/entrega'),
++                      onTap: () {
++                        Scaffold.maybeOf(context)?.closeDrawer();
++                        context.go('/construtora/$cId/obra/$oId/epis/entrega');
++                      },
++                    ),
++                  if (canAdm)
++                    _NavItem(
++                      icon: Icons.receipt_long,
++                      title: 'Contas a Pagar / ADM',
++                      isActive: activeRoute.contains('/despesas'),
++                      onTap: () {
++                        Scaffold.maybeOf(context)?.closeDrawer();
++                        context.go('/construtora/$cId/obra/$oId/despesas');
++                      },
++                    ),
+                   const SizedBox(height: 24),
+                   const Padding(
+                     padding: EdgeInsets.only(left: 16, bottom: 8),
+@@ -217,6 +273,36 @@ class SigoSidebar extends ConsumerWidget {
+                       context.go('/construtora/$cId/rh/funcionarios');
+                     },
+                   ),
++                if (cId != null && canEpiCatalogo)
++                  _NavItem(
++                    icon: Icons.health_and_safety_outlined,
++                    title: 'Catálogo de EPIs',
++                    isActive: activeRoute.contains('/epis') && !activeRoute.contains('/obra/'),
++                    onTap: () {
++                      Scaffold.maybeOf(context)?.closeDrawer();
++                      context.go('/construtora/$cId/epis');
++                    },
++                  ),
++                if (cId != null && canValidacao)
++                  _NavItem(
++                    icon: Icons.rule,
++                    title: 'Templates de Validação',
++                    isActive: activeRoute.contains('/validacao/templates'),
++                    onTap: () {
++                      Scaffold.maybeOf(context)?.closeDrawer();
++                      context.go('/construtora/$cId/validacao/templates');
++                    },
++                  ),
++                if (cId != null && canFornecedores)
++                  _NavItem(
++                    icon: Icons.business,
++                    title: 'Fornecedores',
++                    isActive: activeRoute.contains('/fornecedores'),
++                    onTap: () {
++                      Scaffold.maybeOf(context)?.closeDrawer();
++                      context.go('/construtora/$cId/fornecedores');
++                    },
++                  ),
+                 if (cId != null && canEstoque)
+                   _NavItem(
+                     icon: Icons.inventory_2,
+diff --git a/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart b/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart
+index 0bff021..a6da301 100644
+--- a/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart
++++ b/app/lib/src/features/almoxarifado/presentation/movimentacao_screen.dart
+@@ -12,6 +12,7 @@ import '../domain/material.dart' as mat;
+ import '../domain/movimentacao.dart';
+ import '../../obras/presentation/construtora_obras_provider.dart';
+ import '../../lotes/presentation/obra_lotes_provider.dart';
++import '../../fornecedores/presentation/widgets/fornecedor_autocomplete_field.dart';
+ 
+ class MovimentacaoScreen extends ConsumerStatefulWidget {
+   final String construtoraId;
+@@ -517,11 +518,15 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
+                   ),
+                 ),
+                 const SizedBox(height: 10),
+-                TextFormField(
+-                  controller: _fornecedorController,
+-                  decoration: const InputDecoration(
+-                    labelText: 'Fornecedor',
+-                  ),
++                FornecedorAutocompleteField(
++                  construtoraId: widget.construtoraId,
++                  labelText: 'Fornecedor',
++                  initialValue: _fornecedorController.text,
++                  onSelected: (f) {
++                    setState(() {
++                      _fornecedorController.text = f.nomeExibicao;
++                    });
++                  },
+                 ),
+                 const SizedBox(height: 10),
+                 TextFormField(
+diff --git a/app/lib/src/features/despesas_adm/presentation/despesa_adm_details_screen.dart b/app/lib/src/features/despesas_adm/presentation/despesa_adm_details_screen.dart
+index a49602e..47edd70 100644
+--- a/app/lib/src/features/despesas_adm/presentation/despesa_adm_details_screen.dart
++++ b/app/lib/src/features/despesas_adm/presentation/despesa_adm_details_screen.dart
+@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:go_router/go_router.dart';
+ import 'package:intl/intl.dart';
+ 
+-import '../../../common_widgets/sigo_top_bar.dart';
++import '../../../common_widgets/sigo_layout.dart';
+ import '../../authentication/data/auth_repository.dart';
+ import '../data/despesas_adm_repository.dart';
+ import '../domain/despesa_adm.dart';
+@@ -67,30 +67,29 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
+       despesaId: despesaId,
+     )));
+ 
+-    return Scaffold(
+-      appBar: SigoTopBar(
+-        title: 'Detalhes da Despesa',
+-        actions: [
+-          despesaAsync.maybeWhen(
+-            data: (despesa) {
+-              if (despesa == null || despesa.status == StatusDespesaAdm.pago) {
+-                return const SizedBox();
+-              }
+-              return IconButton(
+-                icon: const Icon(Icons.edit),
+-                tooltip: 'Editar Despesa',
+-                onPressed: () {
+-                  context.push(
+-                    '/construtora/$construtoraId/obra/$obraId/despesas/$despesaId/editar',
+-                  );
+-                },
+-              );
+-            },
+-            orElse: () => const SizedBox(),
+-          ),
+-        ],
+-      ),
+-      body: despesaAsync.when(
++    return SigoLayout(
++      title: 'Detalhes da Despesa',
++      activeRoute: '/construtora/$construtoraId/obra/$obraId/despesas/$despesaId',
++      actions: [
++        despesaAsync.maybeWhen(
++          data: (despesa) {
++            if (despesa == null || despesa.status == StatusDespesaAdm.pago) {
++              return const SizedBox();
++            }
++            return IconButton(
++              icon: const Icon(Icons.edit),
++              tooltip: 'Editar Despesa',
++              onPressed: () {
++                context.push(
++                  '/construtora/$construtoraId/obra/$obraId/despesas/$despesaId/editar',
++                );
++              },
++            );
++          },
++          orElse: () => const SizedBox(),
++        ),
++      ],
++      child: despesaAsync.when(
+         loading: () => const Center(child: CircularProgressIndicator()),
+         error: (err, _) => Center(child: Text('Erro: $err')),
+         data: (despesa) {
+diff --git a/app/lib/src/features/despesas_adm/presentation/despesa_adm_form_screen.dart b/app/lib/src/features/despesas_adm/presentation/despesa_adm_form_screen.dart
+index 7d32743..e2bd8b9 100644
+--- a/app/lib/src/features/despesas_adm/presentation/despesa_adm_form_screen.dart
++++ b/app/lib/src/features/despesas_adm/presentation/despesa_adm_form_screen.dart
+@@ -11,6 +11,7 @@ import '../../lotes/presentation/obra_lotes_provider.dart';
+ import '../data/despesas_adm_repository.dart';
+ import '../domain/despesa_adm.dart';
+ import '../domain/parcelamento_math.dart';
++import '../../fornecedores/presentation/widgets/fornecedor_autocomplete_field.dart';
+ 
+ class DespesaAdmFormScreen extends ConsumerStatefulWidget {
+   final String construtoraId;
+@@ -35,6 +36,7 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
+   final _descricaoController = TextEditingController();
+   final _valorController = TextEditingController();
+   final _fornecedorController = TextEditingController();
++  String? _fornecedorId;
+ 
+   CategoriaDespesa _categoria = CategoriaDespesa.locacao;
+   String? _selectedLoteId;
+@@ -73,6 +75,7 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
+         _valorController.text =
+             (despesa.valorTotalCents / 100.0).toStringAsFixed(2);
+         _fornecedorController.text = despesa.fornecedorNome ?? '';
++        _fornecedorId = despesa.fornecedorId;
+         _categoria = despesa.categoria;
+         _selectedLoteId = despesa.loteId;
+         _dataEmissao = despesa.dataEmissao;
+@@ -226,6 +229,7 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
+         fornecedorNome: _fornecedorController.text.trim().isNotEmpty
+             ? _fornecedorController.text.trim()
+             : null,
++        fornecedorId: _fornecedorId,
+         loteId: _selectedLoteId,
+         valorTotalCents: totalCents,
+         status: StatusDespesaAdm.pendente,
+@@ -349,13 +353,15 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
+                     const SizedBox(height: 16),
+ 
+                     // Fornecedor
+-                    TextFormField(
+-                      controller: _fornecedorController,
+-                      decoration: const InputDecoration(
+-                        labelText: 'Fornecedor / Prestador de Serviço',
+-                        hintText: 'Nome da empresa ou fornecedor',
+-                        border: OutlineInputBorder(),
+-                      ),
++                    FornecedorAutocompleteField(
++                      construtoraId: widget.construtoraId,
++                      initialValue: _fornecedorController.text,
++                      onSelected: (f) {
++                        setState(() {
++                          _fornecedorId = f.id;
++                          _fornecedorController.text = f.nomeExibicao;
++                        });
++                      },
+                     ),
+                     const SizedBox(height: 16),
+ 
+diff --git a/app/lib/src/features/despesas_adm/presentation/despesas_adm_list_screen.dart b/app/lib/src/features/despesas_adm/presentation/despesas_adm_list_screen.dart
+index 38b4d7f..d0d8fba 100644
+--- a/app/lib/src/features/despesas_adm/presentation/despesas_adm_list_screen.dart
++++ b/app/lib/src/features/despesas_adm/presentation/despesas_adm_list_screen.dart
+@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:go_router/go_router.dart';
+ import 'package:intl/intl.dart';
+ 
+-import '../../../common_widgets/sigo_top_bar.dart';
++import '../../../common_widgets/sigo_layout.dart';
+ import '../../authentication/data/auth_repository.dart';
+ import '../data/despesas_adm_repository.dart';
+ import '../domain/despesa_adm.dart';
+@@ -66,23 +66,19 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
+           mainAxisSize: MainAxisSize.min,
+           crossAxisAlignment: CrossAxisAlignment.start,
+           children: [
+-            Text(
+-              'Deseja cancelar o título "${despesa.descricao}"?',
+-              style: const TextStyle(fontWeight: FontWeight.bold),
+-            ),
+-            const SizedBox(height: 12),
+             const Text(
+-              'A justificativa é obrigatória (mínimo de 10 caracteres):',
+-              style: TextStyle(fontSize: 12),
++              'Atenção: O cancelamento é irreversível e exige justificativa com pelo menos 10 caracteres.',
++              style: TextStyle(color: Colors.red, fontSize: 13),
+             ),
+-            const SizedBox(height: 6),
++            const SizedBox(height: 12),
+             TextField(
+               controller: controller,
+-              maxLines: 3,
+               decoration: const InputDecoration(
++                labelText: 'Motivo do Cancelamento *',
++                hintText: 'Ex: Boleto emitido com valor incorreto pelo fornecedor',
+                 border: OutlineInputBorder(),
+-                hintText: 'Ex.: Boleto cancelado pelo fornecedor / cobrança indevida',
+               ),
++              maxLines: 3,
+             ),
+           ],
+         ),
+@@ -93,7 +89,7 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
+           ),
+           ElevatedButton(
+             style: ElevatedButton.styleFrom(
+-              backgroundColor: Colors.red.shade700,
++              backgroundColor: Colors.red,
+               foregroundColor: Colors.white,
+             ),
+             onPressed: () {
+@@ -102,9 +98,7 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
+               } else {
+                 ScaffoldMessenger.of(ctx).showSnackBar(
+                   const SnackBar(
+-                    content: Text(
+-                      'A justificativa deve ter pelo menos 10 caracteres.',
+-                    ),
++                    content: Text('Justificativa deve ter no mínimo 10 caracteres.'),
+                   ),
+                 );
+               }
+@@ -148,20 +142,21 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
+     final despesasAsync = ref.watch(despesasObraStreamProvider(
+         (construtoraId: widget.construtoraId, obraId: widget.obraId)));
+ 
+-    return Scaffold(
+-      appBar: const SigoTopBar(title: 'Módulo ADM — Contas a Pagar'),
+-      floatingActionButton: FloatingActionButton.extended(
+-        onPressed: () {
+-          context.push(
+-            '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas/nova',
+-          );
+-        },
+-        backgroundColor: Colors.blueGrey.shade800,
+-        foregroundColor: Colors.white,
+-        icon: const Icon(Icons.add),
+-        label: const Text('Nova Despesa'),
+-      ),
+-      body: despesasAsync.when(
++    return SigoLayout(
++      title: 'Módulo ADM — Contas a Pagar',
++      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas',
++      actions: [
++        ElevatedButton.icon(
++          onPressed: () {
++            context.push(
++              '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas/nova',
++            );
++          },
++          icon: const Icon(Icons.add),
++          label: const Text('Nova Despesa'),
++        ),
++      ],
++      child: despesasAsync.when(
+         loading: () => const Center(child: CircularProgressIndicator()),
+         error: (err, _) => Center(child: Text('Erro ao carregar despesas: $err')),
+         data: (despesas) {
+diff --git a/app/lib/src/features/epi/presentation/catalogo_epis_screen.dart b/app/lib/src/features/epi/presentation/catalogo_epis_screen.dart
+index cd595b4..12db73e 100644
+--- a/app/lib/src/features/epi/presentation/catalogo_epis_screen.dart
++++ b/app/lib/src/features/epi/presentation/catalogo_epis_screen.dart
+@@ -1,6 +1,7 @@
+ import 'package:flutter/material.dart';
+ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ 
++import '../../../common_widgets/sigo_layout.dart';
+ import '../data/epi_repository.dart';
+ import '../domain/epi_item.dart';
+ import 'epi_form_dialog.dart';
+@@ -42,18 +43,17 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
+   Widget build(BuildContext context) {
+     final episAsync = ref.watch(catalogoEpisStreamProvider(widget.construtoraId));
+ 
+-    return Scaffold(
+-      appBar: AppBar(
+-        title: const Text('Catálogo de EPIs'),
+-        actions: [
+-          IconButton(
+-            icon: const Icon(Icons.add),
+-            tooltip: 'Cadastrar EPI',
+-            onPressed: () => _abrirFormulario(),
+-          ),
+-        ],
+-      ),
+-      body: Column(
++    return SigoLayout(
++      title: 'Catálogo de EPIs',
++      activeRoute: '/construtora/${widget.construtoraId}/epis',
++      actions: [
++        ElevatedButton.icon(
++          onPressed: () => _abrirFormulario(),
++          icon: const Icon(Icons.add),
++          label: const Text('Novo EPI'),
++        ),
++      ],
++      child: Column(
+         children: [
+           Padding(
+             padding: const EdgeInsets.all(12.0),
+@@ -172,11 +172,6 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
+           ),
+         ],
+       ),
+-      floatingActionButton: FloatingActionButton.extended(
+-        onPressed: () => _abrirFormulario(),
+-        icon: const Icon(Icons.add),
+-        label: const Text('Novo EPI'),
+-      ),
+     );
+   }
+ 
+diff --git a/app/lib/src/features/epi/presentation/entrega_epi_screen.dart b/app/lib/src/features/epi/presentation/entrega_epi_screen.dart
+index a6c5ca7..b037744 100644
+--- a/app/lib/src/features/epi/presentation/entrega_epi_screen.dart
++++ b/app/lib/src/features/epi/presentation/entrega_epi_screen.dart
+@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:uuid/uuid.dart';
+ 
+ import '../../authentication/data/auth_repository.dart';
++import '../../../common_widgets/sigo_layout.dart';
+ import '../../rh/data/rh_repository.dart';
+ import '../../rh/domain/funcionario.dart';
+ import '../data/epi_repository.dart';
+@@ -209,12 +210,10 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
+     final funcionariosAsync = ref.watch(funcionariosStreamProvider(widget.construtoraId));
+     final episAsync = ref.watch(catalogoEpisStreamProvider(widget.construtoraId));
+ 
+-    return Scaffold(
+-      appBar: AppBar(
+-        title: const Text('Entrega de EPI'),
+-      ),
+-      body: SingleChildScrollView(
+-        padding: const EdgeInsets.all(16.0),
++    return SigoLayout(
++      title: 'Entrega de EPI',
++      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/epis/entrega',
++      child: SingleChildScrollView(
+         child: Form(
+           key: _formKey,
+           child: Column(
+diff --git a/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart b/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart
+index 6a7a9ac..af1c8a4 100644
+--- a/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart
++++ b/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart
+@@ -59,6 +59,11 @@ class ObraDashboardScreen extends ConsumerWidget {
+         (activeMember.isAdmin ||
+             activeMember.modules.map(normalizeModule).contains('epi') ||
+             activeMember.modules.map(normalizeModule).contains('rh'));
++    final canValidacao = activeMember != null &&
++        activeMember.isActive &&
++        (activeMember.isAdmin ||
++            activeMember.modules.map(normalizeModule).contains('validacao') ||
++            activeMember.modules.map(normalizeModule).contains('qualidade'));
+     final lotesAsync = canLotes
+         ? ref.watch(
+             obraLotesProvider((construtoraId: construtoraId, obraId: obraId)),
+@@ -110,18 +115,26 @@ class ObraDashboardScreen extends ConsumerWidget {
+                     subtitle: Text('ID da Obra: $obraId'),
+                   ),
+                 ),
+-                const SizedBox(height: 24),
++                const SizedBox(height: 28),
+ 
+-                // Módulos (Cards)
+-                Text(
+-                  'Módulos Disponíveis',
+-                  style: Theme.of(context).textTheme.titleLarge
+-                      ?.copyWith(fontWeight: FontWeight.bold),
++                // Categoria 1: Canteiro & Produção
++                Row(
++                  children: [
++                    Icon(Icons.construction, size: 20, color: Colors.blueGrey[700]),
++                    const SizedBox(width: 8),
++                    Text(
++                      'Canteiro & Produção',
++                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
++                        fontWeight: FontWeight.bold,
++                        color: Colors.blueGrey[800],
++                      ),
++                    ),
++                  ],
+                 ),
+-                const SizedBox(height: 16),
++                const SizedBox(height: 12),
+                 Wrap(
+-                  spacing: 24,
+-                  runSpacing: 24,
++                  spacing: 20,
++                  runSpacing: 20,
+                   children: [
+                     if (canLotes)
+                       SigoModuleCard(
+@@ -140,6 +153,37 @@ class ObraDashboardScreen extends ConsumerWidget {
+                           '/construtora/$construtoraId/obra/$obraId/diarios',
+                         ),
+                       ),
++                    if (canValidacao)
++                      SigoModuleCard(
++                        icon: Icons.rule,
++                        title: 'Validação & Qualidade',
++                        onTap: () => context.go(
++                          '/construtora/$construtoraId/obra/$obraId/lotes',
++                        ),
++                      ),
++                  ],
++                ),
++                const SizedBox(height: 24),
++
++                // Categoria 2: Pessoas & Segurança
++                Row(
++                  children: [
++                    Icon(Icons.health_and_safety_outlined, size: 20, color: Colors.blueGrey[700]),
++                    const SizedBox(width: 8),
++                    Text(
++                      'Pessoas & Segurança',
++                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
++                        fontWeight: FontWeight.bold,
++                        color: Colors.blueGrey[800],
++                      ),
++                    ),
++                  ],
++                ),
++                const SizedBox(height: 12),
++                Wrap(
++                  spacing: 20,
++                  runSpacing: 20,
++                  children: [
+                     if (canRh)
+                       SigoModuleCard(
+                         icon: Icons.playlist_add_check,
+@@ -148,22 +192,37 @@ class ObraDashboardScreen extends ConsumerWidget {
+                           '/construtora/$construtoraId/obra/$obraId/rh/chamadas',
+                         ),
+                       ),
+-                    if (canEstoque)
++                    if (canEpi)
+                       SigoModuleCard(
+-                        icon: Icons.inventory_2,
+-                        title: 'Almoxarifado',
++                        icon: Icons.health_and_safety,
++                        title: 'Entrega de EPIs',
+                         onTap: () => context.go(
+-                          '/construtora/$construtoraId/almoxarifado',
++                          '/construtora/$construtoraId/obra/$obraId/epis/entrega',
+                         ),
+                       ),
+-                    if (canFinanceiro)
+-                      SigoModuleCard(
+-                        icon: Icons.account_balance_wallet,
+-                        title: 'Financeiro',
+-                        onTap: () => context.go(
+-                          '/construtora/$construtoraId/financeiro',
+-                        ),
++                  ],
++                ),
++                const SizedBox(height: 24),
++
++                // Categoria 3: Gestão & Suprimentos
++                Row(
++                  children: [
++                    Icon(Icons.account_balance, size: 20, color: Colors.blueGrey[700]),
++                    const SizedBox(width: 8),
++                    Text(
++                      'Gestão & Suprimentos',
++                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
++                        fontWeight: FontWeight.bold,
++                        color: Colors.blueGrey[800],
+                       ),
++                    ),
++                  ],
++                ),
++                const SizedBox(height: 12),
++                Wrap(
++                  spacing: 20,
++                  runSpacing: 20,
++                  children: [
+                     if (canAdm)
+                       SigoModuleCard(
+                         icon: Icons.receipt_long,
+@@ -172,12 +231,20 @@ class ObraDashboardScreen extends ConsumerWidget {
+                           '/construtora/$construtoraId/obra/$obraId/despesas',
+                         ),
+                       ),
+-                    if (canEpi)
++                    if (canEstoque)
+                       SigoModuleCard(
+-                        icon: Icons.health_and_safety,
+-                        title: 'Entrega de EPIs',
++                        icon: Icons.inventory_2,
++                        title: 'Almoxarifado',
+                         onTap: () => context.go(
+-                          '/construtora/$construtoraId/obra/$obraId/epis/entrega',
++                          '/construtora/$construtoraId/almoxarifado',
++                        ),
++                      ),
++                    if (canFinanceiro)
++                      SigoModuleCard(
++                        icon: Icons.account_balance_wallet,
++                        title: 'Financeiro',
++                        onTap: () => context.go(
++                          '/construtora/$construtoraId/financeiro',
+                         ),
+                       ),
+                   ],
+diff --git a/app/lib/src/routing/app_router.dart b/app/lib/src/routing/app_router.dart
+index ca3b2f1..eb0e859 100644
+--- a/app/lib/src/routing/app_router.dart
++++ b/app/lib/src/routing/app_router.dart
+@@ -40,6 +40,8 @@ import '../features/validacao/presentation/validacao_form_screen.dart';
+ import '../features/despesas_adm/presentation/despesas_adm_list_screen.dart';
+ import '../features/despesas_adm/presentation/despesa_adm_form_screen.dart';
+ import '../features/despesas_adm/presentation/despesa_adm_details_screen.dart';
++import '../features/fornecedores/presentation/fornecedores_list_screen.dart';
++import '../features/fornecedores/presentation/fornecedor_form_screen.dart';
+ 
+ final routerProvider = Provider<GoRouter>((ref) {
+   final authState = ref.watch(authStateChangesProvider);
+@@ -531,6 +533,40 @@ final routerProvider = Provider<GoRouter>((ref) {
+           );
+         },
+       ),
++      GoRoute(
++        path: '/construtora/:cId/fornecedores',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: FornecedoresListScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: '/construtora/:cId/fornecedores/novo',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: FornecedorFormScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: '/construtora/:cId/fornecedores/:fornecedorId/editar',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final fornecedorId = state.pathParameters['fornecedorId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: FornecedorFormScreen(
++              construtoraId: cId,
++              fornecedorId: fornecedorId,
++            ),
++          );
++        },
++      ),
+     ],
+   );
+ });
+diff --git a/firestore.rules b/firestore.rules
+index a941edc..31b5f8c 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -59,6 +59,21 @@ service cloud.firestore {
+     allow create, update: if (admin(c) || validacao(c)) && request.resource.data.id == tId && request.resource.data.construtoraId == c;
+     allow delete: if false;
+    }
++   match /fornecedores/{fId} {
++    allow read: if member(c);
++    allow create: if (admin(c) || stock(c) || adm(c))
++      && request.resource.data.id == fId
++      && request.resource.data.construtoraId == c
++      && request.resource.data.documento is string
++      && (request.resource.data.documento.size() == 11 || request.resource.data.documento.size() == 14)
++      && request.resource.data.status in ['ativo', 'inativo'];
++    allow update: if (admin(c) || stock(c) || adm(c))
++      && request.resource.data.id == fId
++      && request.resource.data.construtoraId == c
++      && request.resource.data.documento == resource.data.documento
++      && request.resource.data.status in ['ativo', 'inativo'];
++    allow delete: if false;
++   }
+    match /materiais/{m} {
+     allow read: if stock(c);
+     allow create: if stock(c) && request.resource.data.keys().hasOnly(['id','construtoraId','name','unit','currentQuantity','quantityUnits','quantityScale','schemaVersion']) && request.resource.data.id == m && request.resource.data.construtoraId == c && request.resource.data.currentQuantity == 0 && request.resource.data.quantityUnits == 0 && request.resource.data.quantityScale == 1000 && request.resource.data.schemaVersion == 2;

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../common_widgets/sigo_top_bar.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import '../data/rh_repository.dart';
 import 'equipes_dialog.dart';
 import 'funcionario_form_screen.dart';
@@ -38,34 +38,33 @@ class _FuncionariosListScreenState
       }
     }
 
-    return Scaffold(
-      appBar: SigoTopBar(
-        title: 'Recursos Humanos — Funcionários',
-        actions: [
-          IconButton(
-            key: const Key('btn_open_equipes'),
-            icon: const Icon(Icons.groups),
-            tooltip: 'Gerenciar Equipes',
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (_) =>
-                    EquipesDialog(construtoraId: widget.construtoraId),
-              );
-            },
-          ),
-          IconButton(
-            key: const Key('btn_add_funcionario_appbar'),
-            icon: const Icon(Icons.person_add),
-            tooltip: 'Novo Funcionário',
-            onPressed: () {
-              context.push(
-                '/construtora/${widget.construtoraId}/rh/funcionarios/novo',
-              );
-            },
-          ),
-        ],
-      ),
+    return SigoLayout(
+      title: 'Recursos Humanos — Funcionários',
+      activeRoute: '/construtora/${widget.construtoraId}/rh',
+      actions: [
+        IconButton(
+          key: const Key('btn_open_equipes'),
+          icon: const Icon(Icons.groups),
+          tooltip: 'Gerenciar Equipes',
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) =>
+                  EquipesDialog(construtoraId: widget.construtoraId),
+            );
+          },
+        ),
+        IconButton(
+          key: const Key('btn_add_funcionario_appbar'),
+          icon: const Icon(Icons.person_add),
+          tooltip: 'Novo Funcionário',
+          onPressed: () {
+            context.push(
+              '/construtora/${widget.construtoraId}/rh/funcionarios/novo',
+            );
+          },
+        ),
+      ],
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('btn_add_funcionario_fab'),
         onPressed: () {
@@ -76,7 +75,7 @@ class _FuncionariosListScreenState
         icon: const Icon(Icons.add),
         label: const Text('Novo Colaborador'),
       ),
-      body: Column(
+      child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -434,24 +433,27 @@ class _FuncionariosListScreenState
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Remuneração Base: ${f.formattedBaseSalary} (${f.salaryBasisLabel})',
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                      if (f.additionalCostsCents > 0)
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
                                         Text(
-                                          'Adicionais: ${f.formattedAdditionalCosts}',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey.shade600,
-                                          ),
+                                          'Remuneração Base: ${f.formattedBaseSalary} (${f.salaryBasisLabel})',
+                                          style: const TextStyle(fontSize: 12),
                                         ),
-                                    ],
+                                        if (f.additionalCostsCents > 0)
+                                          Text(
+                                            'Adicionais: ${f.formattedAdditionalCosts}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ),
+                                  const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 10,

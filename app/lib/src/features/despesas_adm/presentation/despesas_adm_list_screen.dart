@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../common_widgets/sigo_top_bar.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import '../../authentication/data/auth_repository.dart';
 import '../data/despesas_adm_repository.dart';
 import '../domain/despesa_adm.dart';
@@ -66,23 +66,19 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Deseja cancelar o título "${despesa.descricao}"?',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            const Text(
+              'Atenção: O cancelamento é irreversível e exige justificativa com pelo menos 10 caracteres.',
+              style: TextStyle(color: Colors.red, fontSize: 13),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'A justificativa é obrigatória (mínimo de 10 caracteres):',
-              style: TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 6),
             TextField(
               controller: controller,
-              maxLines: 3,
               decoration: const InputDecoration(
+                labelText: 'Motivo do Cancelamento *',
+                hintText: 'Ex: Boleto emitido com valor incorreto pelo fornecedor',
                 border: OutlineInputBorder(),
-                hintText: 'Ex.: Boleto cancelado pelo fornecedor / cobrança indevida',
               ),
+              maxLines: 3,
             ),
           ],
         ),
@@ -93,7 +89,7 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade700,
+              backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
             onPressed: () {
@@ -102,9 +98,7 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
               } else {
                 ScaffoldMessenger.of(ctx).showSnackBar(
                   const SnackBar(
-                    content: Text(
-                      'A justificativa deve ter pelo menos 10 caracteres.',
-                    ),
+                    content: Text('Justificativa deve ter no mínimo 10 caracteres.'),
                   ),
                 );
               }
@@ -148,20 +142,21 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
     final despesasAsync = ref.watch(despesasObraStreamProvider(
         (construtoraId: widget.construtoraId, obraId: widget.obraId)));
 
-    return Scaffold(
-      appBar: const SigoTopBar(title: 'Módulo ADM — Contas a Pagar'),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          context.push(
-            '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas/nova',
-          );
-        },
-        backgroundColor: Colors.blueGrey.shade800,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Nova Despesa'),
-      ),
-      body: despesasAsync.when(
+    return SigoLayout(
+      title: 'Módulo ADM — Contas a Pagar',
+      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas',
+      actions: [
+        ElevatedButton.icon(
+          onPressed: () {
+            context.push(
+              '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas/nova',
+            );
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Nova Despesa'),
+        ),
+      ],
+      child: despesasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Erro ao carregar despesas: $err')),
         data: (despesas) {

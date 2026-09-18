@@ -5,7 +5,7 @@ service firebase.storage {
   function dev() { return signed() && firestore.exists(/databases/(default)/documents/dev_roles/$(request.auth.uid)) && firestore.get(/databases/(default)/documents/dev_roles/$(request.auth.uid)).data.get('isActive', false) == true; }
   function cm(c) { return firestore.get(/databases/(default)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)).data; }
   function om(c,o) { return firestore.get(/databases/(default)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)).data; }
-  function access(c,o) { return dev() || (signed() && cm(c).get('isActive',false) == true && (cm(c).get('isAdmin',false) == true || cm(c).get('isOwner',false) == true || (om(c,o).get('isActive',false) == true && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || 'diario' in om(c,o).get('modules',[]) || 'rdo' in om(c,o).get('modules',[]) || 'validacao' in om(c,o).get('modules',[]) || 'qualidade' in om(c,o).get('modules',[]) || 'epi' in om(c,o).get('modules',[]) || 'adm' in om(c,o).get('modules',[]) || 'financeiro' in om(c,o).get('modules',[]))))); }
+  function access(c,o) { return dev() || (signed() && cm(c).get('isActive',false) == true && (cm(c).get('isAdmin',false) == true || cm(c).get('isOwner',false) == true || (om(c,o).get('isActive',false) == true && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || 'diario' in om(c,o).get('modules',[]) || 'rdo' in om(c,o).get('modules',[]) || 'validacao' in om(c,o).get('modules',[]) || 'qualidade' in om(c,o).get('modules',[]) || 'epi' in om(c,o).get('modules',[]) || 'adm' in om(c,o).get('modules',[]) || 'financeiro' in om(c,o).get('modules',[]) || 'compras' in om(c,o).get('modules',[]) || 'almoxarifado' in om(c,o).get('modules',[]))))); }
   match /construtoras/{c}/obras/{o}/diarios/{diary}/{uid}/{attachment} {
    allow read: if access(c,o);
    allow create: if resource == null && access(c,o) && request.auth.uid == uid && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)') && request.resource.metadata.keys().hasOnly(['sha256','owner']) && request.resource.metadata.owner == uid && request.resource.metadata.sha256.matches('^[a-f0-9]{64}$');
@@ -22,6 +22,11 @@ service firebase.storage {
    allow update, delete: if false;
   }
   match /construtoras/{c}/obras/{o}/despesas_adm/{despesaId}/{filename} {
+   allow read: if access(c,o);
+   allow create: if access(c,o) && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024 && (request.resource.contentType.matches('image/(jpeg|png|webp)') || request.resource.contentType == 'application/pdf');
+   allow update, delete: if false;
+  }
+  match /construtoras/{c}/obras/{o}/compras/{compraId}/{filename} {
    allow read: if access(c,o);
    allow create: if access(c,o) && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024 && (request.resource.contentType.matches('image/(jpeg|png|webp)') || request.resource.contentType == 'application/pdf');
    allow update, delete: if false;

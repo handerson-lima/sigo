@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import 'financeiro_provider.dart';
 import '../domain/despesa.dart';
 import '../data/financeiro_repository.dart';
@@ -15,9 +16,16 @@ class FinanceiroListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final despesasAsync = ref.watch(despesasConstrutoraProvider(construtoraId));
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Contas a Pagar / Financeiro')),
-      body: despesasAsync.when(
+    return SigoLayout(
+      title: 'Contas a Pagar / Financeiro',
+      activeRoute: '/construtora/$construtoraId/financeiro',
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () =>
+            context.go('/construtora/$construtoraId/financeiro/novo'),
+        icon: const Icon(Icons.add),
+        label: const Text('Nova Despesa'),
+      ),
+      child: despesasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Erro: $e')),
         data: (despesas) {
@@ -164,12 +172,6 @@ class FinanceiroListScreen extends ConsumerWidget {
             ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            context.go('/construtora/$construtoraId/financeiro/novo'),
-        icon: const Icon(Icons.add),
-        label: const Text('Nova Despesa'),
       ),
     );
   }

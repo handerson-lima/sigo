@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import 'almoxarifado_provider.dart';
 import '../domain/material.dart' as mat;
 
@@ -27,9 +28,17 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
       construtoraMateriaisProvider(construtoraId),
     );
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Almoxarifado Central')),
-      body: materiaisAsync.when(
+    return SigoLayout(
+      title: 'Almoxarifado Central',
+      activeRoute: '/construtora/$construtoraId/almoxarifado',
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.go(
+          '/construtora/$construtoraId/almoxarifado/novo_material',
+        ),
+        icon: const Icon(Icons.add),
+        label: const Text('Novo Material'),
+      ),
+      child: materiaisAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Erro: $e')),
         data: (materiais) {
@@ -134,13 +143,6 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
             },
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go(
-          '/construtora/$construtoraId/almoxarifado/novo_material',
-        ),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo Material'),
       ),
     );
   }

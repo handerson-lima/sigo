@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import '../data/epi_repository.dart';
 import '../domain/epi_item.dart';
 import 'epi_form_dialog.dart';
@@ -42,18 +43,17 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
   Widget build(BuildContext context) {
     final episAsync = ref.watch(catalogoEpisStreamProvider(widget.construtoraId));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Catálogo de EPIs'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Cadastrar EPI',
-            onPressed: () => _abrirFormulario(),
-          ),
-        ],
-      ),
-      body: Column(
+    return SigoLayout(
+      title: 'Catálogo de EPIs',
+      activeRoute: '/construtora/${widget.construtoraId}/epis',
+      actions: [
+        ElevatedButton.icon(
+          onPressed: () => _abrirFormulario(),
+          icon: const Icon(Icons.add),
+          label: const Text('Novo EPI'),
+        ),
+      ],
+      child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(12.0),
@@ -171,11 +171,6 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _abrirFormulario(),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo EPI'),
       ),
     );
   }

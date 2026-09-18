@@ -82,6 +82,52 @@ class SigoSidebar extends ConsumerWidget {
     final canMembros = isDev ||
         (obra != null && obra.isActive && obra.isAdmin) ||
         isConstrutoraAdmin;
+
+    final canAdm = isDev ||
+        (obra != null &&
+            obra.isActive &&
+            (obra.isAdmin ||
+                obra.modules.map(normalizeModule).contains('adm') ||
+                obra.modules.map(normalizeModule).contains('financeiro')));
+
+    final canCompras = isDev ||
+        (obra != null &&
+            obra.isActive &&
+            (obra.isAdmin ||
+                obra.modules.map(normalizeModule).contains('compras') ||
+                obra.modules.map(normalizeModule).contains('almoxarifado') ||
+                obra.modules.map(normalizeModule).contains('estoque') ||
+                obra.modules.map(normalizeModule).contains('adm') ||
+                obra.modules.map(normalizeModule).contains('financeiro')));
+
+    final canEpi = isDev ||
+        (obra != null &&
+            obra.isActive &&
+            (obra.isAdmin ||
+                obra.modules.map(normalizeModule).contains('epi') ||
+                obra.modules.map(normalizeModule).contains('rh')));
+
+    final canEpiCatalogo = isDev ||
+        isConstrutoraAdmin ||
+        (construtoraMember != null &&
+            construtoraMember['isActive'] == true &&
+            (construtoraModules.contains('epi') ||
+                construtoraModules.contains('rh') ||
+                construtoraModules.contains('seguranca')));
+
+    final canValidacao = isDev ||
+        isConstrutoraAdmin ||
+        (construtoraMember != null &&
+            construtoraMember['isActive'] == true &&
+            (construtoraModules.contains('validacao') ||
+                construtoraModules.contains('qualidade')));
+
+    final canFornecedores = isDev ||
+        isConstrutoraAdmin ||
+        canEstoque ||
+        canAdm ||
+        canFinanceiro ||
+        (construtoraMember != null && construtoraMember['isActive'] == true);
     return Container(
       width: 250,
       color: const Color(0xFF0F172A),
@@ -177,6 +223,36 @@ class SigoSidebar extends ConsumerWidget {
                         context.go('/construtora/$cId/obra/$oId/rh/chamadas');
                       },
                     ),
+                  if (canEpi)
+                    _NavItem(
+                      icon: Icons.health_and_safety,
+                      title: 'Entrega de EPIs',
+                      isActive: activeRoute.contains('/epis/entrega'),
+                      onTap: () {
+                        Scaffold.maybeOf(context)?.closeDrawer();
+                        context.go('/construtora/$cId/obra/$oId/epis/entrega');
+                      },
+                    ),
+                  if (canAdm)
+                    _NavItem(
+                      icon: Icons.receipt_long,
+                      title: 'Contas a Pagar / ADM',
+                      isActive: activeRoute.contains('/despesas'),
+                      onTap: () {
+                        Scaffold.maybeOf(context)?.closeDrawer();
+                        context.go('/construtora/$cId/obra/$oId/despesas');
+                      },
+                    ),
+                  if (canCompras)
+                    _NavItem(
+                      icon: Icons.shopping_cart_outlined,
+                      title: 'Compras e NF',
+                      isActive: activeRoute.contains('/compras'),
+                      onTap: () {
+                        Scaffold.maybeOf(context)?.closeDrawer();
+                        context.go('/construtora/$cId/obra/$oId/compras');
+                      },
+                    ),
                   const SizedBox(height: 24),
                   const Padding(
                     padding: EdgeInsets.only(left: 16, bottom: 8),
@@ -211,10 +287,41 @@ class SigoSidebar extends ConsumerWidget {
                   _NavItem(
                     icon: Icons.people,
                     title: 'Funcionários (RH)',
-                    isActive: activeRoute.contains('/rh/funcionarios'),
+                    isActive: activeRoute.contains('/rh') &&
+                        !activeRoute.contains('/chamadas'),
                     onTap: () {
                       Scaffold.maybeOf(context)?.closeDrawer();
                       context.go('/construtora/$cId/rh/funcionarios');
+                    },
+                  ),
+                if (cId != null && canEpiCatalogo)
+                  _NavItem(
+                    icon: Icons.health_and_safety_outlined,
+                    title: 'Catálogo de EPIs',
+                    isActive: activeRoute.contains('/epis') && !activeRoute.contains('/obra/'),
+                    onTap: () {
+                      Scaffold.maybeOf(context)?.closeDrawer();
+                      context.go('/construtora/$cId/epis');
+                    },
+                  ),
+                if (cId != null && canValidacao)
+                  _NavItem(
+                    icon: Icons.rule,
+                    title: 'Templates de Validação',
+                    isActive: activeRoute.contains('/validacao/templates'),
+                    onTap: () {
+                      Scaffold.maybeOf(context)?.closeDrawer();
+                      context.go('/construtora/$cId/validacao/templates');
+                    },
+                  ),
+                if (cId != null && canFornecedores)
+                  _NavItem(
+                    icon: Icons.business,
+                    title: 'Fornecedores',
+                    isActive: activeRoute.contains('/fornecedores'),
+                    onTap: () {
+                      Scaffold.maybeOf(context)?.closeDrawer();
+                      context.go('/construtora/$cId/fornecedores');
                     },
                   ),
                 if (cId != null && canEstoque)

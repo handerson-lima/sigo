@@ -20,7 +20,7 @@ class SigoModuleCard extends StatelessWidget {
       child: Container(
         width: 180,
         height: 180,
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -36,25 +36,29 @@ class SigoModuleCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.amber[100]?.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
-                size: 32,
+                size: 30,
                 color: Colors.amber[900],
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: Colors.black87,
+            const SizedBox(height: 12),
+            Flexible(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Colors.black87,
+                ),
               ),
             ),
           ],

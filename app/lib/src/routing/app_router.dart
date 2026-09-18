@@ -40,6 +40,11 @@ import '../features/validacao/presentation/validacao_form_screen.dart';
 import '../features/despesas_adm/presentation/despesas_adm_list_screen.dart';
 import '../features/despesas_adm/presentation/despesa_adm_form_screen.dart';
 import '../features/despesas_adm/presentation/despesa_adm_details_screen.dart';
+import '../features/fornecedores/presentation/fornecedores_list_screen.dart';
+import '../features/fornecedores/presentation/fornecedor_form_screen.dart';
+import '../features/compras_parcelas/presentation/compras_list_screen.dart';
+import '../features/compras_parcelas/presentation/compra_form_screen.dart';
+import '../features/compras_parcelas/presentation/compra_detalhes_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
@@ -527,6 +532,108 @@ final routerProvider = Provider<GoRouter>((ref) {
               construtoraId: cId,
               obraId: oId,
               despesaId: despesaId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/fornecedores',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            child: FornecedoresListScreen(construtoraId: cId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/fornecedores/novo',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            child: FornecedorFormScreen(construtoraId: cId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/fornecedores/:fornecedorId/editar',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final fornecedorId = state.pathParameters['fornecedorId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            child: FornecedorFormScreen(
+              construtoraId: cId,
+              fornecedorId: fornecedorId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/compras',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'compras',
+            child: ComprasListScreen(
+              construtoraId: cId,
+              obraId: oId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/compras/nova',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'compras',
+            child: CompraFormScreen(
+              construtoraId: cId,
+              obraId: oId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/compras/:compraId',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          final compraId = state.pathParameters['compraId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'compras',
+            child: CompraDetalhesScreen(
+              construtoraId: cId,
+              obraId: oId,
+              compraId: compraId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/compras/:compraId/editar',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          final compraId = state.pathParameters['compraId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'compras',
+            child: CompraFormScreen(
+              construtoraId: cId,
+              obraId: oId,
+              compraId: compraId,
             ),
           );
         },

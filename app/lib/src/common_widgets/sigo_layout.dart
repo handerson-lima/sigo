@@ -7,6 +7,7 @@ class SigoLayout extends StatelessWidget {
   final String activeRoute;
   final Widget child;
   final List<Widget>? actions;
+  final Widget? floatingActionButton;
 
   const SigoLayout({
     super.key,
@@ -14,6 +15,7 @@ class SigoLayout extends StatelessWidget {
     required this.activeRoute,
     required this.child,
     this.actions,
+    this.floatingActionButton,
   });
 
   @override
@@ -25,6 +27,7 @@ class SigoLayout extends StatelessWidget {
         if (isDesktop) {
           return Scaffold(
             backgroundColor: const Color(0xFFF8FAFC), // Fundo claro da imagem
+            floatingActionButton: floatingActionButton,
             body: Row(
               children: [
                 SigoSidebar(activeRoute: activeRoute),
@@ -53,6 +56,7 @@ class SigoLayout extends StatelessWidget {
         // Mobile / Tablet Portrait
         return Scaffold(
           backgroundColor: const Color(0xFFF8FAFC),
+          floatingActionButton: floatingActionButton,
           appBar: SigoTopBar(
             title: title,
             actions: actions,
