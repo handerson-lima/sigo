@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-17-2026 22:20
+last_updated: 09-17-2026 22:32
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -83,12 +83,12 @@ development_status:
   3-7-monetario-centavos: done
   epic-3-retrospective: optional
 
-  epic-4: in-progress
+  epic-4: done
   4-1-rh-cadastro: done
   4-2-rh-chamada: done
   4-3-rh-custos: done
-  4-4-rh-validar-invariantes: review
-  epic-4-retrospective: optional
+  4-4-rh-validar-invariantes: done
+  epic-4-retrospective: done
 
   epic-5: backlog
   5-1-modulo-epi: backlog
@@ -183,7 +183,7 @@ action_items:
     action: "Planejar e executar as 5 historias de regras de seguranca do Firestore/Storage
       (2-5-1 a 2-5-5) antes do primeiro deploy em producao"
     owner: "maranduteam"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
   - id: "epic-2-retro-item-2-teste-e2e-offline"
     epic: 2
@@ -199,3 +199,21 @@ action_items:
     owner: "maranduteam"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
+  - id: "epic-4-retro-item-1-modularizar-chamada-form"
+    epic: 4
+    action: "Extrair sub-componentes visuais de chamada_form_screen.dart (banner de invariantes, sumario de rateio e filtros) para manter a tela principal enxuta"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-17.md"
+  - id: "epic-4-retro-item-2-fila-offline-rh"
+    epic: 4
+    action: "Avaliar extensao do motor de fila offline (OperationQueue / read_cache.dart) para sincronizacao em background de chamadas em canteiros sem conectividade"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-17.md"
+  - id: "epic-4-retro-item-3-preparar-epic-5-visao360"
+    epic: 4
+    action: "Iniciar planejamento tecnico das historias do Epic 5 (Modulos de Validacao, ADM e Visao 360 de Custos integrando RH e Almoxarifado)"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-17.md"
