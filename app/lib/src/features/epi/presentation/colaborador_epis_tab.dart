@@ -1,32 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../obras/presentation/construtora_obras_provider.dart';
+import '../../obras/domain/obra.dart';
 import '../../authentication/data/auth_repository.dart';
 import '../data/epi_repository.dart';
 import '../domain/epi_event.dart';
 import 'entrega_epi_screen.dart';
 
-class ColaboradorEpisTab extends ConsumerWidget {
+class ColaboradorEpisTab extends ConsumerStatefulWidget {
   final String construtoraId;
-  final String obraId;
+  final String? obraId;
   final String funcionarioId;
   final String funcionarioNome;
 
   const ColaboradorEpisTab({
     super.key,
     required this.construtoraId,
-    required this.obraId,
+    this.obraId,
     required this.funcionarioId,
     required this.funcionarioNome,
   });
 
-  void _abrirNovaEntrega(BuildContext context) {
+  @override
+  ConsumerState<ColaboradorEpisTab> createState() => _ColaboradorEpisTabState();
+}
+
+class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
+  String? _selectedObraId;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.obraId != null && widget.obraId!.isNotEmpty) {
+      _selectedObraId = widget.obraId;
+    }
+  }
+
+  void _abrirNovaEntrega(BuildContext context, String obraIdAtiva) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => EntregaEpiScreen(
-          construtoraId: construtoraId,
-          obraId: obraId,
-          preselectedFuncionarioId: funcionarioId,
+          construtoraId: widget.construtoraId,
+          obraId: obraIdAtiva,
+          preselectedFuncionarioId: widget.funcionarioId,
         ),
       ),
     );
@@ -34,7 +51,7 @@ class ColaboradorEpisTab extends ConsumerWidget {
 
   void _confirmarBaixaOuDevolucao(
     BuildContext context,
-    WidgetRef ref,
+    String obraIdAtiva,
     EpiEvent evento,
     String tipo, // 'devolucao' ou 'baixa_descarte'
   ) {
@@ -64,8 +81,8 @@ class ColaboradorEpisTab extends ConsumerWidget {
             onPressed: () async {
               final user = ref.read(authRepositoryProvider).currentUser;
               await ref.read(epiRepositoryProvider).registrarDevolucaoOuBaixa(
-                    construtoraId: construtoraId,
-                    obraId: obraId,
+                    construtoraId: widget.construtoraId,
+                    obraId: obraIdAtiva,
                     eventoOriginalId: evento.id,
                     tipoEvento: tipo,
                     responsavelUid: user?.uid ?? 'sistema',
@@ -82,16 +99,42 @@ class ColaboradorEpisTab extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final obrasAsync = ref.watch(construtoraObrasProvider(widget.construtoraId));
+    final obras = obrasAsync.asData?.value ?? <Obra>[];
+
+    String effectiveObraId = _selectedObraId ?? '';
+    if (effectiveObraId.isEmpty && obras.isNotEmpty) {
+      effectiveObraId = obras.first.id;
+    }
+
+    if (effectiveObraId.isEmpty) {
+      return obrasAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Erro ao carregar obras: $err')),
+        data: (list) {
+          if (list.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text('Nenhuma obra cadastrada para consultar entregas de EPI.'),
+              ),
+            );
+          }
+          return const SizedBox();
+        },
+      );
+    }
+
     final eventsAsync = ref.watch(
       epiEventsFuncionarioStreamProvider(
-        (construtoraId: construtoraId, obraId: obraId, funcionarioId: funcionarioId),
+        (construtoraId: widget.construtoraId, obraId: effectiveObraId, funcionarioId: widget.funcionarioId),
       ),
     );
 
     final termosAsync = ref.watch(
       termosFuncionarioStreamProvider(
-        (construtoraId: construtoraId, obraId: obraId, funcionarioId: funcionarioId),
+        (construtoraId: widget.construtoraId, obraId: effectiveObraId, funcionarioId: widget.funcionarioId),
       ),
     );
 
@@ -100,17 +143,35 @@ class ColaboradorEpisTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (obras.length > 1 && (widget.obraId == null || widget.obraId!.isEmpty)) ...[
+            DropdownButtonFormField<String>(
+              initialValue: effectiveObraId,
+              decoration: const InputDecoration(
+                labelText: 'Obra',
+                prefixIcon: Icon(Icons.business),
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: obras.map((o) => DropdownMenuItem(value: o.id, child: Text(o.name))).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() => _selectedObraId = val);
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'EPIs de $funcionarioNome',
+                'EPIs de ${widget.funcionarioNome}',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.add_moderator),
                 label: const Text('Nova Entrega de EPI'),
-                onPressed: () => _abrirNovaEntrega(context),
+                onPressed: () => _abrirNovaEntrega(context, effectiveObraId),
               ),
             ],
           ),
@@ -185,9 +246,9 @@ class ColaboradorEpisTab extends ConsumerWidget {
                       trailing: PopupMenuButton<String>(
                         onSelected: (val) {
                           if (val == 'devolver') {
-                            _confirmarBaixaOuDevolucao(context, ref, ev, 'devolucao');
+                            _confirmarBaixaOuDevolucao(context, effectiveObraId, ev, 'devolucao');
                           } else if (val == 'baixa') {
-                            _confirmarBaixaOuDevolucao(context, ref, ev, 'baixa_descarte');
+                            _confirmarBaixaOuDevolucao(context, effectiveObraId, ev, 'baixa_descarte');
                           }
                         },
                         itemBuilder: (_) => [

@@ -5,6 +5,7 @@ String normalizeModule(String value) => switch (value) {
   'almoxarifado' => 'estoque',
   'recursos_humanos' => 'rh',
   'qualidade' => 'validacao',
+  'financeiro' => 'adm',
   _ => value,
 };
 

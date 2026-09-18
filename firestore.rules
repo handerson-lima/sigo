@@ -11,11 +11,12 @@ service cloud.firestore {
    function om(c,o) { return get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)).data; }
    function obraMember(c,o) { return member(c) && omExists(c,o) && om(c,o).get('isActive', false) == true; }
    function obraAdmin(c,o) { return admin(c) || (obraMember(c,o) && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || om(c,o).get('role', '') == 'admin' || om(c,o).get('role', '') == 'owner')); }
-   function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]) || m == 'validacao' && 'qualidade' in om(c,o).get('modules',[]))); }
+   function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]) || m == 'validacao' && 'qualidade' in om(c,o).get('modules',[]) || m == 'adm' && 'financeiro' in om(c,o).get('modules',[]))); }
    function stock(c) { return admin(c) || (member(c) && ('estoque' in cm(c).get('modules',[]) || 'almoxarifado' in cm(c).get('modules',[]))); }
    function rh(c) { return admin(c) || (member(c) && ('rh' in cm(c).get('modules',[]) || 'recursos_humanos' in cm(c).get('modules',[]))); }
    function epi(c) { return admin(c) || (member(c) && ('epi' in cm(c).get('modules',[]))); }
    function validacao(c) { return admin(c) || (member(c) && ('validacao' in cm(c).get('modules',[]) || 'qualidade' in cm(c).get('modules',[]))); }
+   function adm(c) { return admin(c) || (member(c) && ('adm' in cm(c).get('modules',[]) || 'financeiro' in cm(c).get('modules',[]))); }
   match /dev_roles/{uid} {
     allow read: if signed() && (request.auth.uid == uid || dev());
     allow create: if signed() && request.auth.uid == uid && (
@@ -123,6 +124,23 @@ service cloud.firestore {
        && request.resource.data.id == tId
        && request.resource.data.construtoraId == c
        && request.resource.data.obraId == o;
+     allow delete: if false;
+    }
+    match /despesas_adm/{dId} {
+     allow read: if admin(c) || obraMember(c,o);
+     allow create: if (admin(c) || obraAdmin(c,o) || module(c,o,'adm') || adm(c))
+       && request.resource.data.id == dId
+       && request.resource.data.construtoraId == c
+       && request.resource.data.obraId == o
+       && request.resource.data.valorTotalCents is int
+       && request.resource.data.valorTotalCents > 0
+       && request.resource.data.status in ['pendente', 'pago', 'atrasado', 'cancelado'];
+     allow update: if (admin(c) || obraAdmin(c,o) || module(c,o,'adm') || adm(c))
+       && request.resource.data.id == dId
+       && request.resource.data.construtoraId == c
+       && request.resource.data.obraId == o
+       && (resource.data.status != 'pago' || request.resource.data.valorTotalCents == resource.data.valorTotalCents)
+       && (request.resource.data.status != 'cancelado' || (request.resource.data.motivoCancelamento is string && request.resource.data.motivoCancelamento.size() >= 10));
      allow delete: if false;
     }
    }

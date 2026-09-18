@@ -6,6 +6,7 @@ import '../../../common_widgets/sigo_top_bar.dart';
 import '../data/rh_repository.dart';
 import 'equipes_dialog.dart';
 import 'funcionario_form_screen.dart';
+import '../../epi/presentation/colaborador_epis_tab.dart';
 
 class FuncionariosListScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -318,9 +319,49 @@ class _FuncionariosListScreenState
                                               newStatus,
                                             );
                                       }
+                                    } else if (action == 'epis') {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        shape: const RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.vertical(
+                                            top: Radius.circular(16),
+                                          ),
+                                        ),
+                                        builder: (ctx) => SizedBox(
+                                          height: MediaQuery.of(context).size.height * 0.85,
+                                          child: Scaffold(
+                                            appBar: AppBar(
+                                              title: Text('Ficha de EPIs — ${f.name}'),
+                                              automaticallyImplyLeading: false,
+                                              actions: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.close),
+                                                  onPressed: () => Navigator.of(ctx).pop(),
+                                                ),
+                                              ],
+                                            ),
+                                            body: ColaboradorEpisTab(
+                                              construtoraId: widget.construtoraId,
+                                              funcionarioId: f.id,
+                                              funcionarioNome: f.name,
+                                            ),
+                                          ),
+                                        ),
+                                      );
                                     }
                                   },
                                   itemBuilder: (ctx) => [
+                                    const PopupMenuItem(
+                                      value: 'epis',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.health_and_safety, size: 18, color: Colors.indigo),
+                                          SizedBox(width: 8),
+                                          Text('Ficha de EPIs'),
+                                        ],
+                                      ),
+                                    ),
                                     const PopupMenuItem(
                                       value: 'edit',
                                       child: Row(

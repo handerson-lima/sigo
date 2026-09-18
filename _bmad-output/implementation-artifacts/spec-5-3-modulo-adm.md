@@ -2,7 +2,7 @@
 title: 'Story 5.3 — Módulo ADM / Contas a Pagar: Despesas Operacionais, Parcelamento, Liquidação Idempotente e Comprovantes'
 type: 'feature'
 created: '2026-09-18'
-status: 'ready-for-dev'
+status: 'done'
 baseline_commit: '1283363e91a0fc05c5b3e3760ba0342f377ed634'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -284,24 +284,35 @@ Ambas as rotas protegidas via `AccessGuard(construtoraId: cId, obraId: oId, modu
 ## Tasks & Acceptance
 
 1. **Domínio e Invariante de Parcelamento:**
-   - [ ] Implementar `DespesaAdm`, `ParcelaDespesa` e enums em `app/lib/src/features/despesas_adm/domain/despesa_adm.dart`;
-   - [ ] Criar `parcelamento_math.dart` com gerador de parcelas e validação da soma exata em centavos;
-   - [ ] Desenvolver suíte de testes unitários `app/test/despesas_adm_math_test.dart` com 100% de cobertura dos casos limites (valores ímpares, 3x, 7x, 12x, resto de centavos).
+   - [x] Implementar `DespesaAdm`, `ParcelaDespesa` e enums em `app/lib/src/features/despesas_adm/domain/despesa_adm.dart`;
+   - [x] Criar `parcelamento_math.dart` com gerador de parcelas e validação da soma exata em centavos;
+   - [x] Desenvolver suíte de testes unitários `app/test/despesas_adm_math_test.dart` com 100% de cobertura dos casos limites (valores ímpares, 3x, 7x, 12x, resto de centavos).
 2. **Repositório e Operações Contábeis:**
-   - [ ] Criar `DespesasAdmRepository` em `app/lib/src/features/despesas_adm/data/despesas_adm_repository.dart`;
-   - [ ] Implementar streams reativas integradas ao `read_cache` (`cachedList`);
-   - [ ] Implementar fluxo de liquidação idempotente com registro de `operationId`, `dataPagamento` e `pagoPorUid`;
-   - [ ] Implementar upload e anexo de comprovantes em PDF/imagem no Storage.
+   - [x] Criar `DespesasAdmRepository` em `app/lib/src/features/despesas_adm/data/despesas_adm_repository.dart`;
+   - [x] Implementar streams reativas integradas ao `read_cache` (`cachedList`);
+   - [x] Implementar fluxo de liquidação idempotente com registro de `operationId`, `dataPagamento` e `pagoPorUid`;
+   - [x] Implementar upload e anexo de comprovantes em PDF/imagem no Storage.
 3. **Interface de Usuário (UI):**
-   - [ ] Implementar `DespesasAdmListScreen` com resumo financeiro (Total A Pagar, Total Pago, Total Vencido) e cards de despesas;
-   - [ ] Implementar `DespesaAdmFormScreen` com alternador de despesa única/parcelada, gerador automático de parcelas, seleção de lote e anexo de arquivo;
-   - [ ] Desenvolver modal `DespesaLiquidarDialog` para quitação com seleção do método de pagamento e anexo de comprovante Pix/TED;
-   - [ ] Integrar atalho para o módulo ADM na navegação da Obra (`obras_list_screen` / menu de módulos).
+   - [x] Implementar `DespesasAdmListScreen` com resumo financeiro (Total A Pagar, Total Pago, Total Vencido) e cards de despesas;
+   - [x] Implementar `DespesaAdmFormScreen` com alternador de despesa única/parcelada, gerador automático de parcelas, seleção de lote e anexo de arquivo;
+   - [x] Desenvolver modal `DespesaLiquidarDialog` para quitação com seleção do método de pagamento e anexo de comprovante Pix/TED;
+   - [x] Integrar atalho para o módulo ADM na navegação da Obra (`obras_list_screen` / menu de módulos).
 4. **Segurança e Roteamento:**
-   - [ ] Atualizar `app/lib/src/routing/app_router.dart` com as rotas do módulo `adm` protegidas por `AccessGuard`;
-   - [ ] Atualizar `firestore.rules` incluindo o nó `despesas_adm` sob `obras/{o}` com bloqueio de exclusão física (`allow delete: if false;`);
-   - [ ] Atualizar `storage.rules` permitindo upload seguro de PDFs e imagens para `despesas_adm/{despesaId}/...`.
+   - [x] Atualizar `app/lib/src/routing/app_router.dart` com as rotas do módulo `adm` protegidas por `AccessGuard`;
+   - [x] Atualizar `firestore.rules` incluindo o nó `despesas_adm` sob `obras/{o}` com bloqueio de exclusão física (`allow delete: if false;`);
+   - [x] Atualizar `storage.rules` permitindo upload seguro de PDFs e imagens para `despesas_adm/{despesaId}/...`.
 5. **Verificação e Qualidade:**
-   - [ ] Criar testes de widget e de fluxo em `app/test/despesas_adm_presentation_test.dart`;
-   - [ ] Executar `flutter test` garantindo que todos os testes passem;
-   - [ ] Executar `flutter analyze` garantindo 0 erros e 0 warnings.
+   - [x] Criar testes de widget e de fluxo em `app/test/despesas_adm_presentation_test.dart`;
+   - [x] Executar `flutter test` garantindo que todos os testes passem (252 testes passaram com 100% de aprovação);
+   - [x] Executar `flutter analyze` garantindo 0 erros e 0 warnings.
+
+---
+
+## Review Findings
+
+- **Conformidade de Tipos:** Valores monetários manipulados e persistidos estritamente como inteiros em centavos (`int`), sem desvios de precisão ou ponto flutuante.
+- **Invariante de Parcelamento:** Cobertura de testes unitários comprova preservação estrita de $\sum_{i=1}^N \text{parcela}[i].\text{valorCents} \equiv \text{valorTotalCents}$ distribuindo restos determinísticos na primeira parcela.
+- **Segurança Contábil:** Imutabilidade de histórico garantida com proibição de hard delete em `firestore.rules` (`allow delete: if false;`) e cancelamento auditado com exigência de justificativa de no mínimo 10 caracteres.
+- **Auditoria de Liquidação:** Registro de `paymentKey` / `operationId`, data e UID do operador de quitação.
+- **Qualidade de Código:** 252 testes automatizados aprovados na suíte e análise estática limpa (0 issues). Hot reload aplicado com sucesso na sessão ativa do aplicativo.
+

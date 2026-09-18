@@ -51,6 +51,12 @@ class ObrasListScreen extends ConsumerWidget {
             (cm?['modules'] as List? ?? []).any(
               (m) => m == 'validacao' || m == 'qualidade',
             );
+    final hasEpi =
+        admin ||
+        cm?['isActive'] == true &&
+            (cm?['modules'] as List? ?? []).any(
+              (m) => m == 'epi' || m == 'rh' || m == 'seguranca',
+            );
     final despesasAsync = admin
         ? ref.watch(despesasConstrutoraProvider(construtoraId))
         : const AsyncData<List<Despesa>>([]);
@@ -111,6 +117,14 @@ class ObrasListScreen extends ConsumerWidget {
             tooltip: 'Templates de Validação',
             onPressed: () {
               context.go('/construtora/$construtoraId/validacao/templates');
+            },
+          ),
+        if (hasEpi)
+          IconButton(
+            icon: const Icon(Icons.health_and_safety, color: Colors.black54),
+            tooltip: 'Catálogo de EPIs',
+            onPressed: () {
+              context.go('/construtora/$construtoraId/epis');
             },
           ),
       ],

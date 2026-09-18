@@ -49,6 +49,16 @@ class ObraDashboardScreen extends ConsumerWidget {
     final canFinanceiro = activeMember != null &&
         activeMember.isActive &&
         activeMember.isAdmin;
+    final canAdm = activeMember != null &&
+        activeMember.isActive &&
+        (activeMember.isAdmin ||
+            activeMember.modules.map(normalizeModule).contains('adm') ||
+            activeMember.modules.map(normalizeModule).contains('financeiro'));
+    final canEpi = activeMember != null &&
+        activeMember.isActive &&
+        (activeMember.isAdmin ||
+            activeMember.modules.map(normalizeModule).contains('epi') ||
+            activeMember.modules.map(normalizeModule).contains('rh'));
     final lotesAsync = canLotes
         ? ref.watch(
             obraLotesProvider((construtoraId: construtoraId, obraId: obraId)),
@@ -152,6 +162,22 @@ class ObraDashboardScreen extends ConsumerWidget {
                         title: 'Financeiro',
                         onTap: () => context.go(
                           '/construtora/$construtoraId/financeiro',
+                        ),
+                      ),
+                    if (canAdm)
+                      SigoModuleCard(
+                        icon: Icons.receipt_long,
+                        title: 'Contas a Pagar / ADM',
+                        onTap: () => context.go(
+                          '/construtora/$construtoraId/obra/$obraId/despesas',
+                        ),
+                      ),
+                    if (canEpi)
+                      SigoModuleCard(
+                        icon: Icons.health_and_safety,
+                        title: 'Entrega de EPIs',
+                        onTap: () => context.go(
+                          '/construtora/$construtoraId/obra/$obraId/epis/entrega',
                         ),
                       ),
                   ],

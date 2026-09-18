@@ -37,6 +37,9 @@ import '../features/epi/presentation/entrega_epi_screen.dart';
 import '../features/validacao/presentation/templates_list_screen.dart';
 import '../features/validacao/presentation/lote_validacoes_screen.dart';
 import '../features/validacao/presentation/validacao_form_screen.dart';
+import '../features/despesas_adm/presentation/despesas_adm_list_screen.dart';
+import '../features/despesas_adm/presentation/despesa_adm_form_screen.dart';
+import '../features/despesas_adm/presentation/despesa_adm_details_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
@@ -462,6 +465,68 @@ final routerProvider = Provider<GoRouter>((ref) {
               obraId: oId,
               loteId: loteId,
               validacaoId: validacaoId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/despesas',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'adm',
+            child: DespesasAdmListScreen(construtoraId: cId, obraId: oId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/despesas/nova',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'adm',
+            child: DespesaAdmFormScreen(construtoraId: cId, obraId: oId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/despesas/:despesaId',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          final despesaId = state.pathParameters['despesaId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'adm',
+            child: DespesaAdmDetailsScreen(
+              construtoraId: cId,
+              obraId: oId,
+              despesaId: despesaId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/despesas/:despesaId/editar',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          final despesaId = state.pathParameters['despesaId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'adm',
+            child: DespesaAdmFormScreen(
+              construtoraId: cId,
+              obraId: oId,
+              despesaId: despesaId,
             ),
           );
         },
