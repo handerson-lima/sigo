@@ -32,6 +32,8 @@ import '../features/rh/presentation/funcionario_form_screen.dart';
 import '../features/rh/domain/funcionario.dart';
 import '../features/rh/presentation/chamadas_list_screen.dart';
 import '../features/rh/presentation/chamada_form_screen.dart';
+import '../features/epi/presentation/catalogo_epis_screen.dart';
+import '../features/epi/presentation/entrega_epi_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
@@ -363,6 +365,33 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: FuncionarioFormScreen(
               construtoraId: cId,
               initialFuncionario: extra is Funcionario ? extra : null,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/epis',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            module: 'epi',
+            child: CatalogoEpisScreen(construtoraId: cId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/construtora/:cId/obra/:oId/epis/entrega',
+        builder: (context, state) {
+          final cId = state.pathParameters['cId']!;
+          final oId = state.pathParameters['oId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            obraId: oId,
+            module: 'epi',
+            child: EntregaEpiScreen(
+              construtoraId: cId,
+              obraId: oId,
             ),
           );
         },

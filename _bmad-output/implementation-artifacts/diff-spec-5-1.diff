@@ -1,0 +1,2547 @@
+diff --git a/_bmad-output/implementation-artifacts/spec-5-1-modulo-epi.md b/_bmad-output/implementation-artifacts/spec-5-1-modulo-epi.md
+index 2689703..6de5112 100644
+--- a/_bmad-output/implementation-artifacts/spec-5-1-modulo-epi.md
++++ b/_bmad-output/implementation-artifacts/spec-5-1-modulo-epi.md
+@@ -2,8 +2,8 @@
+ title: 'Story 5.1 — Módulo EPI: Catálogo, Eventos de Entrega e Termos de Responsabilidade'
+ type: 'feature'
+ created: '2026-09-18'
+-status: 'backlog'
+-baseline_commit: 'e51ac13a1340815c6e3e2585721938fec3d9a366'
++status: 'in-progress'
++baseline_commit: '3520b6b0509e37da6496ba2e38b6c4eb8eace950'
+ route: 'dispatch'
+ review_loop_iteration: 0
+ context:
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 841d723..ad0a7d3 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -91,7 +91,7 @@ development_status:
+   epic-4-retrospective: done
+ 
+   epic-5: in-progress
+-  5-1-modulo-epi: ready-for-dev
++  5-1-modulo-epi: in-progress
+   5-2-modulo-validacao: backlog
+   5-3-modulo-adm: backlog
+   5-4-fornecedores: backlog
+diff --git a/app/lib/src/features/epi/data/epi_repository.dart b/app/lib/src/features/epi/data/epi_repository.dart
+new file mode 100644
+index 0000000..6f23d1c
+--- /dev/null
++++ b/app/lib/src/features/epi/data/epi_repository.dart
+@@ -0,0 +1,245 @@
++import 'dart:typed_data';
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:firebase_storage/firebase_storage.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import '../../../sync/read_cache.dart';
++import '../domain/epi_event.dart';
++import '../domain/epi_item.dart';
++import '../domain/termo_epi.dart';
++
++final epiRepositoryProvider = Provider<EpiRepository>((ref) {
++  return EpiRepository(
++    FirebaseFirestore.instance,
++    FirebaseStorage.instance,
++  );
++});
++
++final catalogoEpisStreamProvider =
++    StreamProvider.family<List<EpiItem>, String>((ref, construtoraId) {
++  return ref.watch(epiRepositoryProvider).watchCatalogo(construtoraId);
++});
++
++final epiEventsObraStreamProvider =
++    StreamProvider.family<List<EpiEvent>, ({String construtoraId, String obraId})>((ref, arg) {
++  return ref.watch(epiRepositoryProvider).watchEventsPorObra(arg.construtoraId, arg.obraId);
++});
++
++final epiEventsFuncionarioStreamProvider =
++    StreamProvider.family<List<EpiEvent>, ({String construtoraId, String obraId, String funcionarioId})>((ref, arg) {
++  return ref.watch(epiRepositoryProvider).watchEventsPorFuncionario(arg.construtoraId, arg.obraId, arg.funcionarioId);
++});
++
++final termosFuncionarioStreamProvider =
++    StreamProvider.family<List<TermoEpi>, ({String construtoraId, String obraId, String funcionarioId})>((ref, arg) {
++  return ref.watch(epiRepositoryProvider).watchTermosPorFuncionario(arg.construtoraId, arg.obraId, arg.funcionarioId);
++});
++
++class EpiRepository {
++  final FirebaseFirestore _firestore;
++  final FirebaseStorage _storage;
++
++  EpiRepository(this._firestore, [FirebaseStorage? storage])
++      : _storage = storage ?? FirebaseStorage.instance;
++
++  CollectionReference<Map<String, dynamic>> _catalogoRef(String construtoraId) =>
++      _firestore.collection('construtoras').doc(construtoraId).collection('catalogo_epis');
++
++  CollectionReference<Map<String, dynamic>> _eventsRef(String construtoraId, String obraId) =>
++      _firestore.collection('construtoras').doc(construtoraId).collection('obras').doc(obraId).collection('epi_events');
++
++  CollectionReference<Map<String, dynamic>> _termosRef(String construtoraId, String obraId) =>
++      _firestore.collection('construtoras').doc(construtoraId).collection('obras').doc(obraId).collection('termos_epi');
++
++  Stream<List<EpiItem>> watchCatalogo(String construtoraId) {
++    return cachedList(
++      'construtoras/$construtoraId/catalogo_epis',
++      _liveWatchCatalogo(construtoraId),
++      (item) => item.toMap(),
++      (data) => EpiItem.fromMap(Map<String, dynamic>.from(data), data['id'] ?? ''),
++    );
++  }
++
++  Stream<List<EpiItem>> _liveWatchCatalogo(String construtoraId) {
++    return _catalogoRef(construtoraId).snapshots().map((snapshot) {
++      final list = snapshot.docs.map((doc) => EpiItem.fromMap(doc.data(), doc.id)).toList();
++      list.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
++      return list;
++    });
++  }
++
++  Future<void> saveEpiItem(EpiItem item) async {
++    await _catalogoRef(item.construtoraId).doc(item.id).set(
++          item.toMap(),
++          SetOptions(merge: true),
++        );
++  }
++
++  Future<void> toggleEpiStatus(String construtoraId, String epiId, bool isActive) async {
++    await _catalogoRef(construtoraId).doc(epiId).update({
++      'isActive': isActive,
++      'updatedAt': FieldValue.serverTimestamp(),
++    });
++  }
++
++  Stream<List<EpiEvent>> watchEventsPorObra(String construtoraId, String obraId) {
++    return _eventsRef(construtoraId, obraId)
++        .orderBy('dataEvento', descending: true)
++        .snapshots()
++        .map((snapshot) {
++      return snapshot.docs.map((doc) => EpiEvent.fromMap(doc.data(), doc.id)).toList();
++    });
++  }
++
++  Stream<List<EpiEvent>> watchEventsPorFuncionario(String construtoraId, String obraId, String funcionarioId) {
++    return _eventsRef(construtoraId, obraId)
++        .where('funcionarioId', isEqualTo: funcionarioId)
++        .snapshots()
++        .map((snapshot) {
++      final list = snapshot.docs.map((doc) => EpiEvent.fromMap(doc.data(), doc.id)).toList();
++      list.sort((a, b) => b.dataEvento.compareTo(a.dataEvento));
++      return list;
++    });
++  }
++
++  Stream<List<TermoEpi>> watchTermosPorFuncionario(String construtoraId, String obraId, String funcionarioId) {
++    return _termosRef(construtoraId, obraId)
++        .where('funcionarioId', isEqualTo: funcionarioId)
++        .snapshots()
++        .map((snapshot) {
++      final list = snapshot.docs.map((doc) => TermoEpi.fromMap(doc.data(), doc.id)).toList();
++      list.sort((a, b) => b.dataAssinatura.compareTo(a.dataAssinatura));
++      return list;
++    });
++  }
++
++  Future<String?> uploadAssinatura({
++    required String construtoraId,
++    required String obraId,
++    required String funcionarioId,
++    required Uint8List bytes,
++  }) async {
++    final timestamp = DateTime.now().millisecondsSinceEpoch;
++    final path = 'construtoras/$construtoraId/obras/$obraId/epis/$funcionarioId/termo_${timestamp}_assinatura.png';
++    final ref = _storage.ref().child(path);
++    await ref.putData(bytes, SettableMetadata(contentType: 'image/png'));
++    return path;
++  }
++
++  Future<void> registrarEntrega({
++    required EpiEvent event,
++    TermoEpi? termo,
++    Uint8List? assinaturaBytes,
++  }) async {
++    String? storagePath;
++    if (assinaturaBytes != null && termo != null) {
++      storagePath = await uploadAssinatura(
++        construtoraId: event.construtoraId,
++        obraId: event.obraId,
++        funcionarioId: event.funcionarioId,
++        bytes: assinaturaBytes,
++      );
++    }
++
++    final batch = _firestore.batch();
++
++    String? termoId = event.termoId;
++    if (termo != null) {
++      termoId = termo.id;
++      final termoDoc = _termosRef(event.construtoraId, event.obraId).doc(termo.id);
++      final finalTermo = storagePath != null
++          ? TermoEpi(
++              id: termo.id,
++              construtoraId: termo.construtoraId,
++              obraId: termo.obraId,
++              funcionarioId: termo.funcionarioId,
++              funcionarioNome: termo.funcionarioNome,
++              funcionarioCpf: termo.funcionarioCpf,
++              itens: termo.itens,
++              textoLegal: termo.textoLegal,
++              tipoConfirmacao: termo.tipoConfirmacao,
++              assinaturaStoragePath: storagePath,
++              hashSha256: termo.hashSha256,
++              dataAssinatura: termo.dataAssinatura,
++              responsavelUid: termo.responsavelUid,
++            )
++          : termo;
++      batch.set(termoDoc, finalTermo.toMap());
++    }
++
++    final eventDoc = _eventsRef(event.construtoraId, event.obraId).doc(event.id);
++    final finalEvent = event.copyWith(termoId: termoId);
++    batch.set(eventDoc, finalEvent.toMap());
++
++    // Registra auditoria
++    final auditDoc = _firestore.collection('audit').doc();
++    batch.set(auditDoc, {
++      'action': 'entregaEpi',
++      'actor': event.responsavelUid,
++      'target': '${event.construtoraId}/${event.obraId}/${event.funcionarioId}/${event.epiId}',
++      'result': 'accepted',
++      'at': FieldValue.serverTimestamp(),
++      'tipoEvento': event.tipoEvento,
++      'caNumero': event.caNumero,
++      'termoId': termoId,
++    });
++
++    await batch.commit();
++  }
++
++  Future<void> registrarDevolucaoOuBaixa({
++    required String construtoraId,
++    required String obraId,
++    required String eventoOriginalId,
++    required String tipoEvento, // devolucao, baixa_descarte
++    required String responsavelUid,
++    required String responsavelNome,
++    String? motivo,
++  }) async {
++    final origDoc = await _eventsRef(construtoraId, obraId).doc(eventoOriginalId).get();
++    if (!origDoc.exists) return;
++
++    final origData = origDoc.data()!;
++    final novoStatus = tipoEvento == 'devolucao' ? 'devolvido' : 'baixado';
++
++    final batch = _firestore.batch();
++    // Atualiza status do original
++    batch.update(_eventsRef(construtoraId, obraId).doc(eventoOriginalId), {
++      'status': novoStatus,
++      'updatedAt': FieldValue.serverTimestamp(),
++    });
++
++    // Cria novo evento de devolução/baixa
++    final newId = _eventsRef(construtoraId, obraId).doc().id;
++    final devEvent = EpiEvent(
++      id: newId,
++      construtoraId: construtoraId,
++      obraId: obraId,
++      funcionarioId: origData['funcionarioId'] ?? '',
++      funcionarioNome: origData['funcionarioNome'] ?? '',
++      epiId: origData['epiId'] ?? '',
++      epiNome: origData['epiNome'] ?? '',
++      caNumero: origData['caNumero'] ?? '',
++      tipoEvento: tipoEvento,
++      quantidade: (origData['quantidade'] as num?)?.toInt() ?? 1,
++      motivo: motivo,
++      dataEvento: DateTime.now(),
++      responsavelUid: responsavelUid,
++      responsavelNome: responsavelNome,
++      status: novoStatus,
++    );
++    batch.set(_eventsRef(construtoraId, obraId).doc(newId), devEvent.toMap());
++
++    // Auditoria
++    batch.set(_firestore.collection('audit').doc(), {
++      'action': 'baixaOuDevolucaoEpi',
++      'actor': responsavelUid,
++      'target': '$construtoraId/$obraId/$eventoOriginalId',
++      'result': 'accepted',
++      'at': FieldValue.serverTimestamp(),
++      'tipoEvento': tipoEvento,
++    });
++
++    await batch.commit();
++  }
++}
+diff --git a/app/lib/src/features/epi/domain/epi_event.dart b/app/lib/src/features/epi/domain/epi_event.dart
+new file mode 100644
+index 0000000..352b26f
+--- /dev/null
++++ b/app/lib/src/features/epi/domain/epi_event.dart
+@@ -0,0 +1,179 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++
++class EpiEvent {
++  final String id;
++  final String construtoraId;
++  final String obraId;
++  final String funcionarioId;
++  final String funcionarioNome;
++  final String epiId;
++  final String epiNome;
++  final String caNumero;
++  final String tipoEvento; // entrega, substituicao, devolucao, baixa_descarte
++  final int quantidade;
++  final String? motivo;
++  final DateTime dataEvento;
++  final String responsavelUid;
++  final String responsavelNome;
++  final String? termoId;
++  final String status; // ativo, substituido, devolvido, baixado
++  final DateTime? dataTrocaPrevista;
++  final String? observacoes;
++  final int schemaVersion;
++  final DateTime? createdAt;
++
++  EpiEvent({
++    required this.id,
++    required this.construtoraId,
++    required this.obraId,
++    required this.funcionarioId,
++    required this.funcionarioNome,
++    required this.epiId,
++    required this.epiNome,
++    required this.caNumero,
++    required this.tipoEvento,
++    this.quantidade = 1,
++    this.motivo,
++    required this.dataEvento,
++    required this.responsavelUid,
++    required this.responsavelNome,
++    this.termoId,
++    this.status = 'ativo',
++    this.dataTrocaPrevista,
++    this.observacoes,
++    this.schemaVersion = 1,
++    this.createdAt,
++  });
++
++  bool get isEntrega => tipoEvento == 'entrega' || tipoEvento == 'substituicao';
++  bool get isDevolvidoOuBaixado => tipoEvento == 'devolucao' || tipoEvento == 'baixa_descarte';
++  bool get isTrocaVencida {
++    if (dataTrocaPrevista == null || status != 'ativo') return false;
++    final now = DateTime.now();
++    final today = DateTime(now.year, now.month, now.day);
++    return dataTrocaPrevista!.isBefore(today);
++  }
++
++  String get tipoEventoFormatado {
++    switch (tipoEvento) {
++      case 'entrega':
++        return 'Entrega Inicial';
++      case 'substituicao':
++        return 'Substituição';
++      case 'devolucao':
++        return 'Devolução';
++      case 'baixa_descarte':
++        return 'Baixa / Descarte';
++      default:
++        return tipoEvento;
++    }
++  }
++
++  Map<String, dynamic> toMap() {
++    return {
++      'id': id,
++      'construtoraId': construtoraId,
++      'obraId': obraId,
++      'funcionarioId': funcionarioId,
++      'funcionarioNome': funcionarioNome,
++      'epiId': epiId,
++      'epiNome': epiNome,
++      'caNumero': caNumero,
++      'tipoEvento': tipoEvento,
++      'quantidade': quantidade,
++      if (motivo != null) 'motivo': motivo,
++      'dataEvento': dataEvento.toIso8601String().split('T').first,
++      'responsavelUid': responsavelUid,
++      'responsavelNome': responsavelNome,
++      if (termoId != null) 'termoId': termoId,
++      'status': status,
++      if (dataTrocaPrevista != null) 'dataTrocaPrevista': dataTrocaPrevista!.toIso8601String().split('T').first,
++      if (observacoes != null) 'observacoes': observacoes,
++      'schemaVersion': schemaVersion,
++      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
++    };
++  }
++
++  factory EpiEvent.fromMap(Map<String, dynamic> map, String docId) {
++    DateTime parseDate(dynamic val, [DateTime? fallback]) {
++      if (val is Timestamp) return val.toDate();
++      if (val is String && val.isNotEmpty) return DateTime.tryParse(val) ?? (fallback ?? DateTime.now());
++      return fallback ?? DateTime.now();
++    }
++
++    DateTime? parseNullableDate(dynamic val) {
++      if (val is Timestamp) return val.toDate();
++      if (val is String && val.isNotEmpty) return DateTime.tryParse(val);
++      return null;
++    }
++
++    return EpiEvent(
++      id: docId,
++      construtoraId: map['construtoraId'] as String? ?? '',
++      obraId: map['obraId'] as String? ?? '',
++      funcionarioId: map['funcionarioId'] as String? ?? '',
++      funcionarioNome: map['funcionarioNome'] as String? ?? '',
++      epiId: map['epiId'] as String? ?? '',
++      epiNome: map['epiNome'] as String? ?? '',
++      caNumero: map['caNumero'] as String? ?? '',
++      tipoEvento: map['tipoEvento'] as String? ?? 'entrega',
++      quantidade: (map['quantidade'] as num?)?.toInt() ?? 1,
++      motivo: map['motivo'] as String?,
++      dataEvento: parseDate(map['dataEvento']),
++      responsavelUid: map['responsavelUid'] as String? ?? '',
++      responsavelNome: map['responsavelNome'] as String? ?? '',
++      termoId: map['termoId'] as String?,
++      status: map['status'] as String? ?? 'ativo',
++      dataTrocaPrevista: parseNullableDate(map['dataTrocaPrevista']),
++      observacoes: map['observacoes'] as String?,
++      schemaVersion: (map['schemaVersion'] as num?)?.toInt() ?? 1,
++      createdAt: parseNullableDate(map['createdAt']),
++    );
++  }
++
++  EpiEvent copyWith({
++    String? id,
++    String? construtoraId,
++    String? obraId,
++    String? funcionarioId,
++    String? funcionarioNome,
++    String? epiId,
++    String? epiNome,
++    String? caNumero,
++    String? tipoEvento,
++    int? quantidade,
++    String? motivo,
++    DateTime? dataEvento,
++    String? responsavelUid,
++    String? responsavelNome,
++    String? termoId,
++    String? status,
++    DateTime? dataTrocaPrevista,
++    String? observacoes,
++    int? schemaVersion,
++    DateTime? createdAt,
++  }) {
++    return EpiEvent(
++      id: id ?? this.id,
++      construtoraId: construtoraId ?? this.construtoraId,
++      obraId: obraId ?? this.obraId,
++      funcionarioId: funcionarioId ?? this.funcionarioId,
++      funcionarioNome: funcionarioNome ?? this.funcionarioNome,
++      epiId: epiId ?? this.epiId,
++      epiNome: epiNome ?? this.epiNome,
++      caNumero: caNumero ?? this.caNumero,
++      tipoEvento: tipoEvento ?? this.tipoEvento,
++      quantidade: quantidade ?? this.quantidade,
++      motivo: motivo ?? this.motivo,
++      dataEvento: dataEvento ?? this.dataEvento,
++      responsavelUid: responsavelUid ?? this.responsavelUid,
++      responsavelNome: responsavelNome ?? this.responsavelNome,
++      termoId: termoId ?? this.termoId,
++      status: status ?? this.status,
++      dataTrocaPrevista: dataTrocaPrevista ?? this.dataTrocaPrevista,
++      observacoes: observacoes ?? this.observacoes,
++      schemaVersion: schemaVersion ?? this.schemaVersion,
++      createdAt: createdAt ?? this.createdAt,
++    );
++  }
++}
+diff --git a/app/lib/src/features/epi/domain/epi_item.dart b/app/lib/src/features/epi/domain/epi_item.dart
+new file mode 100644
+index 0000000..58f7424
+--- /dev/null
++++ b/app/lib/src/features/epi/domain/epi_item.dart
+@@ -0,0 +1,165 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++
++class EpiItem {
++  final String id;
++  final String construtoraId;
++  final String nome;
++  final String fabricante;
++  final String categoria; // cabeca, ocular, auditiva, respiratoria, maos_bracos, pes_pernas, altura, outros
++  final String caNumero;
++  final DateTime caValidade;
++  final int vidaUtilDias;
++  final String unidade; // un, par, kit
++  final String? descricao;
++  final bool isActive;
++  final int schemaVersion;
++  final DateTime? createdAt;
++  final DateTime? updatedAt;
++
++  EpiItem({
++    required this.id,
++    required this.construtoraId,
++    required this.nome,
++    required this.fabricante,
++    required this.categoria,
++    required this.caNumero,
++    required this.caValidade,
++    this.vidaUtilDias = 180,
++    this.unidade = 'un',
++    this.descricao,
++    this.isActive = true,
++    this.schemaVersion = 1,
++    this.createdAt,
++    this.updatedAt,
++  });
++
++  bool get isCaVencido {
++    final now = DateTime.now();
++    final today = DateTime(now.year, now.month, now.day);
++    final val = DateTime(caValidade.year, caValidade.month, caValidade.day);
++    return val.isBefore(today);
++  }
++
++  bool isCaProximoVencimento([int dias = 30]) {
++    if (isCaVencido) return false;
++    final now = DateTime.now();
++    final today = DateTime(now.year, now.month, now.day);
++    final limite = today.add(Duration(days: dias));
++    final val = DateTime(caValidade.year, caValidade.month, caValidade.day);
++    return !val.isAfter(limite);
++  }
++
++  int get diasParaVencer {
++    final now = DateTime.now();
++    final today = DateTime(now.year, now.month, now.day);
++    final val = DateTime(caValidade.year, caValidade.month, caValidade.day);
++    return val.difference(today).inDays;
++  }
++
++  String get categoriaFormatada {
++    switch (categoria) {
++      case 'cabeca':
++        return 'Proteção da Cabeça';
++      case 'ocular':
++        return 'Proteção dos Olhos/Face';
++      case 'auditiva':
++        return 'Proteção Auditiva';
++      case 'respiratoria':
++        return 'Proteção Respiratória';
++      case 'maos_bracos':
++        return 'Proteção dos Membros Superiores';
++      case 'pes_pernas':
++        return 'Proteção dos Membros Inferiores';
++      case 'altura':
++        return 'Proteção contra Quedas';
++      default:
++        return 'Outros Equipamentos';
++    }
++  }
++
++  Map<String, dynamic> toMap() {
++    return {
++      'id': id,
++      'construtoraId': construtoraId,
++      'nome': nome,
++      'fabricante': fabricante,
++      'categoria': categoria,
++      'caNumero': caNumero,
++      'caValidade': caValidade.toIso8601String().split('T').first,
++      'vidaUtilDias': vidaUtilDias,
++      'unidade': unidade,
++      if (descricao != null) 'descricao': descricao,
++      'isActive': isActive,
++      'schemaVersion': schemaVersion,
++      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
++      'updatedAt': FieldValue.serverTimestamp(),
++    };
++  }
++
++  factory EpiItem.fromMap(Map<String, dynamic> map, String docId) {
++    DateTime parsedValidade = DateTime.now().add(const Duration(days: 365));
++    final rawVal = map['caValidade'];
++    if (rawVal is Timestamp) {
++      parsedValidade = rawVal.toDate();
++    } else if (rawVal is String && rawVal.isNotEmpty) {
++      parsedValidade = DateTime.tryParse(rawVal) ?? parsedValidade;
++    }
++
++    DateTime? parseDate(dynamic value) {
++      if (value is Timestamp) return value.toDate();
++      if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
++      return null;
++    }
++
++    return EpiItem(
++      id: docId,
++      construtoraId: map['construtoraId'] as String? ?? '',
++      nome: map['nome'] as String? ?? '',
++      fabricante: map['fabricante'] as String? ?? '',
++      categoria: map['categoria'] as String? ?? 'outros',
++      caNumero: map['caNumero'] as String? ?? '',
++      caValidade: parsedValidade,
++      vidaUtilDias: (map['vidaUtilDias'] as num?)?.toInt() ?? 180,
++      unidade: map['unidade'] as String? ?? 'un',
++      descricao: map['descricao'] as String?,
++      isActive: map['isActive'] as bool? ?? true,
++      schemaVersion: (map['schemaVersion'] as num?)?.toInt() ?? 1,
++      createdAt: parseDate(map['createdAt']),
++      updatedAt: parseDate(map['updatedAt']),
++    );
++  }
++
++  EpiItem copyWith({
++    String? id,
++    String? construtoraId,
++    String? nome,
++    String? fabricante,
++    String? categoria,
++    String? caNumero,
++    DateTime? caValidade,
++    int? vidaUtilDias,
++    String? unidade,
++    String? descricao,
++    bool? isActive,
++    int? schemaVersion,
++    DateTime? createdAt,
++    DateTime? updatedAt,
++  }) {
++    return EpiItem(
++      id: id ?? this.id,
++      construtoraId: construtoraId ?? this.construtoraId,
++      nome: nome ?? this.nome,
++      fabricante: fabricante ?? this.fabricante,
++      categoria: categoria ?? this.categoria,
++      caNumero: caNumero ?? this.caNumero,
++      caValidade: caValidade ?? this.caValidade,
++      vidaUtilDias: vidaUtilDias ?? this.vidaUtilDias,
++      unidade: unidade ?? this.unidade,
++      descricao: descricao ?? this.descricao,
++      isActive: isActive ?? this.isActive,
++      schemaVersion: schemaVersion ?? this.schemaVersion,
++      createdAt: createdAt ?? this.createdAt,
++      updatedAt: updatedAt ?? this.updatedAt,
++    );
++  }
++}
+diff --git a/app/lib/src/features/epi/domain/termo_epi.dart b/app/lib/src/features/epi/domain/termo_epi.dart
+new file mode 100644
+index 0000000..0057ae5
+--- /dev/null
++++ b/app/lib/src/features/epi/domain/termo_epi.dart
+@@ -0,0 +1,130 @@
++import 'dart:convert';
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:crypto/crypto.dart';
++
++class TermoEpi {
++  final String id;
++  final String construtoraId;
++  final String obraId;
++  final String funcionarioId;
++  final String funcionarioNome;
++  final String funcionarioCpf;
++  final List<Map<String, dynamic>> itens; // [{epiNome, caNumero, quantidade, dataEntrega}]
++  final String textoLegal;
++  final String tipoConfirmacao; // assinatura_canvas, pin_seguranca, foto_comprovante
++  final String? assinaturaStoragePath;
++  final String hashSha256;
++  final DateTime dataAssinatura;
++  final String responsavelUid;
++  final int schemaVersion;
++  final DateTime? createdAt;
++
++  TermoEpi({
++    required this.id,
++    required this.construtoraId,
++    required this.obraId,
++    required this.funcionarioId,
++    required this.funcionarioNome,
++    required this.funcionarioCpf,
++    required this.itens,
++    String? textoLegal,
++    this.tipoConfirmacao = 'assinatura_canvas',
++    this.assinaturaStoragePath,
++    String? hashSha256,
++    required this.dataAssinatura,
++    required this.responsavelUid,
++    this.schemaVersion = 1,
++    this.createdAt,
++  })  : textoLegal = textoLegal ?? termoPadraoNr6,
++        hashSha256 = hashSha256 ??
++            gerarHash(
++              funcionarioCpf: funcionarioCpf,
++              dataAssinatura: dataAssinatura,
++              itens: itens,
++              texto: textoLegal ?? termoPadraoNr6,
++            );
++
++  static const String termoPadraoNr6 =
++      'Declaro para os devidos fins que recebi da empresa os Equipamentos de Proteção Individual (EPIs) '
++      'abaixo discriminados, novos e em perfeito estado de conservação, com os devidos Certificados de Aprovação (C.A.). '
++      'Comprometo-me a utilizá-los estritamente para os fins a que se destinam durante toda a minha jornada de trabalho, '
++      'zelar por sua guarda e conservação, e comunicar imediatamente ao encarregado ou setor de segurança qualquer alteração '
++      'ou dano que os torne impróprios para uso, nos termos da Norma Regulamentadora NR-6 e art. 158 da CLT.';
++
++  static String gerarHash({
++    required String funcionarioCpf,
++    required DateTime dataAssinatura,
++    required List<Map<String, dynamic>> itens,
++    required String texto,
++  }) {
++    final payload = jsonEncode({
++      'cpf': funcionarioCpf,
++      'data': dataAssinatura.toIso8601String(),
++      'itens': itens,
++      'texto': texto,
++    });
++    return sha256.convert(utf8.encode(payload)).toString();
++  }
++
++  Map<String, dynamic> toMap() {
++    return {
++      'id': id,
++      'construtoraId': construtoraId,
++      'obraId': obraId,
++      'funcionarioId': funcionarioId,
++      'funcionarioNome': funcionarioNome,
++      'funcionarioCpf': funcionarioCpf,
++      'itens': itens,
++      'textoLegal': textoLegal,
++      'tipoConfirmacao': tipoConfirmacao,
++      if (assinaturaStoragePath != null) 'assinaturaStoragePath': assinaturaStoragePath,
++      'hashSha256': hashSha256,
++      'dataAssinatura': dataAssinatura.toIso8601String(),
++      'responsavelUid': responsavelUid,
++      'schemaVersion': schemaVersion,
++      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
++    };
++  }
++
++  factory TermoEpi.fromMap(Map<String, dynamic> map, String docId) {
++    DateTime parseDate(dynamic val) {
++      if (val is Timestamp) return val.toDate();
++      if (val is String && val.isNotEmpty) return DateTime.tryParse(val) ?? DateTime.now();
++      return DateTime.now();
++    }
++
++    DateTime? parseNullableDate(dynamic val) {
++      if (val is Timestamp) return val.toDate();
++      if (val is String && val.isNotEmpty) return DateTime.tryParse(val);
++      return null;
++    }
++
++    final rawItens = map['itens'];
++    final List<Map<String, dynamic>> parsedItens = [];
++    if (rawItens is List) {
++      for (final item in rawItens) {
++        if (item is Map) {
++          parsedItens.add(Map<String, dynamic>.from(item));
++        }
++      }
++    }
++
++    return TermoEpi(
++      id: docId,
++      construtoraId: map['construtoraId'] as String? ?? '',
++      obraId: map['obraId'] as String? ?? '',
++      funcionarioId: map['funcionarioId'] as String? ?? '',
++      funcionarioNome: map['funcionarioNome'] as String? ?? '',
++      funcionarioCpf: map['funcionarioCpf'] as String? ?? '',
++      itens: parsedItens,
++      textoLegal: map['textoLegal'] as String? ?? termoPadraoNr6,
++      tipoConfirmacao: map['tipoConfirmacao'] as String? ?? 'assinatura_canvas',
++      assinaturaStoragePath: map['assinaturaStoragePath'] as String?,
++      hashSha256: map['hashSha256'] as String? ?? '',
++      dataAssinatura: parseDate(map['dataAssinatura']),
++      responsavelUid: map['responsavelUid'] as String? ?? '',
++      schemaVersion: (map['schemaVersion'] as num?)?.toInt() ?? 1,
++      createdAt: parseNullableDate(map['createdAt']),
++    );
++  }
++}
+diff --git a/app/lib/src/features/epi/presentation/catalogo_epis_screen.dart b/app/lib/src/features/epi/presentation/catalogo_epis_screen.dart
+new file mode 100644
+index 0000000..cd595b4
+--- /dev/null
++++ b/app/lib/src/features/epi/presentation/catalogo_epis_screen.dart
+@@ -0,0 +1,323 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import '../data/epi_repository.dart';
++import '../domain/epi_item.dart';
++import 'epi_form_dialog.dart';
++
++class CatalogoEpisScreen extends ConsumerStatefulWidget {
++  final String construtoraId;
++
++  const CatalogoEpisScreen({
++    super.key,
++    required this.construtoraId,
++  });
++
++  @override
++  ConsumerState<CatalogoEpisScreen> createState() => _CatalogoEpisScreenState();
++}
++
++class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
++  final _searchController = TextEditingController();
++  String _selectedCategory = 'todas';
++  String _statusFilter = 'todos'; // todos, ativos, ca_vencido, ca_vencendo
++
++  @override
++  void dispose() {
++    _searchController.dispose();
++    super.dispose();
++  }
++
++  void _abrirFormulario([EpiItem? item]) {
++    showDialog(
++      context: context,
++      builder: (ctx) => EpiFormDialog(
++        construtoraId: widget.construtoraId,
++        initialItem: item,
++      ),
++    );
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final episAsync = ref.watch(catalogoEpisStreamProvider(widget.construtoraId));
++
++    return Scaffold(
++      appBar: AppBar(
++        title: const Text('Catálogo de EPIs'),
++        actions: [
++          IconButton(
++            icon: const Icon(Icons.add),
++            tooltip: 'Cadastrar EPI',
++            onPressed: () => _abrirFormulario(),
++          ),
++        ],
++      ),
++      body: Column(
++        children: [
++          Padding(
++            padding: const EdgeInsets.all(12.0),
++            child: Row(
++              children: [
++                Expanded(
++                  child: TextField(
++                    controller: _searchController,
++                    decoration: InputDecoration(
++                      hintText: 'Buscar por nome, fabricante ou C.A...',
++                      prefixIcon: const Icon(Icons.search),
++                      suffixIcon: _searchController.text.isNotEmpty
++                          ? IconButton(
++                              icon: const Icon(Icons.clear),
++                              onPressed: () {
++                                _searchController.clear();
++                                setState(() {});
++                              },
++                            )
++                          : null,
++                      isDense: true,
++                      border: const OutlineInputBorder(),
++                    ),
++                    onChanged: (_) => setState(() {}),
++                  ),
++                ),
++                const SizedBox(width: 12),
++                DropdownButton<String>(
++                  value: _selectedCategory,
++                  items: const [
++                    DropdownMenuItem(value: 'todas', child: Text('Todas as Categorias')),
++                    DropdownMenuItem(value: 'cabeca', child: Text('Cabeça')),
++                    DropdownMenuItem(value: 'ocular', child: Text('Olhos/Face')),
++                    DropdownMenuItem(value: 'auditiva', child: Text('Auditiva')),
++                    DropdownMenuItem(value: 'respiratoria', child: Text('Respiratória')),
++                    DropdownMenuItem(value: 'maos_bracos', child: Text('Membros Sup.')),
++                    DropdownMenuItem(value: 'pes_pernas', child: Text('Membros Inf.')),
++                    DropdownMenuItem(value: 'altura', child: Text('Quedas/Altura')),
++                    DropdownMenuItem(value: 'outros', child: Text('Outros')),
++                  ],
++                  onChanged: (val) {
++                    if (val != null) setState(() => _selectedCategory = val);
++                  },
++                ),
++                const SizedBox(width: 12),
++                DropdownButton<String>(
++                  value: _statusFilter,
++                  items: const [
++                    DropdownMenuItem(value: 'todos', child: Text('Todos os Status')),
++                    DropdownMenuItem(value: 'ativos', child: Text('Apenas Ativos')),
++                    DropdownMenuItem(value: 'ca_vencido', child: Text('C.A. Vencido')),
++                    DropdownMenuItem(value: 'ca_vencendo', child: Text('C.A. a Vencer (<30d)')),
++                  ],
++                  onChanged: (val) {
++                    if (val != null) setState(() => _statusFilter = val);
++                  },
++                ),
++              ],
++            ),
++          ),
++          Expanded(
++            child: episAsync.when(
++              data: (epis) {
++                final query = _searchController.text.trim().toLowerCase();
++                final filtered = epis.where((epi) {
++                  if (_selectedCategory != 'todas' && epi.categoria != _selectedCategory) {
++                    return false;
++                  }
++                  if (_statusFilter == 'ativos' && !epi.isActive) return false;
++                  if (_statusFilter == 'ca_vencido' && !epi.isCaVencido) return false;
++                  if (_statusFilter == 'ca_vencendo' && !epi.isCaProximoVencimento(30)) return false;
++
++                  if (query.isNotEmpty) {
++                    final nMatch = epi.nome.toLowerCase().contains(query);
++                    final fMatch = epi.fabricante.toLowerCase().contains(query);
++                    final caMatch = epi.caNumero.toLowerCase().contains(query);
++                    return nMatch || fMatch || caMatch;
++                  }
++                  return true;
++                }).toList();
++
++                if (filtered.isEmpty) {
++                  return Center(
++                    child: Column(
++                      mainAxisAlignment: MainAxisAlignment.center,
++                      children: [
++                        const Icon(Icons.shield_outlined, size: 64, color: Colors.grey),
++                        const SizedBox(height: 12),
++                        const Text(
++                          'Nenhum EPI encontrado com os filtros aplicados.',
++                          style: TextStyle(fontSize: 16, color: Colors.grey),
++                        ),
++                        const SizedBox(height: 12),
++                        ElevatedButton.icon(
++                          icon: const Icon(Icons.add),
++                          label: const Text('Cadastrar Primeiro EPI'),
++                          onPressed: () => _abrirFormulario(),
++                        ),
++                      ],
++                    ),
++                  );
++                }
++
++                return ListView.builder(
++                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
++                  itemCount: filtered.length,
++                  itemBuilder: (context, index) {
++                    final epi = filtered[index];
++                    return _buildEpiCard(epi);
++                  },
++                );
++              },
++              loading: () => const Center(child: CircularProgressIndicator()),
++              error: (err, stack) => Center(child: Text('Erro ao carregar catálogo: $err')),
++            ),
++          ),
++        ],
++      ),
++      floatingActionButton: FloatingActionButton.extended(
++        onPressed: () => _abrirFormulario(),
++        icon: const Icon(Icons.add),
++        label: const Text('Novo EPI'),
++      ),
++    );
++  }
++
++  Widget _buildEpiCard(EpiItem epi) {
++    Widget caBadge;
++    if (epi.isCaVencido) {
++      caBadge = Container(
++        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
++        decoration: BoxDecoration(
++          color: Colors.red.shade100,
++          borderRadius: BorderRadius.circular(12),
++          border: Border.all(color: Colors.red.shade400),
++        ),
++        child: Row(
++          mainAxisSize: MainAxisSize.min,
++          children: [
++            Icon(Icons.error, size: 14, color: Colors.red.shade800),
++            const SizedBox(width: 4),
++            Text('C.A. Vencido', style: TextStyle(color: Colors.red.shade900, fontSize: 11, fontWeight: FontWeight.bold)),
++          ],
++        ),
++      );
++    } else if (epi.isCaProximoVencimento(30)) {
++      caBadge = Container(
++        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
++        decoration: BoxDecoration(
++          color: Colors.amber.shade100,
++          borderRadius: BorderRadius.circular(12),
++          border: Border.all(color: Colors.amber.shade700),
++        ),
++        child: Row(
++          mainAxisSize: MainAxisSize.min,
++          children: [
++            Icon(Icons.warning_amber, size: 14, color: Colors.amber.shade900),
++            const SizedBox(width: 4),
++            Text('Vence em ${epi.diasParaVencer}d', style: TextStyle(color: Colors.amber.shade900, fontSize: 11, fontWeight: FontWeight.bold)),
++          ],
++        ),
++      );
++    } else {
++      caBadge = Container(
++        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
++        decoration: BoxDecoration(
++          color: Colors.green.shade100,
++          borderRadius: BorderRadius.circular(12),
++          border: Border.all(color: Colors.green.shade400),
++        ),
++        child: Row(
++          mainAxisSize: MainAxisSize.min,
++          children: [
++            Icon(Icons.check_circle, size: 14, color: Colors.green.shade800),
++            const SizedBox(width: 4),
++            Text('C.A. Válido', style: TextStyle(color: Colors.green.shade900, fontSize: 11, fontWeight: FontWeight.bold)),
++          ],
++        ),
++      );
++    }
++
++    final dataValStr =
++        '${epi.caValidade.day.toString().padLeft(2, '0')}/${epi.caValidade.month.toString().padLeft(2, '0')}/${epi.caValidade.year}';
++
++    return Card(
++      elevation: 2,
++      margin: const EdgeInsets.only(bottom: 8),
++      child: ListTile(
++        leading: CircleAvatar(
++          backgroundColor: epi.isActive ? Colors.blue.shade100 : Colors.grey.shade300,
++          child: Icon(
++            _getCategoryIcon(epi.categoria),
++            color: epi.isActive ? Colors.blue.shade900 : Colors.grey.shade600,
++          ),
++        ),
++        title: Row(
++          children: [
++            Expanded(
++              child: Text(
++                epi.nome,
++                style: TextStyle(
++                  fontWeight: FontWeight.bold,
++                  decoration: epi.isActive ? null : TextDecoration.lineThrough,
++                ),
++              ),
++            ),
++            const SizedBox(width: 8),
++            caBadge,
++          ],
++        ),
++        subtitle: Padding(
++          padding: const EdgeInsets.only(top: 4.0),
++          child: Column(
++            crossAxisAlignment: CrossAxisAlignment.start,
++            children: [
++              Text('${epi.categoriaFormatada} • Fabricante: ${epi.fabricante}'),
++              const SizedBox(height: 2),
++              Text(
++                'C.A.: ${epi.caNumero} (Validade: $dataValStr) • Vida Útil: ${epi.vidaUtilDias} dias • Unidade: ${epi.unidade}',
++                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
++              ),
++            ],
++          ),
++        ),
++        trailing: PopupMenuButton<String>(
++          onSelected: (val) async {
++            if (val == 'editar') {
++              _abrirFormulario(epi);
++            } else if (val == 'toggle_status') {
++              await ref
++                  .read(epiRepositoryProvider)
++                  .toggleEpiStatus(widget.construtoraId, epi.id, !epi.isActive);
++            }
++          },
++          itemBuilder: (ctx) => [
++            const PopupMenuItem(value: 'editar', child: Text('Editar')),
++            PopupMenuItem(
++              value: 'toggle_status',
++              child: Text(epi.isActive ? 'Inativar EPI' : 'Ativar EPI'),
++            ),
++          ],
++        ),
++      ),
++    );
++  }
++
++  IconData _getCategoryIcon(String cat) {
++    switch (cat) {
++      case 'cabeca':
++        return Icons.hardware;
++      case 'ocular':
++        return Icons.visibility;
++      case 'auditiva':
++        return Icons.hearing;
++      case 'respiratoria':
++        return Icons.masks;
++      case 'maos_bracos':
++        return Icons.front_hand;
++      case 'pes_pernas':
++        return Icons.do_not_step;
++      case 'altura':
++        return Icons.airline_seat_recline_extra;
++      default:
++        return Icons.security;
++    }
++  }
++}
+diff --git a/app/lib/src/features/epi/presentation/colaborador_epis_tab.dart b/app/lib/src/features/epi/presentation/colaborador_epis_tab.dart
+new file mode 100644
+index 0000000..9b14ed8
+--- /dev/null
++++ b/app/lib/src/features/epi/presentation/colaborador_epis_tab.dart
+@@ -0,0 +1,293 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import '../../authentication/data/auth_repository.dart';
++import '../data/epi_repository.dart';
++import '../domain/epi_event.dart';
++import 'entrega_epi_screen.dart';
++
++class ColaboradorEpisTab extends ConsumerWidget {
++  final String construtoraId;
++  final String obraId;
++  final String funcionarioId;
++  final String funcionarioNome;
++
++  const ColaboradorEpisTab({
++    super.key,
++    required this.construtoraId,
++    required this.obraId,
++    required this.funcionarioId,
++    required this.funcionarioNome,
++  });
++
++  void _abrirNovaEntrega(BuildContext context) {
++    Navigator.of(context).push(
++      MaterialPageRoute(
++        builder: (_) => EntregaEpiScreen(
++          construtoraId: construtoraId,
++          obraId: obraId,
++          preselectedFuncionarioId: funcionarioId,
++        ),
++      ),
++    );
++  }
++
++  void _confirmarBaixaOuDevolucao(
++    BuildContext context,
++    WidgetRef ref,
++    EpiEvent evento,
++    String tipo, // 'devolucao' ou 'baixa_descarte'
++  ) {
++    final motivoController = TextEditingController();
++    showDialog(
++      context: context,
++      builder: (ctx) => AlertDialog(
++        title: Text(tipo == 'devolucao' ? 'Registrar Devolução' : 'Registrar Baixa / Descarte'),
++        content: Column(
++          mainAxisSize: MainAxisSize.min,
++          children: [
++            Text('Confirmar ${tipo == 'devolucao' ? 'a devolução' : 'a baixa'} de: ${evento.epiNome} (C.A.: ${evento.caNumero})?'),
++            const SizedBox(height: 12),
++            TextField(
++              controller: motivoController,
++              decoration: const InputDecoration(
++                labelText: 'Motivo (opcional)',
++                hintText: 'Ex: Troca periódica, danificado, rescisão...',
++                border: OutlineInputBorder(),
++              ),
++            ),
++          ],
++        ),
++        actions: [
++          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
++          ElevatedButton(
++            onPressed: () async {
++              final user = ref.read(authRepositoryProvider).currentUser;
++              await ref.read(epiRepositoryProvider).registrarDevolucaoOuBaixa(
++                    construtoraId: construtoraId,
++                    obraId: obraId,
++                    eventoOriginalId: evento.id,
++                    tipoEvento: tipo,
++                    responsavelUid: user?.uid ?? 'sistema',
++                    responsavelNome: user?.displayName ?? 'Responsável',
++                    motivo: motivoController.text.trim().isEmpty ? null : motivoController.text.trim(),
++                  );
++              if (ctx.mounted) Navigator.of(ctx).pop();
++            },
++            child: const Text('Confirmar'),
++          ),
++        ],
++      ),
++    );
++  }
++
++  @override
++  Widget build(BuildContext context, WidgetRef ref) {
++    final eventsAsync = ref.watch(
++      epiEventsFuncionarioStreamProvider(
++        (construtoraId: construtoraId, obraId: obraId, funcionarioId: funcionarioId),
++      ),
++    );
++
++    final termosAsync = ref.watch(
++      termosFuncionarioStreamProvider(
++        (construtoraId: construtoraId, obraId: obraId, funcionarioId: funcionarioId),
++      ),
++    );
++
++    return SingleChildScrollView(
++      padding: const EdgeInsets.all(16.0),
++      child: Column(
++        crossAxisAlignment: CrossAxisAlignment.stretch,
++        children: [
++          Row(
++            mainAxisAlignment: MainAxisAlignment.spaceBetween,
++            children: [
++              Text(
++                'EPIs de $funcionarioNome',
++                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
++              ),
++              ElevatedButton.icon(
++                icon: const Icon(Icons.add_moderator),
++                label: const Text('Nova Entrega de EPI'),
++                onPressed: () => _abrirNovaEntrega(context),
++              ),
++            ],
++          ),
++          const SizedBox(height: 16),
++          const Text(
++            'Equipamentos Atualmente em Uso',
++            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
++          ),
++          const SizedBox(height: 8),
++          eventsAsync.when(
++            data: (events) {
++              final ativos = events.where((e) => e.status == 'ativo').toList();
++              if (ativos.isEmpty) {
++                return Card(
++                  elevation: 0,
++                  color: Colors.grey.shade100,
++                  child: const Padding(
++                    padding: EdgeInsets.all(24.0),
++                    child: Center(
++                      child: Text('Nenhum EPI ativo registrado para este colaborador no momento.'),
++                    ),
++                  ),
++                );
++              }
++
++              return ListView.builder(
++                shrinkWrap: true,
++                physics: const NeverScrollableScrollPhysics(),
++                itemCount: ativos.length,
++                itemBuilder: (ctx, i) {
++                  final ev = ativos[i];
++                  final dataEntregaStr =
++                      '${ev.dataEvento.day.toString().padLeft(2, '0')}/${ev.dataEvento.month.toString().padLeft(2, '0')}/${ev.dataEvento.year}';
++                  final dataTrocaStr = ev.dataTrocaPrevista != null
++                      ? '${ev.dataTrocaPrevista!.day.toString().padLeft(2, '0')}/${ev.dataTrocaPrevista!.month.toString().padLeft(2, '0')}/${ev.dataTrocaPrevista!.year}'
++                      : 'Não informada';
++
++                  return Card(
++                    margin: const EdgeInsets.only(bottom: 8),
++                    child: ListTile(
++                      leading: CircleAvatar(
++                        backgroundColor: ev.isTrocaVencida ? Colors.red.shade100 : Colors.green.shade100,
++                        child: Icon(
++                          Icons.security,
++                          color: ev.isTrocaVencida ? Colors.red.shade900 : Colors.green.shade900,
++                        ),
++                      ),
++                      title: Row(
++                        children: [
++                          Expanded(
++                            child: Text(
++                              '${ev.epiNome} (Qtd: ${ev.quantidade})',
++                              style: const TextStyle(fontWeight: FontWeight.bold),
++                            ),
++                          ),
++                          if (ev.isTrocaVencida)
++                            Container(
++                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
++                              decoration: BoxDecoration(
++                                color: Colors.red.shade100,
++                                borderRadius: BorderRadius.circular(8),
++                                border: Border.all(color: Colors.red),
++                              ),
++                              child: const Text('SUBSTITUIÇÃO VENCIDA', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
++                            ),
++                        ],
++                      ),
++                      subtitle: Text(
++                        'C.A.: ${ev.caNumero} • Entregue em: $dataEntregaStr • Troca prevista: $dataTrocaStr\nMotivo: ${ev.motivo ?? 'Não informado'}',
++                        style: const TextStyle(fontSize: 12),
++                      ),
++                      trailing: PopupMenuButton<String>(
++                        onSelected: (val) {
++                          if (val == 'devolver') {
++                            _confirmarBaixaOuDevolucao(context, ref, ev, 'devolucao');
++                          } else if (val == 'baixa') {
++                            _confirmarBaixaOuDevolucao(context, ref, ev, 'baixa_descarte');
++                          }
++                        },
++                        itemBuilder: (_) => [
++                          const PopupMenuItem(value: 'devolver', child: Text('Registrar Devolução')),
++                          const PopupMenuItem(value: 'baixa', child: Text('Registrar Descarte/Baixa')),
++                        ],
++                      ),
++                    ),
++                  );
++                },
++              );
++            },
++            loading: () => const LinearProgressIndicator(),
++            error: (err, _) => Text('Erro ao carregar EPIs: $err'),
++          ),
++          const SizedBox(height: 24),
++          const Text(
++            'Termos de Responsabilidade Assinados',
++            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
++          ),
++          const SizedBox(height: 8),
++          termosAsync.when(
++            data: (termos) {
++              if (termos.isEmpty) {
++                return const Card(
++                  elevation: 0,
++                  color: Colors.white,
++                  child: Padding(
++                    padding: EdgeInsets.all(16.0),
++                    child: Text('Nenhum termo digital assinado arquivado.'),
++                  ),
++                );
++              }
++
++              return ListView.builder(
++                shrinkWrap: true,
++                physics: const NeverScrollableScrollPhysics(),
++                itemCount: termos.length,
++                itemBuilder: (ctx, i) {
++                  final termo = termos[i];
++                  final dataStr =
++                      '${termo.dataAssinatura.day.toString().padLeft(2, '0')}/${termo.dataAssinatura.month.toString().padLeft(2, '0')}/${termo.dataAssinatura.year}';
++
++                  return Card(
++                    elevation: 1,
++                    margin: const EdgeInsets.only(bottom: 6),
++                    child: ListTile(
++                      leading: const Icon(Icons.assignment_turned_in, color: Colors.blue),
++                      title: Text('Termo assinado em $dataStr'),
++                      subtitle: Column(
++                        crossAxisAlignment: CrossAxisAlignment.start,
++                        children: [
++                          Text('Itens: ${termo.itens.map((it) => "${it['epiNome']} (CA ${it['caNumero']})").join(", ")}'),
++                          Text(
++                            'Hash SHA-256: ${termo.hashSha256.substring(0, 16)}...',
++                            style: TextStyle(fontFamily: 'monospace', fontSize: 10, color: Colors.grey.shade700),
++                          ),
++                        ],
++                      ),
++                      trailing: IconButton(
++                        icon: const Icon(Icons.info_outline),
++                        tooltip: 'Ver Termo Completo',
++                        onPressed: () {
++                          showDialog(
++                            context: context,
++                            builder: (_) => AlertDialog(
++                              title: Text('Termo de Responsabilidade - $dataStr'),
++                              content: SingleChildScrollView(
++                                child: Column(
++                                  crossAxisAlignment: CrossAxisAlignment.start,
++                                  children: [
++                                    Text('Colaborador: ${termo.funcionarioNome} (CPF: ${termo.funcionarioCpf})', style: const TextStyle(fontWeight: FontWeight.bold)),
++                                    const SizedBox(height: 8),
++                                    const Text('Itens Entregues:', style: TextStyle(fontWeight: FontWeight.bold)),
++                                    ...termo.itens.map((it) => Text('• ${it['epiNome']} - C.A. ${it['caNumero']} (Qtd: ${it['quantidade']})')),
++                                    const SizedBox(height: 12),
++                                    const Text('Texto Legal (NR-6 / CLT):', style: TextStyle(fontWeight: FontWeight.bold)),
++                                    Text(termo.textoLegal, style: const TextStyle(fontSize: 12)),
++                                    const SizedBox(height: 12),
++                                    Text('Hash SHA-256 Completo:\n${termo.hashSha256}', style: const TextStyle(fontFamily: 'monospace', fontSize: 10)),
++                                  ],
++                                ),
++                              ),
++                              actions: [
++                                TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar')),
++                              ],
++                            ),
++                          );
++                        },
++                      ),
++                    ),
++                  );
++                },
++              );
++            },
++            loading: () => const LinearProgressIndicator(),
++            error: (err, _) => Text('Erro ao carregar termos: $err'),
++          ),
++        ],
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/epi/presentation/entrega_epi_screen.dart b/app/lib/src/features/epi/presentation/entrega_epi_screen.dart
+new file mode 100644
+index 0000000..4bbb91c
+--- /dev/null
++++ b/app/lib/src/features/epi/presentation/entrega_epi_screen.dart
+@@ -0,0 +1,506 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:uuid/uuid.dart';
++
++import '../../authentication/data/auth_repository.dart';
++import '../../rh/data/rh_repository.dart';
++import '../../rh/domain/funcionario.dart';
++import '../data/epi_repository.dart';
++import '../domain/epi_event.dart';
++import '../domain/epi_item.dart';
++import '../domain/termo_epi.dart';
++
++class EntregaEpiScreen extends ConsumerStatefulWidget {
++  final String construtoraId;
++  final String obraId;
++  final String? preselectedFuncionarioId;
++
++  const EntregaEpiScreen({
++    super.key,
++    required this.construtoraId,
++    required this.obraId,
++    this.preselectedFuncionarioId,
++  });
++
++  @override
++  ConsumerState<EntregaEpiScreen> createState() => _EntregaEpiScreenState();
++}
++
++class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
++  final _formKey = GlobalKey<FormState>();
++  Funcionario? _selectedFuncionario;
++  EpiItem? _selectedEpi;
++  int _quantidade = 1;
++  String _motivo = 'Admissão';
++  final _obsController = TextEditingController();
++  final _justificativaCaController = TextEditingController();
++
++  final List<Offset?> _signaturePoints = [];
++  bool _isLoading = false;
++
++  final List<String> _motivosPadrao = [
++    'Admissão',
++    'Substituição Periódica (Vida Útil)',
++    'Desgaste / Dano Natural',
++    'Dano Acidental',
++    'Perda / Extravio',
++    'Mudança de Função / Nova Atividade',
++  ];
++
++  @override
++  void dispose() {
++    _obsController.dispose();
++    _justificativaCaController.dispose();
++    super.dispose();
++  }
++
++  bool get _isCaExpirado => _selectedEpi != null && _selectedEpi!.isCaVencido;
++
++  Future<void> _concluirEntrega() async {
++    if (!_formKey.currentState!.validate()) return;
++    if (_selectedFuncionario == null) {
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(content: Text('Selecione um colaborador'), backgroundColor: Colors.red),
++      );
++      return;
++    }
++    if (_selectedEpi == null) {
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(content: Text('Selecione um EPI do catálogo'), backgroundColor: Colors.red),
++      );
++      return;
++    }
++
++    if (_isCaExpirado && _justificativaCaController.text.trim().isEmpty) {
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(
++          content: Text('O C.A. deste EPI está vencido. É obrigatório registrar justificativa formal.'),
++          backgroundColor: Colors.red,
++        ),
++      );
++      return;
++    }
++
++    setState(() => _isLoading = true);
++    try {
++      final user = ref.read(authRepositoryProvider).currentUser;
++      final responsavelUid = user?.uid ?? 'sistema';
++      final responsavelNome = user?.displayName ?? 'Usuário Responsável';
++
++      final repo = ref.read(epiRepositoryProvider);
++      final eventId = const Uuid().v4();
++      final termoId = const Uuid().v4();
++
++      final dataAgora = DateTime.now();
++      final dataTrocaPrevista = _selectedEpi!.vidaUtilDias > 0
++          ? dataAgora.add(Duration(days: _selectedEpi!.vidaUtilDias))
++          : null;
++
++      final event = EpiEvent(
++        id: eventId,
++        construtoraId: widget.construtoraId,
++        obraId: widget.obraId,
++        funcionarioId: _selectedFuncionario!.id,
++        funcionarioNome: _selectedFuncionario!.name,
++        epiId: _selectedEpi!.id,
++        epiNome: _selectedEpi!.nome,
++        caNumero: _selectedEpi!.caNumero,
++        tipoEvento: _motivo.startsWith('Substituição') ? 'substituicao' : 'entrega',
++        quantidade: _quantidade,
++        motivo: _isCaExpirado
++            ? '$_motivo [C.A. Vencido Justificado: ${_justificativaCaController.text.trim()}]'
++            : _motivo,
++        dataEvento: dataAgora,
++        responsavelUid: responsavelUid,
++        responsavelNome: responsavelNome,
++        termoId: termoId,
++        status: 'ativo',
++        dataTrocaPrevista: dataTrocaPrevista,
++        observacoes: _obsController.text.trim().isEmpty ? null : _obsController.text.trim(),
++      );
++
++      final itensTermo = [
++        {
++          'epiNome': _selectedEpi!.nome,
++          'caNumero': _selectedEpi!.caNumero,
++          'quantidade': _quantidade,
++          'dataEntrega': dataAgora.toIso8601String().split('T').first,
++        }
++      ];
++
++      final termo = TermoEpi(
++        id: termoId,
++        construtoraId: widget.construtoraId,
++        obraId: widget.obraId,
++        funcionarioId: _selectedFuncionario!.id,
++        funcionarioNome: _selectedFuncionario!.name,
++        funcionarioCpf: _selectedFuncionario!.cpf,
++        itens: itensTermo,
++        tipoConfirmacao: _signaturePoints.isNotEmpty ? 'assinatura_canvas' : 'confirmacao_presencial',
++        dataAssinatura: dataAgora,
++        responsavelUid: responsavelUid,
++      );
++
++      await repo.registrarEntrega(
++        event: event,
++        termo: termo,
++        assinaturaBytes: null, // Caso precise salvar bitmap futuramente
++      );
++
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          const SnackBar(
++            content: Text('EPI entregue e Termo de Responsabilidade gerado com sucesso!'),
++            backgroundColor: Colors.green,
++          ),
++        );
++        Navigator.of(context).pop(true);
++      }
++    } catch (e) {
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text('Erro ao registrar entrega: $e'), backgroundColor: Colors.red),
++        );
++      }
++    } finally {
++      if (mounted) setState(() => _isLoading = false);
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final funcionariosAsync = ref.watch(funcionariosStreamProvider(widget.construtoraId));
++    final episAsync = ref.watch(catalogoEpisStreamProvider(widget.construtoraId));
++
++    return Scaffold(
++      appBar: AppBar(
++        title: const Text('Entrega de EPI'),
++      ),
++      body: SingleChildScrollView(
++        padding: const EdgeInsets.all(16.0),
++        child: Form(
++          key: _formKey,
++          child: Column(
++            crossAxisAlignment: CrossAxisAlignment.stretch,
++            children: [
++              Card(
++                elevation: 2,
++                child: Padding(
++                  padding: const EdgeInsets.all(16.0),
++                  child: Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      const Text(
++                        '1. Colaborador Destinatário',
++                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
++                      ),
++                      const SizedBox(height: 12),
++                      funcionariosAsync.when(
++                        data: (funcionarios) {
++                          final ativos = funcionarios.where((f) => f.isActive).toList();
++
++                          if (_selectedFuncionario == null && widget.preselectedFuncionarioId != null) {
++                            final match = ativos.where((f) => f.id == widget.preselectedFuncionarioId);
++                            if (match.isNotEmpty) {
++                              _selectedFuncionario = match.first;
++                            }
++                          }
++
++                          return DropdownButtonFormField<Funcionario>(
++                            initialValue: _selectedFuncionario,
++                            decoration: const InputDecoration(
++                              labelText: 'Selecione o Colaborador *',
++                              border: OutlineInputBorder(),
++                            ),
++                            items: ativos
++                                .map((f) => DropdownMenuItem(
++                                      value: f,
++                                      child: Text('${f.name} (CPF: ${f.cpf}) • ${f.role}'),
++                                    ))
++                                .toList(),
++                            onChanged: (val) => setState(() => _selectedFuncionario = val),
++                            validator: (v) => v == null ? 'Colaborador obrigatório' : null,
++                          );
++                        },
++                        loading: () => const LinearProgressIndicator(),
++                        error: (err, _) => Text('Erro ao carregar colaboradores: $err'),
++                      ),
++                    ],
++                  ),
++                ),
++              ),
++              const SizedBox(height: 16),
++              Card(
++                elevation: 2,
++                child: Padding(
++                  padding: const EdgeInsets.all(16.0),
++                  child: Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      const Text(
++                        '2. Equipamento (EPI) e Quantidade',
++                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
++                      ),
++                      const SizedBox(height: 12),
++                      episAsync.when(
++                        data: (epis) {
++                          final ativos = epis.where((e) => e.isActive).toList();
++                          return DropdownButtonFormField<EpiItem>(
++                            initialValue: _selectedEpi,
++                            decoration: const InputDecoration(
++                              labelText: 'Selecione o EPI do Catálogo *',
++                              border: OutlineInputBorder(),
++                            ),
++                            items: ativos
++                                .map((e) => DropdownMenuItem(
++                                      value: e,
++                                      child: Text('${e.nome} • C.A.: ${e.caNumero} (${e.categoriaFormatada})'),
++                                    ))
++                                .toList(),
++                            onChanged: (val) => setState(() => _selectedEpi = val),
++                            validator: (v) => v == null ? 'EPI obrigatório' : null,
++                          );
++                        },
++                        loading: () => const LinearProgressIndicator(),
++                        error: (err, _) => Text('Erro ao carregar catálogo: $err'),
++                      ),
++                      if (_selectedEpi != null) ...[
++                        const SizedBox(height: 8),
++                        Row(
++                          children: [
++                            Text('Fabricante: ${_selectedEpi!.fabricante} • C.A.: ${_selectedEpi!.caNumero}'),
++                            const SizedBox(width: 8),
++                            _isCaExpirado
++                                ? Container(
++                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
++                                    decoration: BoxDecoration(
++                                      color: Colors.red.shade100,
++                                      borderRadius: BorderRadius.circular(8),
++                                      border: Border.all(color: Colors.red),
++                                    ),
++                                    child: const Text('C.A. EXPIRADO', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
++                                  )
++                                : Container(
++                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
++                                    decoration: BoxDecoration(
++                                      color: Colors.green.shade100,
++                                      borderRadius: BorderRadius.circular(8),
++                                      border: Border.all(color: Colors.green),
++                                    ),
++                                    child: const Text('C.A. VÁLIDO', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
++                                  ),
++                          ],
++                        ),
++                      ],
++                      if (_isCaExpirado) ...[
++                        const SizedBox(height: 12),
++                        Container(
++                          padding: const EdgeInsets.all(12),
++                          decoration: BoxDecoration(
++                            color: Colors.red.shade50,
++                            border: Border.all(color: Colors.red.shade300),
++                            borderRadius: BorderRadius.circular(8),
++                          ),
++                          child: Column(
++                            crossAxisAlignment: CrossAxisAlignment.start,
++                            children: [
++                              Row(
++                                children: [
++                                  Icon(Icons.error_outline, color: Colors.red.shade800),
++                                  const SizedBox(width: 8),
++                                  const Text('Atenção: Validade de C.A. Expirada', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
++                                ],
++                              ),
++                              const SizedBox(height: 6),
++                              const Text(
++                                'A entrega de EPI com C.A. expirado viola a NR-6 e só pode ser efetuada sob estrita justificativa formal de segurança.',
++                                style: TextStyle(fontSize: 12),
++                              ),
++                              const SizedBox(height: 8),
++                              TextFormField(
++                                controller: _justificativaCaController,
++                                decoration: const InputDecoration(
++                                  labelText: 'Justificativa de Segurança Obrigatória *',
++                                  hintText: 'Ex: Lote fabricado durante vigência do CA com laudo técnico.',
++                                  border: OutlineInputBorder(),
++                                  isDense: true,
++                                ),
++                                validator: (v) {
++                                  if (_isCaExpirado && (v == null || v.trim().isEmpty)) {
++                                    return 'Justificativa obrigatória para C.A. vencido';
++                                  }
++                                  return null;
++                                },
++                              ),
++                            ],
++                          ),
++                        ),
++                      ],
++                      const SizedBox(height: 12),
++                      Row(
++                        children: [
++                          Expanded(
++                            child: DropdownButtonFormField<String>(
++                              initialValue: _motivo,
++                              decoration: const InputDecoration(labelText: 'Motivo da Entrega *'),
++                              items: _motivosPadrao
++                                  .map((m) => DropdownMenuItem(value: m, child: Text(m)))
++                                  .toList(),
++                              onChanged: (val) {
++                                if (val != null) setState(() => _motivo = val);
++                              },
++                            ),
++                          ),
++                          const SizedBox(width: 12),
++                          SizedBox(
++                            width: 120,
++                            child: TextFormField(
++                              initialValue: '1',
++                              keyboardType: TextInputType.number,
++                              decoration: const InputDecoration(labelText: 'Quantidade *'),
++                              validator: (v) {
++                                final n = int.tryParse(v ?? '');
++                                if (n == null || n <= 0) return 'Qtd inválida';
++                                return null;
++                              },
++                              onChanged: (v) => _quantidade = int.tryParse(v) ?? 1,
++                            ),
++                          ),
++                        ],
++                      ),
++                      const SizedBox(height: 12),
++                      TextFormField(
++                        controller: _obsController,
++                        decoration: const InputDecoration(
++                          labelText: 'Observações Adicionais',
++                          hintText: 'Numeração, tamanho, detalhes de ajuste...',
++                        ),
++                      ),
++                    ],
++                  ),
++                ),
++              ),
++              const SizedBox(height: 16),
++              Card(
++                elevation: 2,
++                child: Padding(
++                  padding: const EdgeInsets.all(16.0),
++                  child: Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      const Text(
++                        '3. Termo de Responsabilidade (NR-6 / CLT)',
++                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
++                      ),
++                      const SizedBox(height: 8),
++                      Container(
++                        padding: const EdgeInsets.all(12),
++                        decoration: BoxDecoration(
++                          color: Colors.grey.shade100,
++                          borderRadius: BorderRadius.circular(8),
++                          border: Border.all(color: Colors.grey.shade300),
++                        ),
++                        child: const Text(
++                          TermoEpi.termoPadraoNr6,
++                          style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.black87),
++                        ),
++                      ),
++                      const SizedBox(height: 16),
++                      Row(
++                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                        children: [
++                          const Text(
++                            'Assinatura do Colaborador (Canvas Touch / Mouse):',
++                            style: TextStyle(fontWeight: FontWeight.bold),
++                          ),
++                          TextButton.icon(
++                            icon: const Icon(Icons.clear, size: 16),
++                            label: const Text('Limpar Assinatura'),
++                            onPressed: () {
++                              setState(() => _signaturePoints.clear());
++                            },
++                          ),
++                        ],
++                      ),
++                      const SizedBox(height: 8),
++                      Container(
++                        height: 140,
++                        decoration: BoxDecoration(
++                          color: Colors.white,
++                          borderRadius: BorderRadius.circular(8),
++                          border: Border.all(color: Colors.grey.shade400),
++                        ),
++                        child: ClipRRect(
++                          borderRadius: BorderRadius.circular(8),
++                          child: GestureDetector(
++                            onPanUpdate: (details) {
++                              setState(() {
++                                final renderBox = context.findRenderObject() as RenderBox?;
++                                if (renderBox != null) {
++                                  _signaturePoints.add(details.localPosition);
++                                }
++                              });
++                            },
++                            onPanEnd: (_) => _signaturePoints.add(null),
++                            child: CustomPaint(
++                              painter: _SignaturePainter(_signaturePoints),
++                              size: Size.infinite,
++                            ),
++                          ),
++                        ),
++                      ),
++                      const SizedBox(height: 4),
++                      const Text(
++                        '* O sistema gera o hash criptográfico SHA-256 do termo assinado para validação jurídica.',
++                        style: TextStyle(fontSize: 11, color: Colors.grey),
++                      ),
++                    ],
++                  ),
++                ),
++              ),
++              const SizedBox(height: 24),
++              ElevatedButton.icon(
++                style: ElevatedButton.styleFrom(
++                  padding: const EdgeInsets.symmetric(vertical: 16),
++                  backgroundColor: Colors.blue.shade800,
++                  foregroundColor: Colors.white,
++                ),
++                onPressed: _isLoading ? null : _concluirEntrega,
++                icon: _isLoading
++                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
++                    : const Icon(Icons.check),
++                label: Text(
++                  _isLoading ? 'Registrando...' : 'Confirmar Entrega e Assinatura do Termo',
++                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
++                ),
++              ),
++            ],
++          ),
++        ),
++      ),
++    );
++  }
++}
++
++class _SignaturePainter extends CustomPainter {
++  final List<Offset?> points;
++
++  _SignaturePainter(this.points);
++
++  @override
++  void paint(Canvas canvas, Size size) {
++    final paint = Paint()
++      ..color = Colors.black87
++      ..strokeCap = StrokeCap.round
++      ..strokeWidth = 3.0;
++
++    for (int i = 0; i < points.length - 1; i++) {
++      if (points[i] != null && points[i + 1] != null) {
++        canvas.drawLine(points[i]!, points[i + 1]!, paint);
++      }
++    }
++  }
++
++  @override
++  bool shouldRepaint(_SignaturePainter oldDelegate) => true;
++}
+diff --git a/app/lib/src/features/epi/presentation/epi_form_dialog.dart b/app/lib/src/features/epi/presentation/epi_form_dialog.dart
+new file mode 100644
+index 0000000..2f58ada
+--- /dev/null
++++ b/app/lib/src/features/epi/presentation/epi_form_dialog.dart
+@@ -0,0 +1,294 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:uuid/uuid.dart';
++
++import '../data/epi_repository.dart';
++import '../domain/epi_item.dart';
++
++class EpiFormDialog extends ConsumerStatefulWidget {
++  final String construtoraId;
++  final EpiItem? initialItem;
++
++  const EpiFormDialog({
++    super.key,
++    required this.construtoraId,
++    this.initialItem,
++  });
++
++  @override
++  ConsumerState<EpiFormDialog> createState() => _EpiFormDialogState();
++}
++
++class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
++  final _formKey = GlobalKey<FormState>();
++  late final TextEditingController _nomeController;
++  late final TextEditingController _fabricanteController;
++  late final TextEditingController _caNumeroController;
++  late final TextEditingController _vidaUtilController;
++  late final TextEditingController _descricaoController;
++
++  late String _categoria;
++  late String _unidade;
++  late DateTime _caValidade;
++  bool _isLoading = false;
++
++  final List<Map<String, String>> _categorias = [
++    {'value': 'cabeca', 'label': 'Proteção da Cabeça (Capacetes, Carneiras)'},
++    {'value': 'ocular', 'label': 'Proteção dos Olhos/Face (Óculos, Viseiras)'},
++    {'value': 'auditiva', 'label': 'Proteção Auditiva (Protetores, Abafadores)'},
++    {'value': 'respiratoria', 'label': 'Proteção Respiratória (Máscaras, Respiradores)'},
++    {'value': 'maos_bracos', 'label': 'Membros Superiores (Luvas, Mangotes)'},
++    {'value': 'pes_pernas', 'label': 'Membros Inferiores (Botinas, Perneiras)'},
++    {'value': 'altura', 'label': 'Proteção contra Quedas (Cintos, Talabartes)'},
++    {'value': 'outros', 'label': 'Outros Equipamentos'},
++  ];
++
++  @override
++  void initState() {
++    super.initState();
++    final item = widget.initialItem;
++    _nomeController = TextEditingController(text: item?.nome ?? '');
++    _fabricanteController = TextEditingController(text: item?.fabricante ?? '');
++    _caNumeroController = TextEditingController(text: item?.caNumero ?? '');
++    _vidaUtilController = TextEditingController(text: item != null ? item.vidaUtilDias.toString() : '180');
++    _descricaoController = TextEditingController(text: item?.descricao ?? '');
++
++    _categoria = item?.categoria ?? 'cabeca';
++    _unidade = item?.unidade ?? 'un';
++    _caValidade = item?.caValidade ?? DateTime.now().add(const Duration(days: 365));
++  }
++
++  @override
++  void dispose() {
++    _nomeController.dispose();
++    _fabricanteController.dispose();
++    _caNumeroController.dispose();
++    _vidaUtilController.dispose();
++    _descricaoController.dispose();
++    super.dispose();
++  }
++
++  bool get _isCaVencido {
++    final now = DateTime.now();
++    final today = DateTime(now.year, now.month, now.day);
++    return _caValidade.isBefore(today);
++  }
++
++  Future<void> _selecionarDataValidade() async {
++    final picked = await showDatePicker(
++      context: context,
++      initialDate: _caValidade,
++      firstDate: DateTime(2000),
++      lastDate: DateTime(2050),
++      helpText: 'Data de Validade do C.A.',
++    );
++    if (picked != null) {
++      setState(() => _caValidade = picked);
++    }
++  }
++
++  Future<void> _salvar() async {
++    if (!_formKey.currentState!.validate()) return;
++
++    setState(() => _isLoading = true);
++    try {
++      final repo = ref.read(epiRepositoryProvider);
++      final id = widget.initialItem?.id ?? const Uuid().v4();
++      final item = EpiItem(
++        id: id,
++        construtoraId: widget.construtoraId,
++        nome: _nomeController.text.trim(),
++        fabricante: _fabricanteController.text.trim(),
++        categoria: _categoria,
++        caNumero: _caNumeroController.text.trim(),
++        caValidade: _caValidade,
++        vidaUtilDias: int.tryParse(_vidaUtilController.text.trim()) ?? 180,
++        unidade: _unidade,
++        descricao: _descricaoController.text.trim().isEmpty ? null : _descricaoController.text.trim(),
++        isActive: widget.initialItem?.isActive ?? true,
++      );
++
++      await repo.saveEpiItem(item);
++      if (mounted) {
++        Navigator.of(context).pop(true);
++      }
++    } catch (e) {
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text('Erro ao salvar EPI: $e'), backgroundColor: Colors.red),
++        );
++      }
++    } finally {
++      if (mounted) setState(() => _isLoading = false);
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final isEditing = widget.initialItem != null;
++
++    return AlertDialog(
++      title: Text(isEditing ? 'Editar EPI' : 'Novo EPI no Catálogo'),
++      content: SingleChildScrollView(
++        child: SizedBox(
++          width: 500,
++          child: Form(
++            key: _formKey,
++            child: Column(
++              mainAxisSize: MainAxisSize.min,
++              crossAxisAlignment: CrossAxisAlignment.stretch,
++              children: [
++                TextFormField(
++                  controller: _nomeController,
++                  decoration: const InputDecoration(
++                    labelText: 'Nome do EPI *',
++                    hintText: 'Ex: Capacete de Segurança Aba Frontal',
++                  ),
++                  validator: (v) => v == null || v.trim().isEmpty ? 'Nome é obrigatório' : null,
++                ),
++                const SizedBox(height: 12),
++                Row(
++                  children: [
++                    Expanded(
++                      flex: 2,
++                      child: TextFormField(
++                        controller: _fabricanteController,
++                        decoration: const InputDecoration(
++                          labelText: 'Fabricante *',
++                          hintText: 'Ex: MSA, 3M, Danny',
++                        ),
++                        validator: (v) => v == null || v.trim().isEmpty ? 'Fabricante é obrigatório' : null,
++                      ),
++                    ),
++                    const SizedBox(width: 12),
++                    Expanded(
++                      flex: 1,
++                      child: DropdownButtonFormField<String>(
++                        initialValue: _unidade,
++                        decoration: const InputDecoration(labelText: 'Unidade'),
++                        items: const [
++                          DropdownMenuItem(value: 'un', child: Text('Unidade (un)')),
++                          DropdownMenuItem(value: 'par', child: Text('Par (par)')),
++                          DropdownMenuItem(value: 'kit', child: Text('Kit (kit)')),
++                        ],
++                        onChanged: (val) {
++                          if (val != null) setState(() => _unidade = val);
++                        },
++                      ),
++                    ),
++                  ],
++                ),
++                const SizedBox(height: 12),
++                DropdownButtonFormField<String>(
++                  initialValue: _categoria,
++                  decoration: const InputDecoration(labelText: 'Categoria de Proteção *'),
++                  items: _categorias
++                      .map((cat) => DropdownMenuItem(value: cat['value'], child: Text(cat['label']!)))
++                      .toList(),
++                  onChanged: (val) {
++                    if (val != null) setState(() => _categoria = val);
++                  },
++                ),
++                const SizedBox(height: 12),
++                Row(
++                  children: [
++                    Expanded(
++                      child: TextFormField(
++                        controller: _caNumeroController,
++                        decoration: const InputDecoration(
++                          labelText: 'Número do C.A. *',
++                          hintText: 'Ex: 12345',
++                        ),
++                        validator: (v) => v == null || v.trim().isEmpty ? 'Número de C.A. obrigatório' : null,
++                      ),
++                    ),
++                    const SizedBox(width: 12),
++                    Expanded(
++                      child: InkWell(
++                        onTap: _selecionarDataValidade,
++                        child: InputDecorator(
++                          decoration: const InputDecoration(
++                            labelText: 'Validade C.A. *',
++                            suffixIcon: Icon(Icons.calendar_today, size: 20),
++                          ),
++                          child: Text(
++                            '${_caValidade.day.toString().padLeft(2, '0')}/${_caValidade.month.toString().padLeft(2, '0')}/${_caValidade.year}',
++                            style: TextStyle(
++                              color: _isCaVencido ? Colors.red : null,
++                              fontWeight: _isCaVencido ? FontWeight.bold : null,
++                            ),
++                          ),
++                        ),
++                      ),
++                    ),
++                  ],
++                ),
++                if (_isCaVencido)
++                  Padding(
++                    padding: const EdgeInsets.only(top: 8.0),
++                    child: Container(
++                      padding: const EdgeInsets.all(8),
++                      decoration: BoxDecoration(
++                        color: Colors.amber.shade100,
++                        borderRadius: BorderRadius.circular(4),
++                        border: Border.all(color: Colors.amber.shade700),
++                      ),
++                      child: Row(
++                        children: [
++                          Icon(Icons.warning_amber, color: Colors.amber.shade900, size: 20),
++                          const SizedBox(width: 8),
++                          Expanded(
++                            child: Text(
++                              'Atenção: Este C.A. está expirado! Itens com C.A. vencido exigirão autorização especial na entrega.',
++                              style: TextStyle(color: Colors.amber.shade900, fontSize: 12),
++                            ),
++                          ),
++                        ],
++                      ),
++                    ),
++                  ),
++                const SizedBox(height: 12),
++                TextFormField(
++                  controller: _vidaUtilController,
++                  keyboardType: TextInputType.number,
++                  decoration: const InputDecoration(
++                    labelText: 'Vida Útil Estimada (dias)',
++                    hintText: 'Ex: 180',
++                    helperText: 'Periodicidade sugerida para substituição preventiva',
++                  ),
++                  validator: (v) {
++                    if (v == null || v.isEmpty) return null;
++                    final n = int.tryParse(v);
++                    if (n == null || n <= 0) return 'Informe dias válidos';
++                    return null;
++                  },
++                ),
++                const SizedBox(height: 12),
++                TextFormField(
++                  controller: _descricaoController,
++                  maxLines: 2,
++                  decoration: const InputDecoration(
++                    labelText: 'Descrição / Observações',
++                    hintText: 'Instruções de conservação, detalhes técnicos, etc.',
++                  ),
++                ),
++              ],
++            ),
++          ),
++        ),
++      ),
++      actions: [
++        TextButton(
++          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
++          child: const Text('Cancelar'),
++        ),
++        ElevatedButton(
++          onPressed: _isLoading ? null : _salvar,
++          child: _isLoading
++              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
++              : Text(isEditing ? 'Salvar Alterações' : 'Cadastrar EPI'),
++        ),
++      ],
++    );
++  }
++}
+diff --git a/app/lib/src/routing/app_router.dart b/app/lib/src/routing/app_router.dart
+index b0c64a8..f9c4bb3 100644
+--- a/app/lib/src/routing/app_router.dart
++++ b/app/lib/src/routing/app_router.dart
+@@ -32,6 +32,8 @@ import '../features/rh/presentation/funcionario_form_screen.dart';
+ import '../features/rh/domain/funcionario.dart';
+ import '../features/rh/presentation/chamadas_list_screen.dart';
+ import '../features/rh/presentation/chamada_form_screen.dart';
++import '../features/epi/presentation/catalogo_epis_screen.dart';
++import '../features/epi/presentation/entrega_epi_screen.dart';
+ 
+ final routerProvider = Provider<GoRouter>((ref) {
+   final authState = ref.watch(authStateChangesProvider);
+@@ -367,6 +369,33 @@ final routerProvider = Provider<GoRouter>((ref) {
+           );
+         },
+       ),
++      GoRoute(
++        path: '/construtora/:cId/epis',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'epi',
++            child: CatalogoEpisScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: '/construtora/:cId/obra/:oId/epis/entrega',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'epi',
++            child: EntregaEpiScreen(
++              construtoraId: cId,
++              obraId: oId,
++            ),
++          );
++        },
++      ),
+     ],
+   );
+ });
+diff --git a/app/test/epi_modulo_test.dart b/app/test/epi_modulo_test.dart
+new file mode 100644
+index 0000000..4ad5a97
+--- /dev/null
++++ b/app/test/epi_modulo_test.dart
+@@ -0,0 +1,236 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:app/src/features/epi/domain/epi_item.dart';
++import 'package:app/src/features/epi/domain/epi_event.dart';
++import 'package:app/src/features/epi/domain/termo_epi.dart';
++
++void main() {
++  group('EpiItem Domain Tests', () {
++    test('Identifica C.A. válido e vencido corretamente', () {
++      final now = DateTime.now();
++      final epiValido = EpiItem(
++        id: 'epi-1',
++        construtoraId: 'c1',
++        nome: 'Capacete Aba Frontal',
++        fabricante: 'MSA',
++        categoria: 'cabeca',
++        caNumero: '12345',
++        caValidade: now.add(const Duration(days: 100)),
++        vidaUtilDias: 180,
++      );
++
++      expect(epiValido.isCaVencido, isFalse);
++      expect(epiValido.isCaProximoVencimento(30), isFalse);
++      expect(epiValido.categoriaFormatada, 'Proteção da Cabeça');
++
++      final epiVencido = EpiItem(
++        id: 'epi-2',
++        construtoraId: 'c1',
++        nome: 'Luva de Vaqueta',
++        fabricante: 'Danny',
++        categoria: 'maos_bracos',
++        caNumero: '9999',
++        caValidade: now.subtract(const Duration(days: 10)),
++      );
++
++      expect(epiVencido.isCaVencido, isTrue);
++      expect(epiVencido.isCaProximoVencimento(30), isFalse);
++      expect(epiVencido.categoriaFormatada, 'Proteção dos Membros Superiores');
++
++      final epiVencendo = EpiItem(
++        id: 'epi-3',
++        construtoraId: 'c1',
++        nome: 'Óculos de Proteção',
++        fabricante: '3M',
++        categoria: 'ocular',
++        caNumero: '45678',
++        caValidade: now.add(const Duration(days: 15)),
++      );
++
++      expect(epiVencendo.isCaVencido, isFalse);
++      expect(epiVencendo.isCaProximoVencimento(30), isTrue);
++      expect(epiVencendo.diasParaVencer, inInclusiveRange(14, 16));
++    });
++
++    test('Serialização toMap e fromMap preserva integridade', () {
++      final validade = DateTime(2028, 5, 20);
++      final item = EpiItem(
++        id: 'epi-10',
++        construtoraId: 'c1',
++        nome: 'Botina com Bico de Aço',
++        fabricante: 'Marluvas',
++        categoria: 'pes_pernas',
++        caNumero: '34567',
++        caValidade: validade,
++        vidaUtilDias: 240,
++        unidade: 'par',
++        descricao: 'Solado bidensidade antiderrapante',
++      );
++
++      final map = item.toMap();
++      expect(map['nome'], 'Botina com Bico de Aço');
++      expect(map['caNumero'], '34567');
++      expect(map['unidade'], 'par');
++      expect(map['vidaUtilDias'], 240);
++
++      final reconstructed = EpiItem.fromMap(map, 'epi-10');
++      expect(reconstructed.id, 'epi-10');
++      expect(reconstructed.nome, item.nome);
++      expect(reconstructed.fabricante, item.fabricante);
++      expect(reconstructed.categoria, item.categoria);
++      expect(reconstructed.caNumero, item.caNumero);
++      expect(reconstructed.caValidade.year, 2028);
++      expect(reconstructed.caValidade.month, 5);
++      expect(reconstructed.caValidade.day, 20);
++    });
++  });
++
++  group('EpiEvent Domain Tests', () {
++    test('Criação e tipos de eventos de entrega e devolução', () {
++      final now = DateTime.now();
++      final eventoEntrega = EpiEvent(
++        id: 'ev-1',
++        construtoraId: 'c1',
++        obraId: 'o1',
++        funcionarioId: 'func-100',
++        funcionarioNome: 'João Silva',
++        epiId: 'epi-1',
++        epiNome: 'Capacete de Segurança',
++        caNumero: '12345',
++        tipoEvento: 'entrega',
++        quantidade: 1,
++        motivo: 'Admissão',
++        dataEvento: now,
++        responsavelUid: 'user-admin',
++        responsavelNome: 'Mestre Carlos',
++        dataTrocaPrevista: now.add(const Duration(days: 180)),
++        status: 'ativo',
++      );
++
++      expect(eventoEntrega.isEntrega, isTrue);
++      expect(eventoEntrega.isDevolvidoOuBaixado, isFalse);
++      expect(eventoEntrega.isTrocaVencida, isFalse);
++      expect(eventoEntrega.tipoEventoFormatado, 'Entrega Inicial');
++
++      final eventoDevolucao = EpiEvent(
++        id: 'ev-2',
++        construtoraId: 'c1',
++        obraId: 'o1',
++        funcionarioId: 'func-100',
++        funcionarioNome: 'João Silva',
++        epiId: 'epi-1',
++        epiNome: 'Capacete de Segurança',
++        caNumero: '12345',
++        tipoEvento: 'devolucao',
++        quantidade: 1,
++        motivo: 'Desligamento',
++        dataEvento: now,
++        responsavelUid: 'user-admin',
++        responsavelNome: 'Mestre Carlos',
++        status: 'devolvido',
++      );
++
++      expect(eventoDevolucao.isEntrega, isFalse);
++      expect(eventoDevolucao.isDevolvidoOuBaixado, isTrue);
++      expect(eventoDevolucao.tipoEventoFormatado, 'Devolução');
++    });
++
++    test('Identifica troca periódica vencida', () {
++      final now = DateTime.now();
++      final eventoVencido = EpiEvent(
++        id: 'ev-3',
++        construtoraId: 'c1',
++        obraId: 'o1',
++        funcionarioId: 'func-100',
++        funcionarioNome: 'João Silva',
++        epiId: 'epi-1',
++        epiNome: 'Respirador Semi-Facial',
++        caNumero: '5555',
++        tipoEvento: 'entrega',
++        dataEvento: now.subtract(const Duration(days: 90)),
++        responsavelUid: 'user-admin',
++        responsavelNome: 'Mestre Carlos',
++        dataTrocaPrevista: now.subtract(const Duration(days: 5)),
++        status: 'ativo',
++      );
++
++      expect(eventoVencido.isTrocaVencida, isTrue);
++
++      // Se foi devolvido ou baixado, não deve acusar troca pendente
++      final eventoBaixado = eventoVencido.copyWith(status: 'baixado');
++      expect(eventoBaixado.isTrocaVencida, isFalse);
++    });
++  });
++
++  group('TermoEpi Domain Tests', () {
++    test('Geração determinística de hash SHA-256 e integridade', () {
++      final dataAssinatura = DateTime(2026, 9, 18, 10, 30);
++      final itens = [
++        {'epiNome': 'Capacete', 'caNumero': '12345', 'quantidade': 1},
++        {'epiNome': 'Botina', 'caNumero': '67890', 'quantidade': 1},
++      ];
++
++      final termo1 = TermoEpi(
++        id: 'termo-1',
++        construtoraId: 'c1',
++        obraId: 'o1',
++        funcionarioId: 'func-1',
++        funcionarioNome: 'Sebastião Souza',
++        funcionarioCpf: '123.456.789-00',
++        itens: itens,
++        dataAssinatura: dataAssinatura,
++        responsavelUid: 'resp-1',
++      );
++
++      final hashOriginal = termo1.hashSha256;
++      expect(hashOriginal, isNotEmpty);
++      expect(hashOriginal.length, 64); // SHA-256 hex possui 64 chars
++
++      // Mesmo payload deve gerar hash idêntico
++      final hashRepetido = TermoEpi.gerarHash(
++        funcionarioCpf: '123.456.789-00',
++        dataAssinatura: dataAssinatura,
++        itens: itens,
++        texto: termo1.textoLegal,
++      );
++      expect(hashRepetido, equals(hashOriginal));
++
++      // Qualquer alteração nos itens ou CPF deve alterar o hash
++      final hashAdulterado = TermoEpi.gerarHash(
++        funcionarioCpf: '999.999.999-99',
++        dataAssinatura: dataAssinatura,
++        itens: itens,
++        texto: termo1.textoLegal,
++      );
++      expect(hashAdulterado, isNot(equals(hashOriginal)));
++    });
++
++    test('Serialização toMap e fromMap de TermoEpi', () {
++      final termo = TermoEpi(
++        id: 't-100',
++        construtoraId: 'c1',
++        obraId: 'o1',
++        funcionarioId: 'func-2',
++        funcionarioNome: 'Antônio Ferreira',
++        funcionarioCpf: '222.333.444-55',
++        itens: [
++          {'epiNome': 'Protetor Auditivo', 'caNumero': '1111', 'quantidade': 2}
++        ],
++        tipoConfirmacao: 'assinatura_canvas',
++        assinaturaStoragePath: 'construtoras/c1/obras/o1/epis/func-2/ass.png',
++        dataAssinatura: DateTime(2026, 9, 18),
++        responsavelUid: 'admin-1',
++      );
++
++      final map = termo.toMap();
++      expect(map['funcionarioNome'], 'Antônio Ferreira');
++      expect(map['tipoConfirmacao'], 'assinatura_canvas');
++      expect(map['assinaturaStoragePath'], contains('ass.png'));
++
++      final reconstructed = TermoEpi.fromMap(map, 't-100');
++      expect(reconstructed.id, 't-100');
++      expect(reconstructed.funcionarioCpf, termo.funcionarioCpf);
++      expect(reconstructed.itens.first['epiNome'], 'Protetor Auditivo');
++      expect(reconstructed.hashSha256, termo.hashSha256);
++    });
++  });
++}
+diff --git a/firestore.rules b/firestore.rules
+index 8c644aa..1d5ad88 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -14,6 +14,7 @@ service cloud.firestore {
+    function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]))); }
+    function stock(c) { return admin(c) || (member(c) && ('estoque' in cm(c).get('modules',[]) || 'almoxarifado' in cm(c).get('modules',[]))); }
+    function rh(c) { return admin(c) || (member(c) && ('rh' in cm(c).get('modules',[]) || 'recursos_humanos' in cm(c).get('modules',[]))); }
++   function epi(c) { return admin(c) || (member(c) && ('epi' in cm(c).get('modules',[]))); }
+   match /dev_roles/{uid} {
+     allow read: if signed() && (request.auth.uid == uid || dev());
+     allow create: if signed() && request.auth.uid == uid && (
+@@ -46,6 +47,11 @@ service cloud.firestore {
+     allow create, update: if rh(c) && request.resource.data.id == e && request.resource.data.construtoraId == c;
+     allow delete: if false;
+    }
++   match /catalogo_epis/{epiId} {
++    allow read: if member(c);
++    allow create, update: if (admin(c) || epi(c)) && request.resource.data.id == epiId && request.resource.data.construtoraId == c;
++    allow delete: if false;
++   }
+    match /materiais/{m} {
+     allow read: if stock(c);
+     allow create: if stock(c) && request.resource.data.keys().hasOnly(['id','construtoraId','name','unit','currentQuantity','quantityUnits','quantityScale','schemaVersion']) && request.resource.data.id == m && request.resource.data.construtoraId == c && request.resource.data.currentQuantity == 0 && request.resource.data.quantityUnits == 0 && request.resource.data.quantityScale == 1000 && request.resource.data.schemaVersion == 2;
+@@ -84,6 +90,22 @@ service cloud.firestore {
+        && (request.resource.data.status != 'retificada' || (request.resource.data.motivoRetificacao is string && request.resource.data.motivoRetificacao.size() >= 10));
+      allow delete: if false;
+     }
++    match /epi_events/{evId} {
++     allow read: if admin(c) || obraMember(c,o);
++     allow create, update: if (module(c,o,'epi') || epi(c))
++       && request.resource.data.id == evId
++       && request.resource.data.construtoraId == c
++       && request.resource.data.obraId == o;
++     allow delete: if false;
++    }
++    match /termos_epi/{tId} {
++     allow read: if admin(c) || obraMember(c,o);
++     allow create, update: if (module(c,o,'epi') || epi(c))
++       && request.resource.data.id == tId
++       && request.resource.data.construtoraId == c
++       && request.resource.data.obraId == o;
++     allow delete: if false;
++    }
+    }
+   }
+   match /{path=**}/construtora_members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }

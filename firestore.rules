@@ -14,6 +14,7 @@ service cloud.firestore {
    function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]))); }
    function stock(c) { return admin(c) || (member(c) && ('estoque' in cm(c).get('modules',[]) || 'almoxarifado' in cm(c).get('modules',[]))); }
    function rh(c) { return admin(c) || (member(c) && ('rh' in cm(c).get('modules',[]) || 'recursos_humanos' in cm(c).get('modules',[]))); }
+   function epi(c) { return admin(c) || (member(c) && ('epi' in cm(c).get('modules',[]))); }
   match /dev_roles/{uid} {
     allow read: if signed() && (request.auth.uid == uid || dev());
     allow create: if signed() && request.auth.uid == uid && (
@@ -44,6 +45,11 @@ service cloud.firestore {
    match /equipes/{e} {
     allow read: if rh(c);
     allow create, update: if rh(c) && request.resource.data.id == e && request.resource.data.construtoraId == c;
+    allow delete: if false;
+   }
+   match /catalogo_epis/{epiId} {
+    allow read: if member(c);
+    allow create, update: if (admin(c) || epi(c)) && request.resource.data.id == epiId && request.resource.data.construtoraId == c;
     allow delete: if false;
    }
    match /materiais/{m} {
@@ -82,6 +88,22 @@ service cloud.firestore {
        && (!('totalDayCostCents' in request.resource.data) || (request.resource.data.totalDayCostCents is int && request.resource.data.totalDayCostCents >= 0))
        && (!('status' in resource.data) || (resource.data.status != 'fechada' && resource.data.status != 'confirmada') || request.resource.data.status == 'retificada')
        && (request.resource.data.status != 'retificada' || (request.resource.data.motivoRetificacao is string && request.resource.data.motivoRetificacao.size() >= 10));
+     allow delete: if false;
+    }
+    match /epi_events/{evId} {
+     allow read: if admin(c) || obraMember(c,o);
+     allow create, update: if (module(c,o,'epi') || epi(c))
+       && request.resource.data.id == evId
+       && request.resource.data.construtoraId == c
+       && request.resource.data.obraId == o;
+     allow delete: if false;
+    }
+    match /termos_epi/{tId} {
+     allow read: if admin(c) || obraMember(c,o);
+     allow create, update: if (module(c,o,'epi') || epi(c))
+       && request.resource.data.id == tId
+       && request.resource.data.construtoraId == c
+       && request.resource.data.obraId == o;
      allow delete: if false;
     }
    }

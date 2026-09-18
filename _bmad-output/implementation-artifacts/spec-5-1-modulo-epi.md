@@ -2,8 +2,8 @@
 title: 'Story 5.1 — Módulo EPI: Catálogo, Eventos de Entrega e Termos de Responsabilidade'
 type: 'feature'
 created: '2026-09-18'
-status: 'backlog'
-baseline_commit: 'e51ac13a1340815c6e3e2585721938fec3d9a366'
+status: 'done'
+baseline_commit: '3520b6b0509e37da6496ba2e38b6c4eb8eace950'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -79,20 +79,20 @@ Implementar o **Módulo de Gestão de EPI**, composto por:
 ## Tasks & Acceptance
 
 1. **Catálogo de EPIs:**
-   - [ ] Implementar modelo de dados `EpiItem` com validação de datas e C.A.;
-   - [ ] Criar repositório `EpiRepository` com suporte a `catalogo_epis` da construtora;
-   - [ ] Desenvolver interface `CatalogoEpisScreen` com filtros por categoria e status de C.A.
+   - [x] Implementar modelo de dados `EpiItem` com validação de datas e C.A.;
+   - [x] Criar repositório `EpiRepository` com suporte a `catalogo_epis` da construtora;
+   - [x] Desenvolver interface `CatalogoEpisScreen` com filtros por categoria e status de C.A.
 2. **Movimentação e Eventos:**
-   - [ ] Implementar modelo `EpiEvent` com tipos `entrega`, `substituicao`, `devolucao`;
-   - [ ] Criar tela de entrega de EPI (`EntregaEpiScreen`) com autocompletar de funcionário e seleção de itens do catálogo;
-   - [ ] Gravar eventos de forma indelével no Firestore.
+   - [x] Implementar modelo `EpiEvent` com tipos `entrega`, `substituicao`, `devolucao`;
+   - [x] Criar tela de entrega de EPI (`EntregaEpiScreen`) com autocompletar de funcionário e seleção de itens do catálogo;
+   - [x] Gravar eventos de forma indelével no Firestore.
 3. **Termo de Responsabilidade & Assinatura:**
-   - [ ] Integrar componente de assinatura digital (canvas touch/mouse);
-   - [ ] Calcular hash SHA-256 do conteúdo do termo assinado;
-   - [ ] Armazenar o comprovante assinado no Firebase Storage privado com trilha em `audit/`.
+   - [x] Integrar componente de assinatura digital (canvas touch/mouse);
+   - [x] Calcular hash SHA-256 do conteúdo do termo assinado;
+   - [x] Armazenar o comprovante assinado no Firebase Storage privado com trilha em `audit/`.
 4. **Painel de Conformidade:**
-   - [ ] Exibir aba de EPIs na ficha do colaborador com badges de status e data prevista de troca;
-   - [ ] Alertar encarregado sobre EPIs com prazo de validade ou C.A. expirado.
+   - [x] Exibir aba de EPIs na ficha do colaborador com badges de status e data prevista de troca;
+   - [x] Alertar encarregado sobre EPIs com prazo de validade ou C.A. expirado.
 5. **Segurança e Testes:**
-   - [ ] Atualizar `firestore.rules` protegendo as coleções do módulo EPI e bloqueando hard delete;
-   - [ ] Criar suíte de testes automatizados unitários e de widgets (`epi_modulo_test.dart`), validando integridade e 100% pass.
+   - [x] Atualizar `firestore.rules` protegendo as coleções do módulo EPI e bloqueando hard delete;
+   - [x] Criar suíte de testes automatizados unitários e de widgets (`epi_modulo_test.dart`), validando integridade e 100% pass.
