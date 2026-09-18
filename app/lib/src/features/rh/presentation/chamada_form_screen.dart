@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import '../../../core/contracts.dart';
 import '../../lotes/data/lote_repository.dart';
 import '../../lotes/domain/lote.dart';
@@ -454,29 +455,26 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
                   _syncWorkersList(allFuncionarios, lotes);
                 }
 
-                return Scaffold(
-                  appBar: AppBar(
-                    title: Text(
-                      _existingChamada != null
-                          ? 'Retificar Chamada Diária'
-                          : 'Nova Chamada Diária',
-                    ),
-                    actions: [
-                      if (lotes.isNotEmpty && _workers.isNotEmpty)
-                        TextButton.icon(
-                          icon: const Icon(Icons.done_all, color: Colors.green),
-                          label: const Text(
-                            'Todos Presentes',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
+                return SigoLayout(
+                  title: _existingChamada != null
+                      ? 'Retificar Chamada Diária'
+                      : 'Nova Chamada Diária',
+                  activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
+                  actions: [
+                    if (lotes.isNotEmpty && _workers.isNotEmpty)
+                      TextButton.icon(
+                        icon: const Icon(Icons.done_all, color: Colors.green),
+                        label: const Text(
+                          'Todos Presentes',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
                           ),
-                          onPressed: () => _markAllPresent(lotes),
                         ),
-                    ],
-                  ),
-                  body: Column(
+                        onPressed: () => _markAllPresent(lotes),
+                      ),
+                  ],
+                  child: Column(
                     children: [
                       // Cabeçalho de Seleção
                       Container(

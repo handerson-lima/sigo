@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import 'controllers/custos_360_controller.dart';
 import '../domain/custo_lote_consolidado.dart';
 import 'widgets/cubo_custo_card.dart';
@@ -35,22 +36,21 @@ class Visao360CustosScreen extends ConsumerWidget {
       ),
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Visão 360º de Custos'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Recalcular Projeções',
-            onPressed: () => ref.refresh(
-              resumoCustosObraStreamProvider(
-                (construtoraId: construtoraId, obraId: obraId),
-              ),
+    return SigoLayout(
+      title: 'Visão 360º de Custos',
+      activeRoute: '/construtora/$construtoraId/obra/$obraId/custos-360',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Recalcular Projeções',
+          onPressed: () => ref.refresh(
+            resumoCustosObraStreamProvider(
+              (construtoraId: construtoraId, obraId: obraId),
             ),
           ),
-        ],
-      ),
-      body: resumoAsync.when(
+        ),
+      ],
+      child: resumoAsync.when(
         data: (resumo) {
           final totalGeralCents = resumo.totalGeralCents;
 

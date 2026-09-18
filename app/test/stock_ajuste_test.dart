@@ -1,9 +1,18 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app/src/features/almoxarifado/domain/material.dart' as mat;
 import 'package:app/src/features/almoxarifado/presentation/stock_history_screen.dart';
 import 'package:app/src/sync/operation_queue.dart';
+
+Widget createTestWidget(Widget home) {
+  return ProviderScope(
+    child: MaterialApp(
+      home: home,
+    ),
+  );
+}
 
 void main() {
   group('Story 3.4 — Estoque: Ajustes Auditados (I/O & Edge-Case Matrix)', () {
@@ -51,8 +60,8 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(
-            home: StockHistoryScreen(
+          createTestWidget(
+            StockHistoryScreen(
               c: 'c1',
               material: material,
               canManage: true,
@@ -133,8 +142,8 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(
-            home: StockHistoryScreen(
+          createTestWidget(
+            StockHistoryScreen(
               c: 'c1',
               material: material,
               canManage: true,
@@ -204,8 +213,8 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(
-            home: StockHistoryScreen(
+          createTestWidget(
+            StockHistoryScreen(
               c: 'c1',
               material: material,
               canManage: true,
@@ -261,8 +270,8 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(
-            home: StockHistoryScreen(
+          createTestWidget(
+            StockHistoryScreen(
               c: 'c1',
               material: material,
               canManage: true,
@@ -316,8 +325,8 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(
-            home: StockHistoryScreen(
+          createTestWidget(
+            StockHistoryScreen(
               c: 'c1',
               material: material,
               canManage: true,
@@ -374,8 +383,8 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(
-            home: StockHistoryScreen(
+          createTestWidget(
+            StockHistoryScreen(
               c: 'c1',
               material: material,
               canManage: true,
@@ -439,8 +448,8 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(
-            home: StockHistoryScreen(
+          createTestWidget(
+            StockHistoryScreen(
               c: 'c1',
               material: material,
               canManage: true,
@@ -516,8 +525,8 @@ void main() {
         ];
 
         await tester.pumpWidget(
-          MaterialApp(
-            home: StockHistoryScreen(
+          createTestWidget(
+            StockHistoryScreen(
               c: 'c1',
               material: material,
               canManage: true,
@@ -620,14 +629,14 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
-            home: StockHistoryScreen(
-              c: 'c1',
-              material: material,
-              canManage: false,
-              mockMovements: const [],
-              queue: fakeQueue,
-            ),
+        createTestWidget(
+          StockHistoryScreen(
+            c: 'c1',
+            material: material,
+            canManage: false,
+            mockMovements: const [],
+            queue: fakeQueue,
+          ),
         ),
       );
       await tester.pumpAndSettle();

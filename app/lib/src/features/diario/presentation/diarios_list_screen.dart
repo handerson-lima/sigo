@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import 'diario_details_dialog.dart';
 import 'obra_diarios_provider.dart';
 
@@ -14,18 +15,22 @@ class DiariosListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final diariosAsync = ref.watch(obraDiariosProvider((construtoraId: construtoraId, obraId: obraId)));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Diários de Obra (RDO)'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.sync),
-            tooltip: 'Fila de Sincronização',
-            onPressed: () => context.push('/construtora/$construtoraId/obra/$obraId/diarios/sync'),
-          ),
-        ],
+    return SigoLayout(
+      title: 'Diários de Obra (RDO)',
+      activeRoute: '/construtora/$construtoraId/obra/$obraId/diarios',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.sync),
+          tooltip: 'Fila de Sincronização',
+          onPressed: () => context.push('/construtora/$construtoraId/obra/$obraId/diarios/sync'),
+        ),
+      ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.go('/construtora/$construtoraId/obra/$obraId/diarios/novo'),
+        icon: const Icon(Icons.add),
+        label: const Text('Novo RDO'),
       ),
-      body: diariosAsync.when(
+      child: diariosAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Erro: $e')),
         data: (diarios) {
@@ -57,11 +62,6 @@ class DiariosListScreen extends ConsumerWidget {
             },
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/construtora/$construtoraId/obra/$obraId/diarios/novo'),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo RDO'),
       ),
     );
   }

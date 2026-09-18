@@ -404,12 +404,14 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: StockHistoryScreen(
-            c: 'const-1',
-            material: material,
-            canManage: true,
-            mockMovements: mockMovements,
+        ProviderScope(
+          child: MaterialApp(
+            home: StockHistoryScreen(
+              c: 'const-1',
+              material: material,
+              canManage: true,
+              mockMovements: mockMovements,
+            ),
           ),
         ),
       );
@@ -451,12 +453,14 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: StockHistoryScreen(
-            c: 'const-1',
-            material: material,
-            canManage: true,
-            mockMovements: mockMovements,
+        ProviderScope(
+          child: MaterialApp(
+            home: StockHistoryScreen(
+              c: 'const-1',
+              material: material,
+              canManage: true,
+              mockMovements: mockMovements,
+            ),
           ),
         ),
       );

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../common_widgets/sigo_top_bar.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import '../../../core/contracts.dart';
 import '../data/rh_repository.dart';
 import '../domain/funcionario.dart';
@@ -179,11 +179,10 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
     final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
     final dailyRateCents = _currentDailyRateCents;
 
-    return Scaffold(
-      appBar: SigoTopBar(
-        title: isEditing ? 'Editar Colaborador' : 'Novo Colaborador',
-      ),
-      body: SingleChildScrollView(
+    return SigoLayout(
+      title: isEditing ? 'Editar Colaborador' : 'Novo Colaborador',
+      activeRoute: '/construtora/${widget.construtoraId}/rh/funcionarios',
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Center(
           child: ConstrainedBox(

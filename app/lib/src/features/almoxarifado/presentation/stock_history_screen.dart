@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import '../../../core/contracts.dart';
 import '../../../sync/operation_queue.dart';
 import '../domain/material.dart' as mat;
@@ -329,9 +330,10 @@ class StockHistoryScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('Histórico · ${material.name}')),
-    body: Column(
+  Widget build(BuildContext context) => SigoLayout(
+    title: 'Histórico · ${material.name}',
+    activeRoute: '/construtora/$c/almoxarifado',
+    child: Column(
       children: [
         if (canManage)
           Wrap(

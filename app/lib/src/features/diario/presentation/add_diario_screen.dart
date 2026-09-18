@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import '../data/diario_repository.dart';
 import '../domain/diario.dart';
 import '../../../common/services/geolocation_service.dart';
@@ -135,9 +136,10 @@ class _AddDiarioScreenState extends ConsumerState<AddDiarioScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Novo RDO')),
-      body: _isLoading
+    return SigoLayout(
+      title: 'Novo RDO',
+      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/diarios',
+      child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,

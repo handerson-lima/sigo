@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../common_widgets/sigo_sidebar.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import '../data/chamada_repository.dart';
 import '../domain/chamada_diaria.dart';
 import 'widgets/chamada_audit_timeline_dialog.dart';
@@ -37,23 +37,26 @@ class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
       )),
     );
 
-    return Scaffold(
-      drawer: SigoSidebar(
-        activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
-      ),
-      appBar: AppBar(
-        title: const Text('Chamada Diária (RH)'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Nova Chamada',
-            onPressed: () => context.push(
-              '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
-            ),
+    return SigoLayout(
+      title: 'Chamada Diária (RH)',
+      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.add),
+          tooltip: 'Nova Chamada',
+          onPressed: () => context.push(
+            '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
           ),
-        ],
+        ),
+      ],
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.playlist_add_check),
+        label: const Text('Nova Chamada'),
+        onPressed: () => context.push(
+          '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
+        ),
       ),
-      body: Column(
+      child: Column(
         children: [
           // Barra de Filtros
           Padding(
@@ -149,13 +152,6 @@ class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.playlist_add_check),
-        label: const Text('Nova Chamada'),
-        onPressed: () => context.push(
-          '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
-        ),
       ),
     );
   }

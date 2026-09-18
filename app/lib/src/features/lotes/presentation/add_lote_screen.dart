@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import '../data/lote_repository.dart';
 import '../domain/lote.dart';
 
@@ -58,9 +59,10 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Novo Lote')),
-      body: Padding(
+    return SigoLayout(
+      title: 'Novo Lote',
+      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/lotes',
+      child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,

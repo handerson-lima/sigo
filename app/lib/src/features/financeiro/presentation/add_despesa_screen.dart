@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import '../data/financeiro_repository.dart';
 import '../domain/despesa.dart';
 import '../../obras/presentation/construtora_obras_provider.dart'; 
@@ -63,9 +64,10 @@ class _AddDespesaScreenState extends ConsumerState<AddDespesaScreen> {
     // Busca a lista de obras da construtora para preencher o dropdown
     final obrasAsync = ref.watch(construtoraObrasProvider(widget.construtoraId));
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Nova Despesa')),
-      body: _isLoading
+    return SigoLayout(
+      title: 'Nova Despesa',
+      activeRoute: '/construtora/${widget.construtoraId}/financeiro',
+      child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,

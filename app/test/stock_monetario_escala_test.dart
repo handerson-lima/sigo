@@ -381,13 +381,15 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: StockHistoryScreen(
-            c: 'c1',
-            material: legacyMaterial,
-            canManage: true,
-            mockMovements: const [],
-            queue: fakeQueue,
+        ProviderScope(
+          child: MaterialApp(
+            home: StockHistoryScreen(
+              c: 'c1',
+              material: legacyMaterial,
+              canManage: true,
+              mockMovements: const [],
+              queue: fakeQueue,
+            ),
           ),
         ),
       );

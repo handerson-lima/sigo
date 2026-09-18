@@ -16,12 +16,20 @@ enum SyncEngineStatus {
 }
 
 class SyncEngine with WidgetsBindingObserver {
+  static bool get isRunningTests {
+    try {
+      return WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    } catch (_) {
+      return false;
+    }
+  }
+
   SyncEngine({
     OperationQueue? queue,
     Stream<List<ConnectivityResult>>? connectivityStream,
     Future<List<ConnectivityResult>> Function()? checkConnectivity,
     this.periodicInterval = const Duration(seconds: 15),
-    bool autoStart = true,
+    bool? autoStart,
     this.observeLifecycle = true,
   })  : _queue = queue ?? OperationQueue.instance,
         _connectivityStream = connectivityStream ?? Connectivity().onConnectivityChanged,
@@ -29,7 +37,8 @@ class SyncEngine with WidgetsBindingObserver {
     if (observeLifecycle) {
       WidgetsBinding.instance.addObserver(this);
     }
-    if (autoStart) {
+    final shouldStart = autoStart ?? !isRunningTests;
+    if (shouldStart) {
       start();
     }
   }

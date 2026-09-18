@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import '../data/lote_repository.dart';
 import '../domain/lote.dart';
 import 'obra_lotes_provider.dart';
@@ -16,11 +17,15 @@ class LotesListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final lotesAsync = ref.watch(obraLotesProvider((construtoraId: construtoraId, obraId: obraId)));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mapa de Lotes'),
+    return SigoLayout(
+      title: 'Mapa de Lotes',
+      activeRoute: '/construtora/$construtoraId/obra/$obraId/lotes',
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.go('/construtora/$construtoraId/obra/$obraId/lotes/novo'),
+        icon: const Icon(Icons.add),
+        label: const Text('Novo Lote'),
       ),
-      body: lotesAsync.when(
+      child: lotesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Erro: $e')),
         data: (lotes) {
@@ -43,11 +48,6 @@ class LotesListScreen extends ConsumerWidget {
             },
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/construtora/$construtoraId/obra/$obraId/lotes/novo'),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo Lote'),
       ),
     );
   }

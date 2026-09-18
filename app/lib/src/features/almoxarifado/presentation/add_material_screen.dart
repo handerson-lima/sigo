@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import '../data/almoxarifado_repository.dart';
 import '../domain/material.dart' as mat;
 
@@ -54,9 +55,10 @@ class _AddMaterialScreenState extends ConsumerState<AddMaterialScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Novo Material no Catálogo')),
-      body: Padding(
+    return SigoLayout(
+      title: 'Novo Material no Catálogo',
+      activeRoute: '/construtora/${widget.construtoraId}/almoxarifado',
+      child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,

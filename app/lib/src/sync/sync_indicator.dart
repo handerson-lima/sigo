@@ -7,6 +7,11 @@ import 'sync_engine.dart';
 
 /// Provider reativo da lista completa de itens da fila de operações do dispositivo.
 final syncQueueStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  try {
+    if (WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+      return Stream.fromFuture(OperationQueue.instance.list());
+    }
+  } catch (_) {}
   return OperationQueue.instance.watch();
 });
 

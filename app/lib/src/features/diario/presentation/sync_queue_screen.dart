@@ -2,6 +2,7 @@ import 'legacy_recovery.dart';
 
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import '../../../sync/operation_queue.dart';
 
 class SyncQueueScreen extends StatelessWidget {
@@ -25,9 +26,10 @@ class SyncQueueScreen extends StatelessWidget {
     'authorization_rejected': 'Acesso removido',
   };
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Fila deste dispositivo')),
-    body: StreamBuilder<List<Map<String, dynamic>>>(
+  Widget build(BuildContext context) => SigoLayout(
+    title: 'Fila deste dispositivo',
+    activeRoute: '/construtora/$construtoraId/obra/$obraId/diarios',
+    child: StreamBuilder<List<Map<String, dynamic>>>(
       stream: OperationQueue.instance.watch(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {

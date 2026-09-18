@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import 'controllers/custos_360_controller.dart';
 import '../domain/custo_lote_consolidado.dart';
 import 'widgets/cubo_custo_card.dart';
@@ -156,33 +157,32 @@ class _LoteCustoDetalheScreenState
 
     final titulo = loteCusto?.loteNome ?? 'Detalhe de Custos do Lote';
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(titulo),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_calendar_outlined),
-            tooltip: 'Definir Orçamento',
-            onPressed: () => _abrirDialogoEditarOrcamento(context, loteCusto),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Atualizar Extrato',
-            onPressed: () {
-              ref.invalidate(
-                extratoLoteFutureProvider(
-                  (
-                    construtoraId: widget.construtoraId,
-                    obraId: widget.obraId,
-                    loteId: widget.loteId,
-                  ),
+    return SigoLayout(
+      title: titulo,
+      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/custos-360',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.edit_calendar_outlined),
+          tooltip: 'Definir Orçamento',
+          onPressed: () => _abrirDialogoEditarOrcamento(context, loteCusto),
+        ),
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Atualizar Extrato',
+          onPressed: () {
+            ref.invalidate(
+              extratoLoteFutureProvider(
+                (
+                  construtoraId: widget.construtoraId,
+                  obraId: widget.obraId,
+                  loteId: widget.loteId,
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
+              ),
+            );
+          },
+        ),
+      ],
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

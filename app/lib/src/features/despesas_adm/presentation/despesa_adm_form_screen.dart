@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../common_widgets/sigo_top_bar.dart';
+import '../../../common_widgets/sigo_layout.dart';
 import '../../authentication/data/auth_repository.dart';
 import '../../lotes/presentation/obra_lotes_provider.dart';
 import '../data/despesas_adm_repository.dart';
@@ -275,13 +275,12 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
     final somaParcelas = ParcelamentoMath.calcularSomaParcelas(_parcelas);
     final parcelasBatem = totalCents > 0 && totalCents == somaParcelas;
 
-    return Scaffold(
-      appBar: SigoTopBar(
-        title: widget.despesaId != null
-            ? 'Editar Despesa'
-            : 'Nova Despesa / Conta a Pagar',
-      ),
-      body: _isLoading
+    return SigoLayout(
+      title: widget.despesaId != null
+          ? 'Editar Despesa'
+          : 'Nova Despesa / Conta a Pagar',
+      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas',
+      child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/sigo_layout.dart';
 import '../../../core/contracts.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -247,11 +248,10 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
   @override
   Widget build(BuildContext context) {
     final isSaida = widget.type == MovimentacaoType.saida;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isSaida ? 'Saída de Material' : 'Entrada de Material'),
-      ),
-      body: Padding(
+    return SigoLayout(
+      title: isSaida ? 'Saída de Material' : 'Entrada de Material',
+      activeRoute: '/construtora/${widget.construtoraId}/almoxarifado',
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Form(
           key: _formKey,
