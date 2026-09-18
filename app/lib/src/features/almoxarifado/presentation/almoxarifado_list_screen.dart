@@ -83,6 +83,10 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
                     );
                   },
                 ),
+                leading: CircleAvatar(
+                  backgroundColor: Colors.amber.shade100,
+                  child: Icon(Icons.inventory_2_outlined, color: Colors.amber.shade900),
+                ),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => StockHistoryScreen(
@@ -97,6 +101,7 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_upward, color: Colors.green),
+                      tooltip: 'Registrar Entrada',
                       onPressed: () => context.go(
                         '/construtora/$construtoraId/almoxarifado/movimentacao',
                         extra: {'material': material, 'type': 'entrada'},
@@ -104,9 +109,23 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
                     ),
                     IconButton(
                       icon: const Icon(Icons.arrow_downward, color: Colors.red),
+                      tooltip: 'Registrar Saída',
                       onPressed: () => context.go(
                         '/construtora/$construtoraId/almoxarifado/movimentacao',
                         extra: {'material': material, 'type': 'saida'},
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.history, color: Colors.blueGrey),
+                      tooltip: 'Histórico, Ajustes e Estorno',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => StockHistoryScreen(
+                            c: construtoraId,
+                            material: material,
+                            canManage: admin,
+                          ),
+                        ),
                       ),
                     ),
                   ],

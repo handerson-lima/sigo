@@ -35,6 +35,53 @@ class SigoSidebar extends ConsumerWidget {
               )
               .value
         : null;
+
+    final construtoraMember = cId != null
+        ? ref.watch(construtoraPermissionProvider(cId)).value
+        : null;
+
+    final isConstrutoraAdmin = construtoraMember != null &&
+        construtoraMember['isActive'] == true &&
+        (construtoraMember['isAdmin'] == true ||
+            construtoraMember['isOwner'] == true ||
+            construtoraMember['role'] == 'admin' ||
+            construtoraMember['role'] == 'owner');
+
+    final construtoraModules = (construtoraMember?['modules'] as List? ?? [])
+        .map((m) => normalizeModule(m.toString()))
+        .toSet();
+
+    final canRh = isDev ||
+        (obra != null &&
+            obra.isActive &&
+            (obra.isAdmin ||
+                obra.modules.map(normalizeModule).contains('rh') ||
+                obra.modules.map(normalizeModule).contains('recursos_humanos'))) ||
+        isConstrutoraAdmin ||
+        (construtoraMember != null &&
+            construtoraMember['isActive'] == true &&
+            (construtoraModules.contains('rh') ||
+                construtoraModules.contains('recursos_humanos')));
+
+    final canEstoque = isDev ||
+        (obra != null &&
+            obra.isActive &&
+            (obra.isAdmin ||
+                obra.modules.map(normalizeModule).contains('estoque') ||
+                obra.modules.map(normalizeModule).contains('almoxarifado'))) ||
+        isConstrutoraAdmin ||
+        (construtoraMember != null &&
+            construtoraMember['isActive'] == true &&
+            (construtoraModules.contains('estoque') ||
+                construtoraModules.contains('almoxarifado')));
+
+    final canFinanceiro = isDev ||
+        (obra != null && obra.isActive && obra.isAdmin) ||
+        isConstrutoraAdmin;
+
+    final canMembros = isDev ||
+        (obra != null && obra.isActive && obra.isAdmin) ||
+        isConstrutoraAdmin;
     return Container(
       width: 250,
       color: const Color(0xFF0F172A),
@@ -160,14 +207,7 @@ class SigoSidebar extends ConsumerWidget {
                     isActive: activeRoute.endsWith('/sync'),
                     onTap: () => context.go('/construtora/$cId/sync'),
                   ),
-                if (cId != null &&
-                    (isDev ||
-                        obra != null &&
-                            obra.isActive &&
-                            (obra.isAdmin ||
-                                obra.modules
-                                    .map(normalizeModule)
-                                    .contains('rh'))))
+                if (cId != null && canRh)
                   _NavItem(
                     icon: Icons.people,
                     title: 'Funcionários (RH)',
@@ -177,14 +217,7 @@ class SigoSidebar extends ConsumerWidget {
                       context.go('/construtora/$cId/rh/funcionarios');
                     },
                   ),
-                if (cId != null &&
-                    (isDev ||
-                        obra != null &&
-                            obra.isActive &&
-                            (obra.isAdmin ||
-                                obra.modules
-                                    .map(normalizeModule)
-                                    .contains('estoque'))))
+                if (cId != null && canEstoque)
                   _NavItem(
                     icon: Icons.inventory_2,
                     title: 'Almoxarifado',
@@ -194,7 +227,7 @@ class SigoSidebar extends ConsumerWidget {
                       context.go('/construtora/$cId/almoxarifado');
                     },
                   ),
-                if (cId != null && (isDev || obra != null && obra.isAdmin))
+                if (cId != null && canFinanceiro)
                   _NavItem(
                     icon: Icons.account_balance_wallet,
                     title: 'Financeiro',
@@ -204,7 +237,7 @@ class SigoSidebar extends ConsumerWidget {
                       context.go('/construtora/$cId/financeiro');
                     },
                   ),
-                if (cId != null && (isDev || obra != null && obra.isAdmin))
+                if (cId != null && canMembros)
                   _NavItem(
                     icon: Icons.group,
                     title: 'Membros',
