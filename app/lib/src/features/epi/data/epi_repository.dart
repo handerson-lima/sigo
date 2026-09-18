@@ -171,19 +171,6 @@ class EpiRepository {
     final finalEvent = event.copyWith(termoId: termoId);
     batch.set(eventDoc, finalEvent.toMap());
 
-    // Registra auditoria
-    final auditDoc = _firestore.collection('audit').doc();
-    batch.set(auditDoc, {
-      'action': 'entregaEpi',
-      'actor': event.responsavelUid,
-      'target': '${event.construtoraId}/${event.obraId}/${event.funcionarioId}/${event.epiId}',
-      'result': 'accepted',
-      'at': FieldValue.serverTimestamp(),
-      'tipoEvento': event.tipoEvento,
-      'caNumero': event.caNumero,
-      'termoId': termoId,
-    });
-
     await batch.commit();
   }
 
@@ -200,6 +187,12 @@ class EpiRepository {
     if (!origDoc.exists) return;
 
     final origData = origDoc.data()!;
+    final statusAtual = origData['status'] as String? ?? 'ativo';
+    if (statusAtual == 'devolvido' || statusAtual == 'baixado') {
+      // Evento já foi finalizado anteriormente, evita operação duplicada
+      return;
+    }
+
     final novoStatus = tipoEvento == 'devolucao' ? 'devolvido' : 'baixado';
 
     final batch = _firestore.batch();
@@ -229,16 +222,6 @@ class EpiRepository {
       status: novoStatus,
     );
     batch.set(_eventsRef(construtoraId, obraId).doc(newId), devEvent.toMap());
-
-    // Auditoria
-    batch.set(_firestore.collection('audit').doc(), {
-      'action': 'baixaOuDevolucaoEpi',
-      'actor': responsavelUid,
-      'target': '$construtoraId/$obraId/$eventoOriginalId',
-      'result': 'accepted',
-      'at': FieldValue.serverTimestamp(),
-      'tipoEvento': tipoEvento,
-    });
 
     await batch.commit();
   }

@@ -96,3 +96,15 @@ Implementar o **Módulo de Gestão de EPI**, composto por:
 5. **Segurança e Testes:**
    - [x] Atualizar `firestore.rules` protegendo as coleções do módulo EPI e bloqueando hard delete;
    - [x] Criar suíte de testes automatizados unitários e de widgets (`epi_modulo_test.dart`), validando integridade e 100% pass.
+
+### Review Findings
+
+- [x] [Review][Patch] Remover tentativa de escrita client-side na coleção restrita /audit/ [app/lib/src/features/epi/data/epi_repository.dart:175]
+- [x] [Review][Patch] Adicionar regras de segurança para termos e assinaturas de EPI em storage.rules [storage.rules:8]
+- [x] [Review][Patch] Implementar conversão da assinatura desenhada no Canvas para PNG bytes no envio [app/lib/src/features/epi/presentation/entrega_epi_screen.dart:147]
+- [x] [Review][Patch] Bloquear devolução ou baixa redundante de eventos de EPI já concluídos [app/lib/src/features/epi/data/epi_repository.dart:190]
+
+#### Rejected Findings
+- *[Rejeitado - Low]* C.A. com validade nula: O formulário suporta itens complementares sem obrigatoriedade de C.A. segundo a NR-6.
+- *[Rejeitado - Low]* Deslocamento visual em assinatura: O container possui limites estritos e captura suficiente para autenticidade visual.
+

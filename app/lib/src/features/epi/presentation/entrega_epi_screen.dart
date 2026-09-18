@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -55,6 +57,36 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
   }
 
   bool get _isCaExpirado => _selectedEpi != null && _selectedEpi!.isCaVencido;
+
+  Future<Uint8List?> _renderSignatureToBytes() async {
+    if (_signaturePoints.isEmpty) return null;
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      const size = Size(400, 200);
+
+      final bgPaint = Paint()..color = Colors.white;
+      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
+
+      final paint = Paint()
+        ..color = Colors.black87
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = 3.0;
+
+      for (int i = 0; i < _signaturePoints.length - 1; i++) {
+        if (_signaturePoints[i] != null && _signaturePoints[i + 1] != null) {
+          canvas.drawLine(_signaturePoints[i]!, _signaturePoints[i + 1]!, paint);
+        }
+      }
+
+      final picture = recorder.endRecording();
+      final img = await picture.toImage(size.width.toInt(), size.height.toInt());
+      final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> _concluirEntrega() async {
     if (!_formKey.currentState!.validate()) return;
@@ -141,10 +173,15 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
         responsavelUid: responsavelUid,
       );
 
+      Uint8List? assinaturaBytes;
+      if (_signaturePoints.isNotEmpty) {
+        assinaturaBytes = await _renderSignatureToBytes();
+      }
+
       await repo.registrarEntrega(
         event: event,
         termo: termo,
-        assinaturaBytes: null, // Caso precise salvar bitmap futuramente
+        assinaturaBytes: assinaturaBytes,
       );
 
       if (mounted) {
