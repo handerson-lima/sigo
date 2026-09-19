@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/sigo_layout.dart';
@@ -117,6 +118,7 @@ class _AddConstrutoraDialog extends StatefulWidget {
 class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
   final _nameController = TextEditingController();
   final _cnpjController = TextEditingController();
+  final _ownerEmailController = TextEditingController();
   bool _isSaving = false;
 
   Future<void> _save() async {
@@ -137,6 +139,16 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
 
       await docRef.set(data);
 
+      final ownerEmail = _ownerEmailController.text.trim();
+      if (ownerEmail.isNotEmpty) {
+        await FirebaseFunctions.instance.httpsCallable('setConstrutoraRole').call({
+          'email': ownerEmail,
+          'construtoraId': docRef.id,
+          'role': 'owner',
+          'isOwner': true,
+        });
+      }
+
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
@@ -149,6 +161,7 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
   void dispose() {
     _nameController.dispose();
     _cnpjController.dispose();
+    _ownerEmailController.dispose();
     super.dispose();
   }
 
@@ -170,6 +183,15 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
             TextField(
               controller: _cnpjController,
               decoration: const InputDecoration(labelText: 'CNPJ (opcional)'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _ownerEmailController,
+              decoration: const InputDecoration(
+                labelText: 'E-mail do Proprietário inicial (opcional)',
+                hintText: 'ex: socio@construtora.com',
+              ),
+              keyboardType: TextInputType.emailAddress,
             ),
           ],
         ),

@@ -52,12 +52,46 @@ class MembrosScreen extends ConsumerWidget {
             itemCount: membros.length,
             itemBuilder: (context, index) {
               final membro = membros[index];
+              final isOwner = membro.isOwner;
+              final isAdmin = membro.isAdmin && !isOwner;
+              final roleLabel = isOwner
+                  ? 'Proprietário'
+                  : (isAdmin ? 'Administrador' : 'Operário');
+
               return ListTile(
                 leading: CircleAvatar(
-                  child: Icon(membro.isAdmin ? Icons.admin_panel_settings : Icons.person),
+                  backgroundColor: isOwner
+                      ? Colors.amber.shade100
+                      : (isAdmin ? Colors.blue.shade50 : null),
+                  child: Icon(
+                    isOwner
+                        ? Icons.stars_rounded
+                        : (isAdmin ? Icons.admin_panel_settings : Icons.person),
+                    color: isOwner
+                        ? Colors.amber.shade900
+                        : (isAdmin ? Colors.blue.shade800 : null),
+                  ),
                 ),
                 title: Text(membro.email.isNotEmpty ? membro.email : 'UID: ${membro.uid}'),
-                subtitle: Text(membro.isAdmin ? 'Administrador' : 'Operário'),
+                subtitle: Text(roleLabel),
+                trailing: isOwner
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber.shade400),
+                        ),
+                        child: Text(
+                          'Proprietário',
+                          style: TextStyle(
+                            color: Colors.amber.shade900,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      )
+                    : null,
               );
             },
           );

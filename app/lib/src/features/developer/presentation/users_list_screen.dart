@@ -8,6 +8,38 @@ import 'package:go_router/go_router.dart';
 import '../../../common_widgets/sigo_layout.dart';
 import '../../authentication/domain/app_user.dart';
 
+final allConstrutorasMapProvider = StreamProvider.autoDispose<Map<String, String>>((ref) {
+  return FirebaseFirestore.instance
+      .collection('construtoras')
+      .snapshots()
+      .map((snap) {
+        final map = <String, String>{};
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          map[doc.id] = data['name'] as String? ?? 'Sem Nome';
+        }
+        return map;
+      });
+});
+
+final allUserMembershipsProvider = StreamProvider.autoDispose<Map<String, List<Map<String, dynamic>>>>((ref) {
+  return FirebaseFirestore.instance
+      .collectionGroup('construtora_members')
+      .where('isActive', isEqualTo: true)
+      .snapshots()
+      .map((snap) {
+        final map = <String, List<Map<String, dynamic>>>{};
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          final uid = (data['userId'] as String?) ?? doc.id;
+          final cId = (data['construtoraId'] as String?) ?? doc.reference.parent.parent?.id ?? '';
+          data['_cId'] = cId;
+          map.putIfAbsent(uid, () => []).add(data);
+        }
+        return map;
+      });
+});
+
 class UsersListScreen extends ConsumerStatefulWidget {
   const UsersListScreen({super.key});
 
@@ -17,6 +49,161 @@ class UsersListScreen extends ConsumerStatefulWidget {
 
 class _UsersListScreenState extends ConsumerState<UsersListScreen> {
   bool _isLoading = false;
+
+  List<Widget> _buildUserBadges(
+    AppUser user,
+    List<Map<String, dynamic>> memberships,
+    Map<String, String> construtorasMap,
+  ) {
+    final list = <Widget>[];
+
+    if (user.globalRole == 'dev') {
+      list.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Text(
+            'DEV',
+            style: TextStyle(
+              color: Colors.blue,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      );
+    }
+
+    for (final m in memberships) {
+      final cId = m['_cId'] as String? ?? '';
+      final cName = construtorasMap[cId] ?? (cId.isNotEmpty ? cId : 'Construtora');
+      final isOwner = m['isOwner'] == true || m['role'] == 'owner';
+      final isAdmin = !isOwner && (m['isAdmin'] == true || m['role'] == 'admin');
+
+      // Tag com Nome da Construtora
+      list.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          margin: const EdgeInsets.only(right: 4),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.business, size: 12, color: Colors.black54),
+              const SizedBox(width: 4),
+              Text(
+                cName,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Tag com o Papel na Construtora
+      if (isOwner) {
+        list.add(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            margin: const EdgeInsets.only(right: 6),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.amber.shade300),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.stars_rounded, size: 13, color: Colors.amber.shade900),
+                const SizedBox(width: 4),
+                Text(
+                  'PROPRIETÁRIO',
+                  style: TextStyle(
+                    color: Colors.amber.shade900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else if (isAdmin) {
+        list.add(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            margin: const EdgeInsets.only(right: 6),
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'ADMIN',
+              style: TextStyle(
+                color: Colors.indigo.shade900,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      } else {
+        list.add(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            margin: const EdgeInsets.only(right: 6),
+            decoration: BoxDecoration(
+              color: Colors.teal.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'MEMBRO',
+              style: TextStyle(
+                color: Colors.teal.shade900,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    if (list.isEmpty) {
+      list.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Text(
+            'Sem vínculo',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return list;
+  }
 
   Future<void> _createUser() async {
     final emailCtrl = TextEditingController();
@@ -128,94 +315,84 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+              child: Builder(
+                builder: (context) {
+                  final construtorasMap = ref.watch(allConstrutorasMapProvider).value ?? {};
+                  final userMembershipsMap = ref.watch(allUserMembershipsProvider).value ?? {};
 
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Erro: ${snapshot.error}'));
-                  }
-
-                  final docs = snapshot.data?.docs ?? [];
-                  if (docs.isEmpty) {
-                    return const Center(
-                      child: Text('Nenhum usuário encontrado.'),
-                    );
-                  }
-
-                  return ListView.builder(
-                    itemCount: docs.length,
-                    itemBuilder: (context, index) {
-                      final data = docs[index].data() as Map<String, dynamic>;
-                      if (data['createdAt'] is Timestamp) {
-                        data['createdAt'] = (data['createdAt'] as Timestamp)
-                            .toDate()
-                            .toIso8601String();
+                  return StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
                       }
-                      if (data['updatedAt'] is Timestamp) {
-                        data['updatedAt'] = (data['updatedAt'] as Timestamp)
-                            .toDate()
-                            .toIso8601String();
-                      }
-                      final user = AppUser.fromJson(data);
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.orange.shade100,
-                            child: Text(
-                              user.displayName.isNotEmpty
-                                  ? user.displayName[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: Colors.orange,
-                                fontWeight: FontWeight.bold,
+                      if (snapshot.hasError) {
+                        return Center(child: Text('Erro: ${snapshot.error}'));
+                      }
+
+                      final docs = snapshot.data?.docs ?? [];
+                      if (docs.isEmpty) {
+                        return const Center(
+                          child: Text('Nenhum usuário encontrado.'),
+                        );
+                      }
+
+                      return ListView.builder(
+                        itemCount: docs.length,
+                        itemBuilder: (context, index) {
+                          final data = docs[index].data() as Map<String, dynamic>;
+                          if (data['createdAt'] is Timestamp) {
+                            data['createdAt'] = (data['createdAt'] as Timestamp)
+                                .toDate()
+                                .toIso8601String();
+                          }
+                          if (data['updatedAt'] is Timestamp) {
+                            data['updatedAt'] = (data['updatedAt'] as Timestamp)
+                                .toDate()
+                                .toIso8601String();
+                          }
+                          final user = AppUser.fromJson(data);
+                          final memberships = userMembershipsMap[user.id] ?? [];
+                          final badges = _buildUserBadges(user, memberships, construtorasMap);
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.orange.shade100,
+                                child: Text(
+                                  user.displayName.isNotEmpty
+                                      ? user.displayName[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    color: Colors.orange,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              title: Text(user.displayName),
+                              subtitle: Text(user.email),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ...badges,
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      color: Colors.grey,
+                                    ),
+                                    onPressed: () {
+                                      context.push('/dev/users/${user.id}');
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                          title: Text(user.displayName),
-                          subtitle: Text(user.email),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (user.globalRole == 'dev')
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  margin: const EdgeInsets.only(right: 16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.shade100,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text(
-                                    'DEV',
-                                    style: TextStyle(
-                                      color: Colors.blue,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.grey,
-                                ),
-                                onPressed: () {
-                                  context.push('/dev/users/${user.id}');
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
+                          );
+                        },
                       );
                     },
                   );

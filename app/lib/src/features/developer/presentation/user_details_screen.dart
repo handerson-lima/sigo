@@ -193,23 +193,32 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                                               as Map)['name']
                                         : 'Construtora Desconhecida';
 
+                                    final isOwner = role == 'owner' || data['isOwner'] == true;
+                                    final isAdmin = !isOwner && role == 'admin';
+
                                     return ListTile(
                                       leading: CircleAvatar(
-                                        backgroundColor: role == 'admin'
-                                            ? Colors.red.shade100
-                                            : Colors.green.shade100,
+                                        backgroundColor: isOwner
+                                            ? Colors.amber.shade100
+                                            : (isAdmin
+                                                ? Colors.red.shade100
+                                                : Colors.green.shade100),
                                         child: Icon(
-                                          role == 'admin'
-                                              ? Icons.admin_panel_settings
-                                              : Icons.person,
-                                          color: role == 'admin'
-                                              ? Colors.red
-                                              : Colors.green,
+                                          isOwner
+                                              ? Icons.stars_rounded
+                                              : (isAdmin
+                                                  ? Icons.admin_panel_settings
+                                                  : Icons.person),
+                                          color: isOwner
+                                              ? Colors.amber.shade900
+                                              : (isAdmin
+                                                  ? Colors.red
+                                                  : Colors.green),
                                         ),
                                       ),
                                       title: Text(cName ?? '...'),
                                       subtitle: Text(
-                                        'Papel: $role\nMódulos: ${modules.isEmpty ? 'Nenhum' : modules.join(', ')}',
+                                        'Papel: ${isOwner ? 'Proprietário' : (isAdmin ? 'Administrador' : 'Membro comum')}\nMódulos: ${modules.isEmpty ? 'Nenhum' : modules.join(', ')}',
                                       ),
                                       isThreeLine: true,
                                       trailing: IconButton(
@@ -334,6 +343,7 @@ class _LinkConstrutoraDialogState extends State<_LinkConstrutoraDialog> {
         'construtoraId': _selectedCId,
         'userId': widget.user.id,
         'role': _role,
+        'isOwner': _role == 'owner',
         'modules': selectedModules,
         'isActive': true,
       });
@@ -395,6 +405,10 @@ class _LinkConstrutoraDialogState extends State<_LinkConstrutoraDialog> {
                   DropdownMenuItem(
                     value: 'admin',
                     child: Text('Administrador'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'owner',
+                    child: Text('Proprietário'),
                   ),
                 ],
                 onChanged: (value) => setState(() => _role = value!),

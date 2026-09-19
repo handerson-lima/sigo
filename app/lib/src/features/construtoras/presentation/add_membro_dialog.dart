@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../authentication/data/user_repository.dart';
 import '../data/membros_repository.dart';
 
 class AddMembroDialog extends ConsumerStatefulWidget {
@@ -25,7 +26,12 @@ class _AddMembroDialogState extends ConsumerState<AddMembroDialog> {
 
     try {
       final repo = ref.read(membrosRepositoryProvider);
-      await repo.concederAcesso(email, _selectedRole, widget.construtoraId);
+      await repo.concederAcesso(
+        email,
+        _selectedRole,
+        widget.construtoraId,
+        isOwner: _selectedRole == 'owner',
+      );
 
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -41,6 +47,8 @@ class _AddMembroDialogState extends ConsumerState<AddMembroDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDev = ref.watch(trustedDevProvider).value == true;
+
     return AlertDialog(
       title: const Text('Adicionar Membro'),
       content: Column(
@@ -57,9 +65,11 @@ class _AddMembroDialogState extends ConsumerState<AddMembroDialog> {
           DropdownButtonFormField<String>(
             initialValue: _selectedRole,
             decoration: const InputDecoration(labelText: 'Cargo'),
-            items: const [
-              DropdownMenuItem(value: 'operario', child: Text('Operário')),
-              DropdownMenuItem(value: 'admin', child: Text('Administrador')),
+            items: [
+              const DropdownMenuItem(value: 'operario', child: Text('Operário')),
+              const DropdownMenuItem(value: 'admin', child: Text('Administrador')),
+              if (isDev)
+                const DropdownMenuItem(value: 'owner', child: Text('Proprietário')),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _selectedRole = val);

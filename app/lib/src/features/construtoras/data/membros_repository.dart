@@ -20,14 +20,23 @@ class MembrosRepository {
             .toList());
   }
 
-  Future<void> concederAcesso(String email, String role, String construtoraId) async {
+  Future<void> concederAcesso(
+    String email,
+    String role,
+    String construtoraId, {
+    bool? isOwner,
+  }) async {
     try {
       final callable = _functions.httpsCallable('setConstrutoraRole');
-      await callable.call({
+      final payload = <String, dynamic>{
         'email': email,
         'construtoraId': construtoraId,
         'role': role,
-      });
+      };
+      if (isOwner != null || role == 'owner') {
+        payload['isOwner'] = isOwner ?? true;
+      }
+      await callable.call(payload);
     } on FirebaseFunctionsException catch (e) {
       throw Exception(e.message ?? 'Erro ao chamar função Cloud Function');
     } catch (e) {

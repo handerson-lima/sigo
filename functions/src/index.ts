@@ -46,7 +46,9 @@ export const setDevRole = callable('setDevRole', async (d, uid) => {
 async function membership(d: any, uid: string) {
   const c = id(d.construtoraId), o = d.obraId ? id(d.obraId) : undefined;
   const target = d.userId ? id(d.userId) : (await admin.auth().getUserByEmail(d.email)).uid;
-  const role = d.role || 'member'; if (!['admin', 'member', 'operario'].includes(role)) throw new Error('Papel inválido');
+  const role = d.role || 'member';
+  const validRoles = o ? ['admin', 'member', 'operario'] : ['admin', 'member', 'operario', 'owner'];
+  if (!validRoles.includes(role)) throw new Error('Papel inválido');
   const modules = (d.modules || []).map(moduleName);
   if (!Array.isArray(modules) || modules.some((m: string) => !(o ? ['diario', 'lotes', 'estoque'] : ['estoque']).includes(m))) throw new Error('Módulos inválidos');
   return db.runTransaction(async tx => {
@@ -58,12 +60,16 @@ async function membership(d: any, uid: string) {
     if (!profile) fail('not-found', 'Perfil ausente');
     const ref = parent.collection(o ? 'members' : 'construtora_members').doc(target);
     const existing = (await tx.get(ref)).data();
-    if (existing?.isOwner && !a.dev) fail('permission-denied', 'Apenas dev altera proprietário');
+    const isOwnerRequested = !o && (role === 'owner' || d.isOwner === true);
+    if ((isOwnerRequested || existing?.isOwner) && !a.dev) fail('permission-denied', 'Apenas dev altera proprietário');
     if (o && !(await tx.get(db.doc(`construtoras/${c}/construtora_members/${target}`))).data()?.isActive) fail('failed-precondition', 'Vínculo ativo na construtora obrigatório');
+    const willBeOwner = a.dev ? (isOwnerRequested || (d.isOwner !== false && existing?.isOwner === true && role === 'owner')) : false;
+    const finalRole = willBeOwner ? 'owner' : role;
+    const finalIsAdmin = finalRole === 'admin' || willBeOwner;
     tx.set(ref, {userId: target, construtoraId: c, ...(o ? {obraId: o} : {}), email: profile!.email, displayName: profile!.displayName,
-      role, modules: [...new Set(modules)], isAdmin: role === 'admin', isOwner: existing?.isOwner === true,
+      role: finalRole, modules: [...new Set(modules)], isAdmin: finalIsAdmin, isOwner: willBeOwner,
       isActive: d.isActive !== false, joinedAt: existing?.joinedAt || stamp(), updatedAt: stamp()});
-    audit(tx, uid, 'setMembership', ref.path); return {ok: true, uid: target};
+    audit(tx, uid, 'setMembership', ref.path, {role: finalRole, isOwner: willBeOwner}); return {ok: true, uid: target};
   });
 }
 export const setMembership = callable('setMembership', membership);

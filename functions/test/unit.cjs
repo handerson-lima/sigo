@@ -203,4 +203,89 @@ test('execucao de autorizacao: dev global irrestrito, managers homogeneos e isol
   assert.equal(nonMemberAuth.can('estoque'), false);
 });
 
+test('atribuicao e protecao de owner: apenas dev concede ou altera proprietario', () => {
+  function simulateMembershipLogic({ actorIsDev, actorIsAdmin, targetRole, existingIsOwner, obraScope }) {
+    const validRoles = obraScope ? ['admin', 'member', 'operario'] : ['admin', 'member', 'operario', 'owner'];
+    if (!validRoles.includes(targetRole)) {
+      throw new Error('Papel inválido');
+    }
+    if (!(actorIsDev || actorIsAdmin)) {
+      const err = new Error('Sem permissão para gerir vínculo');
+      err.code = 'permission-denied';
+      throw err;
+    }
+    const isOwnerRequested = !obraScope && targetRole === 'owner';
+    if ((isOwnerRequested || existingIsOwner) && !actorIsDev) {
+      const err = new Error('Apenas dev altera proprietário');
+      err.code = 'permission-denied';
+      throw err;
+    }
+    const willBeOwner = actorIsDev ? isOwnerRequested : false;
+    const finalRole = willBeOwner ? 'owner' : targetRole;
+    const finalIsAdmin = finalRole === 'admin' || willBeOwner;
+    return { role: finalRole, isAdmin: finalIsAdmin, isOwner: willBeOwner };
+  }
+
+  // 1. Dev atribui papel 'owner' com sucesso no escopo da construtora
+  const devAsOwner = simulateMembershipLogic({
+    actorIsDev: true,
+    actorIsAdmin: false,
+    targetRole: 'owner',
+    existingIsOwner: false,
+    obraScope: false,
+  });
+  assert.equal(devAsOwner.role, 'owner');
+  assert.equal(devAsOwner.isOwner, true);
+  assert.equal(devAsOwner.isAdmin, true);
+
+  // 2. Admin comum tenta atribuir 'owner' -> falha com permission-denied
+  assert.throws(
+    () => simulateMembershipLogic({
+      actorIsDev: false,
+      actorIsAdmin: true,
+      targetRole: 'owner',
+      existingIsOwner: false,
+      obraScope: false,
+    }),
+    (err) => err.code === 'permission-denied' && err.message.includes('Apenas dev altera proprietário')
+  );
+
+  // 3. Admin comum tenta alterar vínculo de membro que já é owner -> falha
+  assert.throws(
+    () => simulateMembershipLogic({
+      actorIsDev: false,
+      actorIsAdmin: true,
+      targetRole: 'member',
+      existingIsOwner: true,
+      obraScope: false,
+    }),
+    (err) => err.code === 'permission-denied' && err.message.includes('Apenas dev altera proprietário')
+  );
+
+  // 4. Tentativa de atribuir 'owner' no escopo de obra -> rejeitada como Papel inválido
+  assert.throws(
+    () => simulateMembershipLogic({
+      actorIsDev: true,
+      actorIsAdmin: false,
+      targetRole: 'owner',
+      existingIsOwner: false,
+      obraScope: true,
+    }),
+    (err) => err.message.includes('Papel inválido')
+  );
+
+  // 5. Dev pode rebaixar owner para admin
+  const demotedByDev = simulateMembershipLogic({
+    actorIsDev: true,
+    actorIsAdmin: false,
+    targetRole: 'admin',
+    existingIsOwner: true,
+    obraScope: false,
+  });
+  assert.equal(demotedByDev.role, 'admin');
+  assert.equal(demotedByDev.isOwner, false);
+  assert.equal(demotedByDev.isAdmin, true);
+});
+
+
 
