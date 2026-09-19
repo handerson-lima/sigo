@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app/src/features/authentication/data/user_repository.dart';
+import 'package:app/src/features/authentication/domain/app_user.dart';
 import 'package:app/src/features/construtoras/domain/membro.dart';
 import 'package:app/src/features/construtoras/presentation/add_membro_dialog.dart';
 import 'package:app/src/features/construtoras/presentation/membros_screen.dart';
+import 'package:app/src/features/developer/presentation/users_list_screen.dart';
 
 void main() {
   group('Story 5.7 — Atribuição e Gestão de Proprietário (Owner)', () {
@@ -133,5 +135,80 @@ void main() {
       expect(find.text('Administrador').last, findsOneWidget);
       expect(find.text('Operário').last, findsOneWidget);
     });
+
+    testWidgets('UsersListScreen renderiza etiquetas de DEV, Construtoras e Cargos nos usuários', (tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final mockUsers = [
+        AppUser(
+          id: 'u-dev',
+          email: 'dev@sigo.test',
+          displayName: 'Carlos Silva (Dev Global)',
+          globalRole: 'dev',
+        ),
+        AppUser(
+          id: 'u-owner',
+          email: 'admin@caol.com',
+          displayName: 'Manoel Dono',
+        ),
+        AppUser(
+          id: 'u-solto',
+          email: 'semvinculo@teste.com',
+          displayName: 'Novo Usuário Sem Empresa',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+            allUsersStreamProvider.overrideWith((ref) => Stream.value(mockUsers)),
+            allConstrutorasMapProvider.overrideWith(
+              (ref) => Stream.value({
+                'c-1': 'CAOL Empreendimentos',
+                'c-2': 'Alfa Construtora',
+              }),
+            ),
+            allUserMembershipsProvider.overrideWith(
+              (ref) => Stream.value({
+                'u-owner': [
+                  {
+                    'userId': 'u-owner',
+                    'construtoraId': 'c-1',
+                    'role': 'owner',
+                    'isOwner': true,
+                    'isActive': true,
+                    '_cId': 'c-1',
+                  }
+                ],
+              }),
+            ),
+          ],
+          child: const MaterialApp(
+            home: UsersListScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Renderiza título da tela
+      expect(find.text('Usuários do Sistema'), findsOneWidget);
+
+      // Renderiza nomes de usuários
+      expect(find.text('Carlos Silva (Dev Global)'), findsOneWidget);
+      expect(find.text('Manoel Dono'), findsOneWidget);
+      expect(find.text('Novo Usuário Sem Empresa'), findsOneWidget);
+
+      // Renderiza etiquetas correspondentes
+      expect(find.text('DEV'), findsOneWidget);
+      expect(find.text('CAOL Empreendimentos'), findsOneWidget);
+      expect(find.text('PROPRIETÁRIO'), findsOneWidget);
+      expect(find.text('Sem vínculo'), findsOneWidget);
+    });
   });
 }
+

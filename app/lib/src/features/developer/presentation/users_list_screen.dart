@@ -40,6 +40,28 @@ final allUserMembershipsProvider = StreamProvider.autoDispose<Map<String, List<M
       });
 });
 
+final allUsersStreamProvider = StreamProvider.autoDispose<List<AppUser>>((ref) {
+  return FirebaseFirestore.instance
+      .collection('users')
+      .snapshots()
+      .map((snapshot) {
+        return snapshot.docs.map((doc) {
+          final data = Map<String, dynamic>.from(doc.data());
+          if (data['createdAt'] is Timestamp) {
+            data['createdAt'] = (data['createdAt'] as Timestamp)
+                .toDate()
+                .toIso8601String();
+          }
+          if (data['updatedAt'] is Timestamp) {
+            data['updatedAt'] = (data['updatedAt'] as Timestamp)
+                .toDate()
+                .toIso8601String();
+          }
+          return AppUser.fromJson(data);
+        }).toList();
+      });
+});
+
 class UsersListScreen extends ConsumerStatefulWidget {
   const UsersListScreen({super.key});
 
@@ -294,8 +316,11 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 12,
               children: [
                 Text(
                   'Usuários do Sistema',
@@ -319,42 +344,22 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                 builder: (context) {
                   final construtorasMap = ref.watch(allConstrutorasMapProvider).value ?? {};
                   final userMembershipsMap = ref.watch(allUserMembershipsProvider).value ?? {};
+                  final usersAsync = ref.watch(allUsersStreamProvider);
 
-                  return StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      if (snapshot.hasError) {
-                        return Center(child: Text('Erro: ${snapshot.error}'));
-                      }
-
-                      final docs = snapshot.data?.docs ?? [];
-                      if (docs.isEmpty) {
+                  return usersAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (err, stack) => Center(child: Text('Erro: $err')),
+                    data: (users) {
+                      if (users.isEmpty) {
                         return const Center(
                           child: Text('Nenhum usuário encontrado.'),
                         );
                       }
 
                       return ListView.builder(
-                        itemCount: docs.length,
+                        itemCount: users.length,
                         itemBuilder: (context, index) {
-                          final data = docs[index].data() as Map<String, dynamic>;
-                          if (data['createdAt'] is Timestamp) {
-                            data['createdAt'] = (data['createdAt'] as Timestamp)
-                                .toDate()
-                                .toIso8601String();
-                          }
-                          if (data['updatedAt'] is Timestamp) {
-                            data['updatedAt'] = (data['updatedAt'] as Timestamp)
-                                .toDate()
-                                .toIso8601String();
-                          }
-                          final user = AppUser.fromJson(data);
+                          final user = users[index];
                           final memberships = userMembershipsMap[user.id] ?? [];
                           final badges = _buildUserBadges(user, memberships, construtorasMap);
 
