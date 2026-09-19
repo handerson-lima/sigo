@@ -155,43 +155,55 @@ class SigoSidebar extends ConsumerWidget {
             const SizedBox(height: 32),
             // Logo
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: collapsed ? 8.0 : 24.0),
+              padding: EdgeInsets.symmetric(horizontal: collapsed ? 8.0 : 16.0),
               child: collapsed
                   ? Center(
                       child: Tooltip(
-                        message: 'Conecta SIGO',
+                        message: 'SIGO - Sistema Inteligente de Gestão de Obras',
                         preferBelow: false,
-                        child: Icon(
-                          Icons.hexagon_outlined,
-                          color: Colors.amber[700],
-                          size: 36,
+                        child: Image.asset(
+                          'assets/images/sigo_icon.png',
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.contain,
                         ),
                       ),
                     )
                   : Row(
                       children: [
-                        Icon(
-                          Icons.hexagon_outlined,
-                          color: Colors.amber[700],
-                          size: 40,
+                        Image.asset(
+                          'assets/images/sigo_icon.png',
+                          width: 38,
+                          height: 38,
+                          fit: BoxFit.contain,
                         ),
-                        const SizedBox(width: 8),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Conecta',
-                              style: TextStyle(color: Colors.white, fontSize: 12),
-                            ),
-                            Text(
-                              'SIGO',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'SIGO',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.5,
+                                ),
                               ),
-                            ),
-                          ],
+                              Text(
+                                'Sistema Inteligente de Gestão de Obras',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 9,
+                                  height: 1.1,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
