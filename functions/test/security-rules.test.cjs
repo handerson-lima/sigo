@@ -10,7 +10,7 @@ const {
 } = require('@firebase/rules-unit-testing');
 const {
   doc, getDoc, setDoc, updateDoc, deleteDoc,
-  collectionGroup, query, where, getDocs
+  collectionGroup, query, where, getDocs, collection
 } = require('firebase/firestore');
 const {
   ref, uploadBytes, getBytes, deleteObject
@@ -216,6 +216,22 @@ test('1.3 Dev ativo tem permissão global de leitura', async () => {
   await assertSucceeds(getDoc(doc(devFs, 'construtoras/const_b')));
   await assertSucceeds(getDoc(doc(devFs, 'construtoras/const_a/materiais/mat_existente')));
   await assertSucceeds(getDoc(doc(devFs, 'dev_roles/dev_user')));
+});
+
+test('1.4 Dev ativo tem acesso irrestrito para visualizar e cadastrar fornecedores', async () => {
+  const devFs = testEnv.authenticatedContext('dev_user').firestore();
+  // Leitura da coleção de fornecedores
+  await assertSucceeds(getDocs(collection(devFs, 'construtoras/const_a/fornecedores')));
+  // Criação de fornecedor pelo dev
+  await assertSucceeds(setDoc(doc(devFs, 'construtoras/const_a/fornecedores/forn_dev'), {
+    id: 'forn_dev',
+    construtoraId: 'const_a',
+    razaoSocial: 'Fornecedor Teste Dev',
+    documento: '12345678000195',
+    status: 'ativo'
+  }));
+  // Leitura direta do documento criado
+  await assertSucceeds(getDoc(doc(devFs, 'construtoras/const_a/fornecedores/forn_dev')));
 });
 
 // ==========================================

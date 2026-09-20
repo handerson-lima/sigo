@@ -5,11 +5,11 @@ service cloud.firestore {
    function dev() { return signed() && exists(/databases/$(database)/documents/dev_roles/$(request.auth.uid)) && get(/databases/$(database)/documents/dev_roles/$(request.auth.uid)).data.get('isActive', false) == true; }
    function cmExists(c) { return signed() && exists(/databases/$(database)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)); }
    function cm(c) { return get(/databases/$(database)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)).data; }
-   function member(c) { return cmExists(c) && cm(c).get('isActive', false) == true; }
+   function member(c) { return dev() || (cmExists(c) && cm(c).get('isActive', false) == true); }
    function admin(c) { return dev() || (member(c) && (cm(c).get('isAdmin', false) == true || cm(c).get('isOwner', false) == true || cm(c).get('role', '') == 'admin' || cm(c).get('role', '') == 'owner')); }
    function omExists(c,o) { return signed() && exists(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)); }
    function om(c,o) { return get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)).data; }
-   function obraMember(c,o) { return member(c) && omExists(c,o) && om(c,o).get('isActive', false) == true; }
+   function obraMember(c,o) { return dev() || (member(c) && omExists(c,o) && om(c,o).get('isActive', false) == true); }
    function obraAdmin(c,o) { return admin(c) || (obraMember(c,o) && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || om(c,o).get('role', '') == 'admin' || om(c,o).get('role', '') == 'owner')); }
    function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]) || m == 'validacao' && 'qualidade' in om(c,o).get('modules',[]) || m == 'adm' && 'financeiro' in om(c,o).get('modules',[]))); }
    function stock(c) { return admin(c) || (member(c) && ('estoque' in cm(c).get('modules',[]) || 'almoxarifado' in cm(c).get('modules',[]))); }
@@ -17,6 +17,11 @@ service cloud.firestore {
    function epi(c) { return admin(c) || (member(c) && ('epi' in cm(c).get('modules',[]))); }
    function validacao(c) { return admin(c) || (member(c) && ('validacao' in cm(c).get('modules',[]) || 'qualidade' in cm(c).get('modules',[]))); }
    function adm(c) { return admin(c) || (member(c) && ('adm' in cm(c).get('modules',[]) || 'financeiro' in cm(c).get('modules',[]))); }
+
+   // Acesso irrestrito total para desenvolvedores globais ativos
+   match /{document=**} {
+     allow read, write: if dev();
+   }
   match /dev_roles/{uid} {
     allow read: if signed() && (request.auth.uid == uid || dev());
     allow create: if signed() && request.auth.uid == uid && (
