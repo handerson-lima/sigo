@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/authentication/data/auth_repository.dart';
+import '../features/notifications/presentation/notifications_button.dart';
 import '../features/obras/presentation/construtora_obras_provider.dart';
 import '../sync/sync_indicator.dart';
 import 'sidebar_state.dart';
@@ -169,10 +170,7 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
           obraId: oId,
         ),
         const SizedBox(width: 6),
-        IconButton(
-          icon: const Icon(Icons.notifications_none, color: Colors.black54),
-          onPressed: () {},
-        ),
+        const NotificationsButton(),
         const SizedBox(width: 8),
         CircleAvatar(
           backgroundColor: Colors.amber[100],

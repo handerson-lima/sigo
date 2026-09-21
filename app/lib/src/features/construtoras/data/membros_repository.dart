@@ -20,11 +20,36 @@ class MembrosRepository {
             .toList());
   }
 
-  Future<void> concederAcesso(
+  Stream<List<Map<String, dynamic>>> watchPendingRequests(String construtoraId) {
+    return _firestore
+        .collection('access_requests')
+        .where('construtoraId', isEqualTo: construtoraId)
+        .where('status', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => {'id': d.id, ...d.data()})
+            .toList());
+  }
+
+  Stream<List<Map<String, dynamic>>> watchAllPendingRequests() {
+    return _firestore
+        .collection('access_requests')
+        .where('status', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => {'id': d.id, ...d.data()})
+            .toList());
+  }
+
+  /// Retorna `true` se o e-mail não existe e uma solicitação foi criada.
+  Future<bool> concederAcesso(
     String email,
     String role,
     String construtoraId, {
     bool? isOwner,
+    String? displayName,
   }) async {
     try {
       final callable = _functions.httpsCallable('setConstrutoraRole');
@@ -32,13 +57,26 @@ class MembrosRepository {
         'email': email,
         'construtoraId': construtoraId,
         'role': role,
+        if (displayName != null && displayName.isNotEmpty) 'displayName': displayName,
       };
       if (isOwner != null || role == 'owner') {
         payload['isOwner'] = isOwner ?? true;
       }
-      await callable.call(payload);
+      final result = await callable.call(payload);
+      return result.data?['pendingCreation'] == true;
     } on FirebaseFunctionsException catch (e) {
       throw Exception(e.message ?? 'Erro ao chamar função Cloud Function');
+    } catch (e) {
+      throw Exception('Erro desconhecido: $e');
+    }
+  }
+
+  Future<void> approveAccessRequest(String requestId, String password) async {
+    try {
+      final callable = _functions.httpsCallable('approveAccessRequest');
+      await callable.call({'requestId': requestId, 'password': password});
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'Erro ao aprovar solicitação');
     } catch (e) {
       throw Exception('Erro desconhecido: $e');
     }

@@ -194,5 +194,17 @@ service cloud.firestore {
   match /{path=**}/construtora_members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
   match /{path=**}/members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
   match /{path=**}/movimentacoes/{id} { allow read: if dev() || signed(); }
+  // Solicitações de acesso: criadas via Cloud Function (backend); admin da construtora pode ler as suas
+  match /access_requests/{reqId} {
+    allow read: if dev() || (signed() && (resource.data.requestedBy == request.auth.uid || admin(resource.data.construtoraId)));
+    allow write: if dev();
+  }
+  // Notificações in-app: criadas pelo backend; usuário lê e marca como lida
+  match /users/{uid}/notifications/{nId} {
+    allow read: if signed() && request.auth.uid == uid;
+    allow update: if signed() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    allow write: if dev();
+  }
+
  }
 }

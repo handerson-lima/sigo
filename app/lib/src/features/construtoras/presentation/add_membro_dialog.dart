@@ -15,8 +15,16 @@ class AddMembroDialog extends ConsumerStatefulWidget {
 
 class _AddMembroDialogState extends ConsumerState<AddMembroDialog> {
   final _emailController = TextEditingController();
+  final _nameController = TextEditingController();
   String _selectedRole = 'operario';
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
 
   Future<void> _salvar() async {
     final email = _emailController.text.trim();
@@ -26,18 +34,32 @@ class _AddMembroDialogState extends ConsumerState<AddMembroDialog> {
 
     try {
       final repo = ref.read(membrosRepositoryProvider);
-      await repo.concederAcesso(
+      final isPending = await repo.concederAcesso(
         email,
         _selectedRole,
         widget.construtoraId,
         isOwner: _selectedRole == 'owner',
+        displayName: _nameController.text.trim(),
       );
 
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Acesso concedido com sucesso!')),
-      );
+
+      if (isPending) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'O e-mail não possui conta. Solicitação enviada ao suporte para criação de acesso.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Acesso concedido com sucesso!')),
+        );
+      }
     } catch (e) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context)
@@ -54,6 +76,14 @@ class _AddMembroDialogState extends ConsumerState<AddMembroDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Nome do Funcionário',
+            ),
+            textCapitalization: TextCapitalization.words,
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _emailController,
             decoration: const InputDecoration(

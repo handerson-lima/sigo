@@ -10,6 +10,11 @@ final membrosProvider = StreamProvider.autoDispose.family<List<Membro>, String>(
   return repo.watchMembros(construtoraId);
 });
 
+final pendingRequestsProvider = StreamProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, construtoraId) {
+  final repo = ref.watch(membrosRepositoryProvider);
+  return repo.watchPendingRequests(construtoraId);
+});
+
 class MembrosScreen extends ConsumerWidget {
   final String construtoraId;
 
@@ -18,6 +23,7 @@ class MembrosScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final membrosAsync = ref.watch(membrosProvider(construtoraId));
+    final pendingAsync = ref.watch(pendingRequestsProvider(construtoraId));
 
     return SigoLayout(
       title: 'Gestão de Membros',
@@ -45,13 +51,50 @@ class MembrosScreen extends ConsumerWidget {
       ),
       child: membrosAsync.when(
         data: (membros) {
-          if (membros.isEmpty) {
+          final List<Map<String, dynamic>> pending = pendingAsync.value ?? [];
+
+          // Combinamos: pending no topo + membros ativos abaixo
+          final totalCount = pending.length + membros.length;
+
+          if (totalCount == 0) {
             return const Center(child: Text('Nenhum membro encontrado.'));
           }
+
           return ListView.builder(
-            itemCount: membros.length,
+            itemCount: totalCount,
             itemBuilder: (context, index) {
-              final membro = membros[index];
+              // Itens pendentes no topo
+              if (index < pending.length) {
+                final req = pending[index];
+                final roleLabel = _roleLabel(req['role'] as String? ?? 'operario');
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.orange.shade100,
+                    child: Icon(Icons.hourglass_top_rounded, color: Colors.orange.shade700),
+                  ),
+                  title: Text(req['displayName'] as String? ?? req['email'] as String? ?? ''),
+                  subtitle: Text(req['email'] as String? ?? ''),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.shade300),
+                    ),
+                    child: Text(
+                      '⏳ Pendente · $roleLabel',
+                      style: TextStyle(
+                        color: Colors.orange.shade800,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // Membros ativos
+              final membro = membros[index - pending.length];
               final isOwner = membro.isOwner;
               final isAdmin = membro.isAdmin && !isOwner;
               final roleLabel = isOwner
@@ -100,5 +143,16 @@ class MembrosScreen extends ConsumerWidget {
         error: (err, stack) => Center(child: Text('Erro: $err')),
       ),
     );
+  }
+
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'admin':
+        return 'Administrador';
+      case 'owner':
+        return 'Proprietário';
+      default:
+        return 'Operário';
+    }
   }
 }

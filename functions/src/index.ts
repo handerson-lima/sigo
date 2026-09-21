@@ -45,12 +45,40 @@ export const setDevRole = callable('setDevRole', async (d, uid) => {
 });
 async function membership(d: any, uid: string) {
   const c = id(d.construtoraId), o = d.obraId ? id(d.obraId) : undefined;
-  const target = d.userId ? id(d.userId) : (await admin.auth().getUserByEmail(d.email)).uid;
   const role = d.role || 'member';
   const validRoles = o ? ['admin', 'member', 'operario'] : ['admin', 'member', 'operario', 'owner'];
   if (!validRoles.includes(role)) throw new Error('Papel inválido');
   const modules = (d.modules || []).map(moduleName);
   if (!Array.isArray(modules) || modules.some((m: string) => !(o ? ['diario', 'lotes', 'estoque'] : ['estoque']).includes(m))) throw new Error('Módulos inválidos');
+
+  // Resolve target UID, intercepting user-not-found to create an access_request
+  let target: string;
+  try {
+    target = d.userId ? id(d.userId) : (await admin.auth().getUserByEmail(d.email)).uid;
+  } catch (e: any) {
+    if (e.code === 'auth/user-not-found' && !d.userId && !o) {
+      // Admin requesting a new user: create access_request and return gracefully
+      const displayName = typeof d.displayName === 'string' && d.displayName.trim() ? d.displayName.trim() : d.email;
+      await db.runTransaction(async tx => {
+        const a = await authority(tx, uid, c, o);
+        if (!(a.admin)) fail('permission-denied', 'Sem permissão para gerir vínculo');
+        const parent = db.doc(`construtoras/${c}`);
+        if (!(await tx.get(parent)).exists) fail('not-found', 'Construtora ausente');
+      });
+      await db.collection('access_requests').add({
+        email: d.email,
+        displayName,
+        role,
+        construtoraId: c,
+        requestedBy: uid,
+        status: 'pending',
+        createdAt: stamp(),
+      });
+      return {ok: true, pendingCreation: true};
+    }
+    throw e;
+  }
+
   return db.runTransaction(async tx => {
     const a = await authority(tx, uid, c, o);
     if (!(o ? a.obraAdmin : a.admin)) fail('permission-denied', 'Sem permissão para gerir vínculo');
@@ -74,6 +102,58 @@ async function membership(d: any, uid: string) {
 }
 export const setMembership = callable('setMembership', membership);
 export const setConstrutoraRole = callable('setConstrutoraRole', membership);
+export const approveAccessRequest = callable('approveAccessRequest', async (d, uid) => {
+  const requestId = id(d.requestId);
+  if (typeof d.password !== 'string' || d.password.length < 8) throw new Error('Senha deve ter no mínimo 8 caracteres');
+  const requestRef = db.doc(`access_requests/${requestId}`);
+  const requestSnap = await requestRef.get();
+  if (!requestSnap.exists) fail('not-found', 'Solicitação não encontrada');
+  const req = requestSnap.data()!;
+  // Idempotency: already approved
+  if (req.status === 'approved') return {ok: true};
+  if (req.status !== 'pending') fail('failed-precondition', 'Solicitação não está pendente');
+  // Validate dev role outside transaction for Auth operations
+  const devDoc = await db.doc(`dev_roles/${uid}`).get();
+  if (devDoc.data()?.isActive !== true) fail('permission-denied', 'Dev confiável obrigatório');
+  // Deterministic UID to allow retry idempotency
+  const target = hash({requestId}).slice(0, 28);
+  try {
+    await admin.auth().createUser({uid: target, email: req.email, password: d.password, displayName: req.displayName});
+  } catch (e: any) {
+    if (e.code !== 'auth/uid-already-exists') throw e;
+  }
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + sevenDays);
+  await db.runTransaction(async tx => {
+    if ((await tx.get(db.doc(`dev_roles/${uid}`))).data()?.isActive !== true) fail('permission-denied', 'Dev revogado');
+    // Re-check idempotency inside transaction
+    const fresh = (await tx.get(requestRef)).data();
+    if (fresh?.status === 'approved') return;
+    // Create user profile
+    tx.set(db.doc(`users/${target}`), {id: target, email: req.email, displayName: req.displayName, globalRole: 'user', createdAt: stamp(), updatedAt: stamp()});
+    // Grant membership on the construtora
+    const c = id(req.construtoraId);
+    const role = req.role || 'member';
+    const finalIsAdmin = role === 'admin';
+    const memberRef = db.doc(`construtoras/${c}/construtora_members/${target}`);
+    tx.set(memberRef, {userId: target, construtoraId: c, email: req.email, displayName: req.displayName,
+      role, modules: [], isAdmin: finalIsAdmin, isOwner: false, isActive: true, joinedAt: stamp(), updatedAt: stamp()});
+    // Mark request approved
+    tx.update(requestRef, {status: 'approved', approvedBy: uid, approvedAt: stamp()});
+    // Notify the requesting admin (ephemeral notification)
+    const notifRef = db.collection(`users/${req.requestedBy}/notifications`).doc();
+    const roleLabel = role === 'admin' ? 'Administrador' : role === 'owner' ? 'Proprietário' : 'Operário';
+    tx.create(notifRef, {
+      title: `Conta criada: ${req.displayName}`,
+      body: `A conta de ${req.displayName} (${req.email}) foi criada como ${roleLabel}. Senha provisória: ${d.password}. Compartilhe com o funcionário e oriente-o a alterar no primeiro acesso.`,
+      read: false,
+      createdAt: stamp(),
+      expiresAt,
+    });
+    audit(tx, uid, 'approveAccessRequest', requestRef.path, {target, construtoraId: c, role});
+  });
+  return {ok: true, uid: target};
+});
 export const adminCreateUser = callable('adminCreateUser', async (d, uid) => {
   const op = id(d.operationId); const ref = db.doc(`user_provisioning/${hash([uid, op])}`);
   if (typeof d.email !== 'string' || typeof d.password !== 'string' || d.password.length < 8 || typeof d.displayName !== 'string' || !['user', 'dev'].includes(d.globalRole || 'user')) throw new Error('Dados inválidos');
