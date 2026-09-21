@@ -94,8 +94,8 @@ Os critérios detalhados antigos permanecem no [arquivo histórico](archive/2026
 
 ## Aceite 0-1
 
-- Aceite 0-1: pendente — D1-D7 transcritos das 3 fontes vigentes de 15/09/2026 para docs/decisoes.md, aguardando aceite final do build em 21/09/2026.
+- Aceite 0-1: aprovado em 21/09/2026 — D1-D7 transcritos das 3 fontes vigentes de 15/09/2026 para docs/decisoes.md.
 
 ## Change Log
 
-- 2026-09-21: 0-1 pendente de aceite final; diff: docs/decisoes.md novo (7 decisões + Pendências).
+- 2026-09-21: 0-1 aprovado (aceite final humano); diff: docs/decisoes.md novo (7 decisões + Pendências).
