@@ -61,3 +61,12 @@ Requisitos anteriores permanecem [arquivados](../../docs/archive/2026-09-15-plan
 ## Implantação
 
 Nenhuma migração, publicação ou alteração de dados de produção foi executada nesta atualização documental. Preparar resultado concreto, simulação e recuperação antes de solicitar implantação.
+
+## Deferred from: review of spec-0-1-registrar-decisoes.md (2026-09-21)
+
+- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-0-1-registrar-decisoes.md`
+  summary: Template de reprovação e guarda anti-duplicata para Aceite em docs/task.md
+  evidence: edge findings mostram reexecução anexando headings duplicados e sem template de reprovação; low, fora do intent transcricional
+- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-0-1-registrar-decisoes.md`
+  summary: Checagem de concorrência em last_updated do sprint-status.yaml
+  evidence: maybe-false unverified medium; sem evidência de perda, mas escrita sem merge check; o que assentaria: ler timestamp base antes de escrever e retry em mismatch
