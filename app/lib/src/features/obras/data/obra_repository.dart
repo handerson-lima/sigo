@@ -76,6 +76,26 @@ class ObraRepository {
     ).doc(userId).snapshots().map((doc) => doc.data());
   }
 
+  Stream<List<Obra>> watchObras(String construtoraId) {
+    return _obrasRef(construtoraId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((d) => d.data()).toList());
+  }
+
+  /// Agregação cliente (AD-5): um stream por obra, sem `collectionGroup`.
+  /// Filtra `isActive` no cliente.
+  Stream<List<ObraMember>> watchObraMembers(
+    String construtoraId,
+    String obraId,
+  ) {
+    return _membersRef(construtoraId, obraId).snapshots().map(
+          (snapshot) => snapshot.docs
+              .map((d) => d.data())
+              .where((m) => m.isActive)
+              .toList(),
+        );
+  }
+
   // Se o user for admin da construtora, traz todas as obras dela.
   // Senão, usa collectionGroup('members') e filtra localmente pela construtora.
   Future<List<Obra>> getConstrutoraObras(

@@ -97,15 +97,27 @@ void main() {
       expect(find.text('admin@empresa.com'), findsOneWidget);
       expect(find.text('operario@empresa.com'), findsOneWidget);
 
-      // Verifica labels de cargo renderizados
-      expect(find.text('Proprietário'), findsNWidgets(2)); // subtítulo e trailing badge
-      expect(find.text('Administrador'), findsOneWidget);
-      expect(find.text('Operário'), findsOneWidget);
+      // Verifica labels de cargo renderizados (8.1: subtitle Cargo · N obras + chip)
+      expect(find.text('Proprietário'), findsOneWidget); // chip trailing
+      expect(
+        find.text('Proprietário · Nenhuma obra vinculada'),
+        findsOneWidget,
+      ); // subtitle
+      expect(find.text('Administrador'), findsOneWidget); // chip trailing
+      expect(
+        find.text('Administrador · Nenhuma obra vinculada'),
+        findsOneWidget,
+      ); // subtitle
+      expect(find.text('Operário'), findsOneWidget); // chip trailing
+      expect(
+        find.text('Operário · Nenhuma obra vinculada'),
+        findsOneWidget,
+      ); // subtitle
 
-      // Verifica ícone distintivo do proprietário
-      expect(find.byIcon(Icons.stars_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.admin_panel_settings), findsOneWidget);
-      expect(find.byIcon(Icons.person), findsOneWidget);
+      // Verifica ícone distintivo do proprietário (avatar + chip 8.1)
+      expect(find.byIcon(Icons.stars_rounded), findsNWidgets(2));
+      expect(find.byIcon(Icons.admin_panel_settings), findsNWidgets(2));
+      expect(find.byIcon(Icons.person), findsNWidgets(2));
     });
 
     testWidgets('AddMembroDialog exibe opção de Proprietário para Dev', (tester) async {
