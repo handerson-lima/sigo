@@ -94,6 +94,12 @@ class DevConstrutorasListScreen extends StatelessWidget {
                           ),
                           subtitle: Text('ID: ${construtora.id} | CNPJ: ${construtora.cnpj ?? 'N/A'}'),
                           trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => _EditConstrutoraDialog(construtora: construtora),
+                            );
+                          },
                         ),
                       );
                     },
@@ -192,6 +198,93 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
                 hintText: 'ex: socio@construtora.com',
               ),
               keyboardType: TextInputType.emailAddress,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _isSaving ? null : _save,
+          child: _isSaving
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Salvar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditConstrutoraDialog extends StatefulWidget {
+  final Construtora construtora;
+  const _EditConstrutoraDialog({required this.construtora});
+
+  @override
+  State<_EditConstrutoraDialog> createState() => _EditConstrutoraDialogState();
+}
+
+class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _cnpjController;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.construtora.name);
+    _cnpjController = TextEditingController(text: widget.construtora.cnpj ?? '');
+  }
+
+  Future<void> _save() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final docRef = FirebaseFirestore.instance.collection('construtoras').doc(widget.construtora.id);
+      await docRef.update({
+        'name': name,
+        'cnpj': _cnpjController.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _cnpjController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Editar Construtora'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Nome da Construtora'),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _cnpjController,
+              decoration: const InputDecoration(labelText: 'CNPJ (opcional)'),
             ),
           ],
         ),

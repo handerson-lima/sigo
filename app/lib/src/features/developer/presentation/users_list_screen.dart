@@ -25,12 +25,12 @@ final allConstrutorasMapProvider = StreamProvider.autoDispose<Map<String, String
 final allUserMembershipsProvider = StreamProvider.autoDispose<Map<String, List<Map<String, dynamic>>>>((ref) {
   return FirebaseFirestore.instance
       .collectionGroup('construtora_members')
-      .where('isActive', isEqualTo: true)
       .snapshots()
       .map((snap) {
         final map = <String, List<Map<String, dynamic>>>{};
         for (final doc in snap.docs) {
           final data = doc.data();
+          if (data['isActive'] != true) continue;
           final uid = (data['userId'] as String?) ?? doc.id;
           final cId = (data['construtoraId'] as String?) ?? doc.reference.parent.parent?.id ?? '';
           data['_cId'] = cId;
@@ -71,6 +71,9 @@ class UsersListScreen extends ConsumerStatefulWidget {
 
 class _UsersListScreenState extends ConsumerState<UsersListScreen> {
   bool _isLoading = false;
+  String _searchQuery = '';
+  String? _selectedConstrutoraId;
+  String? _selectedRole;
 
   List<Widget> _buildUserBadges(
     AppUser user,
@@ -338,7 +341,73 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            Builder(builder: (context) {
+              final construtorasMap = ref.watch(allConstrutorasMapProvider).value ?? {};
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 300,
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Buscar por nome ou e-mail...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+                    ),
+                  ),
+                  DropdownButtonHideUnderline(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButton<String>(
+                        value: _selectedConstrutoraId,
+                        hint: const Text('Construtora'),
+                        items: [
+                          const DropdownMenuItem(value: null, child: Text('Todas as construtoras')),
+                          ...construtorasMap.entries.map((e) => DropdownMenuItem(
+                                value: e.key,
+                                child: Text(e.value),
+                              ))
+                        ],
+                        onChanged: (val) => setState(() => _selectedConstrutoraId = val),
+                      ),
+                    ),
+                  ),
+                  DropdownButtonHideUnderline(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButton<String>(
+                        value: _selectedRole,
+                        hint: const Text('Tipo de Usuário'),
+                        items: const [
+                          DropdownMenuItem(value: null, child: Text('Todos os tipos')),
+                          DropdownMenuItem(value: 'dev', child: Text('Dev Global')),
+                          DropdownMenuItem(value: 'owner', child: Text('Proprietário')),
+                          DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                          DropdownMenuItem(value: 'member', child: Text('Membro comum')),
+                          DropdownMenuItem(value: 'none', child: Text('Sem vínculo')),
+                        ],
+                        onChanged: (val) => setState(() => _selectedRole = val),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
+            const SizedBox(height: 16),
             Expanded(
               child: Builder(
                 builder: (context) {
@@ -356,10 +425,42 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                         );
                       }
 
+                      var filteredUsers = users.where((u) {
+                        if (_searchQuery.isNotEmpty) {
+                          final matchName = u.displayName.toLowerCase().contains(_searchQuery);
+                          final matchEmail = u.email.toLowerCase().contains(_searchQuery);
+                          if (!matchName && !matchEmail) return false;
+                        }
+
+                        final memberships = userMembershipsMap[u.id] ?? [];
+                        
+                        if (_selectedConstrutoraId != null) {
+                          if (u.globalRole != 'dev' && !memberships.any((m) => m['_cId'] == _selectedConstrutoraId)) {
+                            return false;
+                          }
+                        }
+
+                        if (_selectedRole != null) {
+                          if (_selectedRole == 'dev' && u.globalRole != 'dev') return false;
+                          if (_selectedRole == 'none' && memberships.isNotEmpty) return false;
+                          if (_selectedRole == 'owner' && !memberships.any((m) => m['isOwner'] == true || m['role'] == 'owner')) return false;
+                          if (_selectedRole == 'admin' && !memberships.any((m) => !(m['isOwner'] == true || m['role'] == 'owner') && (m['isAdmin'] == true || m['role'] == 'admin'))) return false;
+                          if (_selectedRole == 'member' && !memberships.any((m) => !(m['isOwner'] == true || m['role'] == 'owner') && !(m['isAdmin'] == true || m['role'] == 'admin'))) return false;
+                        }
+
+                        return true;
+                      }).toList();
+
+                      if (filteredUsers.isEmpty) {
+                        return const Center(
+                          child: Text('Nenhum usuário corresponde aos filtros.'),
+                        );
+                      }
+
                       return ListView.builder(
-                        itemCount: users.length,
+                        itemCount: filteredUsers.length,
                         itemBuilder: (context, index) {
-                          final user = users[index];
+                          final user = filteredUsers[index];
                           final memberships = userMembershipsMap[user.id] ?? [];
                           final badges = _buildUserBadges(user, memberships, construtorasMap);
 
