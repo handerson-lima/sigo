@@ -56,7 +56,11 @@ async function membership(d: any, uid: string) {
   try {
     target = d.userId ? id(d.userId) : (await admin.auth().getUserByEmail(d.email)).uid;
   } catch (e: any) {
-    if (e.code === 'auth/user-not-found' && !d.userId && !o) {
+    const isUserNotFound =
+      e.code === 'auth/user-not-found' ||
+      e.errorInfo?.code === 'auth/user-not-found' ||
+      (typeof e.message === 'string' && (e.message.includes('no user record') || e.message.includes('user-not-found')));
+    if (isUserNotFound && !d.userId && !o) {
       // Admin requesting a new user: create access_request and return gracefully
       const displayName = typeof d.displayName === 'string' && d.displayName.trim() ? d.displayName.trim() : d.email;
       await db.runTransaction(async tx => {
