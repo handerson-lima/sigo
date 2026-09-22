@@ -9,6 +9,7 @@ import 'package:app/src/features/construtoras/presentation/widgets/obra_vinculo_
 import 'package:app/src/features/obras/domain/obra.dart';
 import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart';
+import 'package:app/src/features/construtoras/presentation/widgets/trocar_papel_dialog.dart';
 import 'package:app/src/features/obras/data/obra_members_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -2348,4 +2349,328 @@ void main() {
       );
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 10.1 Trocar papel/módulos na obra
+  // ---------------------------------------------------------------------------
+  group('10.1 TrocarPapelDialog', () {
+    late FakeObraMembersRepository fakeTrocar;
+
+    setUp(() {
+      fakeTrocar = FakeObraMembersRepository();
+    });
+
+    Widget _buildTrocar({
+      bool isAdmin = false,
+      List<String> modules = const ['diario'],
+    }) {
+      return ProviderScope(
+        overrides: [
+          obraMembersRepositoryProvider.overrideWithValue(fakeTrocar),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () => TrocarPapelDialog.show(
+                  context: ctx,
+                  construtoraId: 'c-1',
+                  obraId: 'o1',
+                  obraNome: 'Obra o1',
+                  userId: 'u1',
+                  membroIdentificador: 'ana@obra.com',
+                  isAdminAtual: isAdmin,
+                  modulesAtuais: modules,
+                ),
+                child: const Text('abrir'),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets(
+        '10.1 pré-preenchimento: isAdmin=true → dropdown mostra Admin da obra',
+        (tester) async {
+      await tester.pumpWidget(_buildTrocar(isAdmin: true, modules: ['diario', 'lotes']));
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TrocarPapelDialog), findsOneWidget);
+      // O resumo reflete o estado pré-preenchido
+      expect(
+        find.textContaining('será Admin da obra em Obra o1'),
+        findsOneWidget,
+      );
+      // Chips diario e lotes marcados
+      final chipDiario = tester.widget<FilterChip>(
+        find.byKey(TrocarPapelDialog.moduloDiarioKey),
+      );
+      final chipLotes = tester.widget<FilterChip>(
+        find.byKey(TrocarPapelDialog.moduloLotesKey),
+      );
+      final chipEstoque = tester.widget<FilterChip>(
+        find.byKey(TrocarPapelDialog.moduloEstoqueKey),
+      );
+      expect(chipDiario.selected, isTrue);
+      expect(chipLotes.selected, isTrue);
+      expect(chipEstoque.selected, isFalse);
+    });
+
+    testWidgets(
+        '10.1 pré-preenchimento: isAdmin=false → dropdown mostra Operário',
+        (tester) async {
+      await tester.pumpWidget(_buildTrocar(isAdmin: false, modules: []));
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('será Operário em Obra o1'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('10.1 HAPPY_PATH: troca papel para Admin, confirma, setMembership chamado',
+        (tester) async {
+      await tester.pumpWidget(_buildTrocar(isAdmin: false, modules: ['diario']));
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      // Seleciona Admin da obra
+      await tester.tap(find.byKey(TrocarPapelDialog.papelDropdownKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Admin da obra').last);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('será Admin da obra em Obra o1'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+      await tester.pumpAndSettle();
+
+      expect(fakeTrocar.chamadas.length, 1);
+      expect(fakeTrocar.chamadas.first['role'], 'admin');
+      expect(fakeTrocar.chamadas.first['isActive'], true);
+      expect(fakeTrocar.chamadas.first['obraId'], 'o1');
+      // Dialog fechada + snackbar
+      expect(find.byType(TrocarPapelDialog), findsNothing);
+      expect(find.textContaining('Papel atualizado em Obra o1.'), findsOneWidget);
+    });
+
+    testWidgets('10.1 confirmar sem alterar papel envia role existente',
+        (tester) async {
+      await tester.pumpWidget(_buildTrocar(isAdmin: true, modules: ['diario']));
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+      await tester.pumpAndSettle();
+
+      expect(fakeTrocar.chamadas.length, 1);
+      expect(fakeTrocar.chamadas.first['role'], 'admin');
+    });
+
+    testWidgets('10.1 alterar apenas módulos: role mantido, modules atualizados',
+        (tester) async {
+      await tester.pumpWidget(
+          _buildTrocar(isAdmin: false, modules: ['diario']));
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      // Marca lotes adicionalmente
+      await tester.tap(find.byKey(TrocarPapelDialog.moduloLotesKey));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('com acesso a Diário, Lotes'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+      await tester.pumpAndSettle();
+
+      expect(fakeTrocar.chamadas.first['role'], 'operario');
+      expect(
+          (fakeTrocar.chamadas.first['modules'] as List).contains('lotes'), isTrue);
+    });
+
+    testWidgets('10.1 offline: dialog permanece aberta com mensagem de erro',
+        (tester) async {
+      fakeTrocar.offline = true;
+      await tester.pumpWidget(_buildTrocar());
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TrocarPapelDialog), findsOneWidget);
+      expect(find.textContaining('Sem conexão'), findsOneWidget);
+      expect(fakeTrocar.chamadas, isEmpty);
+    });
+
+    testWidgets('10.1 permission-denied: dialog permanece aberta com mensagem',
+        (tester) async {
+      fakeTrocar.codigoErroFirebase = 'permission-denied';
+      await tester.pumpWidget(_buildTrocar());
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TrocarPapelDialog), findsOneWidget);
+      expect(find.textContaining('permissão'), findsOneWidget);
+    });
+
+    testWidgets('10.1 cancelar: dialog fecha sem chamar setMembership',
+        (tester) async {
+      await tester.pumpWidget(_buildTrocar());
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TrocarPapelDialog), findsNothing);
+      expect(fakeTrocar.chamadas, isEmpty);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 10.2 Remover da obra
+  // ---------------------------------------------------------------------------
+  group('10.2 Remover da obra', () {
+    late FakeObraMembersRepository fakeRemover;
+
+    setUp(() {
+      fakeRemover = FakeObraMembersRepository();
+    });
+
+    final membros102 = [
+      Membro(uid: 'u1', email: 'ana@obra.com', isAdmin: false, role: 'operario'),
+    ];
+
+    base102({String uid = 'u1'}) {
+      return [
+        obraMembersRepositoryProvider.overrideWithValue(fakeRemover),
+        membrosProvider('c-1').overrideWith((ref) => Stream.value(membros102)),
+        pendingRequestsProvider('c-1').overrideWith(
+          (ref) => Stream.value(const []),
+        ),
+        obrasDaConstrutoraProvider('c-1').overrideWith(
+          (ref) => Stream.value([_obra('o1')]),
+        ),
+        obraMembersProvider((construtoraId: 'c-1', obraId: 'o1')).overrideWith(
+          (ref) => Stream.value([_om(uid)]),
+        ),
+        memberDetalheProvider((construtoraId: 'c-1', uid: uid)).overrideWith(
+          (ref) => Future.value(_cm(uid, isActive: true)),
+        ),
+      ];
+    }
+
+    testWidgets(
+        '10.2 HAPPY_PATH: overflow → Remover → confirm → setMembership isActive:false + snackbar',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base102(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+
+      // Abre detalhe
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+
+      // Abre overflow na ObraVinculoRow
+      final overflowKey = find.byKey(const Key('overflow-o1'));
+      expect(overflowKey, findsOneWidget);
+      await tester.tap(overflowKey);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Remover da obra'));
+      await tester.pumpAndSettle();
+
+      // Dialog confirm
+      expect(find.textContaining('Remover de Obra o1?'), findsOneWidget);
+      expect(
+        find.textContaining('perde acesso imediato; diários preservados'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Remover'));
+      await tester.pumpAndSettle();
+
+      expect(fakeRemover.chamadas.length, 1);
+      expect(fakeRemover.chamadas.first['isActive'], false);
+      expect(fakeRemover.chamadas.first['obraId'], 'o1');
+      expect(find.textContaining('Removido de Obra o1.'), findsOneWidget);
+    });
+
+    testWidgets('10.2 cancelar: CF não é chamada', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base102(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('overflow-o1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remover da obra'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(fakeRemover.chamadas, isEmpty);
+    });
+
+    testWidgets('10.2 overflow → Trocar papel → TrocarPapelDialog abre',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base102(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('overflow-o1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Trocar papel'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TrocarPapelDialog), findsOneWidget);
+    });
+
+    testWidgets('10.2 offline: snackbar de erro após confirm remoção',
+        (tester) async {
+      fakeRemover.offline = true;
+      await tester.pumpWidget(ProviderScope(
+        overrides: base102(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('overflow-o1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remover da obra'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Remover'));
+      await tester.pumpAndSettle();
+
+      expect(fakeRemover.chamadas, isEmpty);
+      expect(find.textContaining('Sem conexão'), findsOneWidget);
+    });
+  });
 }
+

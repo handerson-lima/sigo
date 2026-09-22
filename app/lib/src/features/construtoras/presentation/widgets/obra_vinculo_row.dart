@@ -30,15 +30,24 @@ class ObraVinculoVazio extends StatelessWidget {
 }
 
 /// Linha do vínculo obra ↔ membro: nome + papel obra + status.
-/// Sem menu overflow na 8.3 (epic 10).
+/// Overflow com `Trocar papel` e `Remover da obra` (epic 10) quando
+/// [onTrocarPapel] ou [onRemover] forem não-nulos.
 class ObraVinculoRow extends StatelessWidget {
   final Obra obra;
   final ObraMember vinculo;
+
+  /// Chamado ao selecionar "Trocar papel" no overflow. Nulo = item oculto.
+  final VoidCallback? onTrocarPapel;
+
+  /// Chamado ao selecionar "Remover da obra" no overflow. Nulo = item oculto.
+  final VoidCallback? onRemover;
 
   const ObraVinculoRow({
     super.key,
     required this.obra,
     required this.vinculo,
+    this.onTrocarPapel,
+    this.onRemover,
   });
 
   @override
@@ -55,8 +64,10 @@ class ObraVinculoRow extends StatelessWidget {
     final statusIcon =
         ativo ? Icons.check_circle_outline : Icons.remove_circle_outline;
 
+    final hasMenu = onTrocarPapel != null || onRemover != null;
+
     return Semantics(
-      label: '$nome, $papel, $status',
+      label: '$nome, $papel, $status${hasMenu ? ', Editar vínculo' : ''}',
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -76,6 +87,36 @@ class ObraVinculoRow extends StatelessWidget {
                     style: theme.textTheme.bodyMedium,
                   ),
                 ),
+                if (hasMenu)
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: PopupMenuButton<_ObraVinculoAction>(
+                      key: Key('overflow-${obra.id}'),
+                      tooltip: 'Opções de vínculo',
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.more_vert, size: 18),
+                      onSelected: (action) {
+                        if (action == _ObraVinculoAction.trocarPapel) {
+                          onTrocarPapel?.call();
+                        } else {
+                          onRemover?.call();
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        if (onTrocarPapel != null)
+                          const PopupMenuItem(
+                            value: _ObraVinculoAction.trocarPapel,
+                            child: Text('Trocar papel'),
+                          ),
+                        if (onRemover != null)
+                          const PopupMenuItem(
+                            value: _ObraVinculoAction.remover,
+                            child: Text('Remover da obra'),
+                          ),
+                      ],
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 6),
@@ -122,3 +163,5 @@ class ObraVinculoRow extends StatelessWidget {
     );
   }
 }
+
+enum _ObraVinculoAction { trocarPapel, remover }

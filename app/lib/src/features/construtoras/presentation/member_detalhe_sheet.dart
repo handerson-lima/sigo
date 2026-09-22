@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../obras/data/obra_members_repository.dart';
 import '../../obras/domain/obra.dart';
 import '../../obras/domain/obra_member.dart';
 import '../domain/construtora_member.dart';
@@ -9,6 +10,7 @@ import 'membros_providers.dart';
 import 'widgets/atribuir_obra_dialog.dart';
 import 'widgets/obra_vinculo_row.dart';
 import 'widgets/role_chip.dart';
+import 'widgets/trocar_papel_dialog.dart';
 
 /// Detalhe do membro (8.3): somente leitura.
 ///
@@ -406,7 +408,22 @@ class MemberDetalheSheet extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (final entry in obrasVinculadas)
-          ObraVinculoRow(obra: entry.obra, vinculo: entry.vinculo),
+          ObraVinculoRow(
+            obra: entry.obra,
+            vinculo: entry.vinculo,
+            onTrocarPapel: () => _mostrarTrocarPapelDialog(
+              context,
+              ref,
+              entry.obra,
+              entry.vinculo,
+            ),
+            onRemover: () => _confirmarRemocao(
+              context,
+              ref,
+              entry.obra,
+              entry.vinculo,
+            ),
+          ),
       ],
     );
   }
@@ -427,6 +444,102 @@ class MemberDetalheSheet extends ConsumerWidget {
       ref.invalidate(
         obraMembersProvider((construtoraId: construtoraId, obraId: obraId)),
       );
+    }
+  }
+
+  Future<void> _mostrarTrocarPapelDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Obra obra,
+    ObraMember vinculo,
+  ) async {
+    final email = membro.email.trim();
+    final identificador = email.isNotEmpty ? email : 'UID: ${membro.uid}';
+    final obraNome =
+        obra.name.trim().isNotEmpty ? obra.name : 'Obra ${obra.id}';
+    await TrocarPapelDialog.show(
+      context: context,
+      construtoraId: construtoraId,
+      obraId: obra.id,
+      obraNome: obraNome,
+      userId: membro.uid,
+      membroIdentificador: identificador,
+      isAdminAtual: vinculo.isAdmin,
+      modulesAtuais: List<String>.from(vinculo.modules),
+    );
+    // Providers já invalidados dentro do TrocarPapelDialog em caso de sucesso.
+  }
+
+  Future<void> _confirmarRemocao(
+    BuildContext context,
+    WidgetRef ref,
+    Obra obra,
+    ObraMember vinculo,
+  ) async {
+    final email = membro.email.trim();
+    final identificador = email.isNotEmpty ? email : 'UID: ${membro.uid}';
+    final obraNome =
+        obra.name.trim().isNotEmpty ? obra.name : 'Obra ${obra.id}';
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Remover de $obraNome?'),
+        content: Text(
+          'Remover $identificador de $obraNome? '
+          'Ele perde acesso imediato; diários preservados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+    if (!context.mounted) return;
+
+    try {
+      await ref.read(obraMembersRepositoryProvider).setMembership(
+            construtoraId: construtoraId,
+            obraId: obra.id,
+            userId: vinculo.userId,
+            role: vinculo.isAdmin ? 'admin' : 'operario',
+            modules: List<String>.from(vinculo.modules),
+            isActive: false,
+          );
+
+      ref.invalidate(membrosProvider(construtoraId));
+      ref.invalidate(
+        obraMembersProvider(
+          (construtoraId: construtoraId, obraId: obra.id),
+        ),
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Removido de $obraNome.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceFirst('Exception: ', ''),
+            ),
+          ),
+        );
+      }
     }
   }
 }
