@@ -1,10 +1,10 @@
 # Política de acesso e privilégios — Epic 0
 
 Vigência das fontes: 15/09/2026 @90e550d (`90e550d33a11c40791f99583052d333d38986006`)
-Registro de decisões: [decisoes.md](decisoes.md) — leitura apenas; D1–D7 e Pendências de 0-1 permanecem intactos
+Registro de decisões: [decisoes.md](decisoes.md) — leitura apenas; D1–D7 e Pendências de 0-1 permanecem intactos; cada linha D# do registro carrega a própria evidência `@90e550d`
 Story: 0-2 definir-politica | Destino: `docs/politica.md` novo (decisão humana DESTINO=A, 22/09/2026)
 
-Esta política operationaliza D1–D7 para quem implementa C1, regras e UI. Toda cláusula abaixo é referência a decisão ou seção já aprovada; nenhuma cláusula cria decisão nova e o histórico congelado (`docs/archive/`) não é reaberto. Texto em pt-br, alinhado ao vocabulário de papéis do plano §3.
+Esta política operationaliza, no escopo de acesso e privilégios, as decisões D1, D5, D6 e D7 para quem implementa C1, regras e UI — D2–D4 tratam de estrutura de dados e plataforma, ficam fora deste escopo e permanecem apenas nas fontes. Toda cláusula abaixo é referência a decisão ou seção já aprovada; nenhuma cláusula cria decisão nova — as marcações "decisão humana … 22/09/2026" (DESTINO, ESCOPO-POLÍTICA, COLETA) são metadecisões de escopo desta story, não integrantes de D1–D7 — e o histórico congelado (`docs/archive/`) não é reaberto. Texto em pt-br, alinhado ao vocabulário de papéis do plano §3.
 
 ## 1. Escopo
 
@@ -29,20 +29,16 @@ Cinco perfis, com vocabulário conforme `docs/plano-de-correcao-2026-09-15.md` s
 5. **Sem autorização** — nenhum acesso operacional; dados de obra, estoque, financeiro e arquivos negados.
    *Base:* D5 — [decisoes.md](decisoes.md); `docs/plano-de-correcao-2026-09-15.md` seção 3 @90e550d; `docs/implementation_plan.md` seção 4 @90e550d.
 
-**Base (seção):** D1 e D5 — [decisoes.md](decisoes.md); `docs/plano-de-correcao-2026-09-15.md` seção 3 @90e550d; `docs/implementation_plan.md` seção 4 @90e550d; `docs/data_model.md` seção 2 @90e550d.
-
 ## 3. Regras de privilégio
 
 - **Dev global confirmado.** O desenvolvedor global é mantido e preservado, sem exigir vínculo por obra para administração global; a proteção da concessão desse papel é parte da correção. Autoatribuições de `globalRole=dev` não são confiáveis e identidades de devs legítimos não são inferidas.
   *Base:* D1 — [decisoes.md](decisoes.md); `docs/plano-de-correcao-2026-09-15.md` seção 1 @90e550d; `docs/implementation_plan.md` seção 4 @90e550d; `docs/data_model.md` seção 2 @90e550d.
-- **Servidor autoritativo para `globalRole`.** O papel global só é escrito e alterado por fluxo administrativo confiável no servidor (Functions auditadas); o cliente comum não cria, altera nem apaga autorização própria e edita apenas campos pessoais permitidos. A migração do fallback legado de e-mail para UID preserva e testa o acesso dos devs legítimos antes da retirada do fallback; claims antigas não reativam vínculo revogado.
+- **Servidor autoritativo para `globalRole`.** O papel global só é escrito e alterado por fluxo administrativo confiável no servidor (Functions auditadas); o cliente comum não cria, altera nem apaga autorização própria e edita apenas campos pessoais permitidos. A migração do fallback legado de e-mail para UID preserva e testa o acesso dos devs legítimos antes da retirada do fallback; claims antigas não reativam vínculo revogado e não preservam papel rebaixado ou alterado no servidor — a claim deve corresponder ao estado atual autoritativo (D7).
   *Base:* D7 — [decisoes.md](decisoes.md); `docs/plano-de-correcao-2026-09-15.md` seção 1 @90e550d; `docs/implementation_plan.md` seção 4 @90e550d; `docs/data_model.md` seção 2 @90e550d.
-- **Módulos fail-closed.** Perfis consistem via `isActive`, `modules`, `isAdmin` e `isOwner`. Campos ou `modules` ausentes, ilegíveis ou vazios não concedem acesso implicitamente (vazio = sem acesso); nomes legados de módulo serão normalizados com mapeamento no inventário, sem concessão geral silenciosa.
+- **Módulos fail-closed.** Perfis consistem via `isActive`, `modules`, `isAdmin` e `isOwner`. Usuário com `isActive=false` não tem acesso operacional, independentemente de módulos ou vínculos. Campos ou `modules` ausentes, ilegíveis ou vazios não concedem acesso implicitamente (vazio = sem acesso); nomes legados de módulo serão normalizados com mapeamento no inventário, sem concessão geral silenciosa. Precedência: `modules` controla os módulos centrais de membros comuns; o acesso de admin/proprietário decorre do perfil e de `isAdmin`/`isOwner`, não de `modules`.
   *Base:* D5 — [decisoes.md](decisoes.md); `docs/plano-de-correcao-2026-09-15.md` seção 3 @90e550d; `docs/data_model.md` seção 2 @90e550d.
 - **Exceções ao vínculo individual de obra.** A permissão de obra regular exige vínculo ativo na construtora e na obra. **Dev confiável** e **admin/proprietário da construtora** são exceções explícitas a esse vínculo individual; a guarda deve ser única e uniforme entre Rules, Functions e UI.
   *Base:* D1 e D5 — [decisoes.md](decisoes.md); `docs/plano-de-correcao-2026-09-15.md` seção 3 @90e550d; `docs/implementation_plan.md` seção 4 @90e550d.
-
-**Base (seção):** D1, D5, D7 — [decisoes.md](decisoes.md).
 
 ## 4. Pendências de evidência
 

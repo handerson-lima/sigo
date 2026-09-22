@@ -22,7 +22,7 @@ Estabelecer a base de governança do SIGO antes da estabilização C0–C6 e das
 - Escopo da aprovação vigente: implementação e validação de C0–C6 e da matriz em ambiente de desenvolvimento, preservando dev global, estoque central e dados existentes. Implantação em produção não é autorizada por este plano e deve ser apresentada separadamente, com simulação, impactos, devs verificados e plano de recuperação.
 - Termos/aprovações devem espelhar o estado real do sprint status: atualização de planejamento solicitada, dev global preservado confirmado, plano de correção aprovado, produção não autorizada.
 - Pendências abertas que o epic deve manter visíveis (sem inventário não há conclusão): identidade dos desenvolvedores legítimos, regras de produção publicadas, volume real de dados legados.
-- Aceite da Story 0.1 já registrado (transcrição das fontes vigentes de 15/09/2026 aprovada em 21/09/2026); demais stories permanecem em backlog.
+- Aceite da Story 0.1 já registrado (transcrição das fontes vigentes de 15/09/2026 aprovada em 21/09/2026) e da Story 0.2 registrado em 22/09/2026 (política de acesso e privilégios em `docs/politica.md`); Stories 0.3 e 0.4 permanecem em backlog.
 
 ## Technical Decisions
 

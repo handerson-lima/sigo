@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-22-2026 17:45
+last_updated: 09-22-2026 18:42
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -34,7 +34,7 @@ observed_baseline:
 development_status:
   epic-0: in-progress
   0-1-registrar-decisoes: done
-  0-2-definir-politica: in-progress
+  0-2-definir-politica: review
   0-3-aprovar-termos: backlog
   0-4-matriz-acesso: backlog
   epic-0-retrospective: optional
@@ -218,8 +218,10 @@ action_items:
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
   - id: "epic-4-retro-item-1-modularizar-chamada-form"
     epic: 4
-    action: "Extrair sub-componentes visuais de chamada_form_screen.dart (banner de
-      invariantes, sumario de rateio e filtros) para manter a tela principal enxuta"
+    action: "Extrair sub-componentes de chamada_form_screen.dart: progresso parcial
+      (banner de invariantes, filtros de cabecalho e sticky bottom bar ja extraidos);
+      tela ainda com 585 linhas, meta <=500 pendente - manter este item open ate
+      a tela ficar com no maximo 500 linhas"
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-17.md"
