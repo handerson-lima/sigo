@@ -79,7 +79,9 @@ context: []
 ## Implementation Notes
 
 - Implementação inicial (baseline 39ef704): `MemberDetalheSheet`, `ObraVinculoRow`, provider `memberDetalheProvider`, onTap na lista, 16 testes 8.3. `flutter analyze` limpo; 63 testes passando.
-- Review 2026-09-21 (3 camadas): 14 patches + 1 defer; 6 rejeitados. Patches em processamento.
+- Review 2026-09-21 (3 camadas): 14 patches + 1 defer; 6 rejeitados.
+- Patches aplicados e verificados (2026-09-22): a11y contagem loading/erro, cargo dual-source unificado no vínculo, `_retryObras` invalida `obraMembers`, testes não-vacuosos (`Atribuir à obra`, microcopy exata), textScale via `MemberDetalheSheet.show`, testes owner/admin/UID, `getMember` null → `Membro não encontrado.`, indent, breakpoint `>=800`, dica a11y `Disponível em breve`, `excludeSemantics`, nome de obra vazio → `Obra {id}`. Defer `offline-loading-sheet` (E3) registrado em `deferred-work.md`.
+- Aceite final 2026-09-22: sprint `8-3-detalhe-do-membro` → `done`.
 
 ## Spec Change Log
 
@@ -141,4 +143,4 @@ Breakpoint único 800px igual a `SigoLayout.isDesktop`. Vínculo: `getMember` de
 
 **Commands:**
 - `flutter analyze` -- expected: No issues found — actual: No issues found (exit 0)
-- `flutter test test/features/construtoras/membros_test.dart` -- expected: All tests passed — actual: 63/63 All tests passed
+- `flutter test test/features/construtoras/membros_test.dart` -- expected: All tests passed — actual: 67/67 All tests passed (após patches da review)
