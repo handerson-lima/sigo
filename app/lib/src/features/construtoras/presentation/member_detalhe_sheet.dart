@@ -6,6 +6,7 @@ import '../../obras/domain/obra_member.dart';
 import '../domain/construtora_member.dart';
 import '../domain/membro.dart';
 import 'membros_providers.dart';
+import 'widgets/atribuir_obra_dialog.dart';
 import 'widgets/obra_vinculo_row.dart';
 import 'widgets/role_chip.dart';
 
@@ -165,39 +166,42 @@ class MemberDetalheSheet extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Semantics(
-              label: 'Disponível em breve',
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Disponível em breve',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.tonal(
+                      onPressed: vinculo?.isActive == true
+                          ? () => AtribuirObraDialog.show(
+                                context: context,
+                                construtoraId: construtoraId,
+                                membro: membro,
+                              )
+                          : null,
+                      child: const Text('Atribuir à obra'),
                     ),
+                    OutlinedButton(
+                      onPressed: null,
+                      child: const Text('Trocar cargo'),
+                    ),
+                    OutlinedButton(
+                      onPressed: null,
+                      child: const Text('Desativar'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Disponível em breve',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      FilledButton.tonal(
-                        onPressed: null,
-                        child: const Text('Atribuir à obra'),
-                      ),
-                      OutlinedButton(
-                        onPressed: null,
-                        child: const Text('Trocar cargo'),
-                      ),
-                      OutlinedButton(
-                        onPressed: null,
-                        child: const Text('Desativar'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),

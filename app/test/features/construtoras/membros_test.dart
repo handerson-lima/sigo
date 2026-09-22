@@ -8,11 +8,41 @@ import 'package:app/src/features/construtoras/presentation/membros_screen.dart';
 import 'package:app/src/features/construtoras/presentation/widgets/obra_vinculo_row.dart';
 import 'package:app/src/features/obras/domain/obra.dart';
 import 'package:app/src/features/obras/domain/obra_member.dart';
+import 'package:app/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart';
+import 'package:app/src/features/obras/data/obra_members_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class FakeObraMembersRepository implements ObraMembersRepository {
+  final List<Map<String, dynamic>> chamadas = [];
+  bool deveFalhar = false;
+  String mensagemErro = 'Erro simulado';
+
+  @override
+  Future<void> setMembership({
+    required String construtoraId,
+    required String obraId,
+    required String userId,
+    required String role,
+    required List<String> modules,
+    bool isActive = true,
+  }) async {
+    if (deveFalhar) {
+      throw Exception(mensagemErro);
+    }
+    chamadas.add({
+      'construtoraId': construtoraId,
+      'obraId': obraId,
+      'userId': userId,
+      'role': role,
+      'modules': modules,
+      'isActive': isActive,
+    });
+  }
+}
 
 ObraMember _om(String uid, {bool isActive = true, bool isAdmin = false}) =>
     ObraMember(
@@ -28,6 +58,21 @@ Obra _obra(String id, {bool isActive = true}) => Obra(
       name: 'Obra $id',
       createdAt: DateTime(2026, 1, 1),
       isActive: isActive,
+    );
+
+ConstrutoraMember _cm(
+  String uid, {
+  bool isActive = true,
+  bool isOwner = false,
+  bool isAdmin = false,
+  DateTime? joinedAt,
+}) =>
+    ConstrutoraMember(
+      userId: uid,
+      isActive: isActive,
+      isOwner: isOwner,
+      isAdmin: isAdmin,
+      joinedAt: joinedAt ?? DateTime(2026, 1, 15),
     );
 
 void main() {
@@ -1237,7 +1282,7 @@ void main() {
       final atribuir = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Atribuir à obra'),
       );
-      expect(atribuir.onPressed, isNull);
+      expect(atribuir.onPressed, isNotNull);
     });
 
     testWidgets('8.3 sem obras mostra microcopy estática sem CTA',
@@ -1255,9 +1300,12 @@ void main() {
       );
       expect(find.byType(ObraVinculoRow), findsNothing);
       expect(find.byType(ObraVinculoVazio), findsOneWidget);
-      final ctaAcionavel = tester
-          .widgetList<FilledButton>(find.byType(FilledButton))
-          .where((b) => b.onPressed != null);
+      final ctaAcionavel = tester.widgetList<FilledButton>(
+        find.descendant(
+          of: find.byType(ObraVinculoVazio),
+          matching: find.byType(FilledButton),
+        ),
+      );
       expect(ctaAcionavel, isEmpty);
     });
 
@@ -1688,6 +1736,276 @@ void main() {
         findsNothing,
       );
       expect(leituras, greaterThan(1));
+    });
+  });
+
+  group('9.1 atribuir operário à obra', () {
+    late FakeObraMembersRepository fakeObraMembersRepo;
+
+    setUp(() {
+      fakeObraMembersRepo = FakeObraMembersRepository();
+    });
+
+    final membros91 = [
+      Membro(uid: 'u1', email: 'ana@obra.com', isAdmin: false, role: 'operario'),
+      Membro(uid: 'u2', email: 'inativo@obra.com', isAdmin: false, role: 'operario'),
+    ];
+
+    base91({
+      List<Membro>? membros,
+      List<Obra>? obras,
+      Map<String, List<ObraMember>>? porObra,
+      Future<ConstrutoraMember?> Function()? vinculoFuture,
+      String uid = 'u1',
+    }) {
+      return [
+        obraMembersRepositoryProvider.overrideWithValue(fakeObraMembersRepo),
+        membrosProvider('c-1').overrideWith(
+          (ref) => Stream.value(membros ?? membros91),
+        ),
+        pendingRequestsProvider('c-1').overrideWith(
+          (ref) => Stream.value(const []),
+        ),
+        obrasDaConstrutoraProvider('c-1').overrideWith(
+          (ref) => Stream.value(obras ?? [_obra('o1'), _obra('o2')]),
+        ),
+        for (final entry in (porObra ??
+                {
+                  'o1': [_om('u1')],
+                  'o2': <ObraMember>[],
+                })
+            .entries)
+          obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
+              .overrideWith((ref) => Stream.value(entry.value)),
+        memberDetalheProvider((construtoraId: 'c-1', uid: uid)).overrideWith(
+          (ref) =>
+              vinculoFuture?.call() ??
+              Future<ConstrutoraMember?>.value(
+                _cm(uid, isActive: uid != 'u2'),
+              ),
+        ),
+      ];
+    }
+
+    testWidgets('9.1 HAPPY_PATH: abre dialog, seleciona obra, resumo ao vivo, confirma e chama setMembership',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base91(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AtribuirObraDialog), findsOneWidget);
+      expect(find.text('Atribuir à obra'), findsWidgets);
+      expect(find.text('Membro: ana@obra.com'), findsOneWidget);
+      expect(find.text('Operário'), findsWidgets);
+
+      final chkDiario = tester.widget<CheckboxListTile>(
+        find.widgetWithText(CheckboxListTile, 'Diário de Obras'),
+      );
+      expect(chkDiario.value, isTrue);
+
+      expect(find.text('Selecione a obra'), findsOneWidget);
+      final confirmarBtnInicial = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Confirmar atribuição'),
+      );
+      expect(confirmarBtnInicial.onPressed, isNull);
+
+      expect(
+        find.text('Selecione uma obra para ver o resumo da atribuição.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Obra o2').last);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('ana@obra.com será Operário em Obra o2 com acesso a Diário'),
+        findsOneWidget,
+      );
+
+      final confirmarBtnHabilitado = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Confirmar atribuição'),
+      );
+      expect(confirmarBtnHabilitado.onPressed, isNotNull);
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Confirmar atribuição'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar atribuição'));
+      await tester.pumpAndSettle();
+
+      expect(fakeObraMembersRepo.chamadas.length, 1);
+      expect(fakeObraMembersRepo.chamadas.first, {
+        'construtoraId': 'c-1',
+        'obraId': 'o2',
+        'userId': 'u1',
+        'role': 'operario',
+        'modules': ['diario'],
+        'isActive': true,
+      });
+
+      expect(find.byType(AtribuirObraDialog), findsNothing);
+      expect(find.text('Atribuído a Obra o2 como Operário.'), findsOneWidget);
+    });
+
+    testWidgets('9.1 resumo dinâmico atualiza ao marcar módulos adicionais',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base91(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Obra o2').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(CheckboxListTile, 'Lotes'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('ana@obra.com será Operário em Obra o2 com acesso a Diário, Lotes'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.widgetWithText(CheckboxListTile, 'Estoque'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('ana@obra.com será Operário em Obra o2 com acesso a Diário, Lotes, Estoque'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.widgetWithText(CheckboxListTile, 'Diário de Obras'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('ana@obra.com será Operário em Obra o2 com acesso a Lotes, Estoque'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('9.1 nenhuma obra ativa exibe mensagem e desabilita botão',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base91(
+          obras: [_obra('o1')],
+          porObra: {'o1': [_om('u1')]},
+        ),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nenhuma obra ativa'), findsOneWidget);
+      final btn = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Confirmar atribuição'),
+      );
+      expect(btn.onPressed, isNull);
+    });
+
+    testWidgets('9.1 membro inativo na construtora tem Atribuir à obra desabilitado',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base91(uid: 'u2'),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('inativo@obra.com'));
+      await tester.pumpAndSettle();
+
+      final atribuirBtn = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Atribuir à obra'),
+      );
+      expect(atribuirBtn.onPressed, isNull);
+      expect(find.text('Ative na construtora primeiro'), findsOneWidget);
+    });
+
+    testWidgets('9.1 cancelar fecha o diálogo sem chamar repositório',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base91(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Cancelar'));
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AtribuirObraDialog), findsNothing);
+      expect(fakeObraMembersRepo.chamadas, isEmpty);
+    });
+
+    testWidgets('9.1 erro na mutação exibe mensagem de erro no diálogo',
+        (tester) async {
+      fakeObraMembersRepo.deveFalhar = true;
+      fakeObraMembersRepo.mensagemErro = 'Sem permissão para gerir vínculo';
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: base91(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Obra o2').last);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Confirmar atribuição'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar atribuição'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AtribuirObraDialog), findsOneWidget);
+      await tester.ensureVisible(find.text('Sem permissão para gerir vínculo'));
+      expect(find.text('Sem permissão para gerir vínculo'), findsOneWidget);
+    });
+
+    testWidgets('9.1 textScale 1.3 sem overflow no diálogo de atribuição',
+        (tester) async {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            textScaler: TextScaler.linear(1.3),
+          ),
+          child: ProviderScope(
+            overrides: base91(),
+            child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AtribuirObraDialog), findsOneWidget);
     });
   });
 }
