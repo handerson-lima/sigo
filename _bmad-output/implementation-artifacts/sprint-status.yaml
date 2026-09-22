@@ -116,7 +116,7 @@ development_status:
 
   epic-9: in-progress
   9-1-atribuir-operario-a-obra: done
-  9-2-atribuir-admin-erros-e-offline: backlog
+  9-2-atribuir-admin-erros-e-offline: ready-for-dev
   epic-9-retrospective: optional
 
   epic-10: backlog
