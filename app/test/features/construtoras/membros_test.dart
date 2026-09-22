@@ -6,11 +6,14 @@ import 'package:app/src/features/construtoras/presentation/member_detalhe_sheet.
 import 'package:app/src/features/construtoras/presentation/membros_providers.dart';
 import 'package:app/src/features/construtoras/presentation/membros_screen.dart';
 import 'package:app/src/features/construtoras/presentation/widgets/obra_vinculo_row.dart';
+import 'package:app/src/features/construtoras/data/membros_repository.dart';
+import 'package:app/src/features/construtoras/presentation/widgets/trocar_cargo_dialog.dart';
 import 'package:app/src/features/obras/domain/obra.dart';
 import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart';
 import 'package:app/src/features/construtoras/presentation/widgets/trocar_papel_dialog.dart';
 import 'package:app/src/features/obras/data/obra_members_repository.dart';
+import 'package:app/src/features/authentication/data/user_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -60,6 +63,69 @@ class FakeObraMembersRepository implements ObraMembersRepository {
       'isActive': isActive,
     });
   }
+}
+
+/// Fake de [MembrosRepository] para testes da Story 10.3.
+class FakeMembrosRepository implements MembrosRepository {
+  final List<Map<String, dynamic>> chamadas = [];
+  bool offline = false;
+  String? codigoErroFirebase;
+  String mensagemErro = 'Erro simulado';
+
+  @override
+  Future<void> setCargo(
+    String construtoraId,
+    String userId,
+    String role, {
+    bool isActive = true,
+  }) async {
+    if (offline) {
+      throw Exception('Sem conexão. Verifique sua internet e tente novamente.');
+    }
+    if (codigoErroFirebase != null) {
+      throw Exception(
+        traduzirErroSetCargo(
+          FirebaseFunctionsException(
+            code: codigoErroFirebase!,
+            message: 'erro original',
+          ),
+        ),
+      );
+    }
+    chamadas.add({
+      'construtoraId': construtoraId,
+      'userId': userId,
+      'role': role,
+      'isActive': isActive,
+    });
+  }
+
+  // Métodos não testados nesta suite.
+  @override
+  Future<bool> concederAcesso(
+    String email,
+    String role,
+    String construtoraId, {
+    bool? isOwner,
+    String? displayName,
+  }) =>
+      Future.value(false);
+
+  @override
+  Future<void> approveAccessRequest(String requestId, String password) async {}
+
+  @override
+  Stream<List<Membro>> watchMembros(String construtoraId) =>
+      const Stream.empty();
+
+  @override
+  Stream<List<Map<String, dynamic>>> watchPendingRequests(
+          String construtoraId) =>
+      const Stream.empty();
+
+  @override
+  Stream<List<Map<String, dynamic>>> watchAllPendingRequests() =>
+      const Stream.empty();
 }
 
 ObraMember _om(String uid, {bool isActive = true, bool isAdmin = false}) =>
@@ -1416,7 +1482,12 @@ void main() {
       expect(find.text('Obra o1'), findsOneWidget);
       expect(find.text('Operário'), findsWidgets);
       expect(find.text('Ações'), findsOneWidget);
-      expect(find.text('Disponível em breve'), findsOneWidget);
+      // 10.3: "Disponível em breve" foi removido; botões agora estão ativos.
+      expect(find.text('Disponível em breve'), findsNothing);
+      final trocarCargo = tester.widget<OutlinedButton>(
+        find.widgetWithText(OutlinedButton, 'Trocar cargo'),
+      );
+      expect(trocarCargo.onPressed, isNotNull);
 
       final atribuir = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Atribuir à obra'),
@@ -2908,6 +2979,392 @@ void main() {
 
       expect(fakeRemover.chamadas, isEmpty);
       expect(find.textContaining('Sem conexão'), findsOneWidget);
+    });
+  });
+
+  // ===========================================================================
+  // 10.3 — Trocar cargo na construtora e desativar membro
+  // ===========================================================================
+
+  group('10.3', () {
+    // -------------------------------------------------------------------------
+    // Fake para MembrosRepository.setCargo
+    // -------------------------------------------------------------------------
+    late FakeMembrosRepository fakeCargo;
+
+    setUp(() {
+      fakeCargo = FakeMembrosRepository();
+    });
+
+    // -------------------------------------------------------------------------
+    // 10.3 TrocarCargoDialog — testes unitários de widget
+    // -------------------------------------------------------------------------
+    group('10.3 TrocarCargoDialog', () {
+      Widget buildCargo({
+        String cargoAtual = 'operario',
+        bool isDev = false,
+      }) {
+        return ProviderScope(
+          overrides: [
+            membrosRepositoryProvider.overrideWithValue(fakeCargo),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (ctx) => ElevatedButton(
+                  onPressed: () => TrocarCargoDialog.show(
+                    context: ctx,
+                    construtoraId: 'c-1',
+                    userId: 'u1',
+                    membroIdentificador: 'ana@obra.com',
+                    cargoAtual: cargoAtual,
+                    isDev: isDev,
+                  ),
+                  child: const Text('abrir'),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      testWidgets(
+        '10.3 pré-preenchimento: cargoAtual=admin → dropdown mostra Administrador',
+        (tester) async {
+          await tester.pumpWidget(buildCargo(cargoAtual: 'admin'));
+          await tester.tap(find.text('abrir'));
+          await tester.pumpAndSettle();
+
+          expect(find.byType(TrocarCargoDialog), findsOneWidget);
+          // Resumo ao vivo mostra cargo atual
+          expect(
+            find.textContaining('será Administrador na construtora'),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets(
+        '10.3 pré-preenchimento: cargoAtual=operario → dropdown mostra Operário',
+        (tester) async {
+          await tester.pumpWidget(buildCargo());
+          await tester.tap(find.text('abrir'));
+          await tester.pumpAndSettle();
+
+          expect(
+            find.textContaining('será Operário na construtora'),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets(
+        '10.3 trustedDev=false → opção Proprietário não existe no dropdown',
+        (tester) async {
+          await tester.pumpWidget(buildCargo(isDev: false));
+          await tester.tap(find.text('abrir'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.byKey(TrocarCargoDialog.cargoDropdownKey));
+          await tester.pumpAndSettle();
+
+          expect(find.text('Proprietário'), findsNothing);
+          expect(find.text('Operário'), findsWidgets);
+          expect(find.text('Administrador'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '10.3 trustedDev=true → opção Proprietário aparece no dropdown',
+        (tester) async {
+          await tester.pumpWidget(buildCargo(isDev: true));
+          await tester.tap(find.text('abrir'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.byKey(TrocarCargoDialog.cargoDropdownKey));
+          await tester.pumpAndSettle();
+
+          expect(find.text('Proprietário'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '10.3 HAPPY_PATH: troca admin→operário, confirma, setCargo chamado, dialog fecha',
+        (tester) async {
+          await tester.pumpWidget(buildCargo(cargoAtual: 'admin'));
+          await tester.tap(find.text('abrir'));
+          await tester.pumpAndSettle();
+
+          // Muda para Operário
+          await tester.tap(find.byKey(TrocarCargoDialog.cargoDropdownKey));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Operário').last);
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+          await tester.pumpAndSettle();
+
+          expect(fakeCargo.chamadas.length, 1);
+          expect(fakeCargo.chamadas.first['role'], 'operario');
+          expect(fakeCargo.chamadas.first['isActive'], true);
+          expect(find.byType(TrocarCargoDialog), findsNothing);
+        },
+      );
+
+      testWidgets(
+        '10.3 HAPPY_PATH: troca operário→admin, confirma, role admin enviado',
+        (tester) async {
+          await tester.pumpWidget(buildCargo());
+          await tester.tap(find.text('abrir'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.byKey(TrocarCargoDialog.cargoDropdownKey));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Administrador').last);
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+          await tester.pumpAndSettle();
+
+          expect(fakeCargo.chamadas.first['role'], 'admin');
+        },
+      );
+
+      testWidgets(
+        '10.3 offline: dialog permanece aberta com mensagem Sem conexão',
+        (tester) async {
+          fakeCargo.offline = true;
+          await tester.pumpWidget(buildCargo());
+          await tester.tap(find.text('abrir'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+          await tester.pumpAndSettle();
+
+          // Dialog continua aberta
+          expect(find.byType(TrocarCargoDialog), findsOneWidget);
+          expect(find.textContaining('Sem conexão'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '10.3 permission-denied: dialog permanece com mensagem de permissão',
+        (tester) async {
+          fakeCargo.codigoErroFirebase = 'permission-denied';
+          await tester.pumpWidget(buildCargo());
+          await tester.tap(find.text('abrir'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+          await tester.pumpAndSettle();
+
+          expect(find.byType(TrocarCargoDialog), findsOneWidget);
+          expect(
+            find.textContaining('Você não tem permissão'),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets(
+        '10.3 cancelar: nenhuma chamada a setCargo',
+        (tester) async {
+          await tester.pumpWidget(buildCargo());
+          await tester.tap(find.text('abrir'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
+          await tester.pumpAndSettle();
+
+          expect(fakeCargo.chamadas, isEmpty);
+          expect(find.byType(TrocarCargoDialog), findsNothing);
+        },
+      );
+    });
+
+    // -------------------------------------------------------------------------
+    // 10.3 Desativar membro — testes de integração de widget
+    // -------------------------------------------------------------------------
+    group('10.3 Desativar membro', () {
+      late FakeObraMembersRepository fakeObra103;
+
+      setUp(() {
+        fakeObra103 = FakeObraMembersRepository();
+      });
+
+      final membros103 = [
+        Membro(
+          uid: 'u1',
+          email: 'ana@obra.com',
+          isAdmin: false,
+          role: 'operario',
+        ),
+      ];
+
+      base103({String uid = 'u1', int nObras = 1}) {
+        final obras = List.generate(nObras, (i) => _obra('o${i + 1}'));
+        return [
+          obraMembersRepositoryProvider.overrideWithValue(fakeObra103),
+          membrosRepositoryProvider.overrideWithValue(fakeCargo),
+          membrosProvider('c-1').overrideWith((ref) => Stream.value(membros103)),
+          pendingRequestsProvider('c-1')
+              .overrideWith((ref) => Stream.value(const [])),
+          obrasDaConstrutoraProvider('c-1')
+              .overrideWith((ref) => Stream.value(obras)),
+          for (final obra in obras)
+            obraMembersProvider((construtoraId: 'c-1', obraId: obra.id))
+                .overrideWith((ref) => Stream.value([_om(uid)])),
+          memberDetalheProvider((construtoraId: 'c-1', uid: uid))
+              .overrideWith(
+                  (ref) => Future.value(_cm(uid, isActive: true))),
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+        ];
+      }
+
+      testWidgets(
+        '10.3 Desativar: dialog lista 2 obras afetadas pelo nome',
+        (tester) async {
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: base103(nObras: 2),
+              child:
+                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.text('ana@obra.com'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(OutlinedButton, 'Desativar'));
+          await tester.pumpAndSettle();
+
+          // Deve listar as obras afetadas
+          expect(find.textContaining('Obra o1'), findsWidgets);
+          expect(find.textContaining('Obra o2'), findsWidgets);
+        },
+      );
+
+      testWidgets(
+        '10.3 Desativar: cancelar → nenhuma CF chamada',
+        (tester) async {
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: base103(),
+              child:
+                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.text('ana@obra.com'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(OutlinedButton, 'Desativar'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
+          await tester.pumpAndSettle();
+
+          expect(fakeObra103.chamadas, isEmpty);
+          expect(fakeCargo.chamadas, isEmpty);
+        },
+      );
+
+      testWidgets(
+        '10.3 Desativar HAPPY_PATH: 1 obra → N+1 CFs + snackbar Membro desativado',
+        (tester) async {
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: base103(nObras: 1),
+              child:
+                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.text('ana@obra.com'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(OutlinedButton, 'Desativar'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(
+              find.widgetWithText(FilledButton, 'Desativar').last);
+          await tester.pumpAndSettle();
+
+          // 1× setMembership (setMembership para obra o1)
+          expect(fakeObra103.chamadas.length, 1);
+          expect(fakeObra103.chamadas.first['isActive'], false);
+          // 1× setCargo (desativa na construtora)
+          expect(fakeCargo.chamadas.length, 1);
+          expect(fakeCargo.chamadas.first['isActive'], false);
+          // Snackbar
+          expect(find.textContaining('Membro desativado'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '10.3 Desativar sem obras: apenas setCargo{isActive:false} chamado',
+        (tester) async {
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: base103(nObras: 0),
+              child:
+                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.text('ana@obra.com'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(OutlinedButton, 'Desativar'));
+          await tester.pumpAndSettle();
+
+          // Verifica que lista o texto "Nenhuma obra vinculada"
+          expect(find.textContaining('Nenhuma obra vinculada'), findsWidgets);
+
+          await tester.tap(
+              find.widgetWithText(FilledButton, 'Desativar').last);
+          await tester.pumpAndSettle();
+
+          // Sem obras → nenhum setMembership de obra
+          expect(fakeObra103.chamadas, isEmpty);
+          // Mas setCargo é chamado
+          expect(fakeCargo.chamadas.length, 1);
+          expect(fakeCargo.chamadas.first['isActive'], false);
+        },
+      );
+
+      testWidgets(
+        '10.3 Desativar falha parcial: erro exibido via snackbar',
+        (tester) async {
+          fakeObra103.deveFalhar = true;
+          fakeObra103.mensagemErro = 'Falha simulada na obra';
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: base103(nObras: 1),
+              child:
+                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.text('ana@obra.com'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(OutlinedButton, 'Desativar'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(
+              find.widgetWithText(FilledButton, 'Desativar').last);
+          await tester.pumpAndSettle();
+
+          // Erro exibido (falha parcial — setCargo ainda pode ser chamado)
+          expect(find.textContaining('Falha simulada na obra'), findsOneWidget);
+        },
+      );
     });
   });
 }

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../authentication/data/user_repository.dart';
 import '../../obras/data/obra_members_repository.dart';
 import '../../obras/domain/obra.dart';
 import '../../obras/domain/obra_member.dart';
+import '../data/membros_repository.dart';
 import '../domain/construtora_member.dart';
 import '../domain/membro.dart';
 import 'membros_providers.dart';
 import 'widgets/atribuir_obra_dialog.dart';
 import 'widgets/obra_vinculo_row.dart';
 import 'widgets/role_chip.dart';
+import 'widgets/trocar_cargo_dialog.dart';
 import 'widgets/trocar_papel_dialog.dart';
 
 /// Detalhe do membro (8.3): somente leitura.
@@ -168,11 +171,11 @@ class MemberDetalheSheet extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Wrap(
+            Builder(
+              builder: (context) {
+                final isDev =
+                    ref.watch(trustedDevProvider).value == true;
+                return Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
@@ -187,23 +190,38 @@ class MemberDetalheSheet extends ConsumerWidget {
                       child: const Text('Atribuir à obra'),
                     ),
                     OutlinedButton(
-                      onPressed: null,
+                      onPressed: vinculo != null
+                          ? () => _mostrarTrocarCargoDialog(
+                                context,
+                                ref,
+                                vinculo,
+                                isDev,
+                              )
+                          : null,
                       child: const Text('Trocar cargo'),
                     ),
                     OutlinedButton(
-                      onPressed: null,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                        side: BorderSide(
+                            color: theme.colorScheme.error
+                                .withValues(alpha: 0.5)),
+                      ),
+                      onPressed: vinculo?.isActive == true
+                          ? () => _confirmarDesativar(
+                                context,
+                                ref,
+                                vinculo!,
+                                obrasVinculadas
+                                    .map((e) => e.obra)
+                                    .toList(),
+                              )
+                          : null,
                       child: const Text('Desativar'),
                     ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Disponível em breve',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ],
         ),
@@ -468,6 +486,199 @@ class MemberDetalheSheet extends ConsumerWidget {
       modulesAtuais: List<String>.from(vinculo.modules),
     );
     // Providers já invalidados dentro do TrocarPapelDialog em caso de sucesso.
+  }
+
+  // -------------------------------------------------------------------------
+  // Epic 10.3 — Trocar cargo na construtora
+  // -------------------------------------------------------------------------
+
+  Future<void> _mostrarTrocarCargoDialog(
+    BuildContext context,
+    WidgetRef ref,
+    ConstrutoraMember vinculo,
+    bool isDev,
+  ) async {
+    final email = membro.email.trim();
+    final identificador = email.isNotEmpty ? email : 'UID: ${membro.uid}';
+
+    // Determina o cargo atual como string: owner > admin > operario.
+    final String cargoAtual;
+    if (vinculo.isOwner) {
+      cargoAtual = 'owner';
+    } else if (vinculo.isAdmin) {
+      cargoAtual = 'admin';
+    } else {
+      cargoAtual = 'operario';
+    }
+
+    final sucesso = await TrocarCargoDialog.show(
+      context: context,
+      construtoraId: construtoraId,
+      userId: membro.uid,
+      membroIdentificador: identificador,
+      cargoAtual: cargoAtual,
+      isDev: isDev,
+    );
+
+    // Providers já invalidados dentro do TrocarCargoDialog em caso de sucesso.
+    if (sucesso == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cargo atualizado.')),
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Epic 10.3 — Desativar membro da construtora
+  // -------------------------------------------------------------------------
+
+  Future<void> _confirmarDesativar(
+    BuildContext context,
+    WidgetRef ref,
+    ConstrutoraMember vinculo,
+    List<Obra> obrasAfetadas,
+  ) async {
+    final email = membro.email.trim();
+    final identificador = email.isNotEmpty ? email : 'UID: ${membro.uid}';
+
+    // Texto da lista de obras afetadas.
+    final String textoObras;
+    if (obrasAfetadas.isEmpty) {
+      textoObras = 'Nenhuma obra vinculada.';
+    } else {
+      final nomes = obrasAfetadas
+          .map((o) => o.name.trim().isNotEmpty ? o.name : 'Obra ${o.id}')
+          .join('\n• ');
+      textoObras = '• $nomes';
+    }
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Desativar $identificador?'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$identificador perderá acesso imediato à construtora'
+                '${obrasAfetadas.isNotEmpty ? ' e às obras abaixo' : ''}.',
+              ),
+              if (obrasAfetadas.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Obras afetadas:',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(textoObras),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Desativar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+    if (!context.mounted) return;
+
+    // Indicador de progresso.
+    bool progressVisible = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: const AlertDialog(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Desativando...'),
+            ],
+          ),
+        ),
+      ),
+    ).then((_) => progressVisible = false);
+
+    String? erroFinal;
+
+    try {
+      final obraMembersRepo = ref.read(obraMembersRepositoryProvider);
+      final membrosRepo = ref.read(membrosRepositoryProvider);
+
+      // N chamadas setMembership em paralelo (uma por obra).
+      final futures = obrasAfetadas.map(
+        (obra) => obraMembersRepo
+            .setMembership(
+              construtoraId: construtoraId,
+              obraId: obra.id,
+              userId: vinculo.userId,
+              role: vinculo.isAdmin ? 'admin' : 'operario',
+              modules: const [],
+              isActive: false,
+            )
+            .catchError((e) {
+          erroFinal ??= e.toString().replaceFirst('Exception: ', '');
+        }),
+      );
+
+      await Future.wait(futures, eagerError: false);
+
+      // Desativa o vínculo na construtora (papel atual preservado).
+      final cargoAtual = vinculo.isOwner
+          ? 'owner'
+          : vinculo.isAdmin
+              ? 'admin'
+              : 'operario';
+      await membrosRepo.setCargo(
+        construtoraId,
+        vinculo.userId,
+        cargoAtual,
+        isActive: false,
+      );
+
+      // Invalida providers.
+      ref.invalidate(membrosProvider(construtoraId));
+      ref.invalidate(
+        memberDetalheProvider(
+          (construtoraId: construtoraId, uid: vinculo.userId),
+        ),
+      );
+    } catch (e) {
+      erroFinal ??= e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      if (context.mounted && progressVisible) {
+        Navigator.of(context).pop();
+      }
+    }
+
+    if (!context.mounted) return;
+
+    if (erroFinal != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(erroFinal!)),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Membro desativado.')),
+      );
+    }
   }
 
   Future<void> _confirmarRemocao(

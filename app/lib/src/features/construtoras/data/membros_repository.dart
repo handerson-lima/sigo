@@ -1,7 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/membro.dart';
+
+/// Mensagem pt-br para falta de conexão (reutilizada em [setCargo]).
+const mensagemSemConexaoCargo =
+    'Sem conexão. Verifique sua internet e tente novamente.';
+
+/// Traduz códigos de [FirebaseFunctionsException] de `setConstrutoraRole` para pt-br.
+String traduzirErroSetCargo(FirebaseFunctionsException e) {
+  switch (e.code) {
+    case 'permission-denied':
+      return 'Você não tem permissão para realizar esta atribuição.';
+    case 'failed-precondition':
+      return 'Ative na construtora primeiro.';
+    default:
+      return (e.message?.isNotEmpty ?? false)
+          ? e.message!
+          : 'Erro ao chamar setConstrutoraRole';
+  }
+}
 
 class MembrosRepository {
   final FirebaseFirestore _firestore;
@@ -67,6 +86,49 @@ class MembrosRepository {
     } on FirebaseFunctionsException catch (e) {
       throw Exception(e.message ?? 'Erro ao chamar função Cloud Function');
     } catch (e) {
+      throw Exception('Erro desconhecido: $e');
+    }
+  }
+
+  /// Troca o cargo ou ativa/desativa um membro existente na construtora.
+  ///
+  /// Roles válidos: `operario`, `admin`. `owner` apenas quando `trustedDev`.
+  /// Para desativação, passe [isActive] = `false`.
+  Future<void> setCargo(
+    String construtoraId,
+    String userId,
+    String role, {
+    bool isActive = true,
+  }) async {
+    // Pré-check offline — mesmo padrão do ObraMembersRepository.
+    try {
+      final results = await Connectivity().checkConnectivity();
+      final semConexao = results.every((r) => r == ConnectivityResult.none);
+      if (semConexao) {
+        throw Exception(mensagemSemConexaoCargo);
+      }
+    } catch (e) {
+      if (e is Exception && e.toString().contains(mensagemSemConexaoCargo)) {
+        rethrow;
+      }
+      // Plugin indisponível — deixa a chamada tentar e o catch tratar.
+    }
+
+    final payload = <String, dynamic>{
+      'construtoraId': construtoraId,
+      'userId': userId,
+      'role': role,
+      'isActive': isActive,
+    };
+
+    try {
+      await _functions.httpsCallable('setConstrutoraRole').call(payload);
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(traduzirErroSetCargo(e));
+    } catch (e) {
+      if ('$e'.contains('SocketException')) {
+        throw Exception(mensagemSemConexaoCargo);
+      }
       throw Exception('Erro desconhecido: $e');
     }
   }
