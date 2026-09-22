@@ -6,10 +6,13 @@ import '../../../obras/domain/obra.dart';
 import '../../domain/membro.dart';
 import '../membros_providers.dart';
 
-/// Diálogo de atribuição de operário a uma obra (Epic 9.1 / UX-DR4).
+/// Diálogo de atribuição de operário ou admin da obra (Epic 9.1/9.2 / UX-DR4).
 class AtribuirObraDialog extends ConsumerStatefulWidget {
   final String construtoraId;
   final Membro membro;
+
+  static const Key obraDropdownKey = Key('atribuir-obra-dropdown');
+  static const Key papelDropdownKey = Key('atribuir-papel-dropdown');
 
   const AtribuirObraDialog({
     super.key,
@@ -37,6 +40,7 @@ class AtribuirObraDialog extends ConsumerStatefulWidget {
 
 class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
   String? _selectedObraId;
+  String _selectedRole = 'operario';
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -57,6 +61,13 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
     'lotes': 'Lotes',
     'estoque': 'Estoque',
   };
+
+  static const Map<String, String> _roleLabels = {
+    'operario': 'Operário',
+    'admin': 'Admin da obra',
+  };
+
+  String get _rotuloPapel => _roleLabels[_selectedRole] ?? 'Operário';
 
   String get _identificadorMembro {
     final email = widget.membro.email.trim();
@@ -86,7 +97,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
     final modulosTexto =
         selecionados.isEmpty ? 'nenhum módulo' : selecionados.join(', ');
 
-    return '$_identificadorMembro será Operário em $obraNome com acesso a $modulosTexto';
+    return '$_identificadorMembro será $_rotuloPapel em $obraNome com acesso a $modulosTexto';
   }
 
   Future<void> _confirmar(String obraNome) async {
@@ -107,7 +118,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
             construtoraId: widget.construtoraId,
             obraId: _selectedObraId!,
             userId: widget.membro.uid,
-            role: 'operario',
+            role: _selectedRole,
             modules: selectedModules,
             isActive: true,
           );
@@ -128,7 +139,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Atribuído a $obraNome como Operário.'),
+            content: Text('Atribuído a $obraNome como $_rotuloPapel.'),
           ),
         );
       }
@@ -261,6 +272,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                     )
                   else
                     DropdownButtonFormField<String>(
+                      key: AtribuirObraDialog.obraDropdownKey,
                       initialValue: _selectedObraId,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
@@ -296,24 +308,30 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  InputDecorator(
+                  DropdownButtonFormField<String>(
+                    key: AtribuirObraDialog.papelDropdownKey,
+                    initialValue: _selectedRole,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding:
                           EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.engineering, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Operário',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
+                    items: _roleLabels.entries
+                        .map(
+                          (e) => DropdownMenuItem<String>(
+                            value: e.key,
+                            child: Text(e.value),
                           ),
-                        ),
-                      ],
-                    ),
+                        )
+                        .toList(),
+                    onChanged: _isSubmitting
+                        ? null
+                        : (val) {
+                            if (val == null) return;
+                            setState(() {
+                              _selectedRole = val;
+                            });
+                          },
                   ),
                   const SizedBox(height: 12),
                   Text(

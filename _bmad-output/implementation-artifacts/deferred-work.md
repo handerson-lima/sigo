@@ -74,3 +74,7 @@ Nenhuma migração, publicação ou alteração de dados de produção foi execu
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-3-detalhe-do-membro.md`
   summary: Sheet de detalhe pode ficar em loading infinito se streams de obras não emitirem offline sem cache (sem timeout no bloco)
   evidence: maybe-false; `contagemObrasMetaProvider.carregando` sem emissão mantém spinner; settles com teste de stream não-emitting + expect de erro/timeout ou evidência do comportamento Firestore offline em `cachedList`
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-9-2-atribuir-admin-erros-e-offline.md`
+  summary: checkConnectivity sem timeout pode pendurar setMembership se a platform channel não responder
+  evidence: maybe-false unverified medium; spinner preso no diálogo se checkConnectivity nunca completar; o que assentaria: teste forçando platform channel pendurada ou evidência de que a channel sempre completa/erro

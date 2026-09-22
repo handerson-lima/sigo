@@ -2,10 +2,11 @@
 title: '9.2 Atribuir admin + erros e offline'
 type: 'feature'
 created: '2026-09-22'
-status: 'ready-for-dev'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 context: []
+baseline_commit: '72f5a7403d0eeb5d22bc63d8c76a6c6461714cb3'
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -60,9 +61,9 @@ context: []
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `app/lib/src/features/obras/data/obra_members_repository.dart` -- estender `setMembership` com tradução de `e.code` para `permission-denied` e `failed-precondition`; adicionar verificação de conectividade antes da chamada retornando mensagem de offline -- tratamento de erros granular.
-- [ ] `app/lib/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart` -- adicionar estado `_selectedRole = 'operario'`; substituir bloco de papel fixo por `DropdownButtonFormField<String>` com duas opções; atualizar `_gerarResumo`, `_confirmar` e SnackBar para usar o papel selecionado -- seleção explícita de papel Admin.
-- [ ] `app/test/features/construtoras/membros_test.dart` -- adicionar suite cobrindo todos os cenários da matriz I/O da história 9.2 -- cobertura e regressão.
+- [x] `app/lib/src/features/obras/data/obra_members_repository.dart` -- estender `setMembership` com tradução de `e.code` para `permission-denied` e `failed-precondition`; adicionar verificação de conectividade antes da chamada retornando mensagem de offline -- tratamento de erros granular.
+- [x] `app/lib/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart` -- adicionar estado `_selectedRole = 'operario'`; substituir bloco de papel fixo por `DropdownButtonFormField<String>` com duas opções; atualizar `_gerarResumo`, `_confirmar` e SnackBar para usar o papel selecionado -- seleção explícita de papel Admin.
+- [x] `app/test/features/construtoras/membros_test.dart` -- adicionar suite cobrindo todos os cenários da matriz I/O da história 9.2 -- cobertura e regressão.
 
 **Acceptance Criteria:**
 - Given dialog aberto, when não altero o papel, then `Operário` está pré-selecionado e `setMembership` recebe `role: 'operario'`.
@@ -77,6 +78,43 @@ context: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+- BH1 textScale-mediaquery-externa | verdict: false | evidência: MaterialApp não insere MediaQuery própria (fonte Flutter material/app.dart); a MediaQuery 1.3 bombeada fica abaixo da View e é a ancestral mais próxima do diálogo.
+- BH2 socketexception-fragil | verdict: false | evidência: Spec Always manda demais erros usarem e.message; pré-check de conectividade cobre o offline antes da chamada conforme exigido.
+- BH3 unavailable-nao-mapeado | verdict: false | evidência: Código `unavailable` cai no default de traduzirErroSetMembership → e.message, exatamente o comportamento Always da spec.
+- BH4 sem-teste-repo-real-conectividade | verdict: medium | evidência: Nenhum teste instancia ObraMembersRepository real com Connectivity injetado; apagar o pré-check passa em todos os testes (confirmado pela camada VG). Agrupado com VG1.
+- BH5 lista-conectividade-vazia | verdict: false | evidência: checkConnectivity da plataforma não retorna lista vazia nos fluxos demonstrados; situação não alcançada.
+- BH6 labels-papel-duplicados | verdict: low | evidência: _roleLabels e DropdownMenuItem repetem os rótulos; divergência possível se um lado for editado. Fix direto: derivar itens do mapa.
+- BH7 fallback-rotulo-silencioso | verdict: false | evidência: _selectedRole só recebe 'operario'/'admin' do dropdown; papel desconhecido não é alcançável.
+- BH8 status-spec-vs-sprint | verdict: false | evidência: sprint-status não possui vocabulário in-review; manter in-progress durante review é consistente com o sync-sprint-status.
+- BH9 doc-comment-desatualizado | verdict: low | evidência: Comentário da classe ainda diz "atribuição de operário (Epic 9.1)" omitindo Admin da obra. Fix direto: atualizar o doc comment.
+- BH10 icone-engineering-perdido | verdict: false | evidência: Design Notes da spec especificam DropdownMenuItem só com Text, sem ícone; remoção é o design aprovado.
+- BH11 base92-params-nao-usados | verdict: low | evidência: Parâmetros obras/porObra de base92 não são usados por nenhum teste 9.2. Fix direto: remover.
+- BH12-dropdown-first-last-sem-keys | verdict: low | evidência: Seleção por .first/.last quebra silenciosamente se outro dropdown entrar na árvore. Fix direto: adicionar Keys nos dropdowns de obra e papel.
+- BH13 design-notes-internetaddress | verdict: false | evidência: Finding exigiria editar o spec (Design Notes); regra de rejeição proíbe fix que edita o spec desta build.
+- BH14 testes-fora-da-matriz | verdict: false | evidência: Obligação de testes da spec é cobrir a matriz I/O; todos os cenários da matriz têm teste que rodou e passou.
+- BH15 textofailed-precondition | verdict: false | evidência: Mensagem é literal da spec frozen; fix exigiria editar intenção congelada.
+- BH16 secoes-vazias-e-verification | verdict: false | evidência: Seções opcionais vazias não são defeito; Review Triage Log é preenchido agora; Verification lista comandos com expected, sem exigência de log de resultado.
+- BH17 review-prompts-artefatos | verdict: low | evidência: Três review-prompt-*-9-2.md untracked ficaram órfãos porque as camadas rodam como subagentes. Fix direto: excluir os arquivos.
+- BH18 codemap-simbolos-ausentes | verdict: false | evidência: Fix exigiria editar Code Map do spec; regra de rejeição proíbe fix que edita o spec desta build.
+- EC1 mensagem-vazia-blank-dialog | verdict: low | evidência: `e.message ?? fallback` não trata string vazia; mensagem '' resultaria em erro em branco no diálogo. Fix direto: checar isNotEmpty.
+- EC2 checkconnectivity-hang | verdict: maybe-false | evidência: claim (se verdadeiro) seria medium — spinner preso se a platform channel não responder; precisaria forçar platform channel pendurada para confirmar. Registrado como defer unverified.
+- VG1 offline-precheck-nao-testado-no-repo-real | verdict: medium | evidência: pré-verificada pela camada — deletar o pré-check mantém todos os testes verdes; widget test só exercita o Fake. Disposição: patch.
+- VG2 wiring-traduzir-no-catch-real-nao-assertado | verdict: medium | evidência: pré-verificada pela camada — reverter o catch para e.message cru mantém testes verdes; fake traduz por conta própria. Disposição: patch.
+
+**Rejected:** BH1, BH2, BH3, BH5, BH7, BH8, BH10, BH13, BH14, BH15, BH16, BH18 (sem defeito real / fix editaria o spec / cenário não alcançável).
+
+**Agrupamentos roteados:**
+- patch [medium] teste-real-repo-conectividade: BH4 + VG1
+- patch [medium] teste-real-catch-traducao: VG2
+- patch [low] labels-papel-duplicados: BH6
+- patch [low] doc-comment-desatualizado: BH9
+- patch [low] base92-params-nao-usados: BH11
+- patch [low] dropdown-keys: BH12
+- patch [low] review-prompts-orfãos: BH17
+- patch [low] mensagem-vazia: EC1
+- defer [maybe-false, medium unverified] checkconnectivity-hang: EC2
+- intent_gap / bad_spec: nenhum (sem loopback)
 
 ## Design Notes
 

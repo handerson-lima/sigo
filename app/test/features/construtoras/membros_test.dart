@@ -11,6 +11,8 @@ import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart';
 import 'package:app/src/features/obras/data/obra_members_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +21,8 @@ import 'package:flutter_test/flutter_test.dart';
 class FakeObraMembersRepository implements ObraMembersRepository {
   final List<Map<String, dynamic>> chamadas = [];
   bool deveFalhar = false;
+  bool offline = false;
+  String? codigoErroFirebase;
   String mensagemErro = 'Erro simulado';
 
   @override
@@ -30,6 +34,17 @@ class FakeObraMembersRepository implements ObraMembersRepository {
     required List<String> modules,
     bool isActive = true,
   }) async {
+    if (offline) {
+      throw Exception(mensagemSemConexao);
+    }
+    if (codigoErroFirebase != null) {
+      throw Exception(traduzirErroSetMembership(
+        FirebaseFunctionsException(
+          code: codigoErroFirebase!,
+          message: 'erro original',
+        ),
+      ));
+    }
     if (deveFalhar) {
       throw Exception(mensagemErro);
     }
@@ -1822,7 +1837,7 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(find.byKey(AtribuirObraDialog.obraDropdownKey));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Obra o2').last);
       await tester.pumpAndSettle();
@@ -1866,7 +1881,7 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(find.byKey(AtribuirObraDialog.obraDropdownKey));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Obra o2').last);
       await tester.pumpAndSettle();
@@ -1970,7 +1985,7 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(find.byKey(AtribuirObraDialog.obraDropdownKey));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Obra o2').last);
       await tester.pumpAndSettle();
@@ -2006,6 +2021,331 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.byType(AtribuirObraDialog), findsOneWidget);
+    });
+  });
+
+  group('9.2 atribuir admin + erros e offline', () {
+    late FakeObraMembersRepository fakeObraMembersRepo;
+
+    setUp(() {
+      fakeObraMembersRepo = FakeObraMembersRepository();
+    });
+
+    final membros92 = [
+      Membro(uid: 'u1', email: 'ana@obra.com', isAdmin: false, role: 'operario'),
+    ];
+
+    base92() {
+      return [
+        obraMembersRepositoryProvider.overrideWithValue(fakeObraMembersRepo),
+        membrosProvider('c-1').overrideWith(
+          (ref) => Stream.value(membros92),
+        ),
+        pendingRequestsProvider('c-1').overrideWith(
+          (ref) => Stream.value(const []),
+        ),
+        obrasDaConstrutoraProvider('c-1').overrideWith(
+          (ref) => Stream.value([_obra('o1'), _obra('o2')]),
+        ),
+        obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+            .overrideWith((ref) => Stream.value([_om('u1')])),
+        obraMembersProvider((construtoraId: 'c-1', obraId: 'o2'))
+            .overrideWith((ref) => Stream.value(<ObraMember>[])),
+        memberDetalheProvider((construtoraId: 'c-1', uid: 'u1')).overrideWith(
+          (ref) => Future<ConstrutoraMember?>.value(_cm('u1')),
+        ),
+      ];
+    }
+
+    Future<void> abrirDialogo(WidgetTester tester) async {
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> selecionarObra92(WidgetTester tester, String nome) async {
+      await tester.tap(find.byKey(AtribuirObraDialog.obraDropdownKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(nome).last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> selecionarPapel92(WidgetTester tester, String rotulo) async {
+      await tester.tap(find.byKey(AtribuirObraDialog.papelDropdownKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(rotulo).last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> confirmar92(WidgetTester tester) async {
+      await tester.ensureVisible(
+        find.widgetWithText(FilledButton, 'Confirmar atribuição'),
+      );
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Confirmar atribuição'),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('9.2 HAPPY_PATH admin: role admin enviado e SnackBar correto',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base92(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDialogo(tester);
+
+      await selecionarObra92(tester, 'Obra o2');
+      await selecionarPapel92(tester, 'Admin da obra');
+      await confirmar92(tester);
+
+      expect(fakeObraMembersRepo.chamadas.length, 1);
+      expect(fakeObraMembersRepo.chamadas.first, {
+        'construtoraId': 'c-1',
+        'obraId': 'o2',
+        'userId': 'u1',
+        'role': 'admin',
+        'modules': ['diario'],
+        'isActive': true,
+      });
+      expect(find.byType(AtribuirObraDialog), findsNothing);
+      expect(
+        find.text('Atribuído a Obra o2 como Admin da obra.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('9.2 resumo dinâmico atualiza ao trocar papel para Admin',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base92(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDialogo(tester);
+      await selecionarObra92(tester, 'Obra o2');
+
+      expect(
+        find.text('ana@obra.com será Operário em Obra o2 com acesso a Diário'),
+        findsOneWidget,
+      );
+
+      await selecionarPapel92(tester, 'Admin da obra');
+
+      expect(
+        find.text(
+          'ana@obra.com será Admin da obra em Obra o2 com acesso a Diário',
+        ),
+        findsOneWidget,
+      );
+      expect(fakeObraMembersRepo.chamadas, isEmpty);
+    });
+
+    testWidgets('9.2 papel padrão Operário pré-selecionado ao abrir',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base92(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDialogo(tester);
+
+      final roleDropdown = tester.widget<DropdownButtonFormField<String>>(
+        find.byKey(AtribuirObraDialog.papelDropdownKey),
+      );
+      expect(roleDropdown.initialValue, 'operario');
+      expect(find.text('Operário'), findsWidgets);
+      expect(find.text('Admin da obra'), findsNothing);
+
+      await selecionarObra92(tester, 'Obra o2');
+      await confirmar92(tester);
+
+      expect(fakeObraMembersRepo.chamadas.single['role'], 'operario');
+      expect(
+        find.text('Atribuído a Obra o2 como Operário.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('9.2 permission-denied exibe mensagem e mantém diálogo aberto',
+        (tester) async {
+      fakeObraMembersRepo.codigoErroFirebase = 'permission-denied';
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: base92(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDialogo(tester);
+      await selecionarObra92(tester, 'Obra o2');
+      await confirmar92(tester);
+
+      expect(find.byType(AtribuirObraDialog), findsOneWidget);
+      await tester.ensureVisible(find.text(mensagemSemPermissao));
+      expect(find.text(mensagemSemPermissao), findsOneWidget);
+      expect(fakeObraMembersRepo.chamadas, isEmpty);
+    });
+
+    testWidgets('9.2 failed-precondition exibe mensagem e mantém diálogo aberto',
+        (tester) async {
+      fakeObraMembersRepo.codigoErroFirebase = 'failed-precondition';
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: base92(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDialogo(tester);
+      await selecionarObra92(tester, 'Obra o2');
+      await confirmar92(tester);
+
+      expect(find.byType(AtribuirObraDialog), findsOneWidget);
+      await tester.ensureVisible(find.text(mensagemPreCondicao));
+      expect(find.text(mensagemPreCondicao), findsOneWidget);
+      expect(fakeObraMembersRepo.chamadas, isEmpty);
+    });
+
+    testWidgets('9.2 offline: mensagem inline e não dispara a CF',
+        (tester) async {
+      fakeObraMembersRepo.offline = true;
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: base92(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDialogo(tester);
+      await selecionarObra92(tester, 'Obra o2');
+      await confirmar92(tester);
+
+      expect(find.byType(AtribuirObraDialog), findsOneWidget);
+      await tester.ensureVisible(find.text(mensagemSemConexao));
+      expect(find.text(mensagemSemConexao), findsOneWidget);
+      expect(fakeObraMembersRepo.chamadas, isEmpty);
+    });
+
+    testWidgets('9.2 textScale 1.3 sem overflow no seletor de papel ou resumo',
+        (tester) async {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            textScaler: TextScaler.linear(1.3),
+          ),
+          child: ProviderScope(
+            overrides: base92(),
+            child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await abrirDialogo(tester);
+      await selecionarObra92(tester, 'Obra o2');
+      await selecionarPapel92(tester, 'Admin da obra');
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AtribuirObraDialog), findsOneWidget);
+      expect(
+        find.text(
+          'ana@obra.com será Admin da obra em Obra o2 com acesso a Diário',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(AtribuirObraDialog.papelDropdownKey));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Admin da obra'), findsWidgets);
+    });
+
+    test('9.2 traduzirErroSetMembership cobre permission-denied e failed-precondition',
+        () {
+      expect(
+        traduzirErroSetMembership(
+          FirebaseFunctionsException(code: 'permission-denied', message: 'x'),
+        ),
+        mensagemSemPermissao,
+      );
+      expect(
+        traduzirErroSetMembership(
+          FirebaseFunctionsException(code: 'failed-precondition', message: 'x'),
+        ),
+        mensagemPreCondicao,
+      );
+      expect(
+        traduzirErroSetMembership(
+          FirebaseFunctionsException(code: 'invalid-argument', message: 'boom'),
+        ),
+        'boom',
+      );
+      expect(
+        traduzirErroSetMembership(
+          FirebaseFunctionsException(code: 'internal', message: 'algo falhou'),
+        ),
+        'algo falhou',
+      );
+      expect(
+        traduzirErroSetMembership(
+          FirebaseFunctionsException(code: 'internal', message: ''),
+        ),
+        'Erro ao chamar setMembership',
+      );
+    });
+
+    test('9.2 setMembership real: offline não dispara callable', () async {
+      final repo = ObraMembersRepository(
+        null,
+        checkConnectivity: () async => [ConnectivityResult.none],
+      );
+
+      await expectLater(
+        repo.setMembership(
+          construtoraId: 'c-1',
+          obraId: 'o2',
+          userId: 'u1',
+          role: 'operario',
+          modules: ['diario'],
+        ),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString().replaceFirst('Exception: ', ''),
+            'message',
+            mensagemSemConexao,
+          ),
+        ),
+      );
+    });
+
+    test('9.2 setMembership real: permission-denied traduz no catch', () async {
+      final repo = ObraMembersRepository(
+        null,
+        checkConnectivity: () async => [ConnectivityResult.wifi],
+        callSetMembership: (_) async {
+          throw FirebaseFunctionsException(
+            code: 'permission-denied',
+            message: 'raw',
+          );
+        },
+      );
+
+      await expectLater(
+        repo.setMembership(
+          construtoraId: 'c-1',
+          obraId: 'o2',
+          userId: 'u1',
+          role: 'operario',
+          modules: ['diario'],
+        ),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString().replaceFirst('Exception: ', ''),
+            'message',
+            mensagemSemPermissao,
+          ),
+        ),
+      );
     });
   });
 }
