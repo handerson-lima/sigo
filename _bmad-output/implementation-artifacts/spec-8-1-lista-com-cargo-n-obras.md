@@ -102,4 +102,21 @@ Agregação cliente: base `watchMembros` + `watchPendingRequests`, depois um `wa
 
 **Commands:**
 - `flutter analyze` -- expected: No issues found
-- `flutter test test/features/construtoras/membros_test.dart` -- expected: All tests passed
+- `flutter test test/features/construtoras/membros_test.dart test/owner_atribuicao_test.dart` -- expected: All tests passed
+
+### Review Findings (2026-09-22 — diff bd223c4..5d82e2b, review_mode full)
+
+- [x] [Review][Patch] Email do pendente oculto quando há displayName — decidido: exibir email visível como linha secundária quando diferente do nome. [membros_screen.dart:133-147]
+- [x] [Review][Patch] Contagem exibe zero durante loading/erro de obraMembers/obrasAtivas [membros_providers.dart:78-88, membros_screen.dart:52-54]
+- [x] [Review][Patch] _invalidateTudo lê snapshot antes de invalidar e deixa obraMembers stale [membros_screen.dart:18-33]
+- [x] [Review][Patch] Fallbacks trim/guards de nome sem teste de widget [membros_screen.dart:125-135,156-158]
+- [x] [Review][Patch] Flash de vazio quando pending ainda carrega [membros_screen.dart:82-86]
+- [x] [Review][Patch] Detecção offline incompleta (permission-denied + códigos network) [membros_screen.dart:35-45]
+- [x] [Review][Patch] Erro geral sem pull-to-refresh [membros_screen.dart:198-221]
+- [x] [Review][Patch] Avatar operário sem tokens (bg/icon null) e tons divergentes do chip [member_row.dart:51-55]
+- [x] [Review][Patch] Lacunas de cobertura/processo: invalidate, textScale, semantics skeleton, Verification sem owner_atribuicao/full test [membros_test.dart, spec Verification]
+
+**Rejected:**
+- `false` Sem AccessGuard próprio na tela — rota já protegida por AccessGuard(adminOnly:true); spec proíbe alterar guard/routing.
+- `false` Chevron/onTap para 8.3 — chevron já guardado por onTap!=null e 8.3 fora do escopo (Never).
+- `false` Filtro isActive só no cliente — agregação cliente sem collectionGroup é o Approach mandatório da spec.

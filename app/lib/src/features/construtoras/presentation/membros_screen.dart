@@ -16,25 +16,22 @@ class MembrosScreen extends ConsumerWidget {
   const MembrosScreen({super.key, required this.construtoraId});
 
   void _invalidateTudo(WidgetRef ref) {
-    final obrasAntes =
-        ref.read(obrasAtivasProvider(construtoraId)).value ?? const [];
     ref.invalidate(membrosProvider(construtoraId));
     ref.invalidate(pendingRequestsProvider(construtoraId));
     ref.invalidate(obrasDaConstrutoraProvider(construtoraId));
     ref.invalidate(obrasAtivasProvider(construtoraId));
     ref.invalidate(contagemObrasPorMembroProvider(construtoraId));
-    for (final obra in obrasAntes) {
-      ref.invalidate(
-        obraMembersProvider(
-          (construtoraId: construtoraId, obraId: obra.id),
-        ),
-      );
-    }
+    ref.invalidate(contagemObrasMetaProvider(construtoraId));
+    ref.invalidate(obraMembersProvider);
   }
 
   bool _isOfflineError(Object err) {
     if (err is FirebaseException) {
-      return err.code == 'unavailable' || err.code == 'deadline-exceeded';
+      return err.code == 'unavailable' ||
+          err.code == 'deadline-exceeded' ||
+          err.code == 'network-request-failed' ||
+          err.code == 'cancelled' ||
+          err.code == 'aborted';
     }
     final msg = err.toString().toLowerCase();
     return msg.contains('unavailable') ||
@@ -44,14 +41,54 @@ class MembrosScreen extends ConsumerWidget {
         msg.contains('socket');
   }
 
+  bool _isAccessDenied(Object err) {
+    if (err is FirebaseException) {
+      return err.code == 'permission-denied';
+    }
+    final msg = err.toString().toLowerCase();
+    return msg.contains('permission-denied') ||
+        msg.contains('permission denied');
+  }
+
+  Widget _buildSkeleton() {
+    return ListView.builder(
+      itemCount: 6,
+      itemBuilder: (context, index) => ListTile(
+        leading: CircleAvatar(
+          radius: 20,
+          backgroundColor: Colors.grey.shade200,
+        ),
+        title: Container(
+          height: 14,
+          margin: const EdgeInsets.only(right: 80),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        subtitle: Container(
+          height: 12,
+          margin: const EdgeInsets.only(top: 6, right: 140),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final membrosAsync = ref.watch(membrosProvider(construtoraId));
     final pendingAsync = ref.watch(pendingRequestsProvider(construtoraId));
     final obrasAtivasAsync = ref.watch(obrasAtivasProvider(construtoraId));
     final contagem = ref.watch(contagemObrasPorMembroProvider(construtoraId));
+    final contagemMeta = ref.watch(contagemObrasMetaProvider(construtoraId));
     final contagemCarregando =
-        obrasAtivasAsync.isLoading && !obrasAtivasAsync.hasValue;
+        (obrasAtivasAsync.isLoading && !obrasAtivasAsync.hasValue) ||
+            contagemMeta.carregando;
+    final contagemErro = contagemMeta.erro;
 
     return SigoLayout(
       title: 'Gestão de Membros',
@@ -84,6 +121,9 @@ class MembrosScreen extends ConsumerWidget {
           final totalCount = pending.length + membros.length;
 
           if (totalCount == 0 && !pendingErro) {
+            if (pendingAsync.isLoading) {
+              return _buildSkeleton();
+            }
             return RefreshIndicator(
               onRefresh: () async => _invalidateTudo(ref),
               child: ListView(
@@ -133,7 +173,11 @@ class MembrosScreen extends ConsumerWidget {
                   final nome = displayName.isNotEmpty
                       ? displayName
                       : (email.isNotEmpty ? email : 'Solicitação pendente');
-                  final subtitle = subtitlePendente(role);
+                  final basePendente = subtitlePendente(role);
+                  final subtitle =
+                      (email.isNotEmpty && email != nome)
+                          ? '$basePendente\n$email'
+                          : basePendente;
                   final semantics = email.isNotEmpty && email != nome
                       ? '$nome, $email, $subtitle, pendente'
                       : '$nome, $subtitle, pendente';
@@ -150,7 +194,9 @@ class MembrosScreen extends ConsumerWidget {
                 final membro = membros[ajustado - pending.length];
                 final cargo = rotuloCargo(membro);
                 final count = contagem[membro.uid] ?? 0;
-                final subtitle = contagemCarregando
+                final mostrarPlaceholder =
+                    contagemCarregando || (contagemErro && count == 0);
+                final subtitle = mostrarPlaceholder
                     ? '$cargo · …'
                     : subtitleMembroAtivo(membro, count);
                 final nome = membro.email.trim().isNotEmpty
@@ -158,7 +204,9 @@ class MembrosScreen extends ConsumerWidget {
                     : 'UID: ${membro.uid}';
                 final semantics = contagemCarregando
                     ? '$nome, $cargo, carregando obras, ativo'
-                    : '$nome, $cargo, ${textoContagemObras(count)}, ativo';
+                    : (contagemErro && count == 0)
+                        ? '$nome, $cargo, erro ao carregar obras, ativo'
+                        : '$nome, $cargo, ${textoContagemObras(count)}, ativo';
                 return MemberRow(
                   nome: nome,
                   subtitle: subtitle,
@@ -170,52 +218,37 @@ class MembrosScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () => ListView.builder(
-          itemCount: 6,
-          itemBuilder: (context, index) => ListTile(
-            leading: CircleAvatar(
-              radius: 20,
-              backgroundColor: Colors.grey.shade200,
-            ),
-            title: Container(
-              height: 14,
-              margin: const EdgeInsets.only(right: 80),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            subtitle: Container(
-              height: 12,
-              margin: const EdgeInsets.only(top: 6, right: 140),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ),
-        ),
+        loading: () => _buildSkeleton(),
         error: (err, stack) {
-          final offline = _isOfflineError(err);
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    offline
-                        ? 'Sem conexão — tente novamente'
-                        : 'Não foi possível carregar os membros. Tente novamente.',
-                    textAlign: TextAlign.center,
+          final negado = _isAccessDenied(err);
+          final offline = !negado && _isOfflineError(err);
+          final mensagem =
+              negado
+                  ? 'Acesso negado — fale com o administrador.'
+                  : offline
+                  ? 'Sem conexão — tente novamente'
+                  : 'Não foi possível carregar os membros. Tente novamente.';
+          return RefreshIndicator(
+            onRefresh: () async => _invalidateTudo(ref),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                const SizedBox(height: 80),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(mensagem, textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => _invalidateTudo(ref),
+                        child: const Text('Tentar novamente'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => _invalidateTudo(ref),
-                    child: const Text('Tentar novamente'),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },

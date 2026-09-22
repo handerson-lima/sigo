@@ -5,6 +5,7 @@ import 'package:app/src/features/authentication/data/user_repository.dart';
 import 'package:app/src/features/authentication/domain/app_user.dart';
 import 'package:app/src/features/construtoras/domain/membro.dart';
 import 'package:app/src/features/construtoras/presentation/add_membro_dialog.dart';
+import 'package:app/src/features/construtoras/presentation/membros_providers.dart';
 import 'package:app/src/features/construtoras/presentation/membros_screen.dart';
 import 'package:app/src/features/developer/presentation/users_list_screen.dart';
 
@@ -83,6 +84,15 @@ void main() {
             membrosProvider('c-1').overrideWith(
               (ref) => Stream.value(mockMembros),
             ),
+            pendingRequestsProvider('c-1').overrideWith(
+              (ref) => Stream.value(const <Map<String, dynamic>>[]),
+            ),
+            obrasDaConstrutoraProvider('c-1').overrideWith(
+              (ref) => Stream.value(const []),
+            ),
+            contagemObrasPorMembroProvider('c-1').overrideWith((ref) => {}),
+            contagemObrasMetaProvider('c-1')
+                .overrideWith((ref) => (carregando: false, erro: false)),
           ],
           child: const MaterialApp(
             home: MembrosScreen(construtoraId: 'c-1'),

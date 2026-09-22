@@ -208,15 +208,22 @@ void main() {
               .overrideWith((ref) => Stream.value(mockPending)),
           contagemObrasPorMembroProvider('c-1')
               .overrideWith((ref) => {'u1': 2}),
+          contagemObrasMetaProvider('c-1')
+              .overrideWith((ref) => (carregando: false, erro: false)),
         ],
         child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
       ),
     );
     await tester.pumpAndSettle();
 
-    // Pendente no topo (subtitle + chip com o mesmo texto; ícone sem emoji).
+    // Pendente no topo (chip + subtitle com email em 2 linhas; sem emoji).
     expect(find.text('Novo Membro'), findsOneWidget);
-    expect(find.text('Pendente · Operário'), findsNWidgets(2));
+    expect(find.text('Pendente · Operário'), findsOneWidget);
+    expect(
+      find.text('Pendente · Operário\nnovo@x.com'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('novo@x.com'), findsOneWidget);
     expect(find.textContaining('⏳'), findsNothing);
 
     // Ativos abaixo com Cargo · N obras.
@@ -352,6 +359,224 @@ void main() {
     await tester.tap(find.text('Tentar novamente'));
     await tester.pumpAndSettle();
     expect(pendingBuilds, 2);
+  });
+
+  testWidgets('8.1 obraMembers loading mostra placeholder sem zero falso',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          membrosProvider('c-1').overrideWith(
+            (ref) => Stream.value([
+              Membro(
+                uid: 'u1',
+                email: 'op1@x.com',
+                isAdmin: false,
+                role: 'operario',
+              ),
+            ]),
+          ),
+          pendingRequestsProvider('c-1').overrideWith(
+            (ref) => Stream.value(const <Map<String, dynamic>>[]),
+          ),
+          obrasDaConstrutoraProvider('c-1')
+              .overrideWith((ref) => Stream.value([_obra('o1')])),
+          obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+              .overrideWith((ref) => Stream<List<ObraMember>>.empty()),
+        ],
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Operário · …'), findsOneWidget);
+    expect(find.text('Nenhuma obra vinculada'), findsNothing);
+  });
+
+  testWidgets('8.1 obraMembers com erro mostra placeholder sem zero falso',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          membrosProvider('c-1').overrideWith(
+            (ref) => Stream.value([
+              Membro(
+                uid: 'u1',
+                email: 'op1@x.com',
+                isAdmin: false,
+                role: 'operario',
+              ),
+            ]),
+          ),
+          pendingRequestsProvider('c-1').overrideWith(
+            (ref) => Stream.value(const <Map<String, dynamic>>[]),
+          ),
+          obrasDaConstrutoraProvider('c-1')
+              .overrideWith((ref) => Stream.value([_obra('o1')])),
+          obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+              .overrideWithValue(
+            AsyncValue.error(Exception('obraMembers falhou'), StackTrace.empty),
+          ),
+        ],
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Operário · …'), findsOneWidget);
+    expect(find.text('Nenhuma obra vinculada'), findsNothing);
+  });
+
+  testWidgets('8.1 obrasAtivas com erro mostra placeholder sem zero falso',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          membrosProvider('c-1').overrideWith(
+            (ref) => Stream.value([
+              Membro(
+                uid: 'u1',
+                email: 'op1@x.com',
+                isAdmin: false,
+                role: 'operario',
+              ),
+            ]),
+          ),
+          pendingRequestsProvider('c-1').overrideWith(
+            (ref) => Stream.value(const <Map<String, dynamic>>[]),
+          ),
+          obrasAtivasProvider('c-1').overrideWithValue(
+            AsyncValue.error(Exception('obras falhou'), StackTrace.empty),
+          ),
+        ],
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Operário · …'), findsOneWidget);
+    expect(find.text('Nenhuma obra vinculada'), findsNothing);
+  });
+
+  testWidgets('8.1 retry invalida obraMembers (contador incrementa)',
+      (tester) async {
+    var obraMembersBuilds = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          membrosProvider('c-1').overrideWithValue(
+            AsyncValue.error(Exception('falha leitura'), StackTrace.empty),
+          ),
+          pendingRequestsProvider('c-1').overrideWith(
+            (ref) => Stream.value(const <Map<String, dynamic>>[]),
+          ),
+          obrasDaConstrutoraProvider('c-1')
+              .overrideWith((ref) => Stream.value([_obra('o1')])),
+          obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+              .overrideWith((ref) {
+            obraMembersBuilds++;
+            return Stream<List<ObraMember>>.empty();
+          }),
+        ],
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(obraMembersBuilds, 1);
+    expect(find.text('Tentar novamente'), findsOneWidget);
+    await tester.tap(find.text('Tentar novamente'));
+    await tester.pumpAndSettle();
+    expect(obraMembersBuilds, 2);
+  });
+
+  testWidgets('8.1 pendente sujo usa fallbacks (Solicitação pendente)',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          membrosProvider('c-1')
+              .overrideWith((ref) => Stream.value(const [])),
+          pendingRequestsProvider('c-1').overrideWith(
+            (ref) => Stream.value([
+              {'role': 123, 'displayName': '   ', 'email': '  '},
+            ]),
+          ),
+          contagemObrasPorMembroProvider('c-1').overrideWith((ref) => {}),
+          contagemObrasMetaProvider('c-1')
+              .overrideWith((ref) => (carregando: false, erro: false)),
+        ],
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Solicitação pendente'), findsOneWidget);
+    expect(find.text('Pendente · Operário'), findsNWidgets(2));
+  });
+
+  testWidgets('8.1 ativo com email em branco mostra UID', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          membrosProvider('c-1').overrideWith(
+            (ref) => Stream.value([
+              Membro(uid: 'u-xyz', email: '   ', isAdmin: false),
+            ]),
+          ),
+          pendingRequestsProvider('c-1')
+              .overrideWith((ref) => Stream.value([])),
+          contagemObrasPorMembroProvider('c-1').overrideWith((ref) => {}),
+          contagemObrasMetaProvider('c-1')
+              .overrideWith((ref) => (carregando: false, erro: false)),
+        ],
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('UID: u-xyz'), findsOneWidget);
+  });
+
+  testWidgets('8.1 pending loading + vazio não mostra mensagem de vazio',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          membrosProvider('c-1')
+              .overrideWith((ref) => Stream.value(const [])),
+          pendingRequestsProvider('c-1')
+              .overrideWith((ref) => Stream.empty()),
+          contagemObrasPorMembroProvider('c-1').overrideWith((ref) => {}),
+          contagemObrasMetaProvider('c-1')
+              .overrideWith((ref) => (carregando: false, erro: false)),
+        ],
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Nenhum membro encontrado.'), findsNothing);
+  });
+
+  testWidgets('8.1 email do pendente visível com displayName', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          membrosProvider('c-1')
+              .overrideWith((ref) => Stream.value(const [])),
+          pendingRequestsProvider('c-1').overrideWith(
+            (ref) => Stream.value([
+              {
+                'displayName': 'Novo Membro',
+                'email': 'novo@x.com',
+                'role': 'operario',
+              },
+            ]),
+          ),
+          contagemObrasPorMembroProvider('c-1').overrideWith((ref) => {}),
+          contagemObrasMetaProvider('c-1')
+              .overrideWith((ref) => (carregando: false, erro: false)),
+        ],
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Novo Membro'), findsOneWidget);
+    expect(find.textContaining('novo@x.com'), findsOneWidget);
   });
 
   testWidgets('8.1 offline sem cache mostra Sem conexão', (tester) async {

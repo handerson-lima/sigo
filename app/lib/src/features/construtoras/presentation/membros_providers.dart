@@ -72,6 +72,33 @@ final obraMembersProvider = StreamProvider.autoDispose
   );
 });
 
+/// Meta de loading/erro da contagem (evita zero falso).
+/// carregando=true se obras loading sem valor ou algum obraMembers loading;
+/// erro=true se obras ou algum obraMembers tem erro.
+final contagemObrasMetaProvider = Provider.autoDispose
+    .family<({bool carregando, bool erro}), String>((ref, construtoraId) {
+  final obrasAsync = ref.watch(obrasAtivasProvider(construtoraId));
+  final obrasErro = obrasAsync.hasError;
+  final obrasCarregandoSemValor =
+      obrasAsync.isLoading && !obrasAsync.hasValue;
+  final obras = obrasAsync.value ?? const <Obra>[];
+  var algumCarregando = false;
+  var algumErro = false;
+  for (final obra in obras) {
+    final mAsync = ref.watch(
+      obraMembersProvider(
+        (construtoraId: construtoraId, obraId: obra.id),
+      ),
+    );
+    if (mAsync.isLoading) algumCarregando = true;
+    if (mAsync.hasError) algumErro = true;
+  }
+  return (
+    carregando: obrasCarregandoSemValor || algumCarregando,
+    erro: obrasErro || algumErro,
+  );
+});
+
 /// Junção em memória `uid → count` de obras ativas por membro.
 final contagemObrasPorMembroProvider =
     Provider.autoDispose.family<Map<String, int>, String>((ref, construtoraId) {

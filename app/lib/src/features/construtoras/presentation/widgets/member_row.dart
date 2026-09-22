@@ -49,9 +49,9 @@ class MemberRow extends StatelessWidget {
         avatarIconColor = Colors.orange.shade700;
         break;
       case PapelChip.operario:
-        avatarBg = null;
+        avatarBg = Colors.grey.shade200;
         avatarIcon = Icons.person;
-        avatarIconColor = null;
+        avatarIconColor = Colors.grey.shade700;
         break;
     }
 
