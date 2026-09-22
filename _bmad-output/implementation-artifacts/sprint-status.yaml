@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-22-2026 12:30
+last_updated: 09-22-2026 11:01
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -114,10 +114,10 @@ development_status:
   8-3-detalhe-do-membro: done
   epic-8-retrospective: done
 
-  epic-9: in-progress
+  epic-9: done
   9-1-atribuir-operario-a-obra: done
-  9-2-atribuir-admin-erros-e-offline: review
-  epic-9-retrospective: optional
+  9-2-atribuir-admin-erros-e-offline: done
+  epic-9-retrospective: done
 
   epic-10: backlog
   10-1-trocar-papel-modulos-na-obra: backlog
@@ -274,3 +274,24 @@ action_items:
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-8-retro-2026-09-22.md"
+  - id: "epic-9-retro-item-1-reconciliar-ac-9-2"
+    epic: 9
+    action: "Reconciliar AC Story 9.2 em epics.md com intent frozen da spec (atalho
+      Ativar + wording failed-precondition/offline/permission-denied)"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-9-retro-2026-09-22.md"
+  - id: "epic-9-retro-item-2-unificar-rotulos-papel"
+    epic: 9
+    action: "Derivar rotulos do dialog a partir de rotuloPapelObra (eliminar duplicacao
+      com membros_providers)"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-9-retro-2026-09-22.md"
+  - id: "epic-9-retro-item-3-settle-checkconnectivity-hang"
+    epic: 9
+    action: "Resolver EC2 checkConnectivity-hang (deferred-work.md) com teste de channel
+      pendurada ou evidencia"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-9-retro-2026-09-22.md"
