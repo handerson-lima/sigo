@@ -6,6 +6,7 @@ import '../../../common_widgets/sigo_layout.dart';
 import '../../obras/domain/obra.dart';
 import '../domain/membro.dart';
 import 'add_membro_dialog.dart';
+import 'member_detalhe_sheet.dart';
 import 'membros_providers.dart';
 import 'widgets/member_row.dart';
 import 'widgets/role_chip.dart';
@@ -463,6 +464,11 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                   semanticsLabel: semantics,
                   papel: RoleChip.papelDe(membro.isOwner, membro.isAdmin),
                   chipLabel: cargo,
+                  onTap: () => MemberDetalheSheet.show(
+                    context: context,
+                    construtoraId: construtoraId,
+                    membro: membro,
+                  ),
                 );
               },
             ),

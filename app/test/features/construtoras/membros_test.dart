@@ -1,12 +1,16 @@
 import 'dart:async';
 
+import 'package:app/src/features/construtoras/domain/construtora_member.dart';
 import 'package:app/src/features/construtoras/domain/membro.dart';
+import 'package:app/src/features/construtoras/presentation/member_detalhe_sheet.dart';
 import 'package:app/src/features/construtoras/presentation/membros_providers.dart';
 import 'package:app/src/features/construtoras/presentation/membros_screen.dart';
+import 'package:app/src/features/construtoras/presentation/widgets/obra_vinculo_row.dart';
 import 'package:app/src/features/obras/domain/obra.dart';
 import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -1101,6 +1105,589 @@ void main() {
       expect(find.text('ana@obra.com'), findsOneWidget);
       expect(find.text('bob@obra.com'), findsOneWidget);
       expect(find.byTooltip('Limpar busca'), findsNothing);
+    });
+  });
+
+  group('8.3 detalhe do membro', () {
+    final membros83 = [
+      Membro(uid: 'u1', email: 'ana@obra.com', isAdmin: false, role: 'operario'),
+    ];
+    final pending83 = [
+      {
+        'id': 'p1',
+        'email': 'novo@x.com',
+        'displayName': 'Novo Membro',
+        'role': 'operario',
+      },
+    ];
+
+    ConstrutoraMember cm(
+      String uid, {
+      bool isActive = true,
+      bool isOwner = false,
+      bool isAdmin = false,
+      DateTime? joinedAt,
+    }) =>
+        ConstrutoraMember(
+          userId: uid,
+          isActive: isActive,
+          isOwner: isOwner,
+          isAdmin: isAdmin,
+          joinedAt: joinedAt ?? DateTime(2026, 1, 15),
+        );
+
+    base83({
+      List<Membro>? membros,
+      List<Map<String, dynamic>>? pending,
+      List<Obra>? obras,
+      Map<String, List<ObraMember>>? porObra,
+      Future<ConstrutoraMember?> Function()? vinculoFuture,
+      AsyncValue<ConstrutoraMember?>? vinculoValue,
+      Stream<List<Obra>>? obrasStream,
+      Stream<List<Obra>> Function()? obrasFactory,
+      AsyncValue<List<Obra>>? obrasValue,
+      Stream<List<ObraMember>> Function()? vinculosStream,
+      AsyncValue<List<ObraMember>>? vinculosValue,
+      String uid = 'u1',
+    }) {
+      return [
+        membrosProvider('c-1')
+            .overrideWith((ref) => Stream.value(membros ?? membros83)),
+        pendingRequestsProvider('c-1').overrideWith(
+          (ref) => Stream.value(pending ?? pending83),
+        ),
+        if (obrasValue != null)
+          obrasDaConstrutoraProvider('c-1').overrideWithValue(obrasValue)
+        else if (obrasFactory != null)
+          obrasDaConstrutoraProvider('c-1')
+              .overrideWith((ref) => obrasFactory())
+        else
+          obrasDaConstrutoraProvider('c-1').overrideWith(
+            (ref) => obrasStream ?? Stream.value(obras ?? [_obra('o1')]),
+          ),
+        for (final entry in (porObra ??
+                {
+                  'o1': [_om('u1')],
+                })
+            .entries)
+          if (entry.key == 'o1' && vinculosValue != null)
+            obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
+                .overrideWithValue(vinculosValue)
+          else
+            obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
+                .overrideWith(
+              (ref) => entry.key == 'o1' && vinculosStream != null
+                  ? vinculosStream()
+                  : Stream.value(entry.value),
+            ),
+        if (vinculoValue != null)
+          memberDetalheProvider((construtoraId: 'c-1', uid: uid))
+              .overrideWithValue(vinculoValue)
+        else
+          memberDetalheProvider((construtoraId: 'c-1', uid: uid)).overrideWith(
+            (ref) =>
+                vinculoFuture?.call() ??
+                Future<ConstrutoraMember?>.value(cm(uid)),
+          ),
+      ];
+    }
+
+    Future<void> abrirDetalhe(WidgetTester tester) async {
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> abrirDetalheComSpinner(WidgetTester tester) async {
+      await tester.tap(find.text('ana@obra.com'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    void viewportMobile(WidgetTester tester) {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
+
+    testWidgets('8.3 ativo abre BottomSheet com vínculo, obras e ações',
+        (tester) async {
+      viewportMobile(tester);
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.text('Detalhe de ana@obra.com'), findsOneWidget);
+      expect(find.text('Vínculo construtora'), findsOneWidget);
+      expect(find.text('Operário'), findsWidgets);
+      expect(find.text('Ativo'), findsWidgets);
+      expect(find.text('Desde 15/01/2026'), findsOneWidget);
+      expect(find.text('Obras vinculadas'), findsOneWidget);
+      expect(find.byType(ObraVinculoRow), findsOneWidget);
+      expect(find.text('Obra o1'), findsOneWidget);
+      expect(find.text('Operário'), findsWidgets);
+      expect(find.text('Ações'), findsOneWidget);
+      expect(find.text('Disponível em breve'), findsOneWidget);
+
+      final atribuir = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Atribuir à obra'),
+      );
+      expect(atribuir.onPressed, isNull);
+    });
+
+    testWidgets('8.3 sem obras mostra microcopy estática sem CTA',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(porObra: {'o1': []}),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(
+        find.text('Nenhuma obra vinculada — Atribuir'),
+        findsOneWidget,
+      );
+      expect(find.byType(ObraVinculoRow), findsNothing);
+      expect(find.byType(ObraVinculoVazio), findsOneWidget);
+      final ctaAcionavel = tester
+          .widgetList<FilledButton>(find.byType(FilledButton))
+          .where((b) => b.onPressed != null);
+      expect(ctaAcionavel, isEmpty);
+    });
+
+    testWidgets('8.3 membro inativo mostra aviso Ative na construtora primeiro',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(
+          vinculoFuture: () async => cm('u1', isActive: false),
+        ),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(find.text('Ative na construtora primeiro'), findsOneWidget);
+      expect(find.text('Inativo'), findsOneWidget);
+      expect(find.text('Desde 15/01/2026'), findsOneWidget);
+    });
+
+    testWidgets('8.3 vínculo loading mostra spinner (sem vazio falso)',
+        (tester) async {
+      viewportMobile(tester);
+      final completer = Completer<ConstrutoraMember?>();
+      addTearDown(() {
+        if (!completer.isCompleted) completer.complete(cm('u1'));
+      });
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(vinculoFuture: () => completer.future),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalheComSpinner(tester);
+
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+      expect(
+        find.text('Nenhuma obra vinculada — Atribuir'),
+        findsNothing,
+      );
+      expect(find.text('Desde 15/01/2026'), findsNothing);
+    });
+
+    testWidgets('8.3 vínculo erro mostra mensagem e retry refaz a leitura',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        retry: (_, _) => null,
+        overrides: base83(
+          vinculoValue: AsyncValue.error(
+            Exception('falhou'),
+            StackTrace.empty,
+          ),
+        ),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(
+        find.text('Não foi possível carregar o vínculo.'),
+        findsOneWidget,
+      );
+      expect(find.text('Tentar novamente'), findsOneWidget);
+    });
+
+    testWidgets('8.3 retry do vínculo refaz a leitura via getMember',
+        (tester) async {
+      var leituras = 0;
+      await tester.pumpWidget(ProviderScope(
+        retry: (_, _) => null,
+        overrides: base83(
+          vinculoFuture: () {
+            leituras++;
+            if (leituras == 1) {
+              return Future<ConstrutoraMember?>.error(
+                Exception('falhou'),
+                StackTrace.empty,
+              );
+            }
+            return Future<ConstrutoraMember?>.value(cm('u1'));
+          },
+        ),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(
+        find.text('Não foi possível carregar o vínculo.'),
+        findsOneWidget,
+      );
+      expect(leituras, 1);
+      await tester.tap(find.text('Tentar novamente').first);
+      await tester.pumpAndSettle();
+      expect(leituras, 2);
+      expect(find.text('Desde 15/01/2026'), findsOneWidget);
+    });
+
+    testWidgets('8.3 pendente não abre detalhe e não tem chevron',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(membros: const [], pending: pending83),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+
+      final row = tester.widget<ListTile>(
+        find
+            .ancestor(
+              of: find.text('Novo Membro'),
+              matching: find.byType(ListTile),
+            )
+            .first,
+      );
+      expect(row.onTap, isNull);
+      expect(find.byIcon(Icons.chevron_right), findsNothing);
+
+      await tester.tap(find.text('Novo Membro'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MemberDetalheSheet), findsNothing);
+      expect(find.byType(BottomSheet), findsNothing);
+    });
+
+    testWidgets('8.3 obras loading mostra spinner sem vazio falso',
+        (tester) async {
+      final stream = StreamController<List<Obra>>();
+      addTearDown(stream.close);
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(obrasStream: stream.stream),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalheComSpinner(tester);
+
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+      expect(
+        find.text('Nenhuma obra vinculada — Atribuir'),
+        findsNothing,
+      );
+      stream.add([_obra('o1')]);
+      await tester.pumpAndSettle();
+      expect(find.byType(ObraVinculoRow), findsOneWidget);
+      expect(
+        find.text('Nenhuma obra vinculada — Atribuir'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('8.3 obras erro mostra erro + retry sem virar vazio',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        retry: (_, _) => null,
+        overrides: base83(
+          obrasValue: AsyncValue.error(
+            Exception('obras falhou'),
+            StackTrace.empty,
+          ),
+        ),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(
+        find.text('Não foi possível carregar as obras.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Nenhuma obra vinculada — Atribuir'),
+        findsNothing,
+      );
+      expect(find.text('Tentar novamente'), findsWidgets);
+    });
+
+    testWidgets('8.3 retry de obras refaz o watch (factory reexecuta)',
+        (tester) async {
+      var leituras = 0;
+      await tester.pumpWidget(ProviderScope(
+        retry: (_, _) => null,
+        overrides: base83(
+          obrasFactory: () {
+            leituras++;
+            if (leituras == 1) {
+              return Stream<List<Obra>>.error(Exception('obras falhou'));
+            }
+            return Stream<List<Obra>>.value([_obra('o1')]);
+          },
+        ),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(
+        find.text('Não foi possível carregar as obras.'),
+        findsOneWidget,
+      );
+      expect(leituras, greaterThanOrEqualTo(1));
+
+      await tester.tap(find.text('Tentar novamente').last);
+      await tester.pumpAndSettle();
+      expect(find.byType(ObraVinculoRow), findsOneWidget);
+      expect(
+        find.text('Não foi possível carregar as obras.'),
+        findsNothing,
+      );
+      expect(leituras, greaterThan(1));
+    });
+
+    testWidgets('8.3 a11y anuncia nome, cargo, N obras e status; Esc fecha',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      try {
+        await tester.pumpWidget(ProviderScope(
+          overrides: base83(),
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ));
+        await tester.pumpAndSettle();
+        await abrirDetalhe(tester);
+
+        expect(find.byType(MemberDetalheSheet), findsOneWidget);
+        expect(
+          find.bySemanticsLabel(
+            RegExp(r'ana@obra\.com.*Operário.*1 obra.*Ativo'),
+          ),
+          findsWidgets,
+        );
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pumpAndSettle();
+        expect(find.byType(MemberDetalheSheet), findsNothing);
+      } finally {
+        handle.dispose();
+      }
+    });
+
+    testWidgets('8.3 desktop abre Dialog 480px (breakpoint >=800)',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(MemberDetalheSheet), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((w) => w is SizedBox && w.width == 480),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<Dialog>(find.byType(Dialog)).shape,
+        isA<RoundedRectangleBorder>(),
+      );
+    });
+
+    testWidgets('8.3 textScale 1.3 sem overflow em CTA, chips e linha',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(),
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(1.3)),
+            child: child!,
+          ),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () => MemberDetalheSheet.show(
+                    context: context,
+                    construtoraId: 'c-1',
+                    membro: membros83.first,
+                  ),
+                  child: const Text('ana@obra.com'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.byType(MemberDetalheSheet), findsOneWidget);
+      expect(find.text('Detalhe de ana@obra.com'), findsOneWidget);
+      expect(find.byType(ObraVinculoRow), findsOneWidget);
+      expect(find.text('Atribuir à obra'), findsOneWidget);
+      expect(find.byType(ObraVinculoVazio), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    test('8.3 formatarJoinedAt e rotuloPapelObra / status em pt-br', () {
+      expect(formatarJoinedAt(DateTime(2026, 3, 7)), '07/03/2026');
+      expect(rotuloStatusVinculo(true), 'Ativo');
+      expect(rotuloStatusVinculo(false), 'Inativo');
+      expect(rotuloPapelObra(_om('u1', isAdmin: false)), 'Operário');
+      expect(rotuloPapelObra(_om('u1', isAdmin: true)), 'Admin da obra');
+      expect(rotuloCargoFlags(isOwner: false, isAdmin: false), 'Operário');
+      expect(rotuloCargoFlags(isOwner: false, isAdmin: true), 'Administrador');
+      expect(rotuloCargoFlags(isOwner: true, isAdmin: true), 'Proprietário');
+      expect(obrasVinculadasVazioLabel, 'Nenhuma obra vinculada — Atribuir');
+    });
+
+    testWidgets('8.3 ativo tem onTap na linha (chevron visível)',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+
+      final row = tester.widget<ListTile>(
+        find
+            .ancestor(
+              of: find.text('ana@obra.com'),
+              matching: find.byType(ListTile),
+            )
+            .first,
+      );
+      expect(row.onTap, isNotNull);
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+    });
+
+    testWidgets('8.3 chip Proprietário no sheet via flags do vínculo',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(
+          membros: [
+            Membro(
+              uid: 'u1',
+              email: 'ana@obra.com',
+              isOwner: true,
+              isAdmin: true,
+            ),
+          ],
+          vinculoFuture: () async => cm('u1', isOwner: true, isAdmin: true),
+        ),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(find.text('Proprietário'), findsWidgets);
+      expect(find.text('Detalhe de ana@obra.com'), findsOneWidget);
+    });
+
+    testWidgets('8.3 chip Administrador no sheet via flags do vínculo',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(
+          membros: [
+            Membro(uid: 'u1', email: 'ana@obra.com', isAdmin: true),
+          ],
+          vinculoFuture: () async => cm('u1', isAdmin: true),
+        ),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(find.text('Administrador'), findsWidgets);
+      expect(find.text('Proprietário'), findsNothing);
+    });
+
+    testWidgets('8.3 título fallback Detalhe de UID quando email vazio',
+        (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base83(
+          membros: [Membro(uid: 'u1', email: '', isAdmin: false)],
+        ),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('UID: u1'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Detalhe de UID: u1'), findsOneWidget);
+      expect(find.byType(MemberDetalheSheet), findsOneWidget);
+    });
+
+    testWidgets('8.3 retry quando erro vem de obraMembers (obras ok)',
+        (tester) async {
+      var leituras = 0;
+      await tester.pumpWidget(ProviderScope(
+        retry: (_, _) => null,
+        overrides: base83(
+          vinculosStream: () {
+            leituras++;
+            if (leituras == 1) {
+              return Stream<List<ObraMember>>.error(
+                Exception('members falhou'),
+              );
+            }
+            return Stream<List<ObraMember>>.value([_om('u1')]);
+          },
+        ),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await abrirDetalhe(tester);
+
+      expect(
+        find.text('Não foi possível carregar as obras.'),
+        findsOneWidget,
+      );
+      expect(find.byType(ObraVinculoRow), findsNothing);
+      expect(leituras, greaterThanOrEqualTo(1));
+
+      await tester.tap(find.text('Tentar novamente').last);
+      await tester.pumpAndSettle();
+      expect(find.byType(ObraVinculoRow), findsOneWidget);
+      expect(
+        find.text('Não foi possível carregar as obras.'),
+        findsNothing,
+      );
+      expect(leituras, greaterThan(1));
     });
   });
 }

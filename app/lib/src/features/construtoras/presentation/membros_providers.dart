@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../sync/read_cache.dart';
 import '../../obras/data/obra_repository.dart';
 import '../../obras/domain/obra.dart';
 import '../../obras/domain/obra_member.dart';
+import '../data/construtora_repository.dart';
 import '../data/membros_repository.dart';
+import '../domain/construtora_member.dart';
 import '../domain/membro.dart';
 
 /// Chave do par (construtora, obra) para [obraMembersProvider].
@@ -140,13 +143,18 @@ Map<String, int> agregarContagem(List<List<ObraMember>> porObra) {
   return contagem;
 }
 
-/// Cargo na construtora: owner → Proprietário, admin → Administrador,
-/// resto (operario/member/legado) → Operário.
-String rotuloCargo(Membro membro) {
-  if (membro.isOwner) return 'Proprietário';
-  if (membro.isAdmin) return 'Administrador';
+/// Cargo na construtora a partir das flags: owner → Proprietário,
+/// admin → Administrador, resto (operario/member/legado) → Operário.
+String rotuloCargoFlags({required bool isOwner, required bool isAdmin}) {
+  if (isOwner) return 'Proprietário';
+  if (isAdmin) return 'Administrador';
   return 'Operário';
 }
+
+/// Cargo na construtora: owner → Proprietário, admin → Administrador,
+/// resto (operario/member/legado) → Operário.
+String rotuloCargo(Membro membro) =>
+    rotuloCargoFlags(isOwner: membro.isOwner, isAdmin: membro.isAdmin);
 
 /// Normaliza leitura de cargo pendente: `member` legado → Operário.
 /// Tolerante a caixa e espaços (`' Admin '` → Administrador).
@@ -260,6 +268,67 @@ final uidObrasPorMembroProvider =
   }
   return construirMapaUidObras(porObra);
 });
+
+// ---------------------------------------------------------------------------
+// 8.3 Detalhe do membro (somente leitura; sem escrita, sem collectionGroup).
+// ---------------------------------------------------------------------------
+
+/// Chave do par (construtora, uid) para o detalhe.
+typedef MemberDetalheKey = ({String construtoraId, String uid});
+
+/// Vínculo em `construtora_members/{uid}` via
+/// `ConstrutoraRepository.getMember` (server + `cachedRead`).
+final memberDetalheProvider = FutureProvider.autoDispose
+    .family<ConstrutoraMember?, MemberDetalheKey>((ref, key) {
+  final repo = ref.watch(construtoraRepositoryProvider);
+  return repo.getMember(key.construtoraId, key.uid);
+});
+
+/// Obras ativas vinculadas ao membro: interseção
+/// `uidObrasPorMembro[uid]` ∩ `obrasAtivas`, com o vínculo (papel) de
+/// cada obra via `obraMembers`. Loading/erro fica em
+/// [contagemObrasMetaProvider] — nunca `.value ?? []` como vazio falso.
+final obrasVinculadasProvider = Provider.autoDispose
+    .family<List<({Obra obra, ObraMember vinculo})>, MemberDetalheKey>(
+        (ref, key) {
+  final uidObras = ref.watch(uidObrasPorMembroProvider(key.construtoraId));
+  final obraIds = uidObras[key.uid] ?? const <String>{};
+  if (obraIds.isEmpty) return const [];
+  final obras = ref
+          .watch(obrasAtivasProvider(key.construtoraId))
+          .value ??
+      const <Obra>[];
+  final resultado = <({Obra obra, ObraMember vinculo})>[];
+  for (final obra in obras) {
+    if (!obraIds.contains(obra.id)) continue;
+    final membros = ref
+            .watch(
+              obraMembersProvider(
+                (construtoraId: key.construtoraId, obraId: obra.id),
+              ),
+            )
+            .value ??
+        const <ObraMember>[];
+    for (final m in membros) {
+      if (m.userId == key.uid && m.isActive) {
+        resultado.add((obra: obra, vinculo: m));
+        break;
+      }
+    }
+  }
+  return resultado;
+});
+
+/// Status do vínculo na construtora (pt-br).
+String rotuloStatusVinculo(bool isActive) => isActive ? 'Ativo' : 'Inativo';
+
+/// `joinedAt` formatado pt-br (`dd/MM/yyyy`).
+String formatarJoinedAt(DateTime joinedAt) =>
+    DateFormat('dd/MM/yyyy').format(joinedAt);
+
+/// Papel na obra: `member`/legado → Operário; nunca `owner` como papel de obra.
+String rotuloPapelObra(ObraMember vinculo) =>
+    vinculo.isAdmin ? 'Admin da obra' : 'Operário';
 
 /// Filtra ativos por obra via junção `uid → obras` em memória.
 /// `obraId` nulo/vazio = sem restrição (retorna cópia da entrada).

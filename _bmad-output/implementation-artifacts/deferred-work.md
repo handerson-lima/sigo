@@ -70,3 +70,7 @@ Nenhuma migração, publicação ou alteração de dados de produção foi execu
 - source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-0-1-registrar-decisoes.md`
   summary: Checagem de concorrência em last_updated do sprint-status.yaml
   evidence: maybe-false unverified medium; sem evidência de perda, mas escrita sem merge check; o que assentaria: ler timestamp base antes de escrever e retry em mismatch
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-3-detalhe-do-membro.md`
+  summary: Sheet de detalhe pode ficar em loading infinito se streams de obras não emitirem offline sem cache (sem timeout no bloco)
+  evidence: maybe-false; `contagemObrasMetaProvider.carregando` sem emissão mantém spinner; settles com teste de stream não-emitting + expect de erro/timeout ou evidência do comportamento Firestore offline em `cachedList`
