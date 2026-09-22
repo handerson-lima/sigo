@@ -174,3 +174,130 @@ String subtitleMembroAtivo(Membro membro, int count) =>
 
 /// Subtitle do pendente: `Pendente · Cargo`.
 String subtitlePendente(String? role) => 'Pendente · ${rotuloCargoPendente(role)}';
+
+// ---------------------------------------------------------------------------
+// 8.2 Filtros e busca (estado local + junção uid→obras em memória).
+// Sem escrita, sem collectionGroup, sem mudar contratos de cache.
+// ---------------------------------------------------------------------------
+
+/// Filtro segmentado da `MembrosScreen`.
+enum FiltroMembros { todos, porObra, pendentes }
+
+class FiltroMembrosNotifier extends Notifier<FiltroMembros> {
+  @override
+  FiltroMembros build() => FiltroMembros.todos;
+
+  void setFiltro(FiltroMembros value) => state = value;
+}
+
+final filtroMembrosProvider =
+    NotifierProvider.autoDispose<FiltroMembrosNotifier, FiltroMembros>(
+  FiltroMembrosNotifier.new,
+);
+
+class ObraSelecionadaNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void selecionar(String? obraId) => state = obraId;
+  void limpar() => state = null;
+}
+
+final obraSelecionadaProvider =
+    NotifierProvider.autoDispose<ObraSelecionadaNotifier, String?>(
+  ObraSelecionadaNotifier.new,
+);
+
+class BuscaMembrosNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void setQuery(String value) => state = value;
+  void limpar() => state = '';
+}
+
+final buscaMembrosProvider =
+    NotifierProvider.autoDispose<BuscaMembrosNotifier, String>(
+  BuscaMembrosNotifier.new,
+);
+
+/// Constrói o detalhe `uid → {obraIds}` a partir de `obraId → membros`.
+/// Ignora vínculos inativos (defensivo). Nunca atribui papel de obra.
+Map<String, Set<String>> construirMapaUidObras(
+  Map<String, List<ObraMember>> porObra,
+) {
+  final mapa = <String, Set<String>>{};
+  porObra.forEach((obraId, lista) {
+    for (final m in lista) {
+      if (!m.isActive) continue;
+      mapa.putIfAbsent(m.userId, () => <String>{}).add(obraId);
+    }
+  });
+  return mapa;
+}
+
+/// Detalhe `uid → {obraIds}` sobre as obras ativas (mesma fonte da
+/// contagem 8.1: `obrasAtivasProvider` + um `obraMembersProvider` por obra).
+/// Em loading/erro sem valor, contribui com lista vazia (sem zero falso no
+/// filtro: `filtrarMembros` com mapa parcial apenas restringe ao conhecido).
+final uidObrasPorMembroProvider =
+    Provider.autoDispose.family<Map<String, Set<String>>, String>(
+        (ref, construtoraId) {
+  final obras =
+      ref.watch(obrasAtivasProvider(construtoraId)).value ?? const <Obra>[];
+  final porObra = <String, List<ObraMember>>{};
+  for (final obra in obras) {
+    final members = ref
+            .watch(
+              obraMembersProvider(
+                (construtoraId: construtoraId, obraId: obra.id),
+              ),
+            )
+            .value ??
+        const <ObraMember>[];
+    porObra[obra.id] = members;
+  }
+  return construirMapaUidObras(porObra);
+});
+
+/// Filtra ativos por obra via junção `uid → obras` em memória.
+/// `obraId` nulo/vazio = sem restrição (retorna cópia da entrada).
+List<Membro> filtrarMembros(
+  List<Membro> membros,
+  Map<String, Set<String>> uidParaObras,
+  String? obraId,
+) {
+  if (obraId == null || obraId.isEmpty) return List<Membro>.from(membros);
+  return membros
+      .where((m) => uidParaObras[m.uid]?.contains(obraId) ?? false)
+      .toList();
+}
+
+/// Busca local em ativos por email (case-insensitive com trim).
+/// Query vazia = sem restrição. Email vazio faz fallback para o UID.
+List<Membro> buscarMembros(List<Membro> membros, String query) {
+  final q = query.trim().toLowerCase();
+  if (q.isEmpty) return List<Membro>.from(membros);
+  return membros.where((m) {
+    final email = m.email.trim().toLowerCase();
+    if (email.isNotEmpty) return email.contains(q);
+    return m.uid.toLowerCase().contains(q);
+  }).toList();
+}
+
+/// Busca local em pendentes por email OU displayName (case-insensitive).
+/// Tolerante a valores não-string. Query vazia = sem restrição.
+List<Map<String, dynamic>> filtrarPendentes(
+  List<Map<String, dynamic>> pendentes,
+  String query,
+) {
+  final q = query.trim().toLowerCase();
+  if (q.isEmpty) return List<Map<String, dynamic>>.from(pendentes);
+  return pendentes.where((r) {
+    final emailRaw = r['email'];
+    final nomeRaw = r['displayName'];
+    final email = emailRaw is String ? emailRaw.trim().toLowerCase() : '';
+    final nome = nomeRaw is String ? nomeRaw.trim().toLowerCase() : '';
+    return email.contains(q) || nome.contains(q);
+  }).toList();
+}

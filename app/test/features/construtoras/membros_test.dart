@@ -602,4 +602,284 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Sem conexão — tente novamente'), findsOneWidget);
   });
+
+  group('8.2 filtros e busca (puros)', () {
+    test('construirMapaUidObras ignora inativos', () {
+      final mapa = construirMapaUidObras({
+        'o1': [_om('u1'), _om('u2')],
+        'o2': [_om('u1'), _om('u3', isActive: false)],
+      });
+      expect(mapa['u1'], {'o1', 'o2'});
+      expect(mapa['u2'], {'o1'});
+      expect(mapa.containsKey('u3'), isFalse);
+    });
+
+    test('filtrarMembros por obra; nulo/vazio retorna todos', () {
+      final membros = [
+        Membro(uid: 'u1', isAdmin: false, email: 'a@x.com'),
+        Membro(uid: 'u2', isAdmin: false, email: 'b@x.com'),
+      ];
+      final mapa = {
+        'u1': {'o1'},
+        'u2': {'o2'},
+      };
+      expect(
+        filtrarMembros(membros, mapa, 'o1').map((m) => m.uid),
+        ['u1'],
+      );
+      expect(filtrarMembros(membros, mapa, null), hasLength(2));
+      expect(filtrarMembros(membros, mapa, ''), hasLength(2));
+      expect(filtrarMembros(membros, mapa, 'oX'), isEmpty);
+    });
+
+    test('buscarMembros trim/case-insensitive + fallback UID', () {
+      final membros = [
+        Membro(uid: 'u1', isAdmin: false, email: 'Ana@obra.com'),
+        Membro(uid: 'u2', isAdmin: false, email: 'bob@obra.com'),
+        Membro(uid: 'u-xyz', isAdmin: false, email: '   '),
+      ];
+      expect(buscarMembros(membros, '').map((m) => m.uid),
+          ['u1', 'u2', 'u-xyz']);
+      expect(buscarMembros(membros, 'ana').map((m) => m.uid), ['u1']);
+      expect(buscarMembros(membros, '  ANA  ').map((m) => m.uid), ['u1']);
+      expect(buscarMembros(membros, 'u-xyz').map((m) => m.uid), ['u-xyz']);
+      expect(buscarMembros(membros, 'sem-match'), isEmpty);
+    });
+
+    test('filtrarPendentes por email ou displayName com trim/lower', () {
+      final pendentes = [
+        {'email': 'Ana.Souza@x.com', 'displayName': 'Ana Souza'},
+        {'email': 'carlos@x.com', 'displayName': 'Carlos'},
+        {'role': 123, 'displayName': '   ', 'email': '  '},
+      ];
+      expect(filtrarPendentes(pendentes, ''), hasLength(3));
+      expect(filtrarPendentes(pendentes, 'ana'), hasLength(1));
+      expect(filtrarPendentes(pendentes, '  ANA  '), hasLength(1));
+      expect(
+        filtrarPendentes(pendentes, 'ana souza').first['email'],
+        'Ana.Souza@x.com',
+      );
+      expect(filtrarPendentes(pendentes, 'carlos@x.com'), hasLength(1));
+      expect(filtrarPendentes(pendentes, 'sem-match'), isEmpty);
+    });
+  });
+
+  group('8.2 filtros e busca (widget)', () {
+    final mockMembros82 = [
+      Membro(uid: 'u1', email: 'ana@obra.com', isAdmin: false, role: 'operario'),
+      Membro(uid: 'u2', email: 'bob@obra.com', isAdmin: false, role: 'operario'),
+    ];
+    final mockPending82 = [
+      {
+        'id': 'p1',
+        'email': 'ana.souza@x.com',
+        'displayName': 'Ana Souza',
+        'role': 'operario',
+      },
+    ];
+
+    base82({
+      List<Membro>? membros,
+      List<Map<String, dynamic>>? pending,
+      List<Obra>? obras,
+      Map<String, List<ObraMember>>? porObra,
+    }) {
+      return [
+        membrosProvider('c-1')
+            .overrideWith((ref) => Stream.value(membros ?? mockMembros82)),
+        pendingRequestsProvider('c-1')
+            .overrideWith((ref) => Stream.value(pending ?? mockPending82)),
+        obrasDaConstrutoraProvider('c-1')
+            .overrideWith((ref) => Stream.value(obras ?? [_obra('o1')])),
+        for (final entry in (porObra ??
+                {
+                  'o1': [_om('u1')],
+                })
+            .entries)
+          obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
+              .overrideWith((ref) => Stream.value(entry.value)),
+      ];
+    }
+
+    testWidgets('8.2 Por obra filtra via uid→obras e exclui pendentes',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: base82(
+            obras: [_obra('o1'), _obra('o2')],
+            porObra: {
+              'o1': [_om('u1')],
+              'o2': [_om('u2')],
+            },
+          ),
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Base Todos: tudo visível.
+      expect(find.text('ana@obra.com'), findsOneWidget);
+      expect(find.text('Ana Souza'), findsOneWidget);
+
+      await tester.tap(find.text('Por obra'));
+      await tester.pumpAndSettle();
+      // Sem obra selecionada: orientação (pendentes excluídos).
+      expect(find.text('Ana Souza'), findsNothing);
+      expect(find.text('Selecione uma obra'), findsOneWidget);
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Obra o1').last);
+      await tester.pumpAndSettle();
+
+      // Dropdown reflete a obra selecionada após reload.
+      expect(find.text('Obra o1'), findsOneWidget);
+      expect(find.text('ana@obra.com'), findsOneWidget);
+      expect(find.text('bob@obra.com'), findsNothing);
+      expect(find.text('Ana Souza'), findsNothing);
+    });
+
+    testWidgets('8.2 busca ativo trim/case-insensitive', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: base82(pending: const []),
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '  ANA  ');
+      await tester.pumpAndSettle();
+
+      expect(find.text('ana@obra.com'), findsOneWidget);
+      expect(find.text('bob@obra.com'), findsNothing);
+    });
+
+    testWidgets('8.2 Pendentes filtra por displayName', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: base82(),
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Pendentes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ana Souza'), findsOneWidget);
+      expect(find.text('ana@obra.com'), findsNothing);
+
+      await tester.enterText(find.byType(TextField), 'souza');
+      await tester.pumpAndSettle();
+      expect(find.text('Ana Souza'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'sem-match');
+      await tester.pumpAndSettle();
+      expect(find.text('Nenhum membro encontrado.'), findsOneWidget);
+    });
+
+    testWidgets('8.2 busca sem match mostra vazio', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: base82(),
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'zzz-sem-match');
+      await tester.pumpAndSettle();
+      expect(find.text('Nenhum membro encontrado.'), findsOneWidget);
+    });
+
+    testWidgets('8.2 dropdown sem obra mostra Nenhuma obra ativa',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: base82(obras: const [], porObra: const {}),
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Por obra'));
+      await tester.pumpAndSettle();
+      expect(find.text('Nenhuma obra ativa'), findsOneWidget);
+      expect(find.text('Selecione uma obra'), findsOneWidget);
+    });
+
+    testWidgets('8.2 Por obra com obras em loading mostra indicador',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            membrosProvider('c-1')
+                .overrideWith((ref) => Stream.value(mockMembros82)),
+            pendingRequestsProvider('c-1').overrideWith(
+              (ref) => Stream.value(const <Map<String, dynamic>>[]),
+            ),
+            obrasDaConstrutoraProvider('c-1')
+                .overrideWith((ref) => const Stream.empty()),
+          ],
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Por obra'));
+      await tester.pump();
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(find.text('Selecione uma obra'), findsOneWidget);
+      expect(find.text('Nenhum membro encontrado.'), findsNothing);
+    });
+
+    testWidgets('8.2 Por obra com erro em obras mostra mensagem',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            membrosProvider('c-1')
+                .overrideWith((ref) => Stream.value(mockMembros82)),
+            pendingRequestsProvider('c-1').overrideWith(
+              (ref) => Stream.value(const <Map<String, dynamic>>[]),
+            ),
+            obrasAtivasProvider('c-1').overrideWithValue(
+              AsyncValue.error(Exception('obras falhou'), StackTrace.empty),
+            ),
+          ],
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Por obra'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Não foi possível carregar as obras.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('8.2 Limpar busca restaura a lista', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: base82(pending: const []),
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('bob@obra.com'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'ana');
+      await tester.pumpAndSettle();
+      expect(find.text('ana@obra.com'), findsOneWidget);
+      expect(find.text('bob@obra.com'), findsNothing);
+
+      await tester.tap(find.byTooltip('Limpar busca'));
+      await tester.pumpAndSettle();
+      expect(find.text('ana@obra.com'), findsOneWidget);
+      expect(find.text('bob@obra.com'), findsOneWidget);
+      expect(find.byTooltip('Limpar busca'), findsNothing);
+    });
+  });
 }
