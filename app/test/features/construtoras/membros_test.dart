@@ -2853,7 +2853,7 @@ void main() {
       ),
     ];
 
-    base102({String uid = 'u1'}) {
+    base102({String uid = 'u1', ObraMember? vinculo}) {
       return [
         obraMembersRepositoryProvider.overrideWithValue(fakeRemover),
         membrosProvider('c-1').overrideWith((ref) => Stream.value(membros102)),
@@ -2862,7 +2862,7 @@ void main() {
         obrasDaConstrutoraProvider('c-1')
             .overrideWith((ref) => Stream.value([_obra('o1')])),
         obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
-            .overrideWith((ref) => Stream.value([_om(uid)])),
+            .overrideWith((ref) => Stream.value([vinculo ?? _om(uid)])),
         memberDetalheProvider((construtoraId: 'c-1', uid: uid))
             .overrideWith((ref) => Future.value(_cm(uid, isActive: true))),
       ];
@@ -2953,6 +2953,53 @@ void main() {
 
       expect(find.byType(TrocarPapelDialog), findsOneWidget);
     });
+
+    testWidgets(
+      '10.2 overflow → Trocar papel: prefill via sheet reflete papel e módulos do vínculo',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: base102(
+              vinculo: ObraMember(
+                userId: 'u1',
+                isActive: true,
+                isAdmin: true,
+                modules: ['diario', 'lotes'],
+                joinedAt: DateTime(2026, 1, 1),
+              ),
+            ),
+            child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('ana@obra.com'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('overflow-o1')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Trocar papel'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(TrocarPapelDialog), findsOneWidget);
+        expect(
+          find.textContaining('será Admin da obra em Obra o1'),
+          findsOneWidget,
+        );
+        final chipDiario = tester.widget<FilterChip>(
+          find.byKey(TrocarPapelDialog.moduloDiarioKey),
+        );
+        final chipLotes = tester.widget<FilterChip>(
+          find.byKey(TrocarPapelDialog.moduloLotesKey),
+        );
+        final chipEstoque = tester.widget<FilterChip>(
+          find.byKey(TrocarPapelDialog.moduloEstoqueKey),
+        );
+        expect(chipDiario.selected, isTrue);
+        expect(chipLotes.selected, isTrue);
+        expect(chipEstoque.selected, isFalse);
+      },
+    );
 
     testWidgets('10.2 offline: snackbar de erro após confirm remoção', (
       tester,
@@ -3181,6 +3228,157 @@ void main() {
         },
       );
     });
+
+    // -------------------------------------------------------------------------
+    // 10.3 gap 19 — setCargo real (pré-check offline, catch e payload),
+    // mesmo padrão dos testes do setMembership real (9.2)
+    // -------------------------------------------------------------------------
+    group('10.3 setCargo real (repo)', () {
+      test('10.3 setCargo real: offline não dispara callable', () async {
+        var chamouCallable = false;
+        final repo = MembrosRepository(
+          null,
+          null,
+          checkConnectivity: () async => [ConnectivityResult.none],
+          callSetCargo: (_) async {
+            chamouCallable = true;
+          },
+        );
+
+        await expectLater(
+          repo.setCargo('c-1', 'u1', 'operario'),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString().replaceFirst('Exception: ', ''),
+              'message',
+              mensagemSemConexaoCargo,
+            ),
+          ),
+        );
+        expect(chamouCallable, isFalse);
+      });
+
+      test('10.3 setCargo real: permission-denied traduz no catch', () async {
+        final repo = MembrosRepository(
+          null,
+          null,
+          checkConnectivity: () async => [ConnectivityResult.wifi],
+          callSetCargo: (_) async {
+            throw FirebaseFunctionsException(
+              code: 'permission-denied',
+              message: 'raw',
+            );
+          },
+        );
+
+        await expectLater(
+          repo.setCargo('c-1', 'u1', 'admin'),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString().replaceFirst('Exception: ', ''),
+              'message',
+              'Você não tem permissão para realizar esta atribuição.',
+            ),
+          ),
+        );
+      });
+
+      test('10.3 setCargo real: payload chega completo na callable', () async {
+        Map<String, dynamic>? enviado;
+        final repo = MembrosRepository(
+          null,
+          null,
+          checkConnectivity: () async => [ConnectivityResult.wifi],
+          callSetCargo: (payload) async {
+            enviado = payload;
+          },
+        );
+
+        await repo.setCargo('c-1', 'u1', 'admin', isActive: false);
+
+        expect(enviado, {
+          'construtoraId': 'c-1',
+          'userId': 'u1',
+          'role': 'admin',
+          'isActive': false,
+        });
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // 10.3 gap 20 — wiring do sheet para Trocar cargo (botão + trustedDev +
+    // snackbar "Cargo atualizado.")
+    // -------------------------------------------------------------------------
+    testWidgets(
+      '10.3 sheet → Trocar cargo: wiring com trustedDev + snackbar Cargo atualizado',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              membrosRepositoryProvider.overrideWithValue(fakeCargo),
+              trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+              membrosProvider('c-1').overrideWith(
+                (ref) => Stream.value([
+                  Membro(
+                    uid: 'u1',
+                    email: 'ana@obra.com',
+                    isAdmin: false,
+                    role: 'operario',
+                  ),
+                ]),
+              ),
+              pendingRequestsProvider('c-1')
+                  .overrideWith((ref) => Stream.value(const [])),
+              obrasDaConstrutoraProvider('c-1')
+                  .overrideWith((ref) => Stream.value([_obra('o1')])),
+              obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+                  .overrideWith((ref) => Stream.value([_om('u1')])),
+              memberDetalheProvider((construtoraId: 'c-1', uid: 'u1'))
+                  .overrideWith(
+                (ref) => Future.value(
+                  _cm('u1', isAdmin: true, isActive: true),
+                ),
+              ),
+            ],
+            child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('ana@obra.com'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Trocar cargo'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(TrocarCargoDialog), findsOneWidget);
+        // Prefill vem do vínculo da sheet (admin), não de injeção direta.
+        expect(
+          find.textContaining('será Administrador na construtora'),
+          findsOneWidget,
+        );
+
+        // isDev flui de trustedDevProvider → sheet → dialog.
+        await tester.tap(find.byKey(TrocarCargoDialog.cargoDropdownKey));
+        await tester.pumpAndSettle();
+        expect(find.text('Proprietário'), findsOneWidget);
+        await tester.tap(find.text('Operário').last);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(TrocarCargoDialog), findsNothing);
+        expect(fakeCargo.chamadas.length, 1);
+        expect(fakeCargo.chamadas.first['role'], 'operario');
+        expect(find.text('Cargo atualizado.'), findsOneWidget);
+      },
+    );
 
     // -------------------------------------------------------------------------
     // 10.3 Desativar membro — testes de integração de widget

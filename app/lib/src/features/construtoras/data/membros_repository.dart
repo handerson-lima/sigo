@@ -23,13 +23,25 @@ String traduzirErroSetCargo(FirebaseFunctionsException e) {
 }
 
 class MembrosRepository {
-  final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
+  final FirebaseFirestore? _firestore;
+  final FirebaseFunctions? _functions;
+  final Future<List<ConnectivityResult>> Function() _checkConnectivity;
+  final Future<dynamic> Function(Map<String, dynamic> data)? _callSetCargo;
 
-  MembrosRepository(this._firestore, this._functions);
+  MembrosRepository(
+    this._firestore,
+    this._functions, {
+    Future<List<ConnectivityResult>> Function()? checkConnectivity,
+    Future<dynamic> Function(Map<String, dynamic> data)? callSetCargo,
+  })  : _checkConnectivity = checkConnectivity ?? _defaultCheckConnectivity,
+        // ignore: prefer_initializing_formals
+        _callSetCargo = callSetCargo;
+
+  static Future<List<ConnectivityResult>> _defaultCheckConnectivity() =>
+      Connectivity().checkConnectivity();
 
   Stream<List<Membro>> watchMembros(String construtoraId) {
-    return _firestore
+    return _firestore!
         .collection('construtoras')
         .doc(construtoraId)
         .collection('construtora_members')
@@ -40,7 +52,7 @@ class MembrosRepository {
   }
 
   Stream<List<Map<String, dynamic>>> watchPendingRequests(String construtoraId) {
-    return _firestore
+    return _firestore!
         .collection('access_requests')
         .where('construtoraId', isEqualTo: construtoraId)
         .where('status', isEqualTo: 'pending')
@@ -52,7 +64,7 @@ class MembrosRepository {
   }
 
   Stream<List<Map<String, dynamic>>> watchAllPendingRequests() {
-    return _firestore
+    return _firestore!
         .collection('access_requests')
         .where('status', isEqualTo: 'pending')
         .orderBy('createdAt', descending: true)
@@ -71,7 +83,7 @@ class MembrosRepository {
     String? displayName,
   }) async {
     try {
-      final callable = _functions.httpsCallable('setConstrutoraRole');
+      final callable = _functions!.httpsCallable('setConstrutoraRole');
       final payload = <String, dynamic>{
         'email': email,
         'construtoraId': construtoraId,
@@ -101,17 +113,8 @@ class MembrosRepository {
     bool isActive = true,
   }) async {
     // Pré-check offline — mesmo padrão do ObraMembersRepository.
-    try {
-      final results = await Connectivity().checkConnectivity();
-      final semConexao = results.every((r) => r == ConnectivityResult.none);
-      if (semConexao) {
-        throw Exception(mensagemSemConexaoCargo);
-      }
-    } catch (e) {
-      if (e is Exception && e.toString().contains(mensagemSemConexaoCargo)) {
-        rethrow;
-      }
-      // Plugin indisponível — deixa a chamada tentar e o catch tratar.
+    if (!await _temConectividade()) {
+      throw Exception(mensagemSemConexaoCargo);
     }
 
     final payload = <String, dynamic>{
@@ -122,7 +125,12 @@ class MembrosRepository {
     };
 
     try {
-      await _functions.httpsCallable('setConstrutoraRole').call(payload);
+      final call = _callSetCargo;
+      if (call != null) {
+        await call(payload);
+      } else {
+        await _functions!.httpsCallable('setConstrutoraRole').call(payload);
+      }
     } on FirebaseFunctionsException catch (e) {
       throw Exception(traduzirErroSetCargo(e));
     } catch (e) {
@@ -133,9 +141,20 @@ class MembrosRepository {
     }
   }
 
+  /// Verifica conectividade antes de disparar a CF (operação online-only).
+  Future<bool> _temConectividade() async {
+    try {
+      final results = await _checkConnectivity();
+      return results.any((r) => r != ConnectivityResult.none);
+    } catch (_) {
+      // Em dúvida (plugin indisponível), deixa a chamada tentar e o catch tratar.
+      return true;
+    }
+  }
+
   Future<void> approveAccessRequest(String requestId, String password) async {
     try {
-      final callable = _functions.httpsCallable('approveAccessRequest');
+      final callable = _functions!.httpsCallable('approveAccessRequest');
       await callable.call({'requestId': requestId, 'password': password});
     } on FirebaseFunctionsException catch (e) {
       throw Exception(e.message ?? 'Erro ao aprovar solicitação');

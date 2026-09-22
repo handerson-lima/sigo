@@ -1,10 +1,10 @@
 # Trabalho diferido — SIGO
 
-Atualizado em 2026-09-15.
+Atualizado em 2026-09-22.
 
-## Correções aguardando aprovação
+## Correções C0–C6 — status
 
-C0–C6 estão detalhados no [plano de correções](../../docs/plano-de-correcao-2026-09-15.md). Ainda não autorizados para implementação. Manter os privilégios globais de dev é uma decisão já confirmada pelo usuário.
+O [plano de correções](../../docs/plano-de-correcao-2026-09-15.md) foi **aprovado pelo usuário** (`sprint-status.yaml`: `correction_plan: approved_by_user`). Os pacotes C0–C6 foram **validados com resultado ACEITO em desenvolvimento** ([validação](../../docs/validacao-c0-c6.md)); a implantação em produção **segue pendente** de autorização (`production_deployment: not_authorized_by_this_plan`) e é apresentada separadamente. Manter os privilégios globais de dev é uma decisão já confirmada pelo usuário.
 
 ## Expansão depois da estabilização
 
@@ -78,3 +78,19 @@ Nenhuma migração, publicação ou alteração de dados de produção foi execu
 - source_spec: `_bmad-output/implementation-artifacts/spec-9-2-atribuir-admin-erros-e-offline.md`
   summary: checkConnectivity sem timeout pode pendurar setMembership se a platform channel não responder
   evidence: maybe-false unverified medium; spinner preso no diálogo se checkConnectivity nunca completar; o que assentaria: teste forçando platform channel pendurada ou evidência de que a channel sempre completa/erro
+
+## Deferred from: retro epic-10 — gaps de verificação restantes (2026-09-22)
+
+Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo real, wiring Trocar cargo, prefill via overflow). Resto adiado (regressão limitada ao subconjunto prioritário).
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md`
+  summary: "Finding 22 — invalidação de providers nunca assertada (zero testes observam rebuild pós-mutação; apagar qualquer bloco `ref.invalidate` fica verde)"
+  evidence: fechar exige harness de observação de rebuild pós-mutação; fora do subconjunto prioritário 19–21 desta rodada
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md`
+  summary: "Finding 23 — N+1 e progresso não testados com 2 obras confirmadas (happy path de CF é `nObras: 1`; diálogo `Desativando...` sem teste)"
+  evidence: regressão N→1 passaria; ligado a `epic-10-fix-desativar-partial-invalidation` (findings 9, 15) que ainda está open
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md`
+  summary: "Finding 24 — a11y dos surfaces novos sem asserção (Esc/foco/≥48dp/`Editar vínculo`/textScale 1.3 nos dialogs 10.x e no overflow)"
+  evidence: pares do finding 12; parte coberta por `epic-10-fix-a11y-overflow` (open); asserções de teste ficam para depois do fix de alvos ≥48dp
