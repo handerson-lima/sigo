@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-22-2026 16:35
+last_updated: 09-22-2026 17:23
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -123,7 +123,7 @@ development_status:
   10-1-trocar-papel-modulos-na-obra: done
   10-2-remover-da-obra: done
   10-3-trocar-cargo-na-construtora-e-desativar: done
-  epic-10-retrospective: optional
+  epic-10-retrospective: done
 
 # Os títulos históricos não impõem caminhos projects/ ou proibição de dev global.
 legacy_scope_mapping:
@@ -295,3 +295,72 @@ action_items:
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-9-retro-2026-09-22.md"
+  - id: "epic-10-retro-item-22-corrigir-trocar-cargo-bloquear-para-memb"
+    epic: 10
+    action: "Corrigir Trocar cargo: bloquear para membro inativo (ou enviar isActive
+      explicito) para backend nao reativar silenciosamente (index.ts:103); remover
+      fallback owner→operario em trocar_cargo_dialog.dart:79-82"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
+  - id: "epic-10-retro-item-23-endurecer-_confirmardesativar-guard-para"
+    epic: 10
+    action: "Endurecer _confirmarDesativar: guard para owner sem trustedDev; mover
+      ref.invalidate para finally + invalidar obraMembersProvider das obras afetadas;
+      preservar modules em vez de const []"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
+  - id: "epic-10-retro-item-24-nao-abrir-confirm-de-desativar-com-obras"
+    epic: 10
+    action: "Nao abrir confirm de Desativar com obrasVinculadas degradada (usar meta)
+      e renderizar branch Nenhuma obra vinculada hoje morta (member_detalhe_sheet.dart:546-576)"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
+  - id: "epic-10-retro-item-25-a11y-do-overflow-obravinculorow-alvo-48d"
+    epic: 10
+    action: "A11y do overflow ObraVinculoRow: alvo >=48dp e menu fora do excludeSemantics;
+      decidir alvo dos FilterChip (48dp ou CheckboxListTile)"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
+  - id: "epic-10-retro-item-26-dialog-guards-popscope-durante-submit-no"
+    epic: 10
+    action: "Dialog guards: PopScope durante submit nos dialogs 10.x, lock anti-duplo-disparo
+      em _confirmarRemocao, progresso com context proprio + timeout no Future.wait
+      (settle EC2)"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
+  - id: "epic-10-retro-item-27-prefill-do-trocarpapeldialog-via-normali"
+    epic: 10
+    action: "Prefill do TrocarPapelDialog via normalizeModule/normalizeRawModules
+      (core/contracts.dart) fechando AC 10.1 normalizacao de modulos legados"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
+  - id: "epic-10-retro-item-28-fechar-gaps-de-verificacao-10-x-testes-d"
+    epic: 10
+    action: "Fechar gaps de verificacao 10.x: testes do setCargo real, wiring do sheet
+      (trustedDev, prefill via overflow, Cargo atualizado), asserts de invalidacao,
+      desativar nObras:2 com N+1 e progresso, a11y (Esc, 48dp, Editar vinculo, textScale
+      1.3)"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
+  - id: "epic-10-retro-item-29-reconciliar-epics-md-ac-10-3-texto-do-co"
+    epic: 10
+    action: "Reconciliar epics.md: AC 10.3 texto do confirm e decidir carryover atalho
+      Ativar da AC 9.2 (AD-9 ainda declara)"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
+  - id: "epic-10-retro-item-30-consolidacao-unificar-traducao-de-erros"
+    epic: 10
+    action: "Consolidacao: unificar traducao de erros (setCargo vs setMembership),
+      rotulos de papel (absorve epic-9-retro-item-2), status-chip (absorve epic-8-retro-item-2)
+      e fatiar membros_test.dart por feature (3a retro com a lição)"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
