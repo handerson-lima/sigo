@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-22-2026 07:55
+last_updated: 09-22-2026 08:00
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -112,7 +112,7 @@ development_status:
   8-1-lista-com-cargo-n-obras: done
   8-2-filtros-e-busca: done
   8-3-detalhe-do-membro: done
-  epic-8-retrospective: optional
+  epic-8-retrospective: done
 
   epic-9: backlog
   9-1-atribuir-operario-a-obra: backlog
@@ -218,32 +218,59 @@ action_items:
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
   - id: "epic-4-retro-item-1-modularizar-chamada-form"
     epic: 4
-    action: "Extrair sub-componentes visuais de chamada_form_screen.dart (banner de invariantes, sumario de rateio e filtros) para manter a tela principal enxuta"
+    action: "Extrair sub-componentes visuais de chamada_form_screen.dart (banner de
+      invariantes, sumario de rateio e filtros) para manter a tela principal enxuta"
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-17.md"
   - id: "epic-4-retro-item-2-fila-offline-rh"
     epic: 4
-    action: "Avaliar extensao do motor de fila offline (OperationQueue / read_cache.dart) para sincronizacao em background de chamadas em canteiros sem conectividade"
+    action: "Avaliar extensao do motor de fila offline (OperationQueue / read_cache.dart)
+      para sincronizacao em background de chamadas em canteiros sem conectividade"
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-17.md"
   - id: "epic-4-retro-item-3-preparar-epic-5-visao360"
     epic: 4
-    action: "Iniciar planejamento tecnico das historias do Epic 5 (Modulos de Validacao, ADM e Visao 360 de Custos integrando RH e Almoxarifado)"
+    action: "Iniciar planejamento tecnico das historias do Epic 5 (Modulos de Validacao,
+      ADM e Visao 360 de Custos integrando RH e Almoxarifado)"
     owner: "maranduteam"
     status: done
     ref: "_bmad-output/planning-artifacts/architecture/architecture-epic-5/ARCHITECTURE-SPINE.md"
   - id: "epic-5-retro-item-1-performance-360"
     epic: 5
-    action: "Planejar bateria de testes de carga na Agregação da Visão 360º para validar idempotência em atualizações simultâneas de RH e Estoque."
+    action: "Planejar bateria de testes de carga na Agregação da Visão 360º para validar
+      idempotência em atualizações simultâneas de RH e Estoque."
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-21.md"
   - id: "epic-5-retro-item-2-e2e-anexos"
     epic: 5
-    action: "Testar resiliência no envio de evidências fotográficas (Qualidade 5.2) e PDFs de notas fiscais (Contas a Pagar 5.3) durante conectividade intermitente usando o IndexedDB e Service Worker."
+    action: "Testar resiliência no envio de evidências fotográficas (Qualidade 5.2)
+      e PDFs de notas fiscais (Contas a Pagar 5.3) durante conectividade intermitente
+      usando o IndexedDB e Service Worker."
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-21.md"
 
+  - id: "epic-8-retro-item-1-extrair-filtros-screen"
+    epic: 8
+    action: "Se o epic 9 acrescentar escrita em membros_screen.dart, extrair barra
+      de filtros/busca/dropdown para widget dedicado antes do próximo crescimento"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-8-retro-2026-09-22.md"
+  - id: "epic-8-retro-item-2-status-chip-duplicado"
+    epic: 8
+    action: "Unificar tokens do chip Ativo/Inativo entre MemberDetalheSheet._statusChip
+      e ObraVinculoRow num helper compartilhado"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-8-retro-2026-09-22.md"
+  - id: "epic-8-retro-item-3-manter-defer-offline-sheet"
+    epic: 8
+    action: "Manter E3 (offline-loading-sheet) em deferred-work.md e resolver com
+      teste de stream não-emitting quando houver orçamento de risco offline no sheet"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-8-retro-2026-09-22.md"
