@@ -183,6 +183,7 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                     'filtro-obra-dropdown-${selecionadaValida ? sel : 'nenhuma'}',
                   ),
                   initialValue: selecionadaValida ? sel : null,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Obra',
                     border: OutlineInputBorder(),
@@ -243,8 +244,6 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
         (obrasAtivasAsync.isLoading && !obrasAtivasAsync.hasValue) ||
             contagemMeta.carregando;
     final contagemErro = contagemMeta.erro;
-    // Loading da junção uid→obras (mesma fonte da contagem 8.1).
-    final juncaoCarregando = contagemCarregando;
 
     final filtro = ref.watch(filtroMembrosProvider);
     final obraSelecionada = ref.watch(obraSelecionadaProvider);
@@ -279,24 +278,6 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
         data: (membros) {
           final List<Map<String, dynamic>> pending = pendingAsync.value ?? [];
           final pendingErro = pendingAsync.hasError;
-          final totalBase = pending.length + membros.length;
-
-          if (totalBase == 0 && !pendingErro) {
-            if (pendingAsync.isLoading) {
-              return _buildSkeleton();
-            }
-            return RefreshIndicator(
-              onRefresh: () async => _invalidateTudo(ref),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: const [
-                  SizedBox(height: 80),
-                  Center(child: Text('Nenhum membro encontrado.')),
-                ],
-              ),
-            );
-          }
-
           // Filtro/busca em memória sobre a agregação 8.1.
           // Por obra exclui pendentes; Pendentes exclui ativos.
           // Seleção fora das obras ativas (ex.: desativada depois de
@@ -348,13 +329,21 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
           final totalFiltrado =
               pendentesFiltrados.length + ativosFiltrados.length;
 
-          if (totalFiltrado == 0) {
-            // Junção uid→obras ainda carregando: skeleton, sem vazio falso.
-            if (filtro == FiltroMembros.porObra &&
-                obraEfetiva != null &&
-                juncaoCarregando) {
-              return _buildSkeleton();
-            }
+          final vinculosSelecionados =
+              filtro == FiltroMembros.porObra && obraEfetiva != null
+                  ? ref.watch(obraMembersProvider((
+                      construtoraId: construtoraId,
+                      obraId: obraEfetiva,
+                    )))
+                  : null;
+          final erroVinculos = vinculosSelecionados?.hasError ?? false;
+          final resultadoCarregando = filtro == FiltroMembros.porObra
+              ? vinculosSelecionados != null &&
+                  vinculosSelecionados.isLoading &&
+                  !vinculosSelecionados.hasValue
+              : pendingAsync.isLoading && !pendingAsync.hasValue;
+
+          if (totalFiltrado == 0 || erroVinculos) {
             return RefreshIndicator(
               onRefresh: () async => _invalidateTudo(ref),
               child: ListView(
@@ -369,7 +358,22 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                   ),
                   if (mostrarBannerPendente)
                     _buildAvisoPendentes(ref, construtoraId),
-                  if (semSelecaoDeObra)
+                  if (erroVinculos)
+                    ListTile(
+                      title: const Text(
+                        'Não foi possível carregar os membros desta obra.',
+                      ),
+                      trailing: TextButton(
+                        onPressed: () => ref.invalidate(obraMembersProvider((
+                          construtoraId: construtoraId,
+                          obraId: obraEfetiva!,
+                        ))),
+                        child: const Text('Recarregar'),
+                      ),
+                    )
+                  else if (resultadoCarregando)
+                    SizedBox(height: 360, child: _buildSkeleton())
+                  else if (semSelecaoDeObra)
                     const Center(
                       child: Padding(
                         padding: EdgeInsets.only(top: 80),

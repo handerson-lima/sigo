@@ -238,8 +238,9 @@ Map<String, Set<String>> construirMapaUidObras(
 
 /// Detalhe `uid → {obraIds}` sobre as obras ativas (mesma fonte da
 /// contagem 8.1: `obrasAtivasProvider` + um `obraMembersProvider` por obra).
-/// Em loading/erro sem valor, contribui com lista vazia (sem zero falso no
-/// filtro: `filtrarMembros` com mapa parcial apenas restringe ao conhecido).
+/// Em loading/erro sem valor, contribui apenas com os vínculos conhecidos.
+/// A tela preserva o AsyncValue da obra selecionada para distinguir
+/// carregamento e erro de um resultado realmente vazio.
 final uidObrasPorMembroProvider =
     Provider.autoDispose.family<Map<String, Set<String>>, String>(
         (ref, construtoraId) {

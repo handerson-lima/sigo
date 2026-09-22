@@ -2,7 +2,7 @@
 title: '8.2 Filtros e busca'
 type: 'feature'
 created: '2026-09-21'
-status: 'done'
+status: 'in-review'
 route: 'dispatch'
 baseline_commit: '6f0f2a0d57a605765622536090dc0e607c24a383'
 review_loop_iteration: 0
@@ -62,7 +62,61 @@ context: []
 - Given nenhuma obra ativa, when abro dropdown, then vejo `Nenhuma obra ativa`.
 - Given filtro/busca ativos, when dou pull-to-refresh, then lista base atualiza mantendo filtro.
 
+### Review Findings (2026-09-21 — 6f0f2a0..dea3828)
+
+Revisão completa com quatro revisores independentes: blind-hunter, edge-case-hunter, verification-gap e acceptance-auditor. 18 achados individuais, agrupados por causa em 9 itens `patch`; 0 `decision-needed`, 0 `defer`, 0 rejeitados. Nenhuma camada falhou. Usuário autorizou aplicar todos os nove ajustes sem confirmação por item. Correções em andamento; preservar o escopo aprovado e o histórico da revisão.
+
+- [ ] [Review][Patch][medium] **P1 — Erro dos vínculos aparece como ausência de membros.** Preservar o erro do stream da obra selecionada e exibir mensagem com recuperação, em vez de `Nenhum membro encontrado.`. A junção transforma erro sem valor em lista vazia e a tela só protege loading. Viola a matriz Loading/erro base. [app/lib/src/features/construtoras/presentation/membros_providers.dart:250; app/lib/src/features/construtoras/presentation/membros_screen.dart:351]
+- [ ] [Review][Patch][medium] **P2 — Pendentes ainda carregando aparecem como lista vazia.** Quando ativos já chegaram, a proteção de loading da lista base não atua; selecionar Pendentes exibe ausência antes da resposta. Preservar o estado de carregamento nos resultados dependentes de solicitações e testar a emissão posterior. [app/lib/src/features/construtoras/presentation/membros_screen.dart:280; app/lib/src/features/construtoras/presentation/membros_screen.dart:337]
+- [ ] [Review][Patch][medium] **P3 — Carregamento de outra obra bloqueia busca e filtros.** O estado agregado de todas as obras substitui a tela por skeleton quando a obra escolhida está vazia ou a busca não corresponde. Usar o estado dos vínculos da obra selecionada para decidir carregamento do resultado e manter os controles disponíveis. [app/lib/src/features/construtoras/presentation/membros_screen.dart:247; app/lib/src/features/construtoras/presentation/membros_screen.dart:353]
+- [ ] [Review][Patch][medium] **P4 — Nome extenso de obra causa overflow no dropdown móvel.** Limitar o conteúdo à largura disponível (`isExpanded: true`) e testar nome longo em largura móvel com escala 1,3. Reprodução em 360 px confirmou RenderFlex overflow de 1299 px. [app/lib/src/features/construtoras/presentation/membros_screen.dart:177]
+- [ ] [Review][Patch][medium] **P5 — Falta testar refresh preservando filtro, obra e busca.** O teste existente comenta reload, mas só seleciona a obra. Executar pull-to-refresh real, verificar nova leitura/emissão e lista atualizada com filtro, obra selecionada e busca preservados, cobrindo o AC explícito. [app/test/features/construtoras/membros_test.dart:734]
+- [ ] [Review][Patch][low] **P6 — Falta testar desativação/remoção da obra selecionada.** Cobrir a transição de lista de obras que invalida a seleção e o callback pós-frame: limpar provider/dropdown, mostrar orientação e permitir selecionar outra obra. A ausência desta verificação não demonstra defeito atual na limpeza; deixa esse novo comportamento sem proteção de regressão. [app/lib/src/features/construtoras/presentation/membros_screen.dart:306; app/test/features/construtoras/membros_test.dart:704]
+- [ ] [Review][Patch][low] **P7 — Lista base vazia elimina os novos controles.** Incluir a barra de filtros no estado sem membros e sem solicitações; hoje não se pode selecionar Por obra nem observar `Nenhuma obra ativa` nessa combinação. [app/lib/src/features/construtoras/presentation/membros_screen.dart:284]
+- [ ] [Review][Patch][medium] **P8 — Falta testar carregamento dos vínculos após selecionar obra.** Usar stream controlado, selecionar obra antes da primeira emissão, assegurar que não aparece vazio falso e que os membros surgem após a resposta. Os testes atuais cobrem loading do contador em Todos ou lista de obras sem seleção. [app/lib/src/features/construtoras/presentation/membros_screen.dart:353; app/test/features/construtoras/membros_test.dart:364; app/test/features/construtoras/membros_test.dart:811]
+- [ ] [Review][Patch][medium] **P9 — Falta testar erro de pendentes combinado com filtros.** Verificar supressão do banner em Por obra e preservação do aviso com estado vazio em Todos/Pendentes sem correspondência. A cobertura atual testa erro apenas em Todos com membro visível. [app/lib/src/features/construtoras/presentation/membros_screen.dart:346; app/test/features/construtoras/membros_test.dart:269]
+
+#### Evidências de validação
+
+- `flutter analyze`: passou, sem problemas.
+- `flutter test test/features/construtoras/membros_test.dart`: 38 testes passaram.
+- Cinco testes temporários de reprodução confirmaram os comportamentos incorretos P1/P2/P3/P4/P7. Esses testes afirmam o comportamento defeituoso para demonstrá-lo; não são aceite nem correções.
+- Reprodução: `/var/folders/sb/g203r93d4cq0wzk7tmp3k_gc0000gn/T/sigo-review-repro-wr1mm8zv_test.dart`, executada com `flutter test` a partir de `app/`. Arquivo temporário, não incorporado à suíte.
+- Para P1, a reprodução usa `AsyncValue.error` sem valor anterior para isolar o estado terminal de erro; retries automáticos do Riverpod podem intercalar loading antes desse estado.
+- Nenhuma alteração no código da aplicação ou nos testes versionados nesta revisão.
+
+#### Triagem individual antes do agrupamento
+
+| ID | Origem | Achado | Veredito | Evidência / destino |
+|---|---|---|---|---|
+| 1 | blind-hunter | Erro no vínculo vira vazio | medium | Reprodução de AsyncError sem valor mostra vazio sem aviso; P1. |
+| 2 | blind-hunter | Pendentes carregando aparecem inexistentes | medium | Ativos carregados evitam guarda totalBase; reprodução confirma vazio em Pendentes; P2. |
+| 3 | blind-hunter | Outra obra bloqueia controles | medium | Meta agrega todos os streams; reprodução com obra selecionada vazia e outra em loading remove controles; P3. |
+| 4 | blind-hunter | Dropdown com nome longo transborda | medium | Reprodução móvel com escala 1,3 confirma overflow do dropdown; P4. |
+| 5 | blind-hunter | Teste de reload não executa reload | medium | Leitura do teste confirma apenas seleção e pumpAndSettle; AC de refresh sem cobertura; P5. |
+| 6 | blind-hunter | Remoção da obra selecionada sem teste | low | Fixtures estáticas não exercitam callback após alteração da lista; risco de regressão da limpeza; P6. |
+| 7 | blind-hunter | Base vazia remove controles | low | Retorno antes da barra confirmado em teste; P7. |
+| 8 | edge-case-hunter | Erro dos vínculos ocultado | medium | Mesmo erro terminal reproduzido no P1; P1. |
+| 9 | edge-case-hunter | Pendentes em loading viram vazio | medium | Mesma combinação de ativos carregados e pendentes sem resposta; P2. |
+| 10 | edge-case-hunter | Outra obra bloqueia busca | medium | Skeleton depende do agregado, não da obra selecionada; P3. |
+| 11 | edge-case-hunter | Nome longo excede largura | medium | Overflow reproduzido após construir dropdown; P4. |
+| 12 | verification-gap | Loading dos vínculos selecionados sem teste | medium | Evidência pré-verificada: testes 364/811/704 não exercitam combinação; P8. |
+| 13 | verification-gap | Erro de pendentes com filtros sem teste | medium | Evidência pré-verificada: teste 269 permanece em Todos com ativo; P9. |
+| 14 | verification-gap (other) | Erro de vínculos vira vazio | medium | Inspeção e reprodução confirmam erro sem valor descartado; P1. |
+| 15 | verification-gap (other) | Pending loading com ativos vira vazio | medium | Inspeção e reprodução confirmam guarda insuficiente; P2. |
+| 16 | acceptance-auditor | Erro não preserva matriz Loading/erro | medium | Erro terminal de vínculos não chega a mensagem/retry da lista; P1. |
+| 17 | acceptance-auditor | Pendentes não preserva loading | medium | Estado sem resposta é apresentado como ausência; P2. |
+| 18 | acceptance-auditor | Base vazia impede estado sem obras | low | Barra ausente impossibilita Por obra nesta combinação; P7. |
+
+#### Rejected
+
+Nenhum achado rejeitado nesta rodada. As repetições foram agrupadas somente após veredito individual; achados e refutações históricos anteriores permanecem preservados abaixo.
+
 ## Implementation Notes
+
+- Correções P1–P9: a tela consulta o estado assíncrono do vínculo da obra selecionada para apresentar carregamento/erro com recuperação; mantém filtros em resultados vazios e aguardando resposta; dropdown usa largura disponível.
+- Validação das correções: `flutter analyze` sem problemas e `flutter test test/features/construtoras/membros_test.dart` com 48 testes aprovados (10 cenários adicionais), incluindo retry com nova leitura, streams controlados, gesto real de refresh, remoção/desativação e erros combinados.
+- Limitação visual preexistente fora dos nove ajustes: ao montar a tela completa em 360 px e escala 1,3, as ações do `AppBar` em `app/lib/src/common_widgets/sigo_top_bar.dart:88` geraram `RenderFlex overflowed by 42 pixels on the right`. O teste de regressão P4 valida o dropdown real extraído da tela em um Scaffold de 360 px/escala 1,3, fechado e aberto, sem suprimir exceções. Isso comprova o ajuste do dropdown, não valida toda a tela nessa configuração; o componente global não foi alterado.
 
 ## Spec Change Log
 

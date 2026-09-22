@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/src/features/construtoras/domain/membro.dart';
 import 'package:app/src/features/construtoras/presentation/membros_providers.dart';
 import 'package:app/src/features/construtoras/presentation/membros_screen.dart';
@@ -683,23 +685,242 @@ void main() {
       List<Map<String, dynamic>>? pending,
       List<Obra>? obras,
       Map<String, List<ObraMember>>? porObra,
+      Stream<List<Membro>> Function()? membrosStream,
+      Stream<List<Map<String, dynamic>>>? pendingStream,
+      AsyncValue<List<Map<String, dynamic>>>? pendingValue,
+      Stream<List<Obra>>? obrasStream,
+      Stream<List<ObraMember>> Function()? vinculosStream,
+      AsyncValue<List<ObraMember>>? vinculosValue,
     }) {
       return [
         membrosProvider('c-1')
-            .overrideWith((ref) => Stream.value(membros ?? mockMembros82)),
-        pendingRequestsProvider('c-1')
-            .overrideWith((ref) => Stream.value(pending ?? mockPending82)),
+            .overrideWith((ref) => membrosStream?.call() ?? Stream.value(membros ?? mockMembros82)),
+        if (pendingValue != null)
+          pendingRequestsProvider('c-1').overrideWithValue(pendingValue)
+        else
+          pendingRequestsProvider('c-1')
+            .overrideWith((ref) => pendingStream ?? Stream.value(pending ?? mockPending82)),
         obrasDaConstrutoraProvider('c-1')
-            .overrideWith((ref) => Stream.value(obras ?? [_obra('o1')])),
+            .overrideWith((ref) => obrasStream ?? Stream.value(obras ?? [_obra('o1')])),
         for (final entry in (porObra ??
                 {
                   'o1': [_om('u1')],
                 })
             .entries)
-          obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
-              .overrideWith((ref) => Stream.value(entry.value)),
+          if (entry.key == 'o1' && vinculosValue != null)
+            obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
+                .overrideWithValue(vinculosValue)
+          else
+            obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
+                .overrideWith((ref) => entry.key == 'o1' && vinculosStream != null
+                    ? vinculosStream() : Stream.value(entry.value)),
       ];
     }
+
+
+    Future<void> selecionarObra(WidgetTester tester, String nome) async {
+      await tester.tap(find.text('Por obra'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(nome).last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('8.2 erro dos vínculos preserva controles e permite retry', (tester) async {
+      var leituras = 0;
+      final container = ProviderContainer(
+        retry: (_, _) => null,
+        overrides: base82(vinculosStream: () {
+          leituras++;
+          return leituras == 1
+              ? Stream.error(Exception('falhou'))
+              : Stream.value([_om('u1')]);
+        }),
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await selecionarObra(tester, 'Obra o1');
+      expect(find.text('Não foi possível carregar os membros desta obra.'), findsOneWidget);
+      expect(find.text('Nenhum membro encontrado.'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(leituras, 1);
+      await tester.tap(find.text('Recarregar'));
+      await tester.pumpAndSettle();
+      expect(find.text('ana@obra.com'), findsOneWidget);
+      expect(leituras, 2);
+    });
+
+    testWidgets('8.2 pendentes loading com ativos aguarda emissão', (tester) async {
+      final stream = StreamController<List<Map<String, dynamic>>>();
+      addTearDown(stream.close);
+      await tester.pumpWidget(ProviderScope(
+        overrides: base82(pendingStream: stream.stream),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pendentes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Nenhum membro encontrado.'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      stream.add(mockPending82);
+      await tester.pumpAndSettle();
+      expect(find.text('Ana Souza'), findsOneWidget);
+    });
+
+    testWidgets('8.2 vínculos selecionados loading aguarda emissão', (tester) async {
+      final stream = StreamController<List<ObraMember>>();
+      addTearDown(stream.close);
+      await tester.pumpWidget(ProviderScope(
+        overrides: base82(vinculosStream: () => stream.stream),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await selecionarObra(tester, 'Obra o1');
+      expect(find.text('Nenhum membro encontrado.'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      stream.add([_om('u1')]);
+      await tester.pumpAndSettle();
+      expect(find.text('ana@obra.com'), findsOneWidget);
+    });
+
+    testWidgets('8.2 outra obra loading não bloqueia resultado vazio nem busca', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          ...base82(obras: [_obra('o1'), _obra('o2')], porObra: {'o1': []}),
+          obraMembersProvider((construtoraId: 'c-1', obraId: 'o2'))
+              .overrideWith((ref) => const Stream.empty()),
+        ],
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await selecionarObra(tester, 'Obra o1');
+      expect(find.text('Nenhum membro encontrado.'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'sem-match');
+      await tester.pumpAndSettle();
+      expect(find.text('Nenhum membro encontrado.'), findsOneWidget);
+      await tester.tap(find.text('Todos'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsOneWidget);
+    });
+
+    testWidgets('8.2 dropdown longo cabe em 360px com escala 1.3', (tester) async {
+      final nome = 'Obra com nome muito extenso ' * 10;
+      await tester.pumpWidget(ProviderScope(
+        overrides: base82(obras: [Obra(id: 'o1', construtoraId: 'c-1',
+          name: nome, createdAt: DateTime(2026))]),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await selecionarObra(tester, nome);
+      final dropdown = tester.widget<DropdownButtonFormField<String>>(
+        find.byType(DropdownButtonFormField<String>));
+      // Isola o controle real da tela; a barra global tem layout próprio.
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.3)),
+          child: child!,
+        ),
+        home: Scaffold(body: Padding(padding: const EdgeInsets.all(16), child: dropdown)),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text(nome), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('8.2 pull-to-refresh atualiza dados mantendo filtro obra e busca', (tester) async {
+      var leituras = 0;
+      await tester.pumpWidget(ProviderScope(
+        overrides: base82(membrosStream: () {
+          leituras++;
+          return Stream.value([Membro(uid: 'u1', isAdmin: false,
+            email: leituras == 1 ? 'ana@obra.com' : 'ana.nova@obra.com')]);
+        }),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await selecionarObra(tester, 'Obra o1');
+      await tester.enterText(find.byType(TextField), 'ana');
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).first, const Offset(0, 500));
+      await tester.pumpAndSettle();
+      expect(leituras, greaterThan(1));
+      expect(find.text('ana.nova@obra.com'), findsOneWidget);
+      expect(find.text('Obra o1'), findsOneWidget);
+      expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'ana');
+      expect(tester.widget<SegmentedButton<FiltroMembros>>(
+        find.byType(SegmentedButton<FiltroMembros>)).selected, {FiltroMembros.porObra});
+    });
+
+    for (final desativada in [false, true]) {
+      testWidgets('8.2 obra selecionada removida/desativada $desativada limpa seleção', (tester) async {
+        final stream = StreamController<List<Obra>>();
+        addTearDown(stream.close);
+        await tester.pumpWidget(ProviderScope(
+          overrides: base82(obrasStream: stream.stream,
+            porObra: {'o1': [_om('u1')], 'o2': [_om('u2')]}),
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ));
+        stream.add([_obra('o1'), _obra('o2')]);
+        await tester.pumpAndSettle();
+        await selecionarObra(tester, 'Obra o1');
+        stream.add([if (desativada) _obra('o1', isActive: false), _obra('o2')]);
+        await tester.pumpAndSettle();
+        final container = ProviderScope.containerOf(tester.element(find.byType(MembrosScreen)));
+        expect(container.read(obraSelecionadaProvider), isNull);
+        expect(find.text('Selecione uma obra'), findsOneWidget);
+        expect(find.text('Obra o1'), findsNothing);
+        await tester.tap(find.byType(DropdownButtonFormField<String>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Obra o2').last);
+        await tester.pumpAndSettle();
+        expect(find.text('bob@obra.com'), findsOneWidget);
+      });
+    }
+
+    testWidgets('8.2 base vazia mantém controles e estado sem obras', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base82(membros: [], pending: [], obras: [], porObra: {}),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsOneWidget);
+      await tester.tap(find.text('Por obra'));
+      await tester.pumpAndSettle();
+      expect(find.text('Nenhuma obra ativa'), findsOneWidget);
+    });
+
+    testWidgets('8.2 erro pendente fica em Todos/Pendentes e some em Por obra', (tester) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: base82(pendingValue: AsyncValue.error(Exception('falhou'), StackTrace.empty)),
+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+      ));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'sem-match');
+      await tester.pumpAndSettle();
+      const aviso = 'Não foi possível carregar as solicitações pendentes.';
+      expect(find.text(aviso), findsOneWidget);
+      expect(find.text('Nenhum membro encontrado.'), findsOneWidget);
+      await tester.tap(find.text('Pendentes'));
+      await tester.pumpAndSettle();
+      expect(find.text(aviso), findsOneWidget);
+      expect(find.text('Nenhum membro encontrado.'), findsOneWidget);
+      await selecionarObra(tester, 'Obra o1');
+      expect(find.text(aviso), findsNothing);
+      expect(find.text('Nenhum membro encontrado.'), findsOneWidget);
+    });
 
     testWidgets('8.2 Por obra filtra via uid→obras e exclui pendentes',
         (tester) async {
