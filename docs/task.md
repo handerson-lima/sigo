@@ -6,6 +6,8 @@ Os pacotes C0–C6 foram **aprovados e validados em desenvolvimento** com result
 
 ## Inventário do que já existe
 
+`[x]` nesta seção de inventário significa código/documento encontrado, não aceite de produção.
+
 - [x] Projeto Flutter com Riverpod/GoRouter e Firebase integrado.
 - [x] Login, perfis, painel dev e Functions administrativas.
 - [x] Telas e repositórios de construtoras, obras, membros e lotes.
@@ -90,7 +92,7 @@ Ainda futuros:
 - [ ] Custo médio, snapshots e apropriação financeira por lote.
 - [ ] Qualidade, cronograma, checklists e evidências por etapa.
 - [ ] Documentos e visão 360 de lotes.
-- [ ] Refinar políticas de custo, evidências, retenção e acesso a dados sensíveis para esses módulos.
+- [ ] Refinar políticas de custo, evidências, retenção e acesso a dados sensíveis para os módulos futuros acima (Compras/NF, qualidade, documentos etc.).
 
 Os critérios detalhados antigos permanecem no [arquivo histórico](archive/2026-09-15-planejamento-anterior/README.md); deverão ser adaptados ao modelo atual antes da execução.
 

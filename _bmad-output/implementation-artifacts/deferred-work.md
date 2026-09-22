@@ -94,3 +94,7 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md`
   summary: "Finding 24 — a11y dos surfaces novos sem asserção (Esc/foco/≥48dp/`Editar vínculo`/textScale 1.3 nos dialogs 10.x e no overflow)"
   evidence: pares do finding 12; parte coberta por `epic-10-fix-a11y-overflow` (open); asserções de teste ficam para depois do fix de alvos ≥48dp
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-estabilizar-vinculos-epicos-8-10.md`
+  summary: "`_temConectividade` em `MembrosRepository.setCargo` sem `.timeout` pode pendurar o diálogo se a platform channel de connectivity nunca completar"
+  evidence: mesma classe do finding 9.2 já adiado para `setMembership` (maybe-false); comportamento pré-existente preservado na extração para `_temConectividade`; settles com teste forçando channel pendurada ou evidência de que a channel sempre completa/erro

@@ -6,10 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   app:
     name: Flutter analyze + test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: app
@@ -27,6 +31,7 @@ jobs:
   functions:
     name: Functions npm test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: functions
@@ -43,9 +48,11 @@ jobs:
   doc-check:
     name: Doc check
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python3 scripts/check-docs.py
+      - run: python3 scripts/check-docs.py --self-test

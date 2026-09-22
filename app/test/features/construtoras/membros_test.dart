@@ -2957,6 +2957,11 @@ void main() {
     testWidgets(
       '10.2 overflow → Trocar papel: prefill via sheet reflete papel e módulos do vínculo',
       (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
         await tester.pumpWidget(
           ProviderScope(
             overrides: base102(
@@ -3302,6 +3307,22 @@ void main() {
           'role': 'admin',
           'isActive': false,
         });
+      });
+
+      test('10.3 setCargo real: plugin de conectividade indisponível tenta a chamada', () async {
+        var chamouCallable = false;
+        final repo = MembrosRepository(
+          null,
+          null,
+          checkConnectivity: () async =>
+              throw StateError('plugin indisponível'),
+          callSetCargo: (_) async {
+            chamouCallable = true;
+          },
+        );
+
+        await repo.setCargo('c-1', 'u1', 'operario');
+        expect(chamouCallable, isTrue);
       });
     });
 
