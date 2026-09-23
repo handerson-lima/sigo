@@ -56,3 +56,20 @@ jobs:
           python-version: '3.12'
       - run: python3 scripts/check-docs.py
       - run: python3 scripts/check-docs.py --self-test
+
+  no-secrets:
+    name: Credenciais fora do repositório
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Falha se arquivo de credencial estiver rastreado
+        run: |
+          set -euo pipefail
+          suspeitos=$(git ls-files | grep -Ei '(^|/)[^/]*serviceAccountKey[^/]*\.json$|(^|/)[^/]*service-account[^/]*\.json$|(^|/)[^/]*firebase-adminsdk[^/]*\.json$|\.pem$|\.key$|\.cert$|\.p12$|(^|/)[^/]*\.env$|(^|/)[^/]*\.env\.[^/]+$' | grep -v '\.env\.example$' || true)
+          if [ -n "$suspeitos" ]; then
+            echo "Falha: arquivos de credencial rastreados pelo git:"
+            echo "$suspeitos"
+            exit 1
+          fi
+          echo "OK: nenhum arquivo de credencial rastreado."

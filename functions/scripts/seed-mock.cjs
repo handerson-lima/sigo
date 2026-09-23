@@ -10,23 +10,40 @@
  * - Despesas financeiras com centavos, datas civil e pagamentos
  * - Diários de obra com efetivo e anotações
  *
- * Execução:
+ * Execução (emulador local):
  *   node functions/scripts/seed-mock.cjs
+ * Execução (cloud — GOOGLE_APPLICATION_CREDENTIALS é obrigatório; gatilhos `--cloud` ou `TARGET=cloud`):
+ *   GOOGLE_APPLICATION_CREDENTIALS=/caminho/para/chave.json node functions/scripts/seed-mock.cjs --cloud
  */
 
 const admin = require('firebase-admin');
 
-const path = require('path');
+const fs = require('fs');
 const isCloud = process.argv.includes('--cloud') || process.env.TARGET === 'cloud';
 
 if (isCloud) {
   delete process.env.FIRESTORE_EMULATOR_HOST;
   delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
   delete process.env.FIREBASE_STORAGE_EMULATOR_HOST;
-  
-  const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.resolve(__dirname, '../serviceAccountKey.json');
+
+  const rawKey = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const keyPath = rawKey ? rawKey.trim() : '';
+  if (!keyPath) {
+    console.error('❌ [SEED] GOOGLE_APPLICATION_CREDENTIALS é obrigatório e não pode ficar vazio no modo cloud. Não há fallback para arquivo fixo. Exporte a variável apontando para o JSON da chave de serviço.');
+    process.exit(1);
+  }
+  if (!fs.existsSync(keyPath) || !fs.statSync(keyPath).isFile()) {
+    console.error(`❌ [SEED] Arquivo de credencial não encontrado: ${keyPath}`);
+    process.exit(1);
+  }
+  let serviceAccount;
+  try {
+    serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+  } catch (err) {
+    console.error(`❌ [SEED] Falha ao ler JSON da credencial em ${keyPath}: ${err.message}`);
+    process.exit(1);
+  }
   console.log(`☁️ [SEED] Modo CLOUD ativado. Utilizando credencial: ${keyPath}`);
-  const serviceAccount = require(keyPath);
   
   if (!admin.apps.length) {
     admin.initializeApp({

@@ -110,3 +110,19 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-firestore-indexes-json.md`
   summary: Melhorias auxiliares: firebase.test.json declarar índices, teste que valide o arquivo, filtro server-side em users_list_screen
   evidence: Config/testes/otimizações pré-existentes fora do escopo da correção da chave duplicada.
+
+- source_spec: `spec-hardening-credenciais-seed.md`
+  summary: Ampliar cobertura de nomes de credencial ignorados/verificados (credentials.json, google-services.json, chaves de PEM/JKS etc.)
+  evidence: Padrões atuais cobrem serviceAccountKey/service-account/firebase-adminsdk/extensões .pem/.key/.cert/.p12/.env; nomes extras não estavam no intent e algum (google-services.json) é legitimamente commitável em Flutter.
+
+- source_spec: `spec-hardening-credenciais-seed.md`
+  summary: Varredura de conteúdo e histórico git (gitleaks/trufflehog) para além de nomes de arquivos rastreados
+  evidence: A CI atual só examina nomes no HEAD; chave colada em código ou já presente em commit antigo passaria; fora do escopo do hardening de seed.
+
+- source_spec: `spec-hardening-credenciais-seed.md`
+  summary: Contrapartida local da checagem (script em package.json, pre-commit) e DX (seed:cloud, runbook de exportação da env)
+  evidence: Padrões duplicados entre .gitignore e ci.yml podem divergir; desenvolvedor só descobre no push; inventory.cjs ainda sugere caminho ./service-account.json na árvore.
+
+- source_spec: `spec-hardening-credenciais-seed.md`
+  summary: Testes automatizados de regressão para os caminhos de falha do seed em modo cloud
+  evidence: Harness node --test existe em functions; hoje a proteção contra reintrodução do fallback é só code review.
