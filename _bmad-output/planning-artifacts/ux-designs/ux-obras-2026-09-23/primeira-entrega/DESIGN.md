@@ -1,6 +1,6 @@
 ---
 name: SIGO — Primeira entrega
-status: in-progress
+status: final
 updated: 2026-09-23
 description: Contrato de UX da primeira entrega; calibração proposta, sem implementação.
 sources:
@@ -121,13 +121,16 @@ components:
     foreground: '{colors.ink-secondary}'
   FormField:
     foreground: '{colors.ink-primary}'
+  LogoEditor:
+    radius: '{rounded.lg}'
+    background: '{colors.surface-raised}'
   DetailOverlay:
     radius: '{rounded.lg}'
 ---
 
 ## Brand & Style
 
-Primeira entrega do design system SIGO: tema compartilhado, navegação existente, seleção de construtora, Mapa de Lotes, Novo Lote e atualização de fase/status. O usuário confirmou direção expressiva, contraste azul profundo/azul vivo/dourado, títulos fortes, construtoras espaçosas e lotes compactos. Praticidade no telefone orienta as adaptações.
+Primeira entrega do design system SIGO: tema compartilhado, navegação existente, seleção de construtora, Mapa de Lotes, Novo Lote, atualização de fase/status e cadastro/troca de logo da construtora. O usuário confirmou direção expressiva, contraste azul profundo/azul vivo/dourado, títulos fortes, construtoras espaçosas e lotes compactos. Praticidade no telefone orienta as adaptações.
 
 Flutter Material 3 é o sistema herdado: sem fonte externa, controles e semântica Material permanecem onde não há diferença especificada. Os tokens são a **baseline proposta de calibração [ASSUMPTION]**, consolidada para planejamento; a aprovação estética não equivale a aprovação individual de pixels. Nenhuma implementação está autorizada por este pacote.
 
@@ -180,13 +183,13 @@ As medidas `px` dos tokens representam unidades lógicas (dp/sp), não pixels do
 
 | Medida | Telefone | Desktop |
 |---|---|---|
-| Margem útil total do conteúdo | `{spacing.page-mobile}` | `{spacing.page-desktop}` |
+| Inset do conteúdo por lado | `{spacing.page-mobile}` | `{spacing.page-desktop}` |
 | Padding ConstrutoraCard | `{spacing.constructor-padding-mobile}` | `{spacing.constructor-padding-desktop}` |
 | Espaço interno / grid construtoras | `{spacing.constructor-gap}` / `{spacing.constructor-grid-gap}` | mesmos tokens |
 | Padding / espaço / grid lotes | `{spacing.lot-padding}` / `{spacing.lot-gap}` / `{spacing.lot-grid-gap}` | mesmos tokens |
 | Alvo interativo | `{spacing.touch-min}` | `{spacing.touch-min}` |
 
-Margem total não soma padding duplicado do shell e da tela. Até 800: coluna única; acima: tantas colunas quanto couberem na largura útil, com mínimo desejado 320 para construtoras e 280 para lotes. Esses mínimos são limitados à largura disponível: nunca causar rolagem horizontal. Card não tem proporção ou altura fixa. Em desktop estreito com sidebar pode haver somente uma coluna.
+Insets são por lado: 16 à esquerda e 16 à direita no telefone; 32 em cada lado no desktop. Não somar padding duplicado do shell e da tela. Até 800: coluna única; acima: tantas colunas quanto couberem na largura útil, com mínimo desejado 320 para construtoras e 280 para lotes. Esses mínimos são limitados à largura disponível: nunca causar rolagem horizontal. Card não tem proporção ou altura fixa. Em desktop estreito com sidebar pode haver somente uma coluna.
 
 Cabeçalho tem título/contexto e ações existentes; altura por conteúdo, sem espaço vertical vazio obrigatório. No telefone o grafismo é discreto e cede espaço à tarefa. Novo Lote fica como ação existente acessível; pode ocupar linha própria, sem bloquear cards. Nenhuma barra de busca é acrescentada.
 
@@ -203,29 +206,30 @@ Superfícies claras e sombra suave Material em repouso; elevação não comunica
 | Componente | Especificação visual |
 |---|---|
 | SigoLayout | Lateral profunda, topo expressivo e conteúdo claro; item ativo identificado por fundo, ícone e texto; marca oficial apropriada ao fundo; não copiar menu ilustrativo |
-| ConstrutoraCard | Branco, raio 12; área de identidade 64 telefone/88 desktop; nome, CNPJ quando existente e ação visual Acessar construtora. No telefone identidade ao lado do nome se couber; desktop identidade acima. Iniciais como baseline proposta; nome nunca depende da marca |
+| ConstrutoraCard | Branco, raio 12; área de identidade 64 telefone/88 desktop; nome, CNPJ quando existente e ação visual Acessar construtora. No telefone identidade ao lado do nome se couber; desktop identidade acima. Logo publicada quando disponível; iniciais na ausência/falha; ação Gerenciar logo somente para os autorizados; nome nunca depende da marca |
 | LoteCard | Branco, raio 12, pequeno acento azul/dourado; nome → fase → status → ações Atualizar lote/Vistorias. Status ao lado do nome apenas se couber integralmente; senão em linha própria. Sem área decorativa de logo |
 | ActionButton | Primário azul/branco; secundário branco com texto/borda azul; alvo ≥48; ocupado mantém rótulo e adiciona indicador Material; estado desabilitado mantém identificação |
 | DataSurface | Lista/formulário sobre base clara; formulário em coluna com largura máxima proposta 640, limitado ao espaço útil; altura livre e rolagem vertical |
 | StatusFeedback | Texto e ícone, cores semânticas para erro/status; progresso Material com rótulo; mensagens não ficam sobre o acento dourado |
 | FormField | Rótulo persistente, corpo 16, borda identificável; erro junto ao campo; dropdown Material sem truncar valor selecionado |
-| DetailOverlay | Edição existente em bottom sheet nos dois formatos; largura máxima proposta 640 no desktop, largura disponível no telefone; padding24, conteúdo rolável e área segura/teclado respeitados |
+| LogoEditor | Título “Logo de [nome da construtora]” e CNPJ quando disponível; prévia contain em área clara de 120 unidades lógicas; logo atual identificada, seleção local com nome de arquivo e “Selecionada, ainda não salva”; ações Selecionar imagem, Cancelar e Salvar logo antes do envio. Durante envio mostrar Salvando logo; em incerteza, Verificar logo atual e Fechar conforme EXPERIENCE. Diálogo desktop e sheet mobile com coluna rolável, largura máxima proposta de 640 unidades lógicas, padding de 24 unidades lógicas |
+| DetailOverlay | Edição existente em bottom sheet nos dois formatos; largura máxima proposta 640 no desktop, largura disponível no telefone; padding de 24 unidades lógicas, conteúdo rolável e área segura/teclado respeitados |
 
 ### Referências visuais e diferenças contratuais
 
 | Referência | Decisão que ilustra | Ajustes obrigatórios |
 |---|---|---|
-| [Construtoras desktop](mockups/construtoras-desktop-refinado-v1.png) | Cabeçalho marcante e cards espaçosos | Remover busca; manter destinos/rótulos reais; usar marca oficial, iniciais e CNPJ real quando disponível |
+| [Construtoras desktop](mockups/construtoras-desktop-refinado-v1.png) | Cabeçalho marcante e cards espaçosos | Remover busca; manter destinos/rótulos reais; usar marca oficial, logo publicada ou iniciais e CNPJ real quando disponível |
 | [Construtoras telefone](mockups/construtoras-mobile-refinado-v1.png) | Uma coluna, identidade ao lado do nome | Remover busca; nome e ações refluem; sem sombras no texto |
 | [Lotes desktop](mockups/lotes-desktop-refinado-v1.png) | Cards compactos e duas ações | Nome/fase/status reais; preservar contexto e permissões, não reproduzir menu fictício |
 | [Lotes telefone](mockups/lotes-mobile-refinado-v1.png) | Leitura rápida e status legível | Ações/status podem empilhar; não fixar composição lateral do raster em largura pequena |
 
-As quatro imagens são estudos com dados fictícios, não protótipos funcionais nem fonte de novos requisitos. Formulários, drawer expandido, teclado e estados excepcionais são especificados pelas tabelas; não possuem mock próprio neste pacote.
+As quatro imagens são estudos com dados fictícios, não protótipos funcionais nem fonte de novos requisitos. Formulários, drawer expandido, teclado e estados excepcionais são especificados pelas tabelas; não possuem mock próprio neste pacote. O usuário confirmou que as tabelas são suficientes para Novo Lote, Atualizar lote e Gestão da logo.
 
 ## Do's and Don'ts
 
 - Manter marca azul/dourado expressiva e leitura clara; não pintar todo o lote pela cor de status.
 - Preservar funcionalidades, destinos e autorizações; não importar busca, Minha conta ou indicadores de imagens sem existência comprovada.
-- Usar iniciais sem imagem disponível; não inventar propriedade logo, upload ou URL remota.
+- Usar iniciais sem imagem disponível; cadastro/troca de logo exige definição de modelo, armazenamento e autorização na arquitetura; não presumir infraestrutura existente.
 - Deixar cards crescerem com texto; não reduzir alvos para ganhar densidade.
 - Não incluir percentual, foto, prazo ou responsável no lote sem dados/escopo próprios.

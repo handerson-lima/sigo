@@ -1,6 +1,6 @@
 ---
 name: SIGO — Primeira entrega
-status: in-progress
+status: final
 updated: 2026-09-23
 sources:
   - ../EXPERIENCE.md
@@ -16,8 +16,8 @@ Contrato de comportamento da primeira entrega, apenas planejamento. Flutter Mate
 
 | Natureza | Tratamento |
 |---|---|
-| Confirmado pelo usuário | Direção expressiva; praticidade mobile; títulos fortes; construtoras espaçosas/lotes compactos; cadastro e troca de logo |
-| Herdado do produto | Rotas, visibilidade por permissões, campos/validação de lotes, fase separada de status e edição sequencial |
+| Confirmado pelo usuário | Direção expressiva; praticidade mobile; títulos fortes; construtoras espaçosas/lotes compactos; cadastro e troca de logo por Dev, Proprietário e administradores da construtora |
+| Herdado do produto | Rotas, visibilidade por permissões existentes, campos/validação de lotes, fase separada de status e edição sequencial |
 | Proposta UX deste pacote [ASSUMPTION] | Valores dos tokens, ações textuais nos cards, reflow, gestão de logo online e limites propostos |
 | Fora desta entrega | Redesenho interno de membros, vistorias, custos, RH e demais módulos; novas buscas, métricas, tema escuro, fila offline nova |
 
@@ -28,9 +28,9 @@ Contrato de comportamento da primeira entrega, apenas planejamento. Flutter Mate
 | S0 SigoLayout | Shell e drawer/lateral atuais → mesmos destinos autorizados e contexto construtora/obra | Nos quatro mocks; J0 |
 | S1 Minhas Construtoras | `/` → `/construtora/:id` | Mocks construtoras desktop/mobile; J1 |
 | S2 Mapa de Lotes | `/construtora/:id/obra/:obraId/lotes` → edição, Novo Lote ou vistorias | Mocks lotes desktop/mobile; J2/J4 |
-| S3 Novo Lote | Ação existente Novo Lote → retorno pelo fluxo atual | Spine-only; J3 |
-| S4 Atualizar lote | Ação do card → bottom sheet existente → card de origem | Spine-only; J2 |
-| S5 Gerenciar logo | Ação independente autorizada no card → seleção/prévia/confirmação → card | Nova superfície proposta; J5; mock a complementar |
+| S3 Novo Lote | Ação existente Novo Lote → retorno pelo fluxo atual | Especificado pelas tabelas, sem imagem própria; J3 |
+| S4 Atualizar lote | Ação do card → bottom sheet existente → card de origem | Especificado pelas tabelas, sem imagem própria; J2 |
+| S5 Gerenciar logo | Ação independente autorizada no card ou gestão da construtora no Painel Dev → seleção/prévia/confirmação → origem | Especificado pelas tabelas, sem imagem própria, conforme aceito pelo usuário; J5 |
 
 Rotas de S1–S4 são herança, não proposta de arquitetura. Vistorias preserva `/construtora/:id/obra/:obraId/lotes/:loteId/validacoes`; a primeira entrega cobre a entrada e o retorno, sem redesenhar seu conteúdo. Nenhum item de menu decorativo dos mocks vira destino. Painel Dev continua restrito e os vazios de S1 distinguem dev/usuário comum.
 
@@ -53,8 +53,10 @@ Só anunciar resultado conhecido. Em resultado de gravação incerto: Não foi p
 | DataSurface | Lista ordenada conforme dados atuais; nenhuma ordenação/busca nova. Scroll preserva leitura. Formulário mantém nome obrigatório e seletores existentes; edição não passa a editar nome |
 | StatusFeedback | Mensagem anunciável sem roubar foco; vazio, erro, carregamento e dado são distintos. Badge de status é informativo, não filtro |
 | FormField | Rótulo persistente, erro associado. Seletores mantêm opções e valor atual; fase desconhecida deve continuar legível sem coerção silenciosa. Arquitetura verificará suporte ao valor já salvo |
-| DetailOverlay | Bottom sheet existente para lote, rolagem com teclado; fechar descarta edições como no fluxo atual, sem novo salvamento automático. Foco inicial no título/campo e retorno ao acionador; não mover foco durante envio |
-| LogoEditor | Selecionar imagem → prévia local → Salvar logo → confirmação. Cancelar conserva logo publicada; trocar seleção não publica. Sem remoção nesta entrega. Ações de gestão sujeitas à política de permissão a confirmar |
+| DetailOverlay | Bottom sheet existente para lote, rolagem com teclado; antes do envio, fechar descarta somente edições locais, sem salvamento automático; durante envio e em resultado incerto segue a política de saída abaixo. Foco inicial no título/campo e retorno ao acionador; não mover foco durante envio |
+| LogoEditor | Selecionar imagem → prévia local com nome de arquivo e estado “Selecionada, ainda não salva” → Salvar logo → confirmação. Antes do envio, Cancelar descarta seleção local; trocar seleção não publica. Anunciar troca de seleção sem roubar foco. Sem remoção nesta entrega. Ações de gestão para Dev, Proprietário e administradores da construtora |
+
+As tabelas de S3, S4 e S5 foram aceitas pelo usuário como referência suficiente, sem novos mocks. A ação de logo no Painel Dev adota o mesmo LogoEditor e não amplia outros fluxos do painel.
 
 ## State Patterns
 
@@ -65,7 +67,7 @@ Só anunciar resultado conhecido. Em resultado de gravação incerto: Não foi p
 | S2 lotes | Carga, dados, vazio e erro separados. Offline/cache não recebe selo de atualização sem metadados; sem dados não afirmar inexistência se leitura falhou. Quatro status com texto/ícone. Sem permissão herda proteção atual |
 | S3 Novo Lote | Inicial com fase/status padrão atuais; nome inválido impede envio e recebe erro. Envio impede duplicação. Falha conserva entradas em sessão; sucesso segue retorno atual somente com conclusão informada pela operação. Não prometer criação offline nem retry automático |
 | S4 Atualizar lote | Inicial com dados existentes; envio, conclusão e falha. Fase e status são duas operações: falha após primeira não vira sucesso integral nem “nada salvo”. Manter escolhas para consulta/correção. Se há certeza por campo, mostrar o resultado por campo; se não, indicar confirmação incompleta. Não introduzir atomicidade/rollback em UX |
-| S5 Gerenciar logo | Logo atual ou iniciais; seleção local e prévia; arquivo inválido com motivo; envio com progresso disponível ou indicador indeterminado; confirmação; falha conserva publicada e prévia para correção. Offline bloqueia envio com orientação de conexão. Acesso revogado impede publicação e não anuncia sucesso. Resultado incerto pede conferir logo atual, sem retry automático |
+| S5 Gerenciar logo | Logo atual ou iniciais; seleção local e prévia; arquivo inválido com motivo; envio com progresso disponível ou indicador indeterminado; confirmação; falha comprovadamente anterior à publicação conserva publicada e prévia identificada para correção. Offline bloqueia envio com orientação de conexão. Acesso revogado impede publicação e não anuncia sucesso. Resultado incerto oferece Verificar logo atual e Fechar, sem afirmar preservação da logo anterior ou habilitar reenvio |
 
 Os metadados atuais de leitura de lotes não comprovam frescor/pendência. A aparência não pode converter cache em confirmação remota. Nesta entrega não se adicionam política de expiração, fila de sincronização, novas permissões de lotes nem transação entre fase e status. Eventuais lacunas técnicas que impeçam feedback verdadeiro devem ser explicitadas na arquitetura antes de estimar implementação.
 
@@ -73,25 +75,37 @@ Os metadados atuais de leitura de lotes não comprovam frescor/pendência. A apa
 
 [ASSUMPTION] Seleção PNG ou JPEG de até 5 MB, sem crop obrigatório, conteúdo ajustado com contain e sem recolorir a empresa. Arquivo maior/formato diferente recebe motivo antes de enviar. Dimensões, tratamento seguro e armazenamento serão definidos pela arquitetura; não inferir suporte atual, pois o modelo consultado não contém logo.
 
-Upload exige conexão; prévia fica local até confirmação. Logo antiga permanece visível nos cards durante envio; somente confirmação publica a nova. Falha de carregamento usa iniciais com nome intacto. Primeiras letras de até duas palavras do nome, ou primeira letra quando houver uma só; nomes vazios usam ícone de empresa. A inicial é decorativa para leitores de tela.
+Upload exige conexão; prévia fica local antes do envio. A interface mantém a imagem anteriormente conhecida nos cards enquanto aguarda confirmação, sem prometer que o servidor continua nesse estado. Confirmada a publicação, atualiza o card. Falha de carregamento usa iniciais com nome intacto. Primeiras letras de até duas palavras do nome, ou primeira letra quando houver uma só; nomes vazios usam ícone de empresa. A inicial é decorativa para leitores de tela.
 
-**Pendente bloqueante somente para S5:** quem pode cadastrar/trocar a logo. Até confirmação, não considerar qualquer papel aprovado. Sem remover logo e sem novo caminho de cadastro da construtora.
+O editor mostra “Logo de [nome da construtora]” e CNPJ quando disponível em prévia, envio e resultado. O alvo é o da abertura e permanece estável; trocar de contexto exige fechar e abrir outro editor, sem transportar a seleção. A publicação revalida autorização para essa mesma construtora; administrar outra empresa não concede acesso ao alvo.
+
+**Permissão confirmada:** Dev pelo Painel Dev, Proprietário e administradores da construtora podem cadastrar/trocar. Admin de obra ou outros membros não recebem essa capacidade apenas por seu papel na obra. Gerenciar logo aparece no card para Proprietário/admin da construtora; no Painel Dev é ação contextual da construtora já selecionada, sem criar outro cadastro. A arquitetura deve vincular esses termos aos papéis reais e aplicar a mesma autorização na gravação. Sem remover logo e sem novo caminho de cadastro de construtora.
+
+### Saída durante envio e confirmação incerta
+
+Antes de submeter S3/S4/S5, Cancelar, Fechar ou Voltar descarta somente alterações locais. Após submeter, não prometer cancelamento da gravação: enquanto a operação é acompanhada, desabilitar nova submissão, nova seleção de arquivo, Cancelar e fechamento incidental por Esc, voltar, barreira ou arraste; anunciar Salvando alterações/Salvando logo e o motivo do bloqueio. Isso não garante impedir fechamento do aplicativo, navegador ou interrupção do sistema.
+
+O bloqueio não é indefinido: se a operação terminar sem confirmação, a conexão impedir acompanhamento ou ocorrer timeout reconhecido, passar a **resultado incerto**, sem tempo fixo de UX e sem tratar timeout como prova de falha. Oferecer Fechar com o aviso “Fechar não cancela a operação enviada; o resultado ainda precisa ser confirmado”. Não repetir a operação automaticamente. Falha comprovada anterior à escrita/publicação permite corrigir e tentar novamente; uma resposta perdida não recebe essa garantia.
+
+Para lotes, resultado incerto/possivelmente parcial mantém escolhas identificadas enquanto o formulário está aberto; Fechar libera navegação. Ao reencontrar o lote, confrontar dados disponíveis sem alegar que cache prova confirmação remota. Não reenviar a tentativa incerta nem anunciar reversão por ter fechado. Se houver evidência por campo, indicar qual resultado é conhecido; arquitetura deve definir a observabilidade necessária antes da implementação.
+
+Para logo, **Verificar logo atual** consulta evidência autoritativa de publicação da mesma construtora, não o card em cache. Estados: Verificando logo atual; resultado conhecido com logo publicada identificada; ou “Ainda não foi possível confirmar a troca”. Manter prévia local/nome de arquivo separados do estado publicado. Confirmada a nova imagem, atualizar o card; comprovada a não publicação da tentativa, permitir nova tentativa explícita. Se apenas a imagem antiga estiver visível e a tentativa puder continuar pendente, manter incerteza e não liberar novo envio. Fechar continua disponível; ao reabrir a gestão dessa construtora, retomar verificação antes de nova publicação. A arquitetura define como obter evidência e acompanhar tentativa pendente; o contrato não inventa storage, API, rollback ou cancelamento real.
 
 ## Interaction Primitives
 
-Toque/clique têm alvos de `{spacing.touch-min}`. Teclado percorre navegação → conteúdo → ações na ordem visual; Shift+Tab inverte, Enter/espaço acionam controles, Esc fecha overlays quando não invalida uma operação pendente. Não permitir que Vistorias ou Gerenciar logo também acione o card.
+Toque/clique têm alvos de `{spacing.touch-min}`. Teclado percorre navegação → conteúdo → ações na ordem visual; Shift+Tab inverte, Enter/espaço acionam controles, Esc fecha overlays antes do envio; durante envio e incerteza aplica-se a política explícita acima. Não permitir que Vistorias ou Gerenciar logo também acione o card.
 
 Foco usa tokens `{colors.focus-light}`, `{colors.focus-sidebar}` e `{colors.focus-header}`; hover não muda posição. Campo incorreto recebe associação de erro e foco na primeira tentativa inválida. Notificações não removem o contexto. Redução de movimento é respeitada; nenhuma animação é indispensável. Não acrescentar atalhos globais ou gestos ocultos.
 
 ## Accessibility Floor
 
-Metas verificáveis, sem declaração de conformidade: texto normal ≥4,5:1, grandes/indicadores essenciais ≥3:1; alvo mínimo48; ícones acionáveis com nome; status com texto e ícone; logo não substitui nome; foco visível/restaurado em overlays.
+Metas verificáveis, sem declaração de conformidade: texto normal ≥4,5:1, grandes/indicadores essenciais ≥3:1; alvo mínimo de 48 unidades lógicas; ícones acionáveis com nome; status com texto e ícone; logo não substitui nome; foco visível/restaurado em overlays.
 
 Verificar larguras lógicas 320, 390, 800, 801, 1280 e 1440; texto em 100%, 130% e 200%. Nome com 80 caracteres e fase com 60 não pode perder conteúdo, esconder botões ou causar rolagem horizontal. Reflow pode aumentar altura e reduzir colunas. Leitor de tela deve identificar construtora/lote e destino de cada ação sem repetir a identidade decorativa. Teclado e áreas seguras não cobrem o botão final do formulário.
 
 ## Responsive & Platform
 
-Até800 inclusive: drawer, coluna única e título `{typography.page-mobile}`; acima800: lateral herdada e `{typography.page-desktop}`, grid dependente da área útil. Compactação de lotes usa `{spacing.lot-padding}` e `{spacing.lot-gap}`; não reduz alvos. Construtoras usam `{spacing.constructor-padding-mobile}`/`{spacing.constructor-padding-desktop}`.
+Até 800 unidades lógicas inclusive: drawer, coluna única e título `{typography.page-mobile}`; acima de 800 unidades lógicas: lateral herdada e `{typography.page-desktop}`, grid dependente da área útil. Compactação de lotes usa `{spacing.lot-padding}` e `{spacing.lot-gap}`; não reduz alvos. Construtoras usam `{spacing.constructor-padding-mobile}`/`{spacing.constructor-padding-desktop}`.
 
 Nome/status em linhas separadas quando necessário. Atualizar lote e Vistorias empilham na mesma ordem quando não cabem. Novo Lote pode passar para linha própria. Formulários e LogoEditor usam coluna única rolável; overlay de logo proposto como diálogo desktop e sheet mobile, sem novo destino global. Lote conserva o bottom sheet atual nos dois formatos.
 
@@ -136,8 +150,8 @@ Protagonistas abaixo são fictícios, usados como cenários de aceite; não cons
 
 ### J5 — Cadastrar ou trocar logo
 
-1. Carla, se autorizada pela política a confirmar, abre Gerenciar logo no card.
-2. Seleciona arquivo válido e confere prévia; cancelar conserva publicação atual.
+1. Carla, administradora da construtora, abre Gerenciar logo no card; Otávio, Proprietário, usa a mesma entrada. Davi, Dev, seleciona a construtora no Painel Dev e abre sua gestão de logo.
+2. Seleciona arquivo válido, confere a construtora alvo, nome do arquivo e prévia “Selecionada, ainda não salva”; cancelar antes do envio descarta apenas a seleção.
 3. Salva com conexão, acompanha envio e não navega por acionamento acidental do card.
-4. **Clímax:** confirmação substitui a imagem do card pela logo selecionada mantendo nome e proporção.
-5. Falha: arquivo inválido, rede ou acesso negado conserva a logo publicada e explica recuperação; resultado incerto não vira sucesso nem tentativa automática.
+4. **Clímax:** confirmação substitui a imagem do card pela logo selecionada mantendo nome e proporção; cada pessoa retorna à origem, card ou Painel Dev.
+5. Falha: arquivo inválido ou falha comprovada antes da publicação conserva a logo anterior; resposta perdida leva a Verificar logo atual, podendo fechar com aviso sem cancelar a tentativa. Revogação de acesso impede nova publicação, mas não prova o resultado de uma operação anterior.

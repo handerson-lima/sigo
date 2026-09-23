@@ -1,0 +1,201 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SIGO — Validação UX da primeira entrega</title><style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --border: #e7e5e4;
+    --text: #1c1917;
+    --muted: #78716c;
+
+    --verdict-strong: #16a34a;
+    --verdict-adequate: #65a30d;
+    --verdict-thin: #d97706;
+    --verdict-broken: #dc2626;
+
+    --sev-low: #64748b;
+    --sev-medium: #ca8a04;
+    --sev-high: #ea580c;
+    --sev-critical: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  header.report-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .title h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .title .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .synthesis {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--muted);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 24px;
+    font-size: 15.5px;
+  }
+  .synthesis p { margin: 0 0 10px; }
+  .synthesis p:last-child { margin-bottom: 0; }
+
+  .dimension-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .dim-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .dim-card .dim-name { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .dim-card .dim-verdict { font-size: 14px; font-weight: 600; }
+
+  section.dimension, section.reviewer-section { margin-bottom: 14px; }
+  section.dimension details, section.reviewer-section details {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  section summary {
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  section summary::-webkit-details-marker { display: none; }
+  section summary::before {
+    content: "▸";
+    display: inline-block;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+  section details[open] summary::before { transform: rotate(90deg); }
+  section summary h2 {
+    display: inline;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    flex: 1;
+  }
+  .verdict-pill {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: white;
+  }
+  .verdict-strong { background: var(--verdict-strong); }
+  .verdict-adequate { background: var(--verdict-adequate); }
+  .verdict-thin { background: var(--verdict-thin); }
+  .verdict-broken { background: var(--verdict-broken); }
+
+  .dim-body { padding: 4px 20px 18px; }
+  .dim-judgment { color: var(--text); font-size: 14.5px; }
+  .dim-judgment p { margin: 0 0 10px; }
+
+  .findings-list { padding: 0 20px 4px; }
+  article.finding {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  article.finding:first-child { border-top: none; }
+  article.finding header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .badge {
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+  .badge-sev-low { background: rgba(100, 116, 139, 0.12); color: var(--sev-low); }
+  .badge-sev-medium { background: rgba(202, 138, 4, 0.14); color: var(--sev-medium); }
+  .badge-sev-high { background: rgba(234, 88, 12, 0.14); color: var(--sev-high); }
+  .badge-sev-critical { background: rgba(220, 38, 38, 0.14); color: var(--sev-critical); }
+  .finding-title { margin: 0; font-size: 15px; font-weight: 500; flex: 1; min-width: 200px; }
+  .finding-location { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--muted); }
+  .finding-note, .finding-fix { margin-top: 6px; font-size: 14px; }
+  .finding-fix strong { color: var(--muted); font-weight: 500; }
+
+  .reviewer-source {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  .mechanical {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 24px;
+    font-size: 14px;
+  }
+  .mechanical h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .mechanical ul { margin: 0; padding-left: 20px; }
+  .mechanical li { margin-bottom: 4px; color: var(--text); }
+
+  footer.report-footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  footer .meta { display: flex; gap: 24px; flex-wrap: wrap; }
+</style></head><body><div class="container">
+<header class="report-header"><div class="title"><h1>SIGO — Validação UX da primeira entrega</h1><div class="subtitle">primeira-entrega/DESIGN.md · EXPERIENCE.md</div></div></header>
+<div class="synthesis"><p>O pacote delimita a primeira entrega e oferece contrato de UX para arquitetura. A validação identificou sete achados: um alto, quatro médios e dois baixos; nenhum crítico. R1 e L1 tratam de aspectos do mesmo problema e foram mantidos nos relatórios de origem.</p><p>As sete correções foram incorporadas e rastreadas em .working/resolution-log.md. Os revisores de acessibilidade e permissões verificaram seus ajustes; o coordenador conferiu R1/R2. Os vereditos abaixo preservam o resultado da revisão inicial, sem atribuir retrospectivamente nova nota. Revisão documental e cálculos de pares de cores não substituem testes da implementação.</p></div>
+<div class="dimension-summary">
+<div class="dim-card"><div class="dim-name">Cobertura de fluxos</div><div class="dim-verdict" style="color:var(--verdict-strong)">strong</div></div>
+<div class="dim-card"><div class="dim-name">Completude de tokens</div><div class="dim-verdict" style="color:var(--verdict-strong)">strong</div></div>
+<div class="dim-card"><div class="dim-name">Cobertura de componentes</div><div class="dim-verdict" style="color:var(--verdict-strong)">strong</div></div>
+<div class="dim-card"><div class="dim-name">Cobertura de estados</div><div class="dim-verdict" style="color:var(--verdict-adequate)">adequate</div></div>
+<div class="dim-card"><div class="dim-name">Referências visuais</div><div class="dim-verdict" style="color:var(--verdict-strong)">strong</div></div>
+<div class="dim-card"><div class="dim-name">Concisão e especificação</div><div class="dim-verdict" style="color:var(--verdict-strong)">strong</div></div>
+<div class="dim-card"><div class="dim-name">Disciplina de herança</div><div class="dim-verdict" style="color:var(--verdict-adequate)">adequate</div></div>
+<div class="dim-card"><div class="dim-name">Estrutura</div><div class="dim-verdict" style="color:var(--verdict-strong)">strong</div></div>
+</div>
+<section class="dimension"><details><summary><h2>Cobertura de fluxos</h2><span class="verdict-pill verdict-strong">strong</span></summary><div class="dim-body"><p>S0–S5 e J0–J5 cobrem o recorte, com protagonistas, passos, resultado e falhas.</p></div><div class="findings-list"></div></details></section>
+<section class="dimension"><details><summary><h2>Completude de tokens</h2><span class="verdict-pill verdict-strong">strong</span></summary><div class="dim-body"><p>Cores, tipografia, medidas e componentes definidos; caminhos de tokens resolvidos.</p></div><div class="findings-list"></div></details></section>
+<section class="dimension"><details><summary><h2>Cobertura de componentes</h2><span class="verdict-pill verdict-strong">strong</span></summary><div class="dim-body"><p>Nove componentes têm contrato visual e comportamental correspondente.</p></div><div class="findings-list"></div></details></section>
+<section class="dimension"><details><summary><h2>Cobertura de estados</h2><span class="verdict-pill verdict-adequate">adequate</span></summary><div class="dim-body"><p>Achado inicial R1: saída durante gravação precisava de regra explícita; política corrigida em EXPERIENCE.</p></div><div class="findings-list"><article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">R1 — Saída durante gravação</h3><span class="finding-location">EXPERIENCE — S3/S4/S5 e política de saída; HANDOFF UX08/UX10</span></header><div class="finding-fix"><strong>Correção aplicada:</strong> Definir Esc/voltar/barreira/arraste, bloqueio transitório e saída após perda de acompanhamento; sem promessa de rollback.</div></article></div></details></section>
+<section class="dimension"><details><summary><h2>Referências visuais</h2><span class="verdict-pill verdict-strong">strong</span></summary><div class="dim-body"><p>Quatro mocks e duas variantes oficiais da logo vinculados; tabelas de formulários aceitas pelo usuário.</p></div><div class="findings-list"></div></details></section>
+<section class="dimension"><details><summary><h2>Concisão e especificação</h2><span class="verdict-pill verdict-strong">strong</span></summary><div class="dim-body"><p>Escopo delimitado e documentos complementares, sem desenho prematuro de infraestrutura.</p></div><div class="findings-list"></div></details></section>
+<section class="dimension"><details><summary><h2>Disciplina de herança</h2><span class="verdict-pill verdict-adequate">adequate</span></summary><div class="dim-body"><p>Achado inicial R2: margem por lado versus total era ambígua; texto corrigido, mantendo breakpoint existente.</p></div><div class="findings-list"><article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">R2 — Margens ambíguas</h3><span class="finding-location">DESIGN — Layout &amp; Spacing</span></header><div class="finding-fix"><strong>Correção aplicada:</strong> Definir 16/32 unidades lógicas por lado, sem duplicar padding do shell e da tela.</div></article></div></details></section>
+<section class="dimension"><details><summary><h2>Estrutura</h2><span class="verdict-pill verdict-strong">strong</span></summary><div class="dim-body"><p>Seções canônicas presentes; critérios e encaminhamento mantidos em HANDOFF.</p></div><div class="findings-list"></div></details></section>
+<section class="reviewer-section"><details><summary><h2>Acessibilidade</h2><span class="reviewer-source"><a href="review-accessibility.md">review-accessibility.md</a></span></summary><div class="findings-list"><article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">A1 — Identificação acessível da seleção</h3><span class="finding-location">DESIGN — LogoEditor; EXPERIENCE — LogoEditor/J5; HANDOFF UX10</span></header><div class="finding-fix"><strong>Correção aplicada:</strong> Exibir nome de arquivo e Selecionada, ainda não salva; anunciar sem roubar foco.</div></article><article class="finding"><header><span class="badge badge-sev-low">low</span><h3 class="finding-title">A2 — Evidência de foco do cabeçalho</h3><span class="finding-location"> .working/contrast-refinement.md</span></header><div class="finding-fix"><strong>Correção aplicada:</strong> Marcar dourado como candidato rejeitado para cabeçalho; registrar branco aprovado sobre os dois extremos.</div></article></div></details></section>
+<section class="reviewer-section"><details><summary><h2>Permissões e erros da logo</h2><span class="reviewer-source"><a href="review-logo-permissions.md">review-logo-permissions.md</a></span></summary><div class="findings-list"><article class="finding"><header><span class="badge badge-sev-high">high</span><h3 class="finding-title">L1 — Cancelamento durante envio</h3><span class="finding-location">EXPERIENCE — Saída durante envio e confirmação incerta; HANDOFF UX10</span></header><div class="finding-fix"><strong>Correção aplicada:</strong> Distinguir seleção local, envio acompanhado, falha comprovada e resultado incerto. Fechar depois de resultado incerto não cancela publicação.</div></article><article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">L2 — Recuperação de resultado incerto</h3><span class="finding-location">EXPERIENCE — Verificar logo atual; HANDOFF UX10</span></header><div class="finding-fix"><strong>Correção aplicada:</strong> Consultar estado publicado autoritativo, não cache; manter incerteza quando necessário e impedir reenvio da tentativa ainda desconhecida.</div></article><article class="finding"><header><span class="badge badge-sev-medium">medium</span><h3 class="finding-title">L3 — Identidade da construtora alvo</h3><span class="finding-location">DESIGN — LogoEditor; EXPERIENCE — Logo operacional; HANDOFF UX09</span></header><div class="finding-fix"><strong>Correção aplicada:</strong> Mostrar nome/CNPJ, manter alvo estável e revalidar autorização para a mesma construtora.</div></article></div></details></section>
+<div class="mechanical"><h3>Rastreabilidade e limites</h3><ul><li><a href=".working/resolution-log.md">Registro das correções</a></li><li><a href=".working/editorial-review.md">Revisão editorial: estrutura e redação</a></li><li>YAML, fontes, referências de tokens e links locais verificados. Sem testes do aplicativo ou certificação de acessibilidade.</li><li>Armazenamento, autorização e confirmação de publicação dependem de arquitetura e implementação.</li></ul></div>
+<footer class="report-footer"><div class="meta"><span><a href="review-rubric.md">Rubrica</a> · <a href="DESIGN.md">DESIGN.md</a> · <a href="EXPERIENCE.md">EXPERIENCE.md</a> · <a href="HANDOFF.md">HANDOFF.md</a></span><span>Gerado: 2026-09-23T17:20:55-03:00</span></div></footer></div></body></html>
