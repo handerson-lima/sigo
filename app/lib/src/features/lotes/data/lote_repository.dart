@@ -43,7 +43,9 @@ class LoteRepository {
   }
 
   Future<void> createLote(Lote lote) async {
-    await _lotesRef(lote.construtoraId, lote.obraId).doc(lote.id).set(lote);
+    final docRef = _lotesRef(lote.construtoraId, lote.obraId).doc(lote.id);
+    await docRef.set(lote);
+    await docRef.snapshots().firstWhere((snap) => !snap.metadata.hasPendingWrites);
   }
 
   Future<void> updatePhase(

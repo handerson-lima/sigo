@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import '../../../common_widgets/access_guard.dart';
 import '../presentation/funcionarios_list_screen.dart';
 import '../presentation/funcionario_form_screen.dart';
-import '../domain/funcionario.dart';
 import '../presentation/chamadas_list_screen.dart';
 import '../presentation/chamada_form_screen.dart';
 

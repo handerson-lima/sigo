@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +23,13 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
   String _selectedPhase = defaultLotePhases.first;
   LoteStatus _selectedStatus = LoteStatus.noPrazo;
   bool _isLoading = false;
+  late final String _loteId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loteId = const Uuid().v4();
+  }
 
   @override
   void dispose() {
@@ -35,7 +43,7 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
 
     try {
       final lote = Lote(
-        id: const Uuid().v4(),
+        id: _loteId,
         construtoraId: widget.construtoraId,
         obraId: widget.obraId,
         name: _nameController.text.trim(),
@@ -44,9 +52,15 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
         createdAt: DateTime.now(),
       );
 
-      await ref.read(loteRepositoryProvider).createLote(lote);
+      await ref.read(loteRepositoryProvider).createLote(lote).timeout(const Duration(seconds: 15));
       if (mounted) {
         context.pop();
+      }
+    } on TimeoutException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('O envio está demorando muito. O estado é incerto, mas seus dados não foram perdidos.'),
+        ));
       }
     } catch (e) {
       if (mounted) {
