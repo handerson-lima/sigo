@@ -11,11 +11,13 @@ import '../domain/funcionario.dart';
 class FuncionarioFormScreen extends ConsumerStatefulWidget {
   final String construtoraId;
   final Funcionario? initialFuncionario;
+  final String? funcionarioId;
 
   const FuncionarioFormScreen({
     super.key,
     required this.construtoraId,
     this.initialFuncionario,
+    this.funcionarioId,
   });
 
   @override
@@ -26,40 +28,44 @@ class FuncionarioFormScreen extends ConsumerStatefulWidget {
 class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  late final TextEditingController _nameController;
-  late final TextEditingController _cpfController;
-  late final TextEditingController _roleController;
-  late final TextEditingController _baseSalaryController;
-  late final TextEditingController _additionalCostsController;
+  final _nameController = TextEditingController();
+  final _cpfController = TextEditingController();
+  final _roleController = TextEditingController();
+  final _baseSalaryController = TextEditingController();
+  final _additionalCostsController = TextEditingController();
 
-  late String _employmentType;
-  late String _salaryBasis;
+  String _employmentType = 'clt';
+  String _salaryBasis = 'mensal';
   String? _teamId;
   bool _isSaving = false;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    final f = widget.initialFuncionario;
-    _nameController = TextEditingController(text: f?.name ?? '');
-    _cpfController = TextEditingController(text: f?.formattedCpf ?? '');
-    _roleController = TextEditingController(text: f?.role ?? '');
-
-    _baseSalaryController = TextEditingController(
-      text: f != null ? (f.baseSalaryCents / 100.0).toStringAsFixed(2) : '',
-    );
-    _additionalCostsController = TextEditingController(
-      text: f != null && f.additionalCostsCents > 0
-          ? (f.additionalCostsCents / 100.0).toStringAsFixed(2)
-          : '0.00',
-    );
-
-    _employmentType = f?.employmentType ?? 'clt';
-    _salaryBasis = f?.salaryBasis ?? 'mensal';
-    _teamId = f?.teamId;
-
     _baseSalaryController.addListener(() => setState(() {}));
     _additionalCostsController.addListener(() => setState(() {}));
+
+    if (widget.initialFuncionario != null) {
+      _populateFields(widget.initialFuncionario);
+      _isInitialized = true;
+    } else if (widget.funcionarioId == null) {
+      _isInitialized = true;
+    }
+  }
+
+  void _populateFields(Funcionario? f) {
+    if (f == null) return;
+    _nameController.text = f.name;
+    _cpfController.text = f.formattedCpf;
+    _roleController.text = f.role;
+    _baseSalaryController.text = (f.baseSalaryCents / 100.0).toStringAsFixed(2);
+    _additionalCostsController.text = f.additionalCostsCents > 0
+        ? (f.additionalCostsCents / 100.0).toStringAsFixed(2)
+        : '0.00';
+    _employmentType = f.employmentType;
+    _salaryBasis = f.salaryBasis;
+    _teamId = f.teamId;
   }
 
   @override
@@ -120,8 +126,8 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final isEditing = widget.initialFuncionario != null;
-      final id = widget.initialFuncionario?.id ?? const Uuid().v4();
+      final isEditing = widget.initialFuncionario != null || widget.funcionarioId != null;
+      final id = widget.initialFuncionario?.id ?? widget.funcionarioId ?? const Uuid().v4();
 
       final funcionario = Funcionario(
         id: id,
@@ -175,7 +181,38 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.initialFuncionario != null;
+    final isEditing = widget.initialFuncionario != null || widget.funcionarioId != null;
+
+    if (!_isInitialized && widget.funcionarioId != null) {
+      final listAsync = ref.watch(funcionariosStreamProvider(widget.construtoraId));
+      return SigoLayout(
+        title: isEditing ? 'Editar Colaborador' : 'Novo Colaborador',
+        activeRoute: '/construtora/${widget.construtoraId}/rh/funcionarios',
+        child: listAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Erro ao carregar dados: $e')),
+          data: (funcionarios) {
+            Funcionario? f;
+            for (final func in funcionarios) {
+              if (func.id == widget.funcionarioId) {
+                f = func;
+                break;
+              }
+            }
+            Future.microtask(() {
+              if (mounted && !_isInitialized) {
+                setState(() {
+                  _populateFields(f);
+                  _isInitialized = true;
+                });
+              }
+            });
+            return const Center(child: CircularProgressIndicator());
+          },
+        ),
+      );
+    }
+
     final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
     final dailyRateCents = _currentDailyRateCents;
 
