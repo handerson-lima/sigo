@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import sharp from 'sharp';
 import {id, decimalUnits, SCALE, hash, moduleName, active, manager} from './contracts';
 admin.initializeApp();
 const db = admin.firestore();
@@ -331,26 +332,38 @@ export const finalizeDiario = callable('finalizeDiario', async (d, uid) => {
 
 export const processLogo = functions.storage.object().onFinalize(async (object) => {
   if (!object.name || !object.name.match(/^construtoras\/[^\/]+\/logos\/[^\/]+$/)) return;
-  if (object.metadata?.processed === 'true') return;
 
   const bucket = admin.storage().bucket(object.bucket);
   const file = bucket.file(object.name);
-  const [metadata] = await file.getMetadata();
 
-  if (!metadata.contentType?.startsWith('image/')) return;
+  try {
+    const [metadata] = await file.getMetadata();
+    if (metadata.metadata?.processed === 'true') return;
+    if (!metadata.contentType?.startsWith('image/')) return;
 
-  const [buffer] = await file.download();
-  // @ts-ignore
-  const sharp = (await import('sharp')).default || (await import('sharp'));
-  
-  const processedBuffer = await sharp(buffer)
-    .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
-    .toBuffer();
+    const [buffer] = await file.download();
+    const inputMeta = await sharp(buffer).metadata();
+    const processedBuffer = await sharp(buffer)
+      .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+      .toBuffer();
 
-  await file.save(processedBuffer, {
-    metadata: {
-      contentType: metadata.contentType,
-      metadata: { processed: 'true' }
-    }
-  });
+    const format = inputMeta.format;
+    const contentType = format ? `image/${format}` : metadata.contentType;
+
+    await file.save(processedBuffer, {
+      metadata: {
+        contentType,
+        metadata: { ...metadata.metadata, processed: 'true' }
+      }
+    });
+  } catch (err: any) {
+    functions.logger.error('processLogo failed', {
+      path: object.name,
+      code: err?.code ?? null,
+      error: err?.message ?? String(err)
+    });
+    if (err?.code === 404) return;
+    if (err?.message && /input buffer|unsupported image format|corrupt|truncated/i.test(err.message)) return;
+    throw err;
+  }
 });

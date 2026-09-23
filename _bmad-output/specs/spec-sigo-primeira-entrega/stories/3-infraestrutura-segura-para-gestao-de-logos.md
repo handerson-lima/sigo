@@ -2,7 +2,7 @@
 title: 'Infraestrutura Segura para Gestão de Logos'
 type: 'feature'
 created: '2026-09-23'
-status: 'in-review'
+status: 'done'
 review_loop_iteration: 0
 followup_review_recommended: false
 context: []
@@ -66,15 +66,15 @@ baseline_revision: '4ab8840df46244d3114a859f7d695ac33c374bd6'
 - [x] [Review][Decision] Leitura pública de logos permite enumeration de IDs de construtora — resolvido: manter `allow read: if true` (decisão do usuário: logo como ativo de marca; enumeração de `{c}` aceita como trade-off).
 
 **patch:**
-- [ ] [Review][Patch] Metadata controlável pelo cliente permite pular sanitização (bypass do loop-guard) [storage.rules:10-14, functions/src/index.ts:334]
-- [ ] [Review][Patch] processLogo sem tratamento de erro: falha de sharp/404 deixa imagem sem sanitização ou crasha o trigger em loop de retry [functions/src/index.ts:332-356]
-- [ ] [Review][Patch] file.save substitui metadata inteira e apaga firebaseStorageDownloadTokens, quebrando URLs de download [functions/src/index.ts:350-355]
-- [ ] [Review][Patch] logoUrl aceito no update sem validação de tipo string [firestore.rules:43]
-- [ ] [Review][Patch] Sem testes de rules para update de logoUrl nem para o path de logos no Storage [firestore.rules:43, storage.rules:10-14]
-- [ ] [Review][Patch] Integração TypeScript do sharp: `@types/sharp@0.31` obsoleto + import dinâmico com `@ts-ignore` e fallback defensivo [functions/package.json:30, functions/src/index.ts:343-344]
-- [ ] [Review][Patch] `admin(c)` do Storage sem guard de existência do doc de membro (drift em relação ao `firestore.rules`, erro opaco em doc ausente) [storage.rules:8]
-- [ ] [Review][Patch] Guard de processed lê metadata do evento (payload possivelmente obsoleto) em vez da metadata fresca já obtida [functions/src/index.ts:334-338]
-- [ ] [Review][Patch] Conteúdo declarado `image/*` pode não corresponder aos bytes reais; save grava contentType herdado do upload após processamento [functions/src/index.ts:340-355]
+- [x] [Review][Patch] Metadata controlável pelo cliente permite pular sanitização (bypass do loop-guard) [storage.rules:10-14, functions/src/index.ts:334]
+- [x] [Review][Patch] processLogo sem tratamento de erro: falha de sharp/404 deixa imagem sem sanitização ou crasha o trigger em loop de retry [functions/src/index.ts:332-356]
+- [x] [Review][Patch] file.save substitui metadata inteira e apaga firebaseStorageDownloadTokens, quebrando URLs de download [functions/src/index.ts:350-355]
+- [x] [Review][Patch] logoUrl aceito no update sem validação de tipo string [firestore.rules:43]
+- [x] [Review][Patch] Sem testes de rules para update de logoUrl nem para o path de logos no Storage [firestore.rules:43, storage.rules:10-14]
+- [x] [Review][Patch] Integração TypeScript do sharp: `@types/sharp@0.31` obsoleto + import dinâmico com `@ts-ignore` e fallback defensivo [functions/package.json:30, functions/src/index.ts:343-344]
+- [x] [Review][Patch] `admin(c)` do Storage sem guard de existência do doc de membro (drift em relação ao `firestore.rules`, erro opaco em doc ausente) [storage.rules:8]
+- [x] [Review][Patch] Guard de processed lê metadata do evento (payload possivelmente obsoleto) em vez da metadata fresca já obtida [functions/src/index.ts:334-338]
+- [x] [Review][Patch] Conteúdo declarado `image/*` pode não corresponder aos bytes reais; save grava contentType herdado do upload após processamento [functions/src/index.ts:340-355]
 
 **defer:**
 - [x] [Review][Defer] Handler `processLogo` nunca executado por teste algum [functions/src/index.ts:332-356] — deferred: o repo não tem harness que execute handlers de trigger Storage (`test:emulators` não inclui o emulador de functions); criar esse harness excede o escopo desta mudança.

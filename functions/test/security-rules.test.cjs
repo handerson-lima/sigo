@@ -489,3 +489,53 @@ test('7.3 Storage garante imutabilidade: update e delete bloqueados', async () =
   // Deleção negada
   await assertFails(deleteObject(targetRef));
 });
+
+// ==========================================
+// 8. LOGOS DA CONSTRUTORA (Story 3)
+// ==========================================
+test('8.1 Admin atualiza logoUrl com string; tipo não-string é negado', async () => {
+  const adminFs = testEnv.authenticatedContext('admin_user').firestore();
+
+  await assertSucceeds(updateDoc(doc(adminFs, 'construtoras/const_a'), {
+    logoUrl: 'construtoras/const_a/logos/logo.png'
+  }));
+
+  await assertFails(updateDoc(doc(adminFs, 'construtoras/const_a'), {
+    logoUrl: 12345
+  }));
+
+  await assertFails(updateDoc(doc(adminFs, 'construtoras/const_a'), {
+    logoUrl: { path: 'construtoras/const_a/logos/x' }
+  }));
+});
+
+test('8.2 Membro não-admin não pode atualizar logoUrl', async () => {
+  const stockFs = testEnv.authenticatedContext('stock_user').firestore();
+  await assertFails(updateDoc(doc(stockFs, 'construtoras/const_a'), {
+    logoUrl: 'construtoras/const_a/logos/evil.png'
+  }));
+});
+
+test('8.3 Upload de logo: admin aceita; não-admin, tipo inválido e metadata processed negados', async () => {
+  const adminStorage = testEnv.authenticatedContext('admin_user').storage('gs://demo-sigo.appspot.com');
+  const stockStorage = testEnv.authenticatedContext('stock_user').storage('gs://demo-sigo.appspot.com');
+  const imgBytes = Buffer.from([255, 216, 255, 224, 0, 16, 74, 70, 73, 70]);
+
+  await assertSucceeds(uploadBytes(ref(adminStorage, 'construtoras/const_a/logos/logo_ok'), imgBytes, {
+    contentType: 'image/jpeg'
+  }));
+
+  await assertFails(uploadBytes(ref(stockStorage, 'construtoras/const_a/logos/logo_member'), imgBytes, {
+    contentType: 'image/jpeg'
+  }));
+
+  await assertFails(uploadBytes(ref(adminStorage, 'construtoras/const_a/logos/logo_bad_type'), Buffer.from('script shell'), {
+    contentType: 'text/plain'
+  }));
+
+  // Bypass do loop-guard: cliente não pode marcar processed=true no upload
+  await assertFails(uploadBytes(ref(adminStorage, 'construtoras/const_a/logos/logo_bypass'), imgBytes, {
+    contentType: 'image/jpeg',
+    customMetadata: { processed: 'true' }
+  }));
+});
