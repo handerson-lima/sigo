@@ -11,6 +11,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
 import 'src/routing/app_router.dart';
+import 'src/design_system/sigo_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,10 +51,7 @@ class MyApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: 'SIGO',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
+      theme: SigoTheme.lightTheme,
       routerConfig: goRouter,
     );
   }

@@ -6,6 +6,7 @@ import '../features/authentication/data/auth_repository.dart';
 import '../features/notifications/presentation/notifications_button.dart';
 import '../features/obras/presentation/construtora_obras_provider.dart';
 import '../sync/sync_indicator.dart';
+import '../design_system/sigo_theme.dart';
 import 'sidebar_state.dart';
 
 class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
@@ -85,13 +86,27 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
       }
     }
 
+    final theme = Theme.of(context).extension<SigoThemeExtension>();
+
     return AppBar(
       backgroundColor: Colors.transparent,
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              theme?.headerStart ?? const Color(0xFF0D47A1),
+              theme?.headerEnd ?? const Color(0xFF1565C0),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+        ),
+      ),
       elevation: 0,
       centerTitle: false,
       titleSpacing: 8,
-      iconTheme: const IconThemeData(
-        color: Colors.black87,
+      iconTheme: IconThemeData(
+        color: theme?.focusHeader ?? Colors.white,
       ),
       leadingWidth: hasBack ? 96 : 56,
       leading: Row(
@@ -99,7 +114,7 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
         children: [
           IconButton(
             key: const Key('sigo-hamburger-button'),
-            icon: const Icon(Icons.menu, color: Colors.black87),
+            icon: Icon(Icons.menu, color: theme?.focusHeader ?? Colors.white),
             tooltip: hasDrawer
                 ? 'Abrir menu'
                 : (isSidebarCollapsed ? 'Expandir menu' : 'Recolher menu'),
@@ -108,7 +123,7 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
           if (hasBack)
             IconButton(
               key: const Key('sigo-back-button'),
-              icon: const Icon(Icons.arrow_back, color: Colors.black54),
+              icon: Icon(Icons.arrow_back, color: theme?.focusHeader ?? Colors.white70),
               tooltip: 'Voltar',
               onPressed: () => _pop(context),
             ),
@@ -123,15 +138,15 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
                     TextSpan(
                       children: [
                         if (hasBack)
-                          const TextSpan(
+                          TextSpan(
                             text: 'Voltar • ',
                             style:
-                                TextStyle(color: Colors.black54, fontSize: 14),
+                                TextStyle(color: theme?.focusHeader.withValues(alpha: 0.8) ?? Colors.white70, fontSize: 14),
                           ),
                         TextSpan(
                           text: title,
-                          style: const TextStyle(
-                              color: Colors.black54, fontSize: 14),
+                          style: TextStyle(
+                              color: theme?.focusHeader ?? Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -150,13 +165,13 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
               TextSpan(
                 children: [
                   if (hasBack)
-                    const TextSpan(
+                    TextSpan(
                       text: 'Voltar • ',
-                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                      style: TextStyle(color: theme?.focusHeader.withValues(alpha: 0.8) ?? Colors.white70, fontSize: 14),
                     ),
                   TextSpan(
                     text: title,
-                    style: const TextStyle(color: Colors.black54, fontSize: 14),
+                    style: TextStyle(color: theme?.focusHeader ?? Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),

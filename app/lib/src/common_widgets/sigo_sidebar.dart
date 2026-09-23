@@ -6,6 +6,7 @@ import '../core/contracts.dart';
 import '../features/authentication/data/auth_repository.dart';
 import '../features/authentication/data/user_repository.dart';
 import '../features/obras/presentation/current_permissions_provider.dart';
+import '../design_system/sigo_theme.dart';
 import 'sidebar_state.dart';
 
 class SigoSidebar extends ConsumerWidget {
@@ -143,7 +144,7 @@ class SigoSidebar extends ConsumerWidget {
         curve: Curves.easeInOut,
         width: collapsed ? 72 : 250,
         clipBehavior: Clip.hardEdge,
-        color: const Color(0xFF0F172A),
+        color: Theme.of(context).extension<SigoThemeExtension>()?.sidebar ?? const Color(0xFF0F172A),
         child: OverflowBox(
           minWidth: 0,
           maxWidth: 250,
@@ -178,7 +179,7 @@ class SigoSidebar extends ConsumerWidget {
                           fit: BoxFit.contain,
                         ),
                         const SizedBox(width: 10),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
@@ -186,7 +187,7 @@ class SigoSidebar extends ConsumerWidget {
                               Text(
                                 'SIGO',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: Theme.of(context).extension<SigoThemeExtension>()?.sidebarInk ?? Colors.white,
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.5,
@@ -195,7 +196,7 @@ class SigoSidebar extends ConsumerWidget {
                               Text(
                                 'Sistema Inteligente de Gestão de Obras',
                                 style: TextStyle(
-                                  color: Colors.white70,
+                                  color: Theme.of(context).extension<SigoThemeExtension>()?.sidebarMuted ?? Colors.white70,
                                   fontSize: 9,
                                   height: 1.1,
                                 ),
@@ -209,7 +210,7 @@ class SigoSidebar extends ConsumerWidget {
                     ),
             ),
             const SizedBox(height: 32),
-            const Divider(color: Colors.white24, height: 1),
+            Divider(color: Theme.of(context).extension<SigoThemeExtension>()?.sidebarMuted.withValues(alpha: 0.2) ?? Colors.white24, height: 1),
             const SizedBox(height: 16),
             // Nav items
             Expanded(
@@ -308,21 +309,21 @@ class SigoSidebar extends ConsumerWidget {
                     ),
                   if (!collapsed) ...[
                     const SizedBox(height: 24),
-                    const Padding(
-                      padding: EdgeInsets.only(left: 16, bottom: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16, bottom: 8),
                       child: Text(
                         'NAVEGAÇÃO GLOBAL',
                         style: TextStyle(
-                          color: Colors.white38,
+                          color: Theme.of(context).extension<SigoThemeExtension>()?.sidebarMuted.withValues(alpha: 0.6) ?? Colors.white38,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                   ] else ...[
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
-                      child: Divider(color: Colors.white12, height: 1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                      child: Divider(color: Theme.of(context).extension<SigoThemeExtension>()?.sidebarMuted.withValues(alpha: 0.2) ?? Colors.white12, height: 1),
                     ),
                   ],
                 ],
@@ -427,7 +428,7 @@ class SigoSidebar extends ConsumerWidget {
               ],
             ),
           ),
-          const Divider(color: Colors.white24, height: 1),
+          Divider(color: Theme.of(context).extension<SigoThemeExtension>()?.sidebarMuted.withValues(alpha: 0.2) ?? Colors.white24, height: 1),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: collapsed ? 8.0 : 16.0, vertical: 8.0),
             child: InkWell(
@@ -445,18 +446,18 @@ class SigoSidebar extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: collapsed
-                    ? const Tooltip(
+                    ? Tooltip(
                         message: 'Sair',
                         preferBelow: false,
                         child: Center(
-                          child: Icon(Icons.logout, color: Colors.white70),
+                          child: Icon(Icons.logout, color: Theme.of(context).extension<SigoThemeExtension>()?.sidebarMuted ?? Colors.white70),
                         ),
                       )
-                    : const Row(
+                    : Row(
                         children: [
-                          Icon(Icons.logout, color: Colors.white70),
-                          SizedBox(width: 12),
-                          Text('Sair', style: TextStyle(color: Colors.white70)),
+                          Icon(Icons.logout, color: Theme.of(context).extension<SigoThemeExtension>()?.sidebarMuted ?? Colors.white70),
+                          const SizedBox(width: 12),
+                          Text('Sair', style: TextStyle(color: Theme.of(context).extension<SigoThemeExtension>()?.sidebarMuted ?? Colors.white70)),
                         ],
                       ),
               ),
@@ -504,6 +505,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCollapsed = _SidebarScope.of(context);
+    final theme = Theme.of(context).extension<SigoThemeExtension>();
 
     final content = Container(
       padding: EdgeInsets.symmetric(
@@ -513,7 +515,7 @@ class _NavItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: isActive
-            ? Colors.amber[900]?.withValues(alpha: 0.2)
+            ? (theme?.focusSidebar.withValues(alpha: 0.2) ?? Colors.amber[900]?.withValues(alpha: 0.2))
             : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
@@ -521,18 +523,18 @@ class _NavItem extends StatelessWidget {
           ? Center(
               child: Icon(
                 icon,
-                color: isActive ? Colors.amber[700] : Colors.white70,
+                color: isActive ? (theme?.focusSidebar ?? Colors.amber[700]) : (theme?.sidebarMuted ?? Colors.white70),
               ),
             )
           : Row(
               children: [
-                Icon(icon, color: isActive ? Colors.amber[700] : Colors.white70),
+                Icon(icon, color: isActive ? (theme?.focusSidebar ?? Colors.amber[700]) : (theme?.sidebarMuted ?? Colors.white70)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     title,
                     style: TextStyle(
-                      color: isActive ? Colors.amber[700] : Colors.white70,
+                      color: isActive ? (theme?.focusSidebar ?? Colors.amber[700]) : (theme?.sidebarMuted ?? Colors.white70),
                       fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                     ),
                     overflow: TextOverflow.ellipsis,

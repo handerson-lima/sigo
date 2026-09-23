@@ -26,7 +26,7 @@ class SigoLayout extends StatelessWidget {
 
         if (isDesktop) {
           return Scaffold(
-            backgroundColor: const Color(0xFFF8FAFC), // Fundo claro da imagem
+            backgroundColor: Theme.of(context).colorScheme.surface,
             floatingActionButton: floatingActionButton,
             body: Row(
               children: [
@@ -41,7 +41,7 @@ class SigoLayout extends StatelessWidget {
                       ),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.all(24.0),
+                          padding: const EdgeInsets.all(32.0),
                           child: child,
                         ),
                       ),
@@ -55,7 +55,7 @@ class SigoLayout extends StatelessWidget {
 
         // Mobile / Tablet Portrait
         return Scaffold(
-          backgroundColor: const Color(0xFFF8FAFC),
+          backgroundColor: Theme.of(context).colorScheme.surface,
           floatingActionButton: floatingActionButton,
           appBar: SigoTopBar(
             title: title,
