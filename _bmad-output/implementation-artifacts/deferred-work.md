@@ -98,3 +98,15 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `_bmad-output/implementation-artifacts/spec-estabilizar-vinculos-epicos-8-10.md`
   summary: "`_temConectividade` em `MembrosRepository.setCargo` sem `.timeout` pode pendurar o diálogo se a platform channel de connectivity nunca completar"
   evidence: mesma classe do finding 9.2 já adiado para `setMembership` (maybe-false); comportamento pré-existente preservado na extração para `_temConectividade`; settles com teste forçando channel pendurada ou evidência de que a channel sempre completa/erro
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-firestore-indexes-json.md`
+  summary: Adicionar validação de firestore.indexes.json (chaves de topo únicas) ao CI
+  evidence: Bug de chave duplicada passou silenciosamente; parsers aceitam chave duplicada mantendo só a última — nenhuma checagem existe no repo.
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-firestore-indexes-json.md`
+  summary: Reconciliar firestore.indexes.json com produção (firebase firestore:indexes / deploy) e decidir sobre fieldOverrides de userId
+  evidence: Índices provavelmente não existem em produção; fieldOverrides pré-existentes podem desabilitar índices single-field COLLECTION/DESCENDING de userId; deploy é ação externa irreversível.
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-firestore-indexes-json.md`
+  summary: Declarar índices ausentes para chamadas (construtoraId+date), movimentacoes (obraId, obraId+loteId) e fornecedores (status+razaoSocial)
+  evidence: Queries em chamada_repository.dart, custos_360_repository.dart e fornecedores_repository.dart sem entrada correspondente no arquivo; gap pré-existente, não causado por esta correção.
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-firestore-indexes-json.md`
+  summary: Melhorias auxiliares: firebase.test.json declarar índices, teste que valide o arquivo, filtro server-side em users_list_screen
+  evidence: Config/testes/otimizações pré-existentes fora do escopo da correção da chave duplicada.
