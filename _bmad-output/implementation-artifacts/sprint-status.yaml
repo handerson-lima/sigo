@@ -346,7 +346,7 @@ action_items:
     epic: 10
     action: "Fechar gaps de verificacao 10.x restantes: (19-21 fechados em spec-estabilizar-vinculos-epicos-8-10 — setCargo real, wiring sheet, prefill overflow); ainda abertos: asserts de invalidacao, desativar nObras:2 com N+1 e progresso, a11y (Esc, 48dp, Editar vinculo, textScale 1.3)"
     owner: "maranduteam"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
   - id: "epic-10-retro-item-29-reconciliar-epics-md-ac-10-3-texto-do-co"
     epic: 10

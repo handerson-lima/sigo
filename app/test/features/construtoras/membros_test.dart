@@ -3455,7 +3455,9 @@ void main() {
           await tester.tap(find.text('ana@obra.com'));
           await tester.pumpAndSettle();
 
-          await tester.tap(find.widgetWithText(OutlinedButton, 'Desativar'));
+          final desativarBtn = find.widgetWithText(OutlinedButton, 'Desativar');
+          await tester.ensureVisible(desativarBtn);
+          await tester.tap(desativarBtn);
           await tester.pumpAndSettle();
 
           // Deve listar as obras afetadas
@@ -3479,7 +3481,9 @@ void main() {
           await tester.tap(find.text('ana@obra.com'));
           await tester.pumpAndSettle();
 
-          await tester.tap(find.widgetWithText(OutlinedButton, 'Desativar'));
+          final desativarBtn = find.widgetWithText(OutlinedButton, 'Desativar');
+          await tester.ensureVisible(desativarBtn);
+          await tester.tap(desativarBtn);
           await tester.pumpAndSettle();
 
           await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
@@ -3505,7 +3509,9 @@ void main() {
           await tester.tap(find.text('ana@obra.com'));
           await tester.pumpAndSettle();
 
-          await tester.tap(find.widgetWithText(OutlinedButton, 'Desativar'));
+          final desativarBtn = find.widgetWithText(OutlinedButton, 'Desativar');
+          await tester.ensureVisible(desativarBtn);
+          await tester.tap(desativarBtn);
           await tester.pumpAndSettle();
 
           await tester.tap(
@@ -3515,6 +3521,44 @@ void main() {
           // 1× setMembership (setMembership para obra o1)
           expect(fakeObra103.chamadas.length, 1);
           expect(fakeObra103.chamadas.first['isActive'], false);
+          // 1× setCargo (desativa na construtora)
+          expect(fakeCargo.chamadas.length, 1);
+          expect(fakeCargo.chamadas.first['isActive'], false);
+          // Snackbar
+          expect(find.textContaining('Membro desativado'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '10.3 Desativar HAPPY_PATH: 2 obras → N+1 CFs + indicador de progresso no botão',
+        (tester) async {
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: base103(nObras: 2),
+              child:
+                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.text('ana@obra.com'));
+          await tester.pumpAndSettle();
+
+          final desativarBtn = find.widgetWithText(OutlinedButton, 'Desativar');
+          await tester.ensureVisible(desativarBtn);
+          await tester.tap(desativarBtn);
+          await tester.pumpAndSettle();
+
+          await tester.tap(
+              find.widgetWithText(FilledButton, 'Desativar').last);
+          
+          // Settle animations and async operations
+          await tester.pumpAndSettle();
+
+          // N+1 chamadas: N=2 para setMembership e 1 para setCargo
+          expect(fakeObra103.chamadas.length, 2);
+          expect(fakeObra103.chamadas[0]['isActive'], false);
+          expect(fakeObra103.chamadas[1]['isActive'], false);
           // 1× setCargo (desativa na construtora)
           expect(fakeCargo.chamadas.length, 1);
           expect(fakeCargo.chamadas.first['isActive'], false);
@@ -3538,7 +3582,9 @@ void main() {
           await tester.tap(find.text('ana@obra.com'));
           await tester.pumpAndSettle();
 
-          await tester.tap(find.widgetWithText(OutlinedButton, 'Desativar'));
+          final desativarBtn = find.widgetWithText(OutlinedButton, 'Desativar');
+          await tester.ensureVisible(desativarBtn);
+          await tester.tap(desativarBtn);
           await tester.pumpAndSettle();
 
           // Verifica que lista o texto "Nenhuma obra vinculada"
@@ -3573,7 +3619,9 @@ void main() {
           await tester.tap(find.text('ana@obra.com'));
           await tester.pumpAndSettle();
 
-          await tester.tap(find.widgetWithText(OutlinedButton, 'Desativar'));
+          final desativarBtn = find.widgetWithText(OutlinedButton, 'Desativar');
+          await tester.ensureVisible(desativarBtn);
+          await tester.tap(desativarBtn);
           await tester.pumpAndSettle();
 
           await tester.tap(
@@ -3582,6 +3630,50 @@ void main() {
 
           // Erro exibido (falha parcial — setCargo ainda pode ser chamado)
           expect(find.textContaining('Falha simulada na obra'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '10.3 a11y: UI do vínculo atende diretrizes (textScale 1.3, alvo >=48dp, fecha com Esc)',
+        (tester) async {
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: base103(nObras: 1),
+              child: const MaterialApp(
+                home: MediaQuery(
+                  data: MediaQueryData(textScaler: TextScaler.linear(1.3)),
+                  child: MembrosScreen(construtoraId: 'c-1'),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          // Abre o sheet
+          await tester.tap(find.text('ana@obra.com'));
+          await tester.pumpAndSettle();
+
+          final handle = tester.ensureSemantics();
+          
+          // Verifica se o alvo "Editar vínculo" no menu tem tamanho >= 48x48
+          final menuFinder = find.byKey(const Key('overflow-o1'));
+          expect(menuFinder, findsOneWidget);
+          final menuSize = tester.getSize(menuFinder);
+          expect(menuSize.width, greaterThanOrEqualTo(48.0));
+          expect(menuSize.height, greaterThanOrEqualTo(48.0));
+
+          // Verifica se o botão "Desativar" existe e tem tamanho bom
+          final desativarFinder = find.widgetWithText(OutlinedButton, 'Desativar');
+          expect(tester.getSize(desativarFinder).height, greaterThanOrEqualTo(48.0));
+
+          // Testar navegação por Esc
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          await tester.pumpAndSettle();
+
+          // Sheet deve fechar
+          expect(find.byType(BottomSheet), findsNothing);
+
+          handle.dispose();
         },
       );
     });

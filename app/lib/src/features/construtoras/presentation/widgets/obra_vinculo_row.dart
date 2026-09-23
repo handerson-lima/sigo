@@ -66,20 +66,20 @@ class ObraVinculoRow extends StatelessWidget {
 
     final hasMenu = onTrocarPapel != null || onRemover != null;
 
-    return Semantics(
-      label: '$nome, $papel, $status${hasMenu ? ', Editar vínculo' : ''}',
-      excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.business, size: 20, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.business, size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Semantics(
+                  label: '$nome, $papel, $status',
+                  excludeSemantics: true,
                   child: Text(
                     nome,
                     maxLines: 2,
@@ -87,38 +87,39 @@ class ObraVinculoRow extends StatelessWidget {
                     style: theme.textTheme.bodyMedium,
                   ),
                 ),
-                if (hasMenu)
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: PopupMenuButton<_ObraVinculoAction>(
-                      key: Key('overflow-${obra.id}'),
-                      tooltip: 'Opções de vínculo',
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.more_vert, size: 18),
-                      onSelected: (action) {
-                        if (action == _ObraVinculoAction.trocarPapel) {
-                          onTrocarPapel?.call();
-                        } else {
-                          onRemover?.call();
-                        }
-                      },
-                      itemBuilder: (_) => [
-                        if (onTrocarPapel != null)
-                          const PopupMenuItem(
-                            value: _ObraVinculoAction.trocarPapel,
-                            child: Text('Trocar papel'),
-                          ),
-                        if (onRemover != null)
-                          const PopupMenuItem(
-                            value: _ObraVinculoAction.remover,
-                            child: Text('Remover da obra'),
-                          ),
-                      ],
-                    ),
+              ),
+              if (hasMenu)
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: PopupMenuButton<_ObraVinculoAction>(
+                    key: Key('overflow-${obra.id}'),
+                    tooltip: 'Opções de vínculo de $nome',
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.more_vert, size: 24),
+                    onSelected: (action) {
+                      if (action == _ObraVinculoAction.trocarPapel) {
+                        onTrocarPapel?.call();
+                      } else {
+                        onRemover?.call();
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (onTrocarPapel != null)
+                        const PopupMenuItem(
+                          value: _ObraVinculoAction.trocarPapel,
+                          child: Text('Trocar papel'),
+                        ),
+                      if (onRemover != null)
+                        const PopupMenuItem(
+                          value: _ObraVinculoAction.remover,
+                          child: Text('Remover da obra'),
+                        ),
+                    ],
                   ),
-              ],
-            ),
+                ),
+            ],
+          ),
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
@@ -159,9 +160,8 @@ class ObraVinculoRow extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
+    }
 }
 
 enum _ObraVinculoAction { trocarPapel, remover }
