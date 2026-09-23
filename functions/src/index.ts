@@ -328,3 +328,29 @@ export const finalizeDiario = callable('finalizeDiario', async (d, uid) => {
     tx.create(command, {payloadHash: h, result, actor: uid, at: stamp()}); audit(tx, uid, 'finalizeDiario', ref.path); return result;
   });
 });
+
+export const processLogo = functions.storage.object().onFinalize(async (object) => {
+  if (!object.name || !object.name.match(/^construtoras\/[^\/]+\/logos\/[^\/]+$/)) return;
+  if (object.metadata?.processed === 'true') return;
+
+  const bucket = admin.storage().bucket(object.bucket);
+  const file = bucket.file(object.name);
+  const [metadata] = await file.getMetadata();
+
+  if (!metadata.contentType?.startsWith('image/')) return;
+
+  const [buffer] = await file.download();
+  // @ts-ignore
+  const sharp = (await import('sharp')).default || (await import('sharp'));
+  
+  const processedBuffer = await sharp(buffer)
+    .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+    .toBuffer();
+
+  await file.save(processedBuffer, {
+    metadata: {
+      contentType: metadata.contentType,
+      metadata: { processed: 'true' }
+    }
+  });
+});

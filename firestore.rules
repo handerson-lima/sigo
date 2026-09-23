@@ -40,7 +40,7 @@ service cloud.firestore {
   match /construtoras/{c} {
    allow read: if dev() || member(c);
    allow create: if dev() && request.resource.data.id == c;
-   allow update: if admin(c) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','cnpj','address','updatedAt']);
+   allow update: if admin(c) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','cnpj','address','logoUrl','updatedAt']);
    allow delete: if dev();
    match /construtora_members/{uid} { allow read: if signed() && (request.auth.uid == uid || admin(c)); allow write: if dev(); }
    match /commands/{id} { allow read: if dev() || (signed() && resource.data.actor == request.auth.uid); allow write: if dev(); }

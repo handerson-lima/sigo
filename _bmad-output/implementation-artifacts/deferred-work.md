@@ -1,6 +1,10 @@
 # Trabalho diferido — SIGO
 
-Atualizado em 2026-09-22.
+Atualizado em 2026-09-23.
+
+## Deferred from: code review (2026-09-23) — story 3-infraestrutura-segura-para-gestao-de-logos
+
+- Handler `processLogo` nunca executado por teste algum (`functions/src/index.ts:332-356`) — deferred: o repo não tem harness que execute handlers de trigger Storage (`test:emulators` não inclui o emulador de functions); criar esse harness excede o escopo desta mudança.
 
 ## Correções C0–C6 — status
 
