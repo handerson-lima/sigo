@@ -1,3 +1,4 @@
+Review instructions:
 # Edge Case Hunter Review
 
 **Goal:** You are a pure path tracer. Never comment on whether code is good or bad; only list missing handling.
@@ -112,15 +113,15 @@ Verified claims produce nothing. Add nothing if nothing is falsified.
 "Review content:" in the message that launched you gives the content itself or a path to read it from. Read the file when it is a path; either way that is the content under review, and this instruction file never is.
 
 
-claims_file (leave unread until your instructions call for it):
+claims_file (leave unread until your instructions call for it): 
 ```markdown
 ---
-title: '9.1 Atribuir operário à obra'
-type: 'feature'
-created: '2026-09-22'
+title: 'Fix Routing Architecture'
+type: 'refactor'
+created: '2026-09-23'
 status: 'in-review'
+baseline_commit: 'dfda67bb97b4a0d4fb9f8d9aa6342eee583e5efe'
 route: 'dispatch'
-baseline_commit: '5f0b0c9ac8e2b9821186b06d03c79569d4508484'
 review_loop_iteration: 0
 context: []
 ---
@@ -129,1044 +130,1827 @@ context: []
 
 ## Intent
 
-**Problem:** Adm/owner visualiza o membro ativo na construtora no detalhe (8.3), mas o botão "Atribuir à obra" está desabilitado, impossibilitando alocar o operário em uma obra com seus respectivos módulos de acesso.
+**Problem:** A nova arquitetura modular de rotas apresenta problemas identificados em code review: falta de tratamento para 404 (erro de rota), estrutura plana que quebra o *navigation stack*, duplicação de acessos no RH, uso inadequado de `extra` para passar estados em memória e guards redundantes no módulo dev.
 
-**Approach:** Habilitar o fluxo de atribuição no `MemberDetalheSheet` para membros ativos abrindo `AtribuirObraDialog`: permitir selecionar uma obra ativa da construtora (filtrando as já vinculadas ativas), manter o papel fixado em "Operário", módulos padrão `[diario]`, exibir resumo dinâmico ao vivo e chamar `setMembership` via repositório, exibindo SnackBar de confirmação e atualizando o estado local e contadores.
+**Approach:** Refatorar o `GoRouter` no `app_router.dart` para utilizar rotas aninhadas em vez de concatenar listas planas globais. Adicionar um `errorBuilder` na instância principal. Corrigir as rotas do RH unificando os acessos duplicados e trocando a passagem via `extra` pela recuperação via ID. Limpar as chamadas redundantes ao `AccessGuard` nas rotas filhas de desenvolvedor.
 
 ## Boundaries & Constraints
 
-**Always:**
-- Apenas membros ativos na construtora podem ser atribuídos; para membros inativos (`isActive == false`), o botão "Atribuir à obra" permanece desabilitado com o aviso `Ative na construtora primeiro`.
-- Papel atribuído nesta história é estritamente `operario` (role: `operario`). Nunca enviar `owner` com `obraId`.
-- Módulos padrão pré-selecionados: `[diario]`. Módulos adicionais permitidos: `lotes`, `estoque`.
-- O botão de confirmação ("Confirmar atribuição") deve permanecer desabilitado enquanto nenhuma obra válida for selecionada ou quando não houver obras ativas disponíveis.
-- Resumo dinâmico em tempo real exibido no diálogo: `{Nome/Email} será Operário em {Obra} com acesso a {Módulos}` (UX-DR4).
-- Toda mutação passa por `setMembership{construtoraId, obraId, userId, role: 'operario', modules, isActive: true}` via Cloud Functions; a UI nunca grava diretamente na subcoleção `members`.
-- Após atribuição bem-sucedida, exibir SnackBar `Atribuído a {obra} como Operário.` e invalidar os providers (`membrosProvider`, `obraMembersProvider`, `obrasVinculadasProvider`, `contagemObrasPorMembroProvider`, `memberDetalheProvider`).
-- Normalização na leitura de membro de obra: `member` vira `Operário`.
-- Acessibilidade: diálogos com rótulos semânticos, foco inicial, suporte a fechar via tecla Esc e suporte a escala de fonte `textScale` de até 1.3x sem overflow.
+**Always:** Manter a separação de rotas por feature (`*_routes.dart`), mas utilizando-os como sub-rotas ou integrados hierarquicamente para que a navegação do sistema mantenha o histórico corretamente.
 
-**Never:**
-- Não permitir selecionar ou enviar papel `owner` para vínculo de obra.
-- Não permitir atribuição sem obra selecionada.
-- Não usar fila offline para atribuição de novos membros (operação online-only; AD-6/NFR2).
-- Não criar `collectionGroup` queries.
+**Never:** Usar `state.extra` para passagem de dados críticos entre telas de navegação profunda; não depender de rotas totalmente planas no `GoRouter` raiz para recursos aninhados.
 
-## I/O & Edge-Case Matrix
-
-| Scenario | Input / State | Expected Output / Behavior | Error Handling |
-|----------|--------------|---------------------------|----------------|
-| HAPPY_PATH atribuição | Membro ativo, clica "Atribuir à obra", seleciona obra ativa, módulos `[diario]`, confirma | Chama `setMembership`, fecha dialog, SnackBar `Atribuído a {obra} como Operário.`, invalida providers e N obras atualiza | Exibe SnackBar com erro caso a Cloud Function falhe |
-| Sem obra selecionada | Dialog aberto sem obra escolhida | Botão de confirmar desabilitado; resumo indica seleção pendente | N/A |
-| Nenhuma obra ativa | Construtora sem obras ativas ou membro já vinculado a todas | Dropdown exibe `Nenhuma obra ativa`; botão de confirmar desabilitado | N/A |
-| Membro inativo | `member.isActive == false` | Botão "Atribuir à obra" desabilitado no `MemberDetalheSheet` | Mantém aviso inline `Ative na construtora primeiro` |
-| Resumo dinâmico | Usuário altera obra ou módulos selecionados | Texto do resumo atualiza instantaneamente com nome da obra e módulos ativos | N/A |
-| Teclado / Esc | Tecla Esc pressionada no diálogo | Diálogo fecha sem disparar mutação | N/A |
-| textScale 1.3 | Escala de texto ampliada para 1.3x | Sem overflow de renderização no dialog ou resumo | N/A |
+**Decisões Arquiteturais:**
+Utilizar a Opção A (Nested Router Root) para a hierarquia da construtora. Todas as rotas de `obras`, `rh`, `diario`, etc. deverão ser configuradas como rotas filhas no `app_router.dart`.
 
 </frozen-after-approval>
 
 ## Code Map
 
-- `app/lib/src/features/obras/data/obra_members_repository.dart` -- **novo**: Repositório com método `setMembership` chamando `FirebaseFunctions.instance.httpsCallable('setMembership')` e provider `obraMembersRepositoryProvider`.
-- `app/lib/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart` -- **novo**: Diálogo `AtribuirObraDialog` com seleção de obra ativa, checkboxes/chips de módulos (`diario` default), resumo em tempo real e botão de confirmação.
-- `app/lib/src/features/construtoras/presentation/member_detalhe_sheet.dart` -- Habilitar o botão `Atribuir à obra` quando o membro estiver ativo (`isActive == true`), abrindo `AtribuirObraDialog.show`.
-- `app/lib/src/features/construtoras/presentation/membros_providers.dart` -- Helper para invalidação completa de estado pós-atribuição e lista de obras disponíveis para atribuição (filtrando as já vinculadas ativas).
-- `app/test/features/construtoras/membros_test.dart` -- Testes automatizados cobrindo os cenários da matriz de I/O da história 9.1.
+- `app/lib/src/routing/app_router.dart` -- Ponto de entrada do GoRouter. Precisa do `errorBuilder` e de reestruturar a montagem das rotas filhas para suportar aninhamento (nested routes).
+- `app/lib/src/features/developer/routing/dev_routes.dart` -- Remover a duplicação do `AccessGuard` interno, confiando no `app_router`.
+- `app/lib/src/features/rh/routing/rh_routes.dart` -- Consolidar `RhPaths.rh` e `RhPaths.funcionarios`. Remover o uso de `state.extra` em `editarFuncionario`.
+- `app/lib/src/features/construtoras/routing/construtora_routes.dart` -- Ajustar para suportar aninhamento das demais rotas filhas (obras, diário, RH).
+- Demais arquivos `*_routes.dart` -- Atualizar seus `paths` (retirando prefixos estáticos de caminho pai) caso passem a ser declaradas como sub-rotas.
 
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `app/lib/src/features/obras/data/obra_members_repository.dart` -- criar repositório e provider para chamada segura à Cloud Function `setMembership` -- infraestrutura de dados/mutação.
-- [x] `app/lib/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart` -- criar widget do diálogo com seleção de obra, módulos padrão `[diario]`, resumo dinâmico e validações -- interface de atribuição.
-- [x] `app/lib/src/features/construtoras/presentation/member_detalhe_sheet.dart` -- integrar abertura de `AtribuirObraDialog` ao botão `Atribuir à obra` para membros ativos -- integração do fluxo.
-- [x] `app/test/features/construtoras/membros_test.dart` -- adicionar testes de widget para fluxo de atribuição, resumo dinâmico, validação de desabilitação e feedback visual -- cobertura e regressão.
+- [ ] `app/lib/src/routing/app_router.dart` -- Adicionar `errorBuilder` retornando uma tela de erro padrão ou redirecionando -- Lida com rotas não encontradas (404).
+- [ ] `app/lib/src/features/developer/routing/dev_routes.dart` -- Remover `AccessGuard(devOnly: true)` dos `GoRoute` -- Reduz complexidade pois `app_router.dart` já possui `redirect` global.
+- [ ] `app/lib/src/features/rh/routing/rh_routes.dart` -- Remover rota duplicada (`RhPaths.rh` / `RhPaths.funcionarios`) -- Limpeza de código e evitar duas URIs pra mesma tela.
+- [ ] `app/lib/src/features/rh/routing/rh_routes.dart` -- Alterar passagem do Funcionario do `extra` para usar o `fId` no fetch -- Suporte real a deep link.
+- [ ] `app/lib/src/routing/app_router.dart` e `*_routes.dart` -- Refatorar para usar nested routes hierárquicas (ex: rotas filhas de `/construtora/:cId`) -- Consertar a pilha de navegação (back button).
 
 **Acceptance Criteria:**
-- Given detalhe de membro ativo na construtora, when toco `Atribuir à obra`, seleciono obra ativa, mantenho `Operário`, módulos default `[diario]`, confirmo, then chama `setMembership{construtoraId, obraId, role: 'operario', modules: ['diario'], isActive: true}` e vejo `Atribuído a {obra} como Operário.` + lista atualiza N obras.
-- Given o diálogo de atribuição aberto sem obra selecionada, then botão de confirmar fica desabilitado e o resumo indica a pendência.
-- Given membro inativo na construtora, then o botão `Atribuir à obra` permanece desabilitado.
-
-## Implementation Notes
-
-- Criado `ObraMembersRepository` e seu provider `obraMembersRepositoryProvider` para disparar a Cloud Function autoritativa `setMembership`.
-- Criado `AtribuirObraDialog` com suporte a seleção de obras ativas (filtrando obras já vinculadas), papel fixo "Operário", seleção de módulos com `[diario]` pré-selecionado, resumo em tempo real e prevenção de overflow via `Wrap`.
-- Integrado botão "Atribuir à obra" no `MemberDetalheSheet` apenas para membros ativos (`isActive == true`). Membros inativos mantêm o botão desabilitado.
-- Adicionada suíte de testes completa cobrindo todos os cenários da matriz de I/O (HAPPY_PATH, validação de desabilitação sem obra ou sem obras ativas, membro inativo, atualização em tempo real do resumo ao vivo, cancelamento, tratamento de erro do backend e `textScale 1.3`).
-- 74 testes executados e aprovados com `flutter analyze` 100% limpo.
-
-## Spec Change Log
-
-## Review Triage Log
+- Given que acesso uma URL inválida, when carregar, then o `errorBuilder` entra em ação impedindo crash.
+- Given que navego para a página de Editar Funcionário a partir de um link direto (deep link / F5), when o `fId` está na URL, then a página carrega corretamente os dados sem quebrar por falta de estado no `extra`.
+- Given que o aplicativo monta o Router, when eu verifico a rota de desenvolvedor, then não há múltiplos `AccessGuard` sobrepondo-se desnecessariamente.
 
 ## Design Notes
 
-- Módulos suportados no diálogo:
-  - `diario`: rótulo "Diário de Obras" (obrigatório/default)
-  - `lotes`: rótulo "Lotes"
-  - `estoque`: rótulo "Estoque"
-- O resumo dinâmico usa a fórmula: `{Nome/Email} será Operário em {Obra} com acesso a {Módulos}`.
-- Ao salvar com sucesso, exibe `SnackBar(content: Text('Atribuído a $obraNome como Operário.'))`.
+A hierarquia de rotas de entidades vinculadas à construtora deve seguir este padrão aproximado no `app_router`:
 
-## Verification
-
-**Commands:**
-- `flutter test test/features/construtoras/membros_test.dart` -- expected: All tests pass.
-- `flutter analyze` -- expected: 0 issues found.
+```dart
+GoRoute(
+  path: '/construtora/:cId',
+  builder: (context, state) => ..., 
+  routes: [
+    ...obraRoutes,   // path passará a ser 'obra/:oId' (e não '/construtora/:cId/obra/:oId')
+    ...rhRoutes,
+    ...diarioRoutes,
+  ]
+)
+```
+Isso demandará atualizar os `path` nos arquivos de sub-rotas para serem relativos ou ajustados conforme documentação do GoRouter.
 
 ```
 
 Review content:
 ```diff
-diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
-index 3942235..339cdf9 100644
---- a/_bmad-output/implementation-artifacts/sprint-status.yaml
-+++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
-@@ -114,8 +114,8 @@ development_status:
-   8-3-detalhe-do-membro: done
-   epic-8-retrospective: done
+diff --git a/_bmad-output/planning-artifacts/ux-designs/ux-obras-2026-09-23/.memlog.md b/_bmad-output/planning-artifacts/ux-designs/ux-obras-2026-09-23/.memlog.md
+index 8fb1db9..c232dfe 100644
+--- a/_bmad-output/planning-artifacts/ux-designs/ux-obras-2026-09-23/.memlog.md
++++ b/_bmad-output/planning-artifacts/ux-designs/ux-obras-2026-09-23/.memlog.md
+@@ -1,6 +1,6 @@
+ ---
+ topic: SIGO — Design system global
+-updated: 2026-09-23T06:28
++updated: 2026-09-23T06:41
+ ---
  
--  epic-9: backlog
--  9-1-atribuir-operario-a-obra: backlog
-+  epic-9: in-progress
-+  9-1-atribuir-operario-a-obra: in-progress
-   9-2-atribuir-admin-erros-e-offline: backlog
-   epic-9-retrospective: optional
- 
-diff --git a/app/lib/src/features/construtoras/presentation/member_detalhe_sheet.dart b/app/lib/src/features/construtoras/presentation/member_detalhe_sheet.dart
-index d93b83d..6587dfb 100644
---- a/app/lib/src/features/construtoras/presentation/member_detalhe_sheet.dart
-+++ b/app/lib/src/features/construtoras/presentation/member_detalhe_sheet.dart
-@@ -6,6 +6,7 @@ import '../../obras/domain/obra_member.dart';
- import '../domain/construtora_member.dart';
- import '../domain/membro.dart';
- import 'membros_providers.dart';
-+import 'widgets/atribuir_obra_dialog.dart';
- import 'widgets/obra_vinculo_row.dart';
- import 'widgets/role_chip.dart';
- 
-@@ -165,39 +166,42 @@ class MemberDetalheSheet extends ConsumerWidget {
-               ),
-             ),
-             const SizedBox(height: 4),
--            Semantics(
--              label: 'Disponível em breve',
--              child: Column(
--                mainAxisSize: MainAxisSize.min,
--                crossAxisAlignment: CrossAxisAlignment.stretch,
--                children: [
--                  Text(
--                    'Disponível em breve',
--                    style: theme.textTheme.bodySmall?.copyWith(
--                      color: theme.colorScheme.onSurfaceVariant,
-+            Column(
-+              mainAxisSize: MainAxisSize.min,
-+              crossAxisAlignment: CrossAxisAlignment.stretch,
-+              children: [
-+                Wrap(
-+                  spacing: 8,
-+                  runSpacing: 8,
-+                  children: [
-+                    FilledButton.tonal(
-+                      onPressed: vinculo?.isActive == true
-+                          ? () => AtribuirObraDialog.show(
-+                                context: context,
-+                                construtoraId: construtoraId,
-+                                membro: membro,
-+                              )
-+                          : null,
-+                      child: const Text('Atribuir à obra'),
-                     ),
-+                    OutlinedButton(
-+                      onPressed: null,
-+                      child: const Text('Trocar cargo'),
-+                    ),
-+                    OutlinedButton(
-+                      onPressed: null,
-+                      child: const Text('Desativar'),
-+                    ),
-+                  ],
-+                ),
-+                const SizedBox(height: 8),
-+                Text(
-+                  'Disponível em breve',
-+                  style: theme.textTheme.bodySmall?.copyWith(
-+                    color: theme.colorScheme.onSurfaceVariant,
-                   ),
--                  const SizedBox(height: 8),
--                  Wrap(
--                    spacing: 8,
--                    runSpacing: 8,
--                    children: [
--                      FilledButton.tonal(
--                        onPressed: null,
--                        child: const Text('Atribuir à obra'),
--                      ),
--                      OutlinedButton(
--                        onPressed: null,
--                        child: const Text('Trocar cargo'),
--                      ),
--                      OutlinedButton(
--                        onPressed: null,
--                        child: const Text('Desativar'),
--                      ),
--                    ],
--                  ),
--                ],
--              ),
-+                ),
-+              ],
-             ),
-           ],
-         ),
-diff --git a/app/lib/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart b/app/lib/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart
+ - (decision) Usuário: apenas design e planejamento, sem implementar. Criar planejamento global separado, preservando trabalho existente.
+@@ -20,3 +20,4 @@ updated: 2026-09-23T06:28
+ - (assumption) Proposta LoteCard para discussão: superfície clara, identificação em destaque, fase explícita, status textual com ícone, acento azul/dourado de marca separado da sinalização operacional; coluna mobile e grid desktop com ações Atualizar lote e Vistorias. Preservar destinos existentes; sem percentuais, fotos, prazos calculados ou KPIs inventados. Dados atuais: nome, fase, status e responsavelId opcional sem nome resolvido. Edição atual grava fase e status separadamente; feedback precisa reconhecer falha parcial e não prometer confirmação remota a partir de cache. Detalhes em .working/lotes-extract.md; contratos continuam in-progress.
+ - (decision) Usuário confirmou manter o contraste do conceito B; tipografia com a aparência forte da imagem; construtoras espaçosas e lotes mais compactos. Apenas design e planejamento; não aprovou fonte externa nem valores numéricos finais.
+ - (assumption) Refinamento proposto: sidebar #082344, cabeçalho textual #0D47A1–#1565C0, azul seed reservado a grafismos, dourado #FCA906; família padrão Material herdada, títulos700 e nomes600; título página desktop40/48 e telefone28/36. Construtoras padding24 desktop/20 telefone e área logo88/64; lotes padding16 e gaps8; grid mínimo desejado320 para construtora e280 para lote limitado à largura disponível. Números e estados são calibragem [ASSUMPTION], alvos mínimos48 e altura livre. Tokens de membros preservados; status in-progress. Script memlog executado com python3 pois cache uv indisponível no sandbox.
++- (event) Geradas quatro prévias ImageGen refinadas em .working/*-refinado-v1.png: construtoras/lotes desktop/mobile. Empresas e lotes fictícios; marca SIGO em texto como placeholder da logo oficial. Cards construtoras espaçosos, lotes compactos. Imagens para discussão, não aprovadas automaticamente; medidas e cores do DESIGN prevalecem sobre variações do raster. Sem implementação.
+diff --git a/app/lib/src/features/almoxarifado/routing/almoxarifado_routes.dart b/app/lib/src/features/almoxarifado/routing/almoxarifado_routes.dart
 new file mode 100644
-index 0000000..3af3ce9
+index 0000000..8e70831
 --- /dev/null
-+++ b/app/lib/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart
-@@ -0,0 +1,424 @@
-+import 'package:flutter/material.dart';
-+import 'package:flutter_riverpod/flutter_riverpod.dart';
++++ b/app/lib/src/features/almoxarifado/routing/almoxarifado_routes.dart
+@@ -0,0 +1,72 @@
++import 'package:go_router/go_router.dart';
 +
-+import '../../../obras/data/obra_members_repository.dart';
-+import '../../../obras/domain/obra.dart';
-+import '../../domain/membro.dart';
-+import '../membros_providers.dart';
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/almoxarifado_list_screen.dart';
++import '../presentation/add_material_screen.dart';
++import '../presentation/movimentacao_screen.dart';
++import '../domain/material.dart' as mat;
++import '../domain/movimentacao.dart';
++import '../../obras/presentation/access_denied_screen.dart';
 +
-+/// Diálogo de atribuição de operário a uma obra (Epic 9.1 / UX-DR4).
-+class AtribuirObraDialog extends ConsumerStatefulWidget {
-+  final String construtoraId;
-+  final Membro membro;
++/// Constantes de path para almoxarifado.
++abstract class AlmoxarifadoPaths {
++  static const list = 'almoxarifado';
++  static const novoMaterial = 'almoxarifado/novo_material';
++  static const movimentacao = 'almoxarifado/movimentacao';
 +
-+  const AtribuirObraDialog({
-+    super.key,
-+    required this.construtoraId,
-+    required this.membro,
-+  });
-+
-+  static Future<void> show({
-+    required BuildContext context,
-+    required String construtoraId,
-+    required Membro membro,
-+  }) {
-+    return showDialog<void>(
-+      context: context,
-+      builder: (context) => AtribuirObraDialog(
-+        construtoraId: construtoraId,
-+        membro: membro,
-+      ),
-+    );
-+  }
-+
-+  @override
-+  ConsumerState<AtribuirObraDialog> createState() => _AtribuirObraDialogState();
++  static String listFor(String cId) => '/construtora/$cId/almoxarifado';
++  static String novoMaterialFor(String cId) =>
++      '/construtora/$cId/almoxarifado/novo_material';
++  static String movimentacaoFor(String cId) =>
++      '/construtora/$cId/almoxarifado/movimentacao';
 +}
 +
-+class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
-+  String? _selectedObraId;
-+  bool _isSubmitting = false;
-+  String? _errorMessage;
-+
-+  final Map<String, bool> _modules = {
-+    'diario': true,
-+    'lotes': false,
-+    'estoque': false,
-+  };
-+
-+  static const Map<String, String> _moduleLabels = {
-+    'diario': 'Diário de Obras',
-+    'lotes': 'Lotes',
-+    'estoque': 'Estoque',
-+  };
-+
-+  static const Map<String, String> _moduleSummaryLabels = {
-+    'diario': 'Diário',
-+    'lotes': 'Lotes',
-+    'estoque': 'Estoque',
-+  };
-+
-+  String get _identificadorMembro {
-+    final email = widget.membro.email.trim();
-+    return email.isNotEmpty ? email : 'UID: ${widget.membro.uid}';
-+  }
-+
-+  String _gerarResumo(List<Obra> obras) {
-+    if (_selectedObraId == null) {
-+      return 'Selecione uma obra para ver o resumo da atribuição.';
-+    }
-+    final obra = obras.firstWhere(
-+      (o) => o.id == _selectedObraId,
-+      orElse: () => Obra(
-+        id: _selectedObraId!,
-+        construtoraId: widget.construtoraId,
-+        name: 'Obra',
-+        createdAt: DateTime.now(),
-+      ),
-+    );
-+    final obraNome = obra.name.trim().isNotEmpty ? obra.name : 'Obra ${obra.id}';
-+
-+    final selecionados = _modules.entries
-+        .where((e) => e.value)
-+        .map((e) => _moduleSummaryLabels[e.key] ?? e.key)
-+        .toList();
-+
-+    final modulosTexto =
-+        selecionados.isEmpty ? 'nenhum módulo' : selecionados.join(', ');
-+
-+    return '$_identificadorMembro será Operário em $obraNome com acesso a $modulosTexto';
-+  }
-+
-+  Future<void> _confirmar(String obraNome) async {
-+    if (_selectedObraId == null || _isSubmitting) return;
-+
-+    setState(() {
-+      _isSubmitting = true;
-+      _errorMessage = null;
-+    });
-+
-+    final selectedModules = _modules.entries
-+        .where((e) => e.value)
-+        .map((e) => e.key)
-+        .toList();
-+
-+    try {
-+      await ref.read(obraMembersRepositoryProvider).setMembership(
-+            construtoraId: widget.construtoraId,
-+            obraId: _selectedObraId!,
-+            userId: widget.membro.uid,
-+            role: 'operario',
-+            modules: selectedModules,
-+            isActive: true,
++/// Rotas do módulo de almoxarifado.
++List<RouteBase> get almoxarifadoRoutes => [
++      GoRoute(
++        path: AlmoxarifadoPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'estoque',
++            child: AlmoxarifadoListScreen(construtoraId: cId),
 +          );
-+
-+      // Invalidação completa dos providers de membros para refletir o novo vínculo
-+      final cid = widget.construtoraId;
-+      final uid = widget.membro.uid;
-+      final oid = _selectedObraId!;
-+
-+      ref.invalidate(membrosProvider(cid));
-+      ref.invalidate(contagemObrasPorMembroProvider(cid));
-+      ref.invalidate(contagemObrasMetaProvider(cid));
-+      ref.invalidate(memberDetalheProvider((construtoraId: cid, uid: uid)));
-+      ref.invalidate(obrasVinculadasProvider((construtoraId: cid, uid: uid)));
-+      ref.invalidate(obraMembersProvider((construtoraId: cid, obraId: oid)));
-+
-+      if (mounted) {
-+        Navigator.of(context).pop();
-+        ScaffoldMessenger.of(context).showSnackBar(
-+          SnackBar(
-+            content: Text('Atribuído a $obraNome como Operário.'),
-+          ),
-+        );
-+      }
-+    } catch (e) {
-+      if (mounted) {
-+        setState(() {
-+          _isSubmitting = false;
-+          _errorMessage = e.toString().replaceFirst('Exception: ', '');
-+        });
-+      }
-+    }
-+  }
-+
-+  @override
-+  Widget build(BuildContext context) {
-+    final theme = Theme.of(context);
-+    final obrasAsync = ref.watch(obrasAtivasProvider(widget.construtoraId));
-+    final key = (construtoraId: widget.construtoraId, uid: widget.membro.uid);
-+    final obrasVinculadas = ref.watch(obrasVinculadasProvider(key));
-+
-+    final idsJaVinculados = obrasVinculadas.map((e) => e.obra.id).toSet();
-+
-+    return Dialog(
-+      shape: RoundedRectangleBorder(
-+        borderRadius: BorderRadius.circular(16),
++        },
 +      ),
-+      child: ConstrainedBox(
-+        constraints: BoxConstraints(
-+          maxWidth: 480,
-+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
-+        ),
-+        child: SingleChildScrollView(
-+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-+          child: obrasAsync.when(
-+            loading: () => const Padding(
-+              padding: EdgeInsets.symmetric(vertical: 32),
-+              child: Center(
-+                child: SizedBox(
-+                  width: 32,
-+                  height: 32,
-+                  child: CircularProgressIndicator(strokeWidth: 2),
-+                ),
-+              ),
++      GoRoute(
++        path: AlmoxarifadoPaths.novoMaterial,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'estoque',
++            child: AddMaterialScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: AlmoxarifadoPaths.movimentacao,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          if (state.extra is! Map<String, dynamic>) {
++            return const AccessDeniedScreen();
++          }
++          final extra = state.extra as Map<String, dynamic>;
++          final material = extra['material'] as mat.Material;
++          final typeStr = extra['type'] as String;
++          final type = typeStr == 'entrada'
++              ? MovimentacaoType.entrada
++              : MovimentacaoType.saida;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'estoque',
++            child: MovimentacaoScreen(
++              construtoraId: cId,
++              material: material,
++              type: type,
 +            ),
-+            error: (err, _) => Column(
-+              mainAxisSize: MainAxisSize.min,
-+              crossAxisAlignment: CrossAxisAlignment.stretch,
-+              children: [
-+                Text(
-+                  'Erro ao carregar obras.',
-+                  style: theme.textTheme.titleMedium,
-+                ),
-+                const SizedBox(height: 16),
-+                Align(
-+                  alignment: Alignment.centerRight,
-+                  child: TextButton(
-+                    onPressed: () => Navigator.of(context).pop(),
-+                    child: const Text('Fechar'),
-+                  ),
-+                ),
-+              ],
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/authentication/routing/auth_routes.dart b/app/lib/src/features/authentication/routing/auth_routes.dart
+new file mode 100644
+index 0000000..924481a
+--- /dev/null
++++ b/app/lib/src/features/authentication/routing/auth_routes.dart
+@@ -0,0 +1,16 @@
++import 'package:go_router/go_router.dart';
++
++import '../presentation/login_screen.dart';
++
++/// Constantes de path para autenticação.
++abstract class AuthPaths {
++  static const login = '/login';
++}
++
++/// Rotas do módulo de autenticação.
++List<RouteBase> get authRoutes => [
++      GoRoute(
++        path: AuthPaths.login,
++        builder: (context, state) => const LoginScreen(),
++      ),
++    ];
+diff --git a/app/lib/src/features/compras_parcelas/routing/compras_routes.dart b/app/lib/src/features/compras_parcelas/routing/compras_routes.dart
+new file mode 100644
+index 0000000..43b6eca
+--- /dev/null
++++ b/app/lib/src/features/compras_parcelas/routing/compras_routes.dart
+@@ -0,0 +1,96 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/compras_list_screen.dart';
++import '../presentation/compra_form_screen.dart';
++import '../presentation/compra_detalhes_screen.dart';
++
++/// Constantes de path para compras e parcelas.
++abstract class ComprasPaths {
++  static const list = 'obra/:oId/compras';
++  static const nova = 'obra/:oId/compras/nova';
++  static const detalhes = 'obra/:oId/compras/:compraId';
++  static const editar =
++      'obra/:oId/compras/:compraId/editar';
++
++  static String listFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/compras';
++  static String novaFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/compras/nova';
++  static String detalhesFor(String cId, String oId, String compraId) =>
++      '/construtora/$cId/obra/$oId/compras/$compraId';
++  static String editarFor(String cId, String oId, String compraId) =>
++      '/construtora/$cId/obra/$oId/compras/$compraId/editar';
++}
++
++/// Rotas do módulo de compras e parcelas.
++List<RouteBase> get comprasRoutes => [
++      GoRoute(
++        path: ComprasPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'compras',
++            child: ComprasListScreen(
++              construtoraId: cId,
++              obraId: oId,
 +            ),
-+            data: (todasObrasAtivas) {
-+              final obrasDisponiveis = todasObrasAtivas
-+                  .where((o) => !idsJaVinculados.contains(o.id))
-+                  .toList();
++          );
++        },
++      ),
++      GoRoute(
++        path: ComprasPaths.nova,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'compras',
++            child: CompraFormScreen(
++              construtoraId: cId,
++              obraId: oId,
++            ),
++          );
++        },
++      ),
++      GoRoute(
++        path: ComprasPaths.detalhes,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final compraId = state.pathParameters['compraId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'compras',
++            child: CompraDetalhesScreen(
++              construtoraId: cId,
++              obraId: oId,
++              compraId: compraId,
++            ),
++          );
++        },
++      ),
++      GoRoute(
++        path: ComprasPaths.editar,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final compraId = state.pathParameters['compraId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'compras',
++            child: CompraFormScreen(
++              construtoraId: cId,
++              obraId: oId,
++              compraId: compraId,
++            ),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/construtoras/routing/construtora_routes.dart b/app/lib/src/features/construtoras/routing/construtora_routes.dart
+new file mode 100644
+index 0000000..6ce9a72
+--- /dev/null
++++ b/app/lib/src/features/construtoras/routing/construtora_routes.dart
+@@ -0,0 +1,72 @@
++import 'package:go_router/go_router.dart';
 +
-+              final obraSelecionadaObj = _selectedObraId == null
-+                  ? null
-+                  : todasObrasAtivas.cast<Obra?>().firstWhere(
-+                        (o) => o?.id == _selectedObraId,
-+                        orElse: () => null,
-+                      );
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/construtoras_list_screen.dart';
++import '../../obras/presentation/obras_list_screen.dart';
++import '../presentation/membros_screen.dart';
 +
-+              final obraSelecionadaNome =
-+                  (obraSelecionadaObj?.name.trim().isNotEmpty == true)
-+                      ? obraSelecionadaObj!.name
-+                      : (_selectedObraId != null ? 'Obra $_selectedObraId' : 'Obra');
-+              final temObras = obrasDisponiveis.isNotEmpty;
++import '../../obras/routing/obra_routes.dart';
++import '../../lotes/routing/lotes_routes.dart';
++import '../../almoxarifado/routing/almoxarifado_routes.dart';
++import '../../diario/routing/diario_routes.dart';
++import '../../rh/routing/rh_routes.dart';
++import '../../epi/routing/epi_routes.dart';
++import '../../financeiro/routing/financeiro_routes.dart';
++import '../../validacao/routing/validacao_routes.dart';
++import '../../despesas_adm/routing/despesas_adm_routes.dart';
++import '../../fornecedores/routing/fornecedores_routes.dart';
++import '../../compras_parcelas/routing/compras_routes.dart';
++import '../../custos_360/routing/custos_360_routes.dart';
 +
-+              return Column(
-+                mainAxisSize: MainAxisSize.min,
-+                crossAxisAlignment: CrossAxisAlignment.stretch,
-+                children: [
-+                  Row(
-+                    children: [
-+                      Expanded(
-+                        child: Text(
-+                          'Atribuir à obra',
-+                          style: theme.textTheme.titleLarge?.copyWith(
-+                            fontWeight: FontWeight.bold,
-+                          ),
-+                        ),
-+                      ),
-+                      IconButton(
-+                        icon: const Icon(Icons.close),
-+                        tooltip: 'Fechar',
-+                        onPressed: () => Navigator.of(context).pop(),
-+                      ),
-+                    ],
-+                  ),
-+                  const SizedBox(height: 4),
-+                  Text(
-+                    'Membro: $_identificadorMembro',
-+                    style: theme.textTheme.bodyMedium?.copyWith(
-+                      color: theme.colorScheme.onSurfaceVariant,
-+                    ),
-+                  ),
-+                  const SizedBox(height: 12),
-+                  Text(
-+                    'Obra',
-+                    style: theme.textTheme.labelLarge?.copyWith(
-+                      fontWeight: FontWeight.w600,
-+                    ),
-+                  ),
-+                  const SizedBox(height: 4),
-+                  if (!temObras)
-+                    InputDecorator(
-+                      decoration: const InputDecoration(
-+                        border: OutlineInputBorder(),
-+                        contentPadding:
-+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-+                      ),
-+                      child: Text(
-+                        'Nenhuma obra ativa',
-+                        style: theme.textTheme.bodyMedium?.copyWith(
-+                          color: theme.colorScheme.onSurfaceVariant,
-+                        ),
-+                      ),
-+                    )
-+                  else
-+                    DropdownButtonFormField<String>(
-+                      initialValue: _selectedObraId,
-+                      decoration: const InputDecoration(
-+                        border: OutlineInputBorder(),
-+                        contentPadding:
-+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-+                        hintText: 'Selecione a obra',
-+                      ),
-+                      items: obrasDisponiveis.map((obra) {
-+                        final label = obra.name.trim().isNotEmpty
-+                            ? obra.name
-+                            : 'Obra ${obra.id}';
-+                        return DropdownMenuItem<String>(
-+                          value: obra.id,
-+                          child: Text(
-+                            label,
-+                            overflow: TextOverflow.ellipsis,
-+                          ),
-+                        );
-+                      }).toList(),
-+                      onChanged: _isSubmitting
-+                          ? null
-+                          : (val) {
-+                              setState(() {
-+                                _selectedObraId = val;
-+                              });
-+                            },
-+                    ),
-+                  const SizedBox(height: 12),
-+                  Text(
-+                    'Papel na obra',
-+                    style: theme.textTheme.labelLarge?.copyWith(
-+                      fontWeight: FontWeight.w600,
-+                    ),
-+                  ),
-+                  const SizedBox(height: 4),
-+                  InputDecorator(
-+                    decoration: const InputDecoration(
-+                      border: OutlineInputBorder(),
-+                      contentPadding:
-+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-+                    ),
-+                    child: Row(
-+                      children: [
-+                        const Icon(Icons.engineering, size: 20),
-+                        const SizedBox(width: 8),
-+                        Text(
-+                          'Operário',
-+                          style: theme.textTheme.bodyMedium?.copyWith(
-+                            fontWeight: FontWeight.w500,
-+                          ),
-+                        ),
-+                      ],
-+                    ),
-+                  ),
-+                  const SizedBox(height: 12),
-+                  Text(
-+                    'Módulos de acesso',
-+                    style: theme.textTheme.labelLarge?.copyWith(
-+                      fontWeight: FontWeight.w600,
-+                    ),
-+                  ),
-+                  ..._modules.keys.map((modKey) {
-+                    final label = _moduleLabels[modKey] ?? modKey;
-+                    final isChecked = _modules[modKey] ?? false;
-+                    return CheckboxListTile(
-+                      dense: true,
-+                      visualDensity: VisualDensity.compact,
-+                      contentPadding: EdgeInsets.zero,
-+                      title: Text(label),
-+                      value: isChecked,
-+                      onChanged: _isSubmitting
-+                          ? null
-+                          : (bool? val) {
-+                              setState(() {
-+                                _modules[modKey] = val ?? false;
-+                              });
-+                            },
-+                    );
-+                  }),
-+                  const SizedBox(height: 8),
-+                  Container(
-+                    padding: const EdgeInsets.all(10),
-+                    decoration: BoxDecoration(
-+                      color: theme.colorScheme.surfaceContainerHighest
-+                          .withValues(alpha: 0.5),
-+                      borderRadius: BorderRadius.circular(8),
-+                      border: Border.all(
-+                        color: theme.colorScheme.outlineVariant,
-+                      ),
-+                    ),
-+                    child: Column(
-+                      crossAxisAlignment: CrossAxisAlignment.start,
-+                      children: [
-+                        Text(
-+                          'Resumo da atribuição',
-+                          style: theme.textTheme.labelMedium?.copyWith(
-+                            fontWeight: FontWeight.bold,
-+                            color: theme.colorScheme.primary,
-+                          ),
-+                        ),
-+                        const SizedBox(height: 2),
-+                        Text(
-+                          _gerarResumo(todasObrasAtivas),
-+                          style: theme.textTheme.bodySmall?.copyWith(
-+                            color: theme.colorScheme.onSurface,
-+                          ),
-+                        ),
-+                      ],
-+                    ),
-+                  ),
-+                  if (_errorMessage != null) ...[
-+                    const SizedBox(height: 8),
-+                    Text(
-+                      _errorMessage!,
-+                      style: theme.textTheme.bodySmall?.copyWith(
-+                        color: theme.colorScheme.error,
-+                        fontWeight: FontWeight.w600,
-+                      ),
-+                    ),
-+                  ],
-+                  const SizedBox(height: 16),
-+                  Wrap(
-+                    alignment: WrapAlignment.end,
-+                    crossAxisAlignment: WrapCrossAlignment.center,
-+                    spacing: 12,
-+                    runSpacing: 8,
-+                    children: [
-+                      TextButton(
-+                        onPressed: _isSubmitting
-+                            ? null
-+                            : () => Navigator.of(context).pop(),
-+                        child: const Text('Cancelar'),
-+                      ),
-+                      FilledButton(
-+                        onPressed: (_selectedObraId != null &&
-+                                temObras &&
-+                                !_isSubmitting)
-+                            ? () => _confirmar(obraSelecionadaNome)
-+                            : null,
-+                        child: _isSubmitting
-+                            ? const SizedBox(
-+                                width: 18,
-+                                height: 18,
-+                                child: CircularProgressIndicator(
-+                                  strokeWidth: 2,
-+                                  color: Colors.white,
-+                                ),
-+                              )
-+                            : const Text('Confirmar atribuição'),
-+                      ),
-+                    ],
-+                  ),
-+                ],
++/// Constantes de path para construtoras.
++abstract class ConstrutoraPaths {
++  static const list = '/';
++  static const detail = '/construtora/:cId';
++  static const membros = 'membros';
++
++  static String detailFor(String cId) => '/construtora/$cId';
++  static String membrosFor(String cId) => '/construtora/$cId/membros';
++}
++
++/// Rotas do módulo de construtoras.
++List<RouteBase> get construtoraRoutes => [
++      GoRoute(
++        path: ConstrutoraPaths.list,
++        builder: (context, state) => const ConstrutorasListScreen(),
++      ),
++      GoRoute(
++        path: ConstrutoraPaths.detail,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: ObrasListScreen(construtoraId: cId),
++          );
++        },
++        routes: [
++          GoRoute(
++            path: ConstrutoraPaths.membros,
++            builder: (context, state) {
++              final cId = state.pathParameters['cId']!;
++              return AccessGuard(
++                construtoraId: cId,
++                adminOnly: true,
++                child: MembrosScreen(construtoraId: cId),
 +              );
 +            },
 +          ),
++          ...obraRoutes,
++          ...lotesRoutes,
++          ...almoxarifadoRoutes,
++          ...diarioRoutes,
++          ...rhRoutes,
++          ...epiRoutes,
++          ...financeiroRoutes,
++          ...validacaoRoutes,
++          ...fornecedoresRoutes,
++          ...comprasRoutes,
++          ...custos360Routes,
++          ...despesasAdmRoutes,
++        ],
++      ),
++    ];
+diff --git a/app/lib/src/features/custos_360/routing/custos_360_routes.dart b/app/lib/src/features/custos_360/routing/custos_360_routes.dart
+new file mode 100644
+index 0000000..625f71b
+--- /dev/null
++++ b/app/lib/src/features/custos_360/routing/custos_360_routes.dart
+@@ -0,0 +1,52 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/visao_360_custos_screen.dart';
++import '../presentation/lote_custo_detalhe_screen.dart';
++
++/// Constantes de path para custos 360.
++abstract class Custos360Paths {
++  static const visao360 = 'obra/:oId/custos-360';
++  static const loteCusto =
++      'obra/:oId/custos-360/lotes/:loteId';
++
++  static String visao360For(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/custos-360';
++  static String loteCustoFor(String cId, String oId, String loteId) =>
++      '/construtora/$cId/obra/$oId/custos-360/lotes/$loteId';
++}
++
++/// Rotas do módulo de custos 360.
++List<RouteBase> get custos360Routes => [
++      GoRoute(
++        path: Custos360Paths.visao360,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'adm',
++            child: Visao360CustosScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: Custos360Paths.loteCusto,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final loteId = state.pathParameters['loteId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'adm',
++            child: LoteCustoDetalheScreen(
++              construtoraId: cId,
++              obraId: oId,
++              loteId: loteId,
++            ),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/despesas_adm/routing/despesas_adm_routes.dart b/app/lib/src/features/despesas_adm/routing/despesas_adm_routes.dart
+new file mode 100644
+index 0000000..0aeecaf
+--- /dev/null
++++ b/app/lib/src/features/despesas_adm/routing/despesas_adm_routes.dart
+@@ -0,0 +1,90 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/despesas_adm_list_screen.dart';
++import '../presentation/despesa_adm_form_screen.dart';
++import '../presentation/despesa_adm_details_screen.dart';
++
++/// Constantes de path para despesas administrativas.
++abstract class DespesasAdmPaths {
++  static const list = 'obra/:oId/despesas';
++  static const nova = 'obra/:oId/despesas/nova';
++  static const detalhes = 'obra/:oId/despesas/:despesaId';
++  static const editar =
++      'obra/:oId/despesas/:despesaId/editar';
++
++  static String listFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/despesas';
++  static String novaFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/despesas/nova';
++  static String detalhesFor(String cId, String oId, String despesaId) =>
++      '/construtora/$cId/obra/$oId/despesas/$despesaId';
++  static String editarFor(String cId, String oId, String despesaId) =>
++      '/construtora/$cId/obra/$oId/despesas/$despesaId/editar';
++}
++
++/// Rotas do módulo de despesas administrativas.
++List<RouteBase> get despesasAdmRoutes => [
++      GoRoute(
++        path: DespesasAdmPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'adm',
++            child: DespesasAdmListScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: DespesasAdmPaths.nova,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'adm',
++            child: DespesaAdmFormScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: DespesasAdmPaths.detalhes,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final despesaId = state.pathParameters['despesaId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'adm',
++            child: DespesaAdmDetailsScreen(
++              construtoraId: cId,
++              obraId: oId,
++              despesaId: despesaId,
++            ),
++          );
++        },
++      ),
++      GoRoute(
++        path: DespesasAdmPaths.editar,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final despesaId = state.pathParameters['despesaId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'adm',
++            child: DespesaAdmFormScreen(
++              construtoraId: cId,
++              obraId: oId,
++              despesaId: despesaId,
++            ),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/developer/routing/dev_routes.dart b/app/lib/src/features/developer/routing/dev_routes.dart
+new file mode 100644
+index 0000000..b9e4cd0
+--- /dev/null
++++ b/app/lib/src/features/developer/routing/dev_routes.dart
+@@ -0,0 +1,40 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/dev_panel_screen.dart';
++import '../presentation/users_list_screen.dart';
++import '../presentation/user_details_screen.dart';
++import '../presentation/dev_construtoras_list_screen.dart';
++
++/// Constantes de path para o painel de desenvolvedor.
++abstract class DevPaths {
++  static const panel = '/dev';
++  static const users = '/dev/users';
++  static const userDetails = '/dev/users/:uid';
++  static const construtoras = '/dev/construtoras';
++
++  static String userDetailsFor(String uid) => '/dev/users/$uid';
++}
++
++/// Rotas do módulo de desenvolvedor.
++List<RouteBase> get devRoutes => [
++      GoRoute(
++        path: DevPaths.panel,
++        builder: (context, state) => const DevPanelScreen(),
++      ),
++      GoRoute(
++        path: DevPaths.users,
++        builder: (context, state) => const UsersListScreen(),
++      ),
++      GoRoute(
++        path: DevPaths.userDetails,
++        builder: (context, state) {
++          final uid = state.pathParameters['uid']!;
++          return UserDetailsScreen(userId: uid);
++        },
++      ),
++      GoRoute(
++        path: DevPaths.construtoras,
++        builder: (context, state) => const DevConstrutorasListScreen(),
++      ),
++    ];
+diff --git a/app/lib/src/features/diario/routing/diario_routes.dart b/app/lib/src/features/diario/routing/diario_routes.dart
+new file mode 100644
+index 0000000..f893c24
+--- /dev/null
++++ b/app/lib/src/features/diario/routing/diario_routes.dart
+@@ -0,0 +1,75 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/diarios_list_screen.dart';
++import '../presentation/add_diario_screen.dart';
++import '../presentation/sync_queue_screen.dart';
++
++/// Constantes de path para diário de obra.
++abstract class DiarioPaths {
++  static const syncConstrutora = 'sync';
++  static const list = 'obra/:oId/diarios';
++  static const novo = 'obra/:oId/diarios/novo';
++  static const sync = 'obra/:oId/diarios/sync';
++
++  static String syncConstrutoraFor(String cId) => '/construtora/$cId/sync';
++  static String listFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/diarios';
++  static String novoFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/diarios/novo';
++  static String syncFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/diarios/sync';
++}
++
++/// Rotas do módulo de diário de obra.
++List<RouteBase> get diarioRoutes => [
++      GoRoute(
++        path: DiarioPaths.syncConstrutora,
++        builder: (context, state) => AccessGuard(
++          construtoraId: state.pathParameters['cId']!,
++          child: SyncQueueScreen(
++            construtoraId: state.pathParameters['cId']!,
++            obraId: '',
++          ),
 +        ),
++      ),
++      GoRoute(
++        path: DiarioPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'diario',
++            child: DiariosListScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: DiarioPaths.novo,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'diario',
++            child: AddDiarioScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: DiarioPaths.sync,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'diario',
++            child: SyncQueueScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/epi/routing/epi_routes.dart b/app/lib/src/features/epi/routing/epi_routes.dart
+new file mode 100644
+index 0000000..5a8e5ed
+--- /dev/null
++++ b/app/lib/src/features/epi/routing/epi_routes.dart
+@@ -0,0 +1,46 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/catalogo_epis_screen.dart';
++import '../presentation/entrega_epi_screen.dart';
++
++/// Constantes de path para EPIs.
++abstract class EpiPaths {
++  static const catalogo = 'epis';
++  static const entrega = 'obra/:oId/epis/entrega';
++
++  static String catalogoFor(String cId) => '/construtora/$cId/epis';
++  static String entregaFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/epis/entrega';
++}
++
++/// Rotas do módulo de EPIs.
++List<RouteBase> get epiRoutes => [
++      GoRoute(
++        path: EpiPaths.catalogo,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'epi',
++            child: CatalogoEpisScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: EpiPaths.entrega,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'epi',
++            child: EntregaEpiScreen(
++              construtoraId: cId,
++              obraId: oId,
++            ),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/financeiro/routing/financeiro_routes.dart b/app/lib/src/features/financeiro/routing/financeiro_routes.dart
+new file mode 100644
+index 0000000..ac6d6cc
+--- /dev/null
++++ b/app/lib/src/features/financeiro/routing/financeiro_routes.dart
+@@ -0,0 +1,42 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/financeiro_list_screen.dart';
++import '../presentation/add_despesa_screen.dart';
++
++/// Constantes de path para financeiro.
++abstract class FinanceiroPaths {
++  static const list = 'financeiro';
++  static const novo = 'financeiro/novo';
++
++  static String listFor(String cId) => '/construtora/$cId/financeiro';
++  static String novoFor(String cId) => '/construtora/$cId/financeiro/novo';
++}
++
++/// Rotas do módulo financeiro.
++List<RouteBase> get financeiroRoutes => [
++      GoRoute(
++        path: FinanceiroPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'financeiro',
++            adminOnly: true,
++            child: FinanceiroListScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: FinanceiroPaths.novo,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'financeiro',
++            adminOnly: true,
++            child: AddDespesaScreen(construtoraId: cId),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/fornecedores/routing/fornecedores_routes.dart b/app/lib/src/features/fornecedores/routing/fornecedores_routes.dart
+new file mode 100644
+index 0000000..5331a22
+--- /dev/null
++++ b/app/lib/src/features/fornecedores/routing/fornecedores_routes.dart
+@@ -0,0 +1,55 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/fornecedores_list_screen.dart';
++import '../presentation/fornecedor_form_screen.dart';
++
++/// Constantes de path para fornecedores.
++abstract class FornecedoresPaths {
++  static const list = 'fornecedores';
++  static const novo = 'fornecedores/novo';
++  static const editar = 'fornecedores/:fornecedorId/editar';
++
++  static String listFor(String cId) => '/construtora/$cId/fornecedores';
++  static String novoFor(String cId) => '/construtora/$cId/fornecedores/novo';
++  static String editarFor(String cId, String fornecedorId) =>
++      '/construtora/$cId/fornecedores/$fornecedorId/editar';
++}
++
++/// Rotas do módulo de fornecedores.
++List<RouteBase> get fornecedoresRoutes => [
++      GoRoute(
++        path: FornecedoresPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: FornecedoresListScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: FornecedoresPaths.novo,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: FornecedorFormScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: FornecedoresPaths.editar,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final fornecedorId = state.pathParameters['fornecedorId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: FornecedorFormScreen(
++              construtoraId: cId,
++              fornecedorId: fornecedorId,
++            ),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/lotes/routing/lotes_routes.dart b/app/lib/src/features/lotes/routing/lotes_routes.dart
+new file mode 100644
+index 0000000..5eb2ba1
+--- /dev/null
++++ b/app/lib/src/features/lotes/routing/lotes_routes.dart
+@@ -0,0 +1,47 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/lotes_list_screen.dart';
++import '../presentation/add_lote_screen.dart';
++
++/// Constantes de path para lotes.
++abstract class LotesPaths {
++  static const list = 'obra/:oId/lotes';
++  static const novo = 'obra/:oId/lotes/novo';
++
++  static String listFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/lotes';
++  static String novoFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/lotes/novo';
++}
++
++/// Rotas do módulo de lotes.
++List<RouteBase> get lotesRoutes => [
++      GoRoute(
++        path: LotesPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'lotes',
++            child: LotesListScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: LotesPaths.novo,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'lotes',
++            adminOnly: true,
++            child: AddLoteScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/obras/routing/obra_routes.dart b/app/lib/src/features/obras/routing/obra_routes.dart
+new file mode 100644
+index 0000000..297006a
+--- /dev/null
++++ b/app/lib/src/features/obras/routing/obra_routes.dart
+@@ -0,0 +1,28 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/obra_dashboard_screen.dart';
++
++/// Constantes de path para obras.
++abstract class ObraPaths {
++  static const dashboard = 'obra/:oId';
++
++  static String dashboardFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId';
++}
++
++/// Rotas do módulo de obras.
++List<RouteBase> get obraRoutes => [
++      GoRoute(
++        path: ObraPaths.dashboard,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            child: ObraDashboardScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/rh/routing/rh_routes.dart b/app/lib/src/features/rh/routing/rh_routes.dart
+new file mode 100644
+index 0000000..89b50ea
+--- /dev/null
++++ b/app/lib/src/features/rh/routing/rh_routes.dart
+@@ -0,0 +1,121 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/funcionarios_list_screen.dart';
++import '../presentation/funcionario_form_screen.dart';
++import '../domain/funcionario.dart';
++import '../presentation/chamadas_list_screen.dart';
++import '../presentation/chamada_form_screen.dart';
++
++/// Constantes de path para RH.
++abstract class RhPaths {
++  
++  static const funcionarios = 'rh/funcionarios';
++  static const novoFuncionario = 'rh/funcionarios/novo';
++  static const editarFuncionario =
++      'rh/funcionarios/:fId/editar';
++  static const chamadas = 'obra/:oId/rh/chamadas';
++  static const novaChamada = 'obra/:oId/rh/chamadas/nova';
++  static const editarChamada =
++      'obra/:oId/rh/chamadas/:chId';
++
++  static String rhFor(String cId) => '/construtora/$cId/rh';
++  static String funcionariosFor(String cId) =>
++      '/construtora/$cId/rh/funcionarios';
++  static String novoFuncionarioFor(String cId) =>
++      '/construtora/$cId/rh/funcionarios/novo';
++  static String editarFuncionarioFor(String cId, String fId) =>
++      '/construtora/$cId/rh/funcionarios/$fId/editar';
++  static String chamadasFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/rh/chamadas';
++  static String novaChamadaFor(String cId, String oId) =>
++      '/construtora/$cId/obra/$oId/rh/chamadas/nova';
++  static String editarChamadaFor(String cId, String oId, String chId) =>
++      '/construtora/$cId/obra/$oId/rh/chamadas/$chId';
++}
++
++/// Rotas do módulo de RH (funcionários + chamadas).
++List<RouteBase> get rhRoutes => [
++
++      GoRoute(
++        path: RhPaths.funcionarios,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'rh',
++            child: FuncionariosListScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: RhPaths.novoFuncionario,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'rh',
++            child: FuncionarioFormScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: RhPaths.editarFuncionario,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final fId = state.pathParameters['fId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'rh',
++            child: FuncionarioFormScreen(
++              construtoraId: cId,
++              funcionarioId: fId,
++            ),
++          );
++        },
++      ),
++      GoRoute(
++        path: RhPaths.chamadas,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'rh',
++            child: ChamadasListScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: RhPaths.novaChamada,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'rh',
++            child: ChamadaFormScreen(construtoraId: cId, obraId: oId),
++          );
++        },
++      ),
++      GoRoute(
++        path: RhPaths.editarChamada,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final chId = state.pathParameters['chId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'rh',
++            child: ChamadaFormScreen(
++              construtoraId: cId,
++              obraId: oId,
++              chamadaId: chId,
++            ),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/validacao/routing/validacao_routes.dart b/app/lib/src/features/validacao/routing/validacao_routes.dart
+new file mode 100644
+index 0000000..a9672cb
+--- /dev/null
++++ b/app/lib/src/features/validacao/routing/validacao_routes.dart
+@@ -0,0 +1,98 @@
++import 'package:go_router/go_router.dart';
++
++import '../../../common_widgets/access_guard.dart';
++import '../presentation/templates_list_screen.dart';
++import '../presentation/lote_validacoes_screen.dart';
++import '../presentation/validacao_form_screen.dart';
++
++/// Constantes de path para validação.
++abstract class ValidacaoPaths {
++  static const templates = 'validacao/templates';
++  static const loteValidacoes =
++      'obra/:oId/lotes/:loteId/validacoes';
++  static const novaValidacao =
++      'obra/:oId/lotes/:loteId/validacoes/nova';
++  static const editarValidacao =
++      'obra/:oId/lotes/:loteId/validacoes/:validacaoId';
++
++  static String templatesFor(String cId) =>
++      '/construtora/$cId/validacao/templates';
++  static String loteValidacoesFor(String cId, String oId, String loteId) =>
++      '/construtora/$cId/obra/$oId/lotes/$loteId/validacoes';
++  static String novaValidacaoFor(String cId, String oId, String loteId) =>
++      '/construtora/$cId/obra/$oId/lotes/$loteId/validacoes/nova';
++  static String editarValidacaoFor(
++          String cId, String oId, String loteId, String validacaoId) =>
++      '/construtora/$cId/obra/$oId/lotes/$loteId/validacoes/$validacaoId';
++}
++
++/// Rotas do módulo de validação.
++List<RouteBase> get validacaoRoutes => [
++      GoRoute(
++        path: ValidacaoPaths.templates,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'validacao',
++            child: TemplatesListScreen(construtoraId: cId),
++          );
++        },
++      ),
++      GoRoute(
++        path: ValidacaoPaths.loteValidacoes,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final loteId = state.pathParameters['loteId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'validacao',
++            child: LoteValidacoesScreen(
++              construtoraId: cId,
++              obraId: oId,
++              loteId: loteId,
++            ),
++          );
++        },
++      ),
++      GoRoute(
++        path: ValidacaoPaths.novaValidacao,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final loteId = state.pathParameters['loteId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'validacao',
++            child: ValidacaoFormScreen(
++              construtoraId: cId,
++              obraId: oId,
++              loteId: loteId,
++            ),
++          );
++        },
++      ),
++      GoRoute(
++        path: ValidacaoPaths.editarValidacao,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final oId = state.pathParameters['oId']!;
++          final loteId = state.pathParameters['loteId']!;
++          final validacaoId = state.pathParameters['validacaoId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            obraId: oId,
++            module: 'validacao',
++            child: ValidacaoFormScreen(
++              construtoraId: cId,
++              obraId: oId,
++              loteId: loteId,
++              validacaoId: validacaoId,
++            ),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/routing/app_router.dart b/app/lib/src/routing/app_router.dart
+index ad0a10b..c0482d1 100644
+--- a/app/lib/src/routing/app_router.dart
++++ b/app/lib/src/routing/app_router.dart
+@@ -1,52 +1,42 @@
+-import '../common_widgets/access_guard.dart';
+-import '../features/obras/presentation/access_denied_screen.dart';
+-
+ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:go_router/go_router.dart';
+ 
+ import '../features/authentication/data/auth_repository.dart';
+-import '../features/authentication/presentation/login_screen.dart';
+-import '../features/construtoras/presentation/construtoras_list_screen.dart';
+-import '../features/obras/presentation/obras_list_screen.dart';
+-import '../features/obras/presentation/obra_dashboard_screen.dart';
+-import '../features/lotes/presentation/lotes_list_screen.dart';
+-import '../features/lotes/presentation/add_lote_screen.dart';
+-import '../features/almoxarifado/presentation/almoxarifado_list_screen.dart';
+-import '../features/almoxarifado/presentation/add_material_screen.dart';
+-import '../features/almoxarifado/presentation/movimentacao_screen.dart';
+-import '../features/almoxarifado/domain/material.dart' as mat;
+-import '../features/almoxarifado/domain/movimentacao.dart';
+-import '../features/diario/presentation/diarios_list_screen.dart';
+-import '../features/diario/presentation/add_diario_screen.dart';
+-import '../features/diario/presentation/sync_queue_screen.dart';
+-import '../features/construtoras/presentation/membros_screen.dart';
+-import '../features/financeiro/presentation/financeiro_list_screen.dart';
+-import '../features/financeiro/presentation/add_despesa_screen.dart';
+-import '../features/developer/presentation/dev_panel_screen.dart';
+-import '../features/developer/presentation/users_list_screen.dart';
+-import '../features/developer/presentation/user_details_screen.dart';
+-import '../features/developer/presentation/dev_construtoras_list_screen.dart';
+ import '../features/authentication/data/user_repository.dart';
+-import '../features/rh/presentation/funcionarios_list_screen.dart';
+-import '../features/rh/presentation/funcionario_form_screen.dart';
+-import '../features/rh/domain/funcionario.dart';
+-import '../features/rh/presentation/chamadas_list_screen.dart';
+-import '../features/rh/presentation/chamada_form_screen.dart';
+-import '../features/epi/presentation/catalogo_epis_screen.dart';
+-import '../features/epi/presentation/entrega_epi_screen.dart';
+-import '../features/validacao/presentation/templates_list_screen.dart';
+-import '../features/validacao/presentation/lote_validacoes_screen.dart';
+-import '../features/validacao/presentation/validacao_form_screen.dart';
+-import '../features/despesas_adm/presentation/despesas_adm_list_screen.dart';
+-import '../features/despesas_adm/presentation/despesa_adm_form_screen.dart';
+-import '../features/despesas_adm/presentation/despesa_adm_details_screen.dart';
+-import '../features/fornecedores/presentation/fornecedores_list_screen.dart';
+-import '../features/fornecedores/presentation/fornecedor_form_screen.dart';
+-import '../features/compras_parcelas/presentation/compras_list_screen.dart';
+-import '../features/compras_parcelas/presentation/compra_form_screen.dart';
+-import '../features/compras_parcelas/presentation/compra_detalhes_screen.dart';
+-import '../features/custos_360/presentation/visao_360_custos_screen.dart';
+-import '../features/custos_360/presentation/lote_custo_detalhe_screen.dart';
++
++import '../features/authentication/routing/auth_routes.dart';
++import '../features/developer/routing/dev_routes.dart';
++import '../features/construtoras/routing/construtora_routes.dart';
++import '../features/obras/routing/obra_routes.dart';
++import '../features/lotes/routing/lotes_routes.dart';
++import '../features/almoxarifado/routing/almoxarifado_routes.dart';
++import '../features/diario/routing/diario_routes.dart';
++import '../features/rh/routing/rh_routes.dart';
++import '../features/epi/routing/epi_routes.dart';
++import '../features/financeiro/routing/financeiro_routes.dart';
++import '../features/validacao/routing/validacao_routes.dart';
++import '../features/despesas_adm/routing/despesas_adm_routes.dart';
++import '../features/fornecedores/routing/fornecedores_routes.dart';
++import '../features/compras_parcelas/routing/compras_routes.dart';
++import '../features/custos_360/routing/custos_360_routes.dart';
++
++// Opcional: Uma tela 404 padrão
++import 'package:flutter/material.dart';
++
++class ErrorScreen extends StatelessWidget {
++  final Exception? error;
++  const ErrorScreen({super.key, this.error});
++
++  @override
++  Widget build(BuildContext context) {
++    return Scaffold(
++      appBar: AppBar(title: const Text('Página não encontrada')),
++      body: Center(
++        child: Text(error?.toString() ?? 'A rota solicitada não existe.'),
 +      ),
 +    );
 +  }
 +}
-diff --git a/app/lib/src/features/obras/data/obra_members_repository.dart b/app/lib/src/features/obras/data/obra_members_repository.dart
-new file mode 100644
-index 0000000..b68c3ab
---- /dev/null
-+++ b/app/lib/src/features/obras/data/obra_members_repository.dart
-@@ -0,0 +1,42 @@
-+import 'package:cloud_functions/cloud_functions.dart';
-+import 'package:flutter_riverpod/flutter_riverpod.dart';
-+
-+/// Repositório responsável pela gestão de membros de obra via Cloud Functions autorizadas.
-+class ObraMembersRepository {
-+  final FirebaseFunctions _functions;
-+
-+  ObraMembersRepository(this._functions);
-+
-+  /// Chama a Cloud Function autoritativa `setMembership` para atribuir ou atualizar
-+  /// papel e módulos de um membro em uma obra específica.
-+  Future<void> setMembership({
-+    required String construtoraId,
-+    required String obraId,
-+    required String userId,
-+    required String role,
-+    required List<String> modules,
-+    bool isActive = true,
-+  }) async {
-+    try {
-+      final callable = _functions.httpsCallable('setMembership');
-+      await callable.call({
-+        'construtoraId': construtoraId,
-+        'obraId': obraId,
-+        'userId': userId,
-+        'role': role,
-+        'modules': modules,
-+        'isActive': isActive,
-+      });
-+    } on FirebaseFunctionsException catch (e) {
-+      throw Exception(e.message ?? 'Erro ao chamar setMembership');
-+    } catch (e) {
-+      throw Exception('Erro desconhecido: $e');
-+    }
-+  }
-+}
-+
-+final obraMembersRepositoryProvider = Provider<ObraMembersRepository>((ref) {
-+  return ObraMembersRepository(
-+    FirebaseFunctions.instance,
-+  );
-+});
-diff --git a/app/test/features/construtoras/membros_test.dart b/app/test/features/construtoras/membros_test.dart
-index 2e15543..3c1f751 100644
---- a/app/test/features/construtoras/membros_test.dart
-+++ b/app/test/features/construtoras/membros_test.dart
-@@ -8,12 +8,42 @@ import 'package:app/src/features/construtoras/presentation/membros_screen.dart';
- import 'package:app/src/features/construtoras/presentation/widgets/obra_vinculo_row.dart';
- import 'package:app/src/features/obras/domain/obra.dart';
- import 'package:app/src/features/obras/domain/obra_member.dart';
-+import 'package:app/src/features/construtoras/presentation/widgets/atribuir_obra_dialog.dart';
-+import 'package:app/src/features/obras/data/obra_members_repository.dart';
- import 'package:cloud_firestore/cloud_firestore.dart';
- import 'package:flutter/material.dart';
- import 'package:flutter/services.dart';
- import 'package:flutter_riverpod/flutter_riverpod.dart';
- import 'package:flutter_test/flutter_test.dart';
  
-+class FakeObraMembersRepository implements ObraMembersRepository {
-+  final List<Map<String, dynamic>> chamadas = [];
-+  bool deveFalhar = false;
-+  String mensagemErro = 'Erro simulado';
-+
-+  @override
-+  Future<void> setMembership({
-+    required String construtoraId,
-+    required String obraId,
-+    required String userId,
-+    required String role,
-+    required List<String> modules,
-+    bool isActive = true,
-+  }) async {
-+    if (deveFalhar) {
-+      throw Exception(mensagemErro);
-+    }
-+    chamadas.add({
-+      'construtoraId': construtoraId,
-+      'obraId': obraId,
-+      'userId': userId,
-+      'role': role,
-+      'modules': modules,
-+      'isActive': isActive,
-+    });
-+  }
-+}
-+
- ObraMember _om(String uid, {bool isActive = true, bool isAdmin = false}) =>
-     ObraMember(
-       userId: uid,
-@@ -30,6 +60,21 @@ Obra _obra(String id, {bool isActive = true}) => Obra(
-       isActive: isActive,
-     );
+ final routerProvider = Provider<GoRouter>((ref) {
+   final authState = ref.watch(authStateChangesProvider);
+@@ -54,9 +44,10 @@ final routerProvider = Provider<GoRouter>((ref) {
  
-+ConstrutoraMember _cm(
-+  String uid, {
-+  bool isActive = true,
-+  bool isOwner = false,
-+  bool isAdmin = false,
-+  DateTime? joinedAt,
-+}) =>
-+    ConstrutoraMember(
-+      userId: uid,
-+      isActive: isActive,
-+      isOwner: isOwner,
-+      isAdmin: isAdmin,
-+      joinedAt: joinedAt ?? DateTime(2026, 1, 15),
-+    );
-+
- void main() {
-   group('8.1 agregação uid→N', () {
-     test('soma obras por uid ignorando inativos', () {
-@@ -1237,7 +1282,7 @@ void main() {
-       final atribuir = tester.widget<FilledButton>(
-         find.widgetWithText(FilledButton, 'Atribuir à obra'),
-       );
--      expect(atribuir.onPressed, isNull);
-+      expect(atribuir.onPressed, isNotNull);
-     });
+   return GoRouter(
+     initialLocation: '/',
++    errorBuilder: (context, state) => ErrorScreen(error: state.error),
+     redirect: (context, state) {
+       final isLoading = authState.isLoading || devState.isLoading;
+-      if (isLoading) return null; // Can result in a blank screen briefly if no loading route is provided, but typically okay
++      if (isLoading) return null;
  
-     testWidgets('8.3 sem obras mostra microcopy estática sem CTA',
-@@ -1255,9 +1300,12 @@ void main() {
-       );
-       expect(find.byType(ObraVinculoRow), findsNothing);
-       expect(find.byType(ObraVinculoVazio), findsOneWidget);
--      final ctaAcionavel = tester
--          .widgetList<FilledButton>(find.byType(FilledButton))
--          .where((b) => b.onPressed != null);
-+      final ctaAcionavel = tester.widgetList<FilledButton>(
-+        find.descendant(
-+          of: find.byType(ObraVinculoVazio),
-+          matching: find.byType(FilledButton),
-+        ),
-+      );
-       expect(ctaAcionavel, isEmpty);
-     });
- 
-@@ -1690,4 +1738,274 @@ void main() {
-       expect(leituras, greaterThan(1));
-     });
-   });
-+
-+  group('9.1 atribuir operário à obra', () {
-+    late FakeObraMembersRepository fakeObraMembersRepo;
-+
-+    setUp(() {
-+      fakeObraMembersRepo = FakeObraMembersRepository();
-+    });
-+
-+    final membros91 = [
-+      Membro(uid: 'u1', email: 'ana@obra.com', isAdmin: false, role: 'operario'),
-+      Membro(uid: 'u2', email: 'inativo@obra.com', isAdmin: false, role: 'operario'),
-+    ];
-+
-+    base91({
-+      List<Membro>? membros,
-+      List<Obra>? obras,
-+      Map<String, List<ObraMember>>? porObra,
-+      Future<ConstrutoraMember?> Function()? vinculoFuture,
-+      String uid = 'u1',
-+    }) {
-+      return [
-+        obraMembersRepositoryProvider.overrideWithValue(fakeObraMembersRepo),
-+        membrosProvider('c-1').overrideWith(
-+          (ref) => Stream.value(membros ?? membros91),
-+        ),
-+        pendingRequestsProvider('c-1').overrideWith(
-+          (ref) => Stream.value(const []),
-+        ),
-+        obrasDaConstrutoraProvider('c-1').overrideWith(
-+          (ref) => Stream.value(obras ?? [_obra('o1'), _obra('o2')]),
-+        ),
-+        for (final entry in (porObra ??
-+                {
-+                  'o1': [_om('u1')],
-+                  'o2': <ObraMember>[],
-+                })
-+            .entries)
-+          obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
-+              .overrideWith((ref) => Stream.value(entry.value)),
-+        memberDetalheProvider((construtoraId: 'c-1', uid: uid)).overrideWith(
-+          (ref) =>
-+              vinculoFuture?.call() ??
-+              Future<ConstrutoraMember?>.value(
-+                _cm(uid, isActive: uid != 'u2'),
-+              ),
-+        ),
-+      ];
-+    }
-+
-+    testWidgets('9.1 HAPPY_PATH: abre dialog, seleciona obra, resumo ao vivo, confirma e chama setMembership',
-+        (tester) async {
-+      await tester.pumpWidget(ProviderScope(
-+        overrides: base91(),
-+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-+      ));
-+      await tester.pumpAndSettle();
-+
-+      await tester.tap(find.text('ana@obra.com'));
-+      await tester.pumpAndSettle();
-+
-+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
-+      await tester.pumpAndSettle();
-+
-+      expect(find.byType(AtribuirObraDialog), findsOneWidget);
-+      expect(find.text('Atribuir à obra'), findsWidgets);
-+      expect(find.text('Membro: ana@obra.com'), findsOneWidget);
-+      expect(find.text('Operário'), findsWidgets);
-+
-+      final chkDiario = tester.widget<CheckboxListTile>(
-+        find.widgetWithText(CheckboxListTile, 'Diário de Obras'),
-+      );
-+      expect(chkDiario.value, isTrue);
-+
-+      expect(find.text('Selecione a obra'), findsOneWidget);
-+      final confirmarBtnInicial = tester.widget<FilledButton>(
-+        find.widgetWithText(FilledButton, 'Confirmar atribuição'),
-+      );
-+      expect(confirmarBtnInicial.onPressed, isNull);
-+
-+      expect(
-+        find.text('Selecione uma obra para ver o resumo da atribuição.'),
-+        findsOneWidget,
-+      );
-+
-+      await tester.tap(find.byType(DropdownButtonFormField<String>));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.text('Obra o2').last);
-+      await tester.pumpAndSettle();
-+
-+      expect(
-+        find.text('ana@obra.com será Operário em Obra o2 com acesso a Diário'),
-+        findsOneWidget,
-+      );
-+
-+      final confirmarBtnHabilitado = tester.widget<FilledButton>(
-+        find.widgetWithText(FilledButton, 'Confirmar atribuição'),
-+      );
-+      expect(confirmarBtnHabilitado.onPressed, isNotNull);
-+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Confirmar atribuição'));
-+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar atribuição'));
-+      await tester.pumpAndSettle();
-+
-+      expect(fakeObraMembersRepo.chamadas.length, 1);
-+      expect(fakeObraMembersRepo.chamadas.first, {
-+        'construtoraId': 'c-1',
-+        'obraId': 'o2',
-+        'userId': 'u1',
-+        'role': 'operario',
-+        'modules': ['diario'],
-+        'isActive': true,
-+      });
-+
-+      expect(find.byType(AtribuirObraDialog), findsNothing);
-+      expect(find.text('Atribuído a Obra o2 como Operário.'), findsOneWidget);
-+    });
-+
-+    testWidgets('9.1 resumo dinâmico atualiza ao marcar módulos adicionais',
-+        (tester) async {
-+      await tester.pumpWidget(ProviderScope(
-+        overrides: base91(),
-+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-+      ));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.text('ana@obra.com'));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
-+      await tester.pumpAndSettle();
-+
-+      await tester.tap(find.byType(DropdownButtonFormField<String>));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.text('Obra o2').last);
-+      await tester.pumpAndSettle();
-+
-+      await tester.tap(find.widgetWithText(CheckboxListTile, 'Lotes'));
-+      await tester.pumpAndSettle();
-+
-+      expect(
-+        find.text('ana@obra.com será Operário em Obra o2 com acesso a Diário, Lotes'),
-+        findsOneWidget,
-+      );
-+
-+      await tester.tap(find.widgetWithText(CheckboxListTile, 'Estoque'));
-+      await tester.pumpAndSettle();
-+
-+      expect(
-+        find.text('ana@obra.com será Operário em Obra o2 com acesso a Diário, Lotes, Estoque'),
-+        findsOneWidget,
-+      );
-+
-+      await tester.tap(find.widgetWithText(CheckboxListTile, 'Diário de Obras'));
-+      await tester.pumpAndSettle();
-+
-+      expect(
-+        find.text('ana@obra.com será Operário em Obra o2 com acesso a Lotes, Estoque'),
-+        findsOneWidget,
-+      );
-+    });
-+
-+    testWidgets('9.1 nenhuma obra ativa exibe mensagem e desabilita botão',
-+        (tester) async {
-+      await tester.pumpWidget(ProviderScope(
-+        overrides: base91(
-+          obras: [_obra('o1')],
-+          porObra: {'o1': [_om('u1')]},
-+        ),
-+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-+      ));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.text('ana@obra.com'));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
-+      await tester.pumpAndSettle();
-+
-+      expect(find.text('Nenhuma obra ativa'), findsOneWidget);
-+      final btn = tester.widget<FilledButton>(
-+        find.widgetWithText(FilledButton, 'Confirmar atribuição'),
-+      );
-+      expect(btn.onPressed, isNull);
-+    });
-+
-+    testWidgets('9.1 membro inativo na construtora tem Atribuir à obra desabilitado',
-+        (tester) async {
-+      await tester.pumpWidget(ProviderScope(
-+        overrides: base91(uid: 'u2'),
-+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-+      ));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.text('inativo@obra.com'));
-+      await tester.pumpAndSettle();
-+
-+      final atribuirBtn = tester.widget<FilledButton>(
-+        find.widgetWithText(FilledButton, 'Atribuir à obra'),
-+      );
-+      expect(atribuirBtn.onPressed, isNull);
-+      expect(find.text('Ative na construtora primeiro'), findsOneWidget);
-+    });
-+
-+    testWidgets('9.1 cancelar fecha o diálogo sem chamar repositório',
-+        (tester) async {
-+      await tester.pumpWidget(ProviderScope(
-+        overrides: base91(),
-+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-+      ));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.text('ana@obra.com'));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
-+      await tester.pumpAndSettle();
-+
-+      await tester.ensureVisible(find.text('Cancelar'));
-+      await tester.tap(find.text('Cancelar'));
-+      await tester.pumpAndSettle();
-+
-+      expect(find.byType(AtribuirObraDialog), findsNothing);
-+      expect(fakeObraMembersRepo.chamadas, isEmpty);
-+    });
-+
-+    testWidgets('9.1 erro na mutação exibe mensagem de erro no diálogo',
-+        (tester) async {
-+      fakeObraMembersRepo.deveFalhar = true;
-+      fakeObraMembersRepo.mensagemErro = 'Sem permissão para gerir vínculo';
-+
-+      await tester.pumpWidget(ProviderScope(
-+        overrides: base91(),
-+        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-+      ));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.text('ana@obra.com'));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
-+      await tester.pumpAndSettle();
-+
-+      await tester.tap(find.byType(DropdownButtonFormField<String>));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.text('Obra o2').last);
-+      await tester.pumpAndSettle();
-+
-+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Confirmar atribuição'));
-+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar atribuição'));
-+      await tester.pumpAndSettle();
-+
-+      expect(find.byType(AtribuirObraDialog), findsOneWidget);
-+      await tester.ensureVisible(find.text('Sem permissão para gerir vínculo'));
-+      expect(find.text('Sem permissão para gerir vínculo'), findsOneWidget);
-+    });
-+
-+    testWidgets('9.1 textScale 1.3 sem overflow no diálogo de atribuição',
-+        (tester) async {
-+      await tester.pumpWidget(
-+        MediaQuery(
-+          data: const MediaQueryData(
-+            size: Size(390, 844),
-+            textScaler: TextScaler.linear(1.3),
-+          ),
-+          child: ProviderScope(
-+            overrides: base91(),
-+            child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-+          ),
-+        ),
-+      );
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.text('ana@obra.com'));
-+      await tester.pumpAndSettle();
-+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
-+      await tester.pumpAndSettle();
-+
-+      expect(tester.takeException(), isNull);
-+      expect(find.byType(AtribuirObraDialog), findsOneWidget);
-+    });
-+  });
- }
+       final isAuth = authState.value != null;
+       final isLoggingIn = state.matchedLocation == '/login';
+@@ -79,598 +70,9 @@ final routerProvider = Provider<GoRouter>((ref) {
+       return null;
+     },
+     routes: [
+-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+-      GoRoute(
+-        path: '/dev',
+-        builder: (context, state) =>
+-            const AccessGuard(devOnly: true, child: DevPanelScreen()),
+-      ),
+-      GoRoute(
+-        path: '/dev/users',
+-        builder: (context, state) =>
+-            const AccessGuard(devOnly: true, child: UsersListScreen()),
+-      ),
+-      GoRoute(
+-        path: '/dev/users/:uid',
+-        builder: (context, state) {
+-          final uid = state.pathParameters['uid']!;
+-          return AccessGuard(
+-            devOnly: true,
+-            child: UserDetailsScreen(userId: uid),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/dev/construtoras',
+-        builder: (context, state) => const AccessGuard(
+-          devOnly: true,
+-          child: DevConstrutorasListScreen(),
+-        ),
+-      ),
+-      GoRoute(
+-        path: '/',
+-        builder: (context, state) => const ConstrutorasListScreen(),
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            child: ObrasListScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/sync',
+-        builder: (context, state) => AccessGuard(
+-          construtoraId: state.pathParameters['cId']!,
+-          child: SyncQueueScreen(
+-            construtoraId: state.pathParameters['cId']!,
+-            obraId: '',
+-          ),
+-        ),
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/membros',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            adminOnly: true,
+-            child: MembrosScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            child: ObraDashboardScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/lotes',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'lotes',
+-            child: LotesListScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/lotes/novo',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'lotes',
+-            adminOnly: true,
+-            child: AddLoteScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/diarios',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'diario',
+-            child: DiariosListScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/diarios/novo',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'diario',
+-            child: AddDiarioScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/diarios/sync',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'diario',
+-            child: SyncQueueScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/rh/chamadas',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'rh',
+-            child: ChamadasListScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/rh/chamadas/nova',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'rh',
+-            child: ChamadaFormScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/rh/chamadas/:chId',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          final chId = state.pathParameters['chId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'rh',
+-            child: ChamadaFormScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-              chamadaId: chId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/almoxarifado',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'estoque',
+-            child: AlmoxarifadoListScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/almoxarifado/novo_material',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'estoque',
+-            child: AddMaterialScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/almoxarifado/movimentacao',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          if (state.extra is! Map<String, dynamic>) {
+-            return const AccessDeniedScreen();
+-          }
+-          final extra = state.extra as Map<String, dynamic>;
+-          final material = extra['material'] as mat.Material;
+-          final typeStr = extra['type'] as String;
+-          final type = typeStr == 'entrada'
+-              ? MovimentacaoType.entrada
+-              : MovimentacaoType.saida;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'estoque',
+-            child: MovimentacaoScreen(
+-              construtoraId: cId,
+-              material: material,
+-              type: type,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/financeiro',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'financeiro',
+-            adminOnly: true,
+-            child: FinanceiroListScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/financeiro/novo',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'financeiro',
+-            adminOnly: true,
+-            child: AddDespesaScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/rh',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'rh',
+-            child: FuncionariosListScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/rh/funcionarios',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'rh',
+-            child: FuncionariosListScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/rh/funcionarios/novo',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'rh',
+-            child: FuncionarioFormScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/rh/funcionarios/:fId/editar',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final extra = state.extra;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'rh',
+-            child: FuncionarioFormScreen(
+-              construtoraId: cId,
+-              initialFuncionario: extra is Funcionario ? extra : null,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/epis',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'epi',
+-            child: CatalogoEpisScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/epis/entrega',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'epi',
+-            child: EntregaEpiScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/validacao/templates',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            module: 'validacao',
+-            child: TemplatesListScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/lotes/:loteId/validacoes',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          final loteId = state.pathParameters['loteId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'validacao',
+-            child: LoteValidacoesScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-              loteId: loteId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/lotes/:loteId/validacoes/nova',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          final loteId = state.pathParameters['loteId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'validacao',
+-            child: ValidacaoFormScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-              loteId: loteId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/lotes/:loteId/validacoes/:validacaoId',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          final loteId = state.pathParameters['loteId']!;
+-          final validacaoId = state.pathParameters['validacaoId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'validacao',
+-            child: ValidacaoFormScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-              loteId: loteId,
+-              validacaoId: validacaoId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/despesas',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'adm',
+-            child: DespesasAdmListScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/despesas/nova',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'adm',
+-            child: DespesaAdmFormScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/despesas/:despesaId',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          final despesaId = state.pathParameters['despesaId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'adm',
+-            child: DespesaAdmDetailsScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-              despesaId: despesaId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/despesas/:despesaId/editar',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          final despesaId = state.pathParameters['despesaId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'adm',
+-            child: DespesaAdmFormScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-              despesaId: despesaId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/custos-360',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'adm',
+-            child: Visao360CustosScreen(construtoraId: cId, obraId: oId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/custos-360/lotes/:loteId',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          final loteId = state.pathParameters['loteId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'adm',
+-            child: LoteCustoDetalheScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-              loteId: loteId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/fornecedores',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            child: FornecedoresListScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/fornecedores/novo',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            child: FornecedorFormScreen(construtoraId: cId),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/fornecedores/:fornecedorId/editar',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final fornecedorId = state.pathParameters['fornecedorId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            child: FornecedorFormScreen(
+-              construtoraId: cId,
+-              fornecedorId: fornecedorId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/compras',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'compras',
+-            child: ComprasListScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/compras/nova',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'compras',
+-            child: CompraFormScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/compras/:compraId',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          final compraId = state.pathParameters['compraId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'compras',
+-            child: CompraDetalhesScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-              compraId: compraId,
+-            ),
+-          );
+-        },
+-      ),
+-      GoRoute(
+-        path: '/construtora/:cId/obra/:oId/compras/:compraId/editar',
+-        builder: (context, state) {
+-          final cId = state.pathParameters['cId']!;
+-          final oId = state.pathParameters['oId']!;
+-          final compraId = state.pathParameters['compraId']!;
+-          return AccessGuard(
+-            construtoraId: cId,
+-            obraId: oId,
+-            module: 'compras',
+-            child: CompraFormScreen(
+-              construtoraId: cId,
+-              obraId: oId,
+-              compraId: compraId,
+-            ),
+-          );
+-        },
+-      ),
++      ...authRoutes,
++      ...devRoutes,
++      ...construtoraRoutes, // Modificado internamente
+     ],
+   );
+ });
 
 ```
 
-Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. Return your findings as text in your final message.
