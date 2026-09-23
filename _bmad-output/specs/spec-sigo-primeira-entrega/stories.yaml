@@ -1,0 +1,35 @@
+- id: "1"
+  title: Fundações do Design System e Shell Responsivo
+  description: >-
+    Implementar a base visual (ThemeData e ThemeExtension com cores e tipografia)
+    e o layout shell responsivo para 320, 390 e 800+, sem acoplar lógicas de estado.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: ""
+
+- id: "2"
+  title: Fluxo e Ciclo de Vida da Edição de Lotes
+  description: >-
+    Implementar a lógica de interface para submissão de lotes, gerenciando timeouts
+    e garantindo que o lote seja salvo apenas com recibo real do banco.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: ""
+
+- id: "3"
+  title: Infraestrutura Segura para Gestão de Logos
+  description: >-
+    Configurar Firestore Rules, Storage Rules (limite de 2 MiB, tipo de imagem)
+    e Cloud Function para redimensionamento seguro de logos.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: ""
+
+- id: "4"
+  title: Interface de Administração de Logos
+  description: >-
+    Construir o fluxo UI em staging para upload e alteração de logos por administradores,
+    garantindo o ciclo transacional com UUID.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: ""
