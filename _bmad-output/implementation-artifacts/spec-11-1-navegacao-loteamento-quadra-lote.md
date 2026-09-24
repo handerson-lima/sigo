@@ -46,14 +46,14 @@ context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `app/lib/src/features/loteamentos/routing/loteamentos_routes.dart` -- Criar módulo de rotas para Loteamentos (como child da rota de construtora).
-- [ ] `app/lib/src/features/loteamentos/presentation/loteamentos_list_screen.dart` -- Implementar tela base incluindo o `SigoBreadcrumbs` e listagem baseada em StreamProvider.
-- [ ] `app/lib/src/features/quadras/routing/quadras_routes.dart` -- Criar módulo de rotas para Quadras aninhado em `:loteamentoId`.
-- [ ] `app/lib/src/features/quadras/presentation/quadras_list_screen.dart` -- Implementar tela de listagem de Quadras utilizando Records no Riverpod e breadcrumbs dinâmicos.
-- [ ] `app/lib/src/features/lotes/routing/lotes_routes.dart` -- Refatorar as rotas de lotes para serem filhas de `:quadraId`, mantendo integridade com as rotas descendentes (Setor e Equipe construídos na 11.2).
-- [ ] `app/lib/src/features/lotes/presentation/lotes_list_screen.dart` -- Refatorar tela de listagem de Lotes, usando `SigoBreadcrumbs` e Records nos provedores Riverpod para prevenir loops de `AsyncLoading`.
-- [ ] `firestore.rules` -- Revisar security rules para as subcoleções `loteamentos`, `quadras` e `lotes`, preservando o isolamento de segurança baseado na Construtora/Nó.
-- [ ] `app/test/` -- Adicionar testes automatizados cobrindo os providers Riverpod de listagem (verificando Records vs AsyncLoading) e garantindo correta geração dos breadcrumbs e rotas.
+- [x] `app/lib/src/features/loteamentos/routing/loteamentos_routes.dart` -- Criar módulo de rotas para Loteamentos (como child da rota de construtora).
+- [x] `app/lib/src/features/loteamentos/presentation/loteamentos_list_screen.dart` -- Implementar tela base incluindo o `SigoBreadcrumbs` e listagem baseada em StreamProvider.
+- [x] `app/lib/src/features/quadras/routing/quadras_routes.dart` -- Criar módulo de rotas para Quadras aninhado em `:loteamentoId`.
+- [x] `app/lib/src/features/quadras/presentation/quadras_list_screen.dart` -- Implementar tela de listagem de Quadras utilizando Records no Riverpod e breadcrumbs dinâmicos.
+- [x] `app/lib/src/features/lotes/routing/lotes_routes.dart` -- Refatorar as rotas de lotes para serem filhas de `:quadraId`, mantendo integridade com as rotas descendentes (Setor e Equipe construídos na 11.2).
+- [x] `app/lib/src/features/lotes/presentation/lotes_list_screen.dart` -- Refatorar tela de listagem de Lotes, usando `SigoBreadcrumbs` e Records nos provedores Riverpod para prevenir loops de `AsyncLoading`.
+- [x] `firestore.rules` -- Revisar security rules para as subcoleções `loteamentos`, `quadras` e `lotes`, preservando o isolamento de segurança baseado na Construtora/Nó.
+- [x] `app/test/` -- Adicionar testes automatizados cobrindo os providers Riverpod de listagem (verificando Records vs AsyncLoading) e garantindo correta geração dos breadcrumbs e rotas.
 
 **Acceptance Criteria:**
 - Given que um usuário acessou o dashboard de uma construtora, when ele abrir Loteamentos, then a URL deve espelhar a rota de loteamento e a `LoteamentosListScreen` renderiza seus breadcrumbs correspondentes.

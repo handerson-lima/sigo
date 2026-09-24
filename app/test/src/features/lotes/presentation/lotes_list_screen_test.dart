@@ -1,3 +1,4 @@
+import 'package:app/src/common_widgets/sigo_breadcrumbs.dart';
 import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/lotes/presentation/lotes_list_screen.dart';
@@ -86,8 +87,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Lote lo1'), findsOneWidget);
-    expect(find.text('Loteamento'), findsOneWidget);
-    expect(find.text('Quadra'), findsOneWidget);
-    expect(find.text('Lotes'), findsOneWidget);
+
+    final breadcrumbs = find.byType(SigoBreadcrumbs);
+    expect(
+      find.descendant(of: breadcrumbs, matching: find.text('Loteamento')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: breadcrumbs, matching: find.text('Quadra')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: breadcrumbs, matching: find.text('Lotes')),
+      findsOneWidget,
+    );
   });
 }

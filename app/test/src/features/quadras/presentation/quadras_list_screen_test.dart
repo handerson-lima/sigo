@@ -1,3 +1,4 @@
+import 'package:app/src/common_widgets/sigo_breadcrumbs.dart';
 import 'package:app/src/features/quadras/data/quadra_repository.dart';
 import 'package:app/src/features/quadras/domain/quadra.dart';
 import 'package:app/src/features/quadras/presentation/quadras_list_screen.dart';
@@ -75,7 +76,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Quadra q1'), findsOneWidget);
-    expect(find.text('Loteamento'), findsOneWidget);
-    expect(find.text('Quadras'), findsOneWidget);
+
+    final breadcrumbs = find.byType(SigoBreadcrumbs);
+    expect(
+      find.descendant(of: breadcrumbs, matching: find.text('Loteamento')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: breadcrumbs, matching: find.text('Quadras')),
+      findsOneWidget,
+    );
   });
 }

@@ -1,3 +1,4 @@
+import 'package:app/src/common_widgets/sigo_breadcrumbs.dart';
 import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
 import 'package:app/src/features/loteamentos/domain/loteamento.dart';
 import 'package:app/src/features/loteamentos/presentation/loteamentos_list_screen.dart';
@@ -74,7 +75,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Loteamento l1'), findsOneWidget);
-    expect(find.text('Loteamentos'), findsWidgets);
+    expect(
+      find.descendant(
+        of: find.byType(SigoBreadcrumbs),
+        matching: find.text('Loteamentos'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)',

@@ -87,7 +87,7 @@ void main() {
     const params = (construtoraId: 'c1');
     final sub = container.listen(
       watchLoteamentosProvider(params),
-      (_, __) {},
+      (_, _) {},
     );
     addTearDown(sub.close);
 
@@ -116,7 +116,7 @@ void main() {
     const params = (construtoraId: 'c1', loteamentoId: 'l1');
     final sub = container.listen(
       watchQuadrasProvider(params),
-      (_, __) {},
+      (_, _) {},
     );
     addTearDown(sub.close);
 
@@ -145,7 +145,7 @@ void main() {
     const params = (construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q1');
     final sub = container.listen(
       watchLotesProvider(params),
-      (_, __) {},
+      (_, _) {},
     );
     addTearDown(sub.close);
 
