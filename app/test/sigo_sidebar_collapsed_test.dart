@@ -15,7 +15,7 @@ void main() {
         authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
         trustedDevProvider.overrideWith((ref) => Stream.value(true)),
         currentPermissionsProvider(
-          (construtoraId: 'c1', obraId: 'o1'),
+          (construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo),
         ).overrideWith(
           (ref) => Stream.value(
             ObraMember(

@@ -25,8 +25,9 @@ void main() {
             builder: (context, state) {
               final cId = state.pathParameters['cId']!;
               final oId = state.pathParameters['oId']!;
-              return ObraDashboardScreen(construtoraId: cId, obraId: oId);
-            },
+              return ObraDashboardScreen(construtoraId: cId, loteamentoId: oId);
+            }, quadraId: oId);
+            }, status: LoteStatus.noPrazo,
           ),
         ],
       );
@@ -36,10 +37,11 @@ void main() {
           overrides: [
             trustedDevProvider.overrideWith((ref) => Stream.value(false)),
             currentPermissionsProvider(
-              (construtoraId: 'c1', obraId: 'obraA'),
+              (construtoraId: 'c1', loteamentoId: 'obraA'), quadraId: 'obraA'), status: LoteStatus.noPrazo,
             ).overrideWith((ref) => Stream.value(null)),
-            obraLotesProvider((construtoraId: 'c1', obraId: 'obraA'))
-                .overrideWith((ref) => Stream.value(<Lote>[])),
+            obraLotesProvider((construtoraId: 'c1', loteamentoId: 'obraA'))
+                .overrideWith((ref) => Stream.value(<Lote>[])), quadraId: 'obraA'))
+                .overrideWith((ref) => Stream.value(<Lote>[])), status: LoteStatus.noPrazo,
           ],
           child: MaterialApp.router(routerConfig: router),
         ),
@@ -66,8 +68,9 @@ void main() {
             builder: (context, state) {
               final cId = state.pathParameters['cId']!;
               final oId = state.pathParameters['oId']!;
-              return ObraDashboardScreen(construtoraId: cId, obraId: oId);
-            },
+              return ObraDashboardScreen(construtoraId: cId, loteamentoId: oId);
+            }, quadraId: oId);
+            }, status: LoteStatus.noPrazo,
           ),
         ],
       );
@@ -77,7 +80,7 @@ void main() {
           overrides: [
             trustedDevProvider.overrideWith((ref) => Stream.value(false)),
             currentPermissionsProvider(
-              (construtoraId: 'c1', obraId: 'obraA'),
+              (construtoraId: 'c1', loteamentoId: 'obraA'), quadraId: 'obraA'), status: LoteStatus.noPrazo,
             ).overrideWith(
               (ref) => Stream.value(
                 ObraMember(
@@ -89,8 +92,9 @@ void main() {
                 ),
               ),
             ),
-            obraLotesProvider((construtoraId: 'c1', obraId: 'obraA'))
-                .overrideWith((ref) => Stream.value(<Lote>[])),
+            obraLotesProvider((construtoraId: 'c1', loteamentoId: 'obraA'))
+                .overrideWith((ref) => Stream.value(<Lote>[])), quadraId: 'obraA'))
+                .overrideWith((ref) => Stream.value(<Lote>[])), status: LoteStatus.noPrazo,
           ],
           child: MaterialApp.router(routerConfig: router),
         ),

@@ -20,7 +20,7 @@ void main() {
       CompraNf(
         id: 'compra-1',
         construtoraId: 'c1',
-        obraId: 'o1',
+        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
         fornecedorId: 'f1',
         fornecedorNome: 'Votorantim Cimentos S/A',
         fornecedorDocumento: '01234567000189',
@@ -69,7 +69,7 @@ void main() {
       CompraNf(
         id: 'compra-2',
         construtoraId: 'c1',
-        obraId: 'o1',
+        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
         fornecedorId: 'f2',
         fornecedorNome: 'Gerdau Aços S/A',
         numeroNf: '54321',
@@ -117,7 +117,7 @@ void main() {
           child: const MaterialApp(
             home: ComprasListScreen(
               construtoraId: 'c1',
-              obraId: 'o1',
+              loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
             ),
           ),
         ),
@@ -160,7 +160,7 @@ void main() {
           child: const MaterialApp(
             home: CompraDetalhesScreen(
               construtoraId: 'c1',
-              obraId: 'o1',
+              loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
               compraId: 'compra-1',
             ),
           ),
@@ -268,7 +268,7 @@ void main() {
           child: const MaterialApp(
             home: ComprasListScreen(
               construtoraId: 'c1',
-              obraId: 'o1',
+              loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
             ),
           ),
         ),

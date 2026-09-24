@@ -10,7 +10,7 @@ void main() {
       final despesa = DespesaAdm(
         id: 'd1',
         construtoraId: 'c1',
-        obraId: 'o1',
+        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
         descricao: 'Locação de Andaimes Fachadeiros',
         categoria: CategoriaDespesa.locacao,
         fornecedorNome: 'Andaimes Top',
@@ -74,7 +74,7 @@ void main() {
       final despesa = DespesaAdm(
         id: 'd2',
         construtoraId: 'c1',
-        obraId: 'o1',
+        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
         descricao: 'Pintura Externa Especial',
         categoria: CategoriaDespesa.servicosTerceiros,
         loteId: 'Lote 12',
@@ -110,7 +110,7 @@ void main() {
       final despesa = DespesaAdm(
         id: 'd3',
         construtoraId: 'c1',
-        obraId: 'o1',
+        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
         descricao: 'Conta de Água Provisória',
         categoria: CategoriaDespesa.utilidades,
         valorTotalCents: 25000,

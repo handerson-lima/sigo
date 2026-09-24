@@ -40,8 +40,9 @@ class LotesListScreen extends ConsumerWidget {
               final item = items[index];
               return ListTile(
                 title: Text(item.name),
+                subtitle: Text('Status: ${item.status} | Phase: ${item.phase}'),
                 onTap: () {
-                  // Navegar para o próximo nível
+                  // In the future this goes to Setores
                 },
               );
             },

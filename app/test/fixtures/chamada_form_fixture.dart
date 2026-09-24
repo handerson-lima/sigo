@@ -94,7 +94,7 @@ class TestLoteRepository implements LoteRepository {
       Lote(
         id: id,
         construtoraId: 'c1',
-        obraId: 'o1',
+        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
         name: id,
         phase: 'Estrutura',
         createdAt: DateTime(2026),
@@ -178,7 +178,7 @@ class ChamadaFormFixture {
           path: '/form',
           builder: (_, _) => ChamadaFormScreen(
             construtoraId: 'c1',
-            obraId: 'o1',
+            loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
             chamadaId: chamadaId,
           ),
         ),

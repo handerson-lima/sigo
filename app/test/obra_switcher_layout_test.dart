@@ -27,8 +27,9 @@ void main() {
             builder: (context, state) {
               final cId = state.pathParameters['cId']!;
               final oId = state.pathParameters['oId']!;
-              return ObraDashboardScreen(construtoraId: cId, obraId: oId);
-            },
+              return ObraDashboardScreen(construtoraId: cId, loteamentoId: oId);
+            }, quadraId: oId);
+            }, status: LoteStatus.noPrazo,
           ),
         ],
       );
@@ -55,11 +56,15 @@ void main() {
             construtoraObrasProvider('c1').overrideWith(
               (ref) => Future.value(obrasList),
             ),
-            currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraA'))
+            currentPermissionsProvider((construtoraId: 'c1', loteamentoId: 'obraA'))
                 .overrideWith(
                   (ref) => Stream.value(
                     ObraMember(
-                      userId: 'u1',
+                      userId: 'u1', quadraId: 'obraA'))
+                .overrideWith(
+                  (ref) => Stream.value(
+                    ObraMember(
+                      userId: 'u1', status: LoteStatus.noPrazo,
                       isActive: true,
                       isAdmin: false,
                       modules: ['diario'],
@@ -67,11 +72,15 @@ void main() {
                     ),
                   ),
                 ),
-            currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraB'))
+            currentPermissionsProvider((construtoraId: 'c1', loteamentoId: 'obraB'))
                 .overrideWith(
                   (ref) => Stream.value(
                     ObraMember(
-                      userId: 'u1',
+                      userId: 'u1', quadraId: 'obraB'))
+                .overrideWith(
+                  (ref) => Stream.value(
+                    ObraMember(
+                      userId: 'u1', status: LoteStatus.noPrazo,
                       isActive: true,
                       isAdmin: false,
                       modules: ['lotes'],
@@ -79,10 +88,12 @@ void main() {
                     ),
                   ),
                 ),
-            obraLotesProvider((construtoraId: 'c1', obraId: 'obraA'))
-                .overrideWith((ref) => Stream.value(<Lote>[])),
-            obraLotesProvider((construtoraId: 'c1', obraId: 'obraB'))
-                .overrideWith((ref) => Stream.value(<Lote>[])),
+            obraLotesProvider((construtoraId: 'c1', loteamentoId: 'obraA'))
+                .overrideWith((ref) => Stream.value(<Lote>[])), quadraId: 'obraA'))
+                .overrideWith((ref) => Stream.value(<Lote>[])), status: LoteStatus.noPrazo,
+            obraLotesProvider((construtoraId: 'c1', loteamentoId: 'obraB'))
+                .overrideWith((ref) => Stream.value(<Lote>[])), quadraId: 'obraB'))
+                .overrideWith((ref) => Stream.value(<Lote>[])), status: LoteStatus.noPrazo,
           ],
           child: MaterialApp.router(routerConfig: router),
         ),

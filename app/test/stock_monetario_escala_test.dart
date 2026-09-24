@@ -469,8 +469,9 @@ void main() {
         ProviderScope(
           overrides: [
             construtoraObrasProvider('c1').overrideWith((ref) => const <Obra>[]),
-            obraLotesProvider((construtoraId: 'c1', obraId: 'obra-torre-norte'))
-                .overrideWith((ref) => Stream.value(const <Lote>[])),
+            obraLotesProvider((construtoraId: 'c1', loteamentoId: 'obra-torre-norte'))
+                .overrideWith((ref) => Stream.value(const <Lote>[])), quadraId: 'obra-torre-norte'))
+                .overrideWith((ref) => Stream.value(const <Lote>[])), status: LoteStatus.noPrazo,
             almoxarifadoRepositoryProvider.overrideWithValue(AlmoxarifadoRepository()),
           ],
           child: MaterialApp(

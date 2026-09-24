@@ -36,8 +36,9 @@ class LoteamentosListScreen extends ConsumerWidget {
               final item = items[index];
               return ListTile(
                 title: Text(item.name),
+                trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
-                  // Navegar para o próximo nível
+                  context.go('/construtora/$construtoraId/loteamentos/${item.id}');
                 },
               );
             },

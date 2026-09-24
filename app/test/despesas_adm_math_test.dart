@@ -167,7 +167,7 @@ void main() {
       final despesa = DespesaAdm(
         id: 'desp_123',
         construtoraId: 'const_1',
-        obraId: 'obra_1',
+        loteamentoId: 'obra_1', quadraId: 'obra_1', status: LoteStatus.noPrazo,
         descricao: 'Locação de Betoneira',
         categoria: CategoriaDespesa.locacao,
         fornecedorNome: 'Equipamentos Alfa',
@@ -218,7 +218,7 @@ void main() {
       final despesa = DespesaAdm(
         id: 'desp_parc',
         construtoraId: 'c1',
-        obraId: 'o1',
+        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
         descricao: 'Serviço de Topografia',
         categoria: CategoriaDespesa.servicosTerceiros,
         valorTotalCents: 10000,
@@ -240,7 +240,7 @@ void main() {
       final despesaVencida = DespesaAdm(
         id: 'desp_old',
         construtoraId: 'c1',
-        obraId: 'o1',
+        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
         descricao: 'Conta de Energia Antiga',
         categoria: CategoriaDespesa.utilidades,
         valorTotalCents: 20000,

@@ -193,12 +193,15 @@ void main() {
                 _obra('o3'),
               ]),
             ),
-            obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+            obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo))
                 .overrideWith((ref) => Stream.value([_om('u1'), _om('u2')])),
-            obraMembersProvider((construtoraId: 'c-1', obraId: 'o3'))
+            obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'o3'))
                 .overrideWith(
                   (ref) =>
-                      Stream.value([_om('u1'), _om('u3', isActive: false)]),
+                      Stream.value([_om('u1'), quadraId: 'o3'))
+                .overrideWith(
+                  (ref) =>
+                      Stream.value([_om('u1'), status: LoteStatus.noPrazo, _om('u3', isActive: false)]),
                 ),
           ],
         );
@@ -209,11 +212,11 @@ void main() {
           (a, b) {},
         );
         final subO1 = container.listen(
-          obraMembersProvider((construtoraId: 'c-1', obraId: 'o1')),
+          obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo)),
           (a, b) {},
         );
         final subO3 = container.listen(
-          obraMembersProvider((construtoraId: 'c-1', obraId: 'o3')),
+          obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'o3')), quadraId: 'o3')), status: LoteStatus.noPrazo,
           (a, b) {},
         );
         addTearDown(subAtivas.close);
@@ -223,10 +226,10 @@ void main() {
         // Aguarda os streams base emitirem (o2 inativa nunca é assinada).
         await container.read(obrasAtivasProvider('c-1').future);
         await container.read(
-          obraMembersProvider((construtoraId: 'c-1', obraId: 'o1')).future,
+          obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo)).future,
         );
         await container.read(
-          obraMembersProvider((construtoraId: 'c-1', obraId: 'o3')).future,
+          obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'o3')).future, quadraId: 'o3')).future, status: LoteStatus.noPrazo,
         );
         await Future<void>.delayed(Duration.zero);
 
@@ -520,7 +523,7 @@ void main() {
           ).overrideWith((ref) => Stream.value(const <Map<String, dynamic>>[])),
           obrasDaConstrutoraProvider('c-1')
               .overrideWith((ref) => Stream.value([_obra('o1')])),
-          obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+          obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo))
               .overrideWith((ref) => Stream<List<ObraMember>>.empty()),
         ],
         child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
@@ -554,7 +557,7 @@ void main() {
               .overrideWith((ref) => Stream.value([_obra('o1')])),
           obraMembersProvider((
             construtoraId: 'c-1',
-            obraId: 'o1',
+            loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
           )).overrideWithValue(
             AsyncValue.error(Exception('obraMembers falhou'), StackTrace.empty),
           ),
@@ -613,7 +616,7 @@ void main() {
           ).overrideWith((ref) => Stream.value(const <Map<String, dynamic>>[])),
           obrasDaConstrutoraProvider('c-1')
               .overrideWith((ref) => Stream.value([_obra('o1')])),
-          obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+          obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo))
               .overrideWith((ref) {
                 obraMembersBuilds++;
                 return Stream<List<ObraMember>>.empty();
@@ -860,14 +863,21 @@ void main() {
                     })
                 .entries)
           if (entry.key == 'o1' && vinculosValue != null)
-            obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
+            obraMembersProvider((construtoraId: 'c-1', loteamentoId: entry.key))
                 .overrideWithValue(vinculosValue)
           else
-            obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
+            obraMembersProvider((construtoraId: 'c-1', quadraId: entry.key))
+                .overrideWithValue(vinculosValue)
+          else
+            obraMembersProvider((construtoraId: 'c-1', status: LoteStatus.noPrazo, loteamentoId: entry.key))
                 .overrideWith(
                   (ref) => entry.key == 'o1' && vinculosStream != null
                       ? vinculosStream()
-                      : Stream.value(entry.value),
+                      : Stream.value(entry.value), quadraId: entry.key))
+                .overrideWith(
+                  (ref) => entry.key == 'o1' && vinculosStream != null
+                      ? vinculosStream()
+                      : Stream.value(entry.value), status: LoteStatus.noPrazo,
                 ),
       ];
     }
@@ -966,7 +976,7 @@ void main() {
           ProviderScope(
             overrides: [
               ...base82(obras: [_obra('o1'), _obra('o2')], porObra: {'o1': []}),
-              obraMembersProvider((construtoraId: 'c-1', obraId: 'o2'))
+              obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'l2', quadraId: 'q2', status: LoteStatus.noPrazo))
                   .overrideWith((ref) => const Stream.empty()),
             ],
             child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
@@ -1418,14 +1428,21 @@ void main() {
                     })
                 .entries)
           if (entry.key == 'o1' && vinculosValue != null)
-            obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
+            obraMembersProvider((construtoraId: 'c-1', loteamentoId: entry.key))
                 .overrideWithValue(vinculosValue)
           else
-            obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
+            obraMembersProvider((construtoraId: 'c-1', quadraId: entry.key))
+                .overrideWithValue(vinculosValue)
+          else
+            obraMembersProvider((construtoraId: 'c-1', status: LoteStatus.noPrazo, loteamentoId: entry.key))
                 .overrideWith(
                   (ref) => entry.key == 'o1' && vinculosStream != null
                       ? vinculosStream()
-                      : Stream.value(entry.value),
+                      : Stream.value(entry.value), quadraId: entry.key))
+                .overrideWith(
+                  (ref) => entry.key == 'o1' && vinculosStream != null
+                      ? vinculosStream()
+                      : Stream.value(entry.value), status: LoteStatus.noPrazo,
                 ),
         if (vinculoValue != null)
           memberDetalheProvider((construtoraId: 'c-1', uid: uid))
@@ -2008,8 +2025,9 @@ void main() {
                       'o2': <ObraMember>[],
                     })
                 .entries)
-          obraMembersProvider((construtoraId: 'c-1', obraId: entry.key))
-              .overrideWith((ref) => Stream.value(entry.value)),
+          obraMembersProvider((construtoraId: 'c-1', loteamentoId: entry.key))
+              .overrideWith((ref) => Stream.value(entry.value)), quadraId: entry.key))
+              .overrideWith((ref) => Stream.value(entry.value)), status: LoteStatus.noPrazo,
         memberDetalheProvider((construtoraId: 'c-1', uid: uid)).overrideWith(
           (ref) =>
               vinculoFuture?.call() ??
@@ -2305,9 +2323,9 @@ void main() {
             .overrideWith((ref) => Stream.value(const [])),
         obrasDaConstrutoraProvider('c-1')
             .overrideWith((ref) => Stream.value([_obra('o1'), _obra('o2')])),
-        obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+        obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo))
             .overrideWith((ref) => Stream.value([_om('u1')])),
-        obraMembersProvider((construtoraId: 'c-1', obraId: 'o2'))
+        obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'l2', quadraId: 'q2', status: LoteStatus.noPrazo))
             .overrideWith((ref) => Stream.value(<ObraMember>[])),
         memberDetalheProvider((construtoraId: 'c-1', uid: 'u1'))
             .overrideWith((ref) => Future<ConstrutoraMember?>.value(_cm('u1'))),
@@ -2580,7 +2598,7 @@ void main() {
       await expectLater(
         repo.setMembership(
           construtoraId: 'c-1',
-          obraId: 'o2',
+          loteamentoId: 'l2', quadraId: 'q2', status: LoteStatus.noPrazo,
           userId: 'u1',
           role: 'operario',
           modules: ['diario'],
@@ -2610,7 +2628,7 @@ void main() {
       await expectLater(
         repo.setMembership(
           construtoraId: 'c-1',
-          obraId: 'o2',
+          loteamentoId: 'l2', quadraId: 'q2', status: LoteStatus.noPrazo,
           userId: 'u1',
           role: 'operario',
           modules: ['diario'],
@@ -2651,7 +2669,7 @@ void main() {
                 onPressed: () => TrocarPapelDialog.show(
                   context: ctx,
                   construtoraId: 'c-1',
-                  obraId: 'o1',
+                  loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
                   obraNome: 'Obra o1',
                   userId: 'u1',
                   membroIdentificador: 'ana@obra.com',
@@ -2861,7 +2879,7 @@ void main() {
             .overrideWith((ref) => Stream.value(const [])),
         obrasDaConstrutoraProvider('c-1')
             .overrideWith((ref) => Stream.value([_obra('o1')])),
-        obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+        obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo))
             .overrideWith((ref) => Stream.value([vinculo ?? _om(uid)])),
         memberDetalheProvider((construtoraId: 'c-1', uid: uid))
             .overrideWith((ref) => Future.value(_cm(uid, isActive: true))),
@@ -3357,7 +3375,7 @@ void main() {
                   .overrideWith((ref) => Stream.value(const [])),
               obrasDaConstrutoraProvider('c-1')
                   .overrideWith((ref) => Stream.value([_obra('o1')])),
-              obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+              obraMembersProvider((construtoraId: 'c-1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo))
                   .overrideWith((ref) => Stream.value([_om('u1')])),
               memberDetalheProvider((construtoraId: 'c-1', uid: 'u1'))
                   .overrideWith(
@@ -3431,8 +3449,9 @@ void main() {
           obrasDaConstrutoraProvider('c-1')
               .overrideWith((ref) => Stream.value(obras)),
           for (final obra in obras)
-            obraMembersProvider((construtoraId: 'c-1', obraId: obra.id))
-                .overrideWith((ref) => Stream.value([_om(uid)])),
+            obraMembersProvider((construtoraId: 'c-1', loteamentoId: obra.id))
+                .overrideWith((ref) => Stream.value([_om(uid)])), quadraId: obra.id))
+                .overrideWith((ref) => Stream.value([_om(uid)])), status: LoteStatus.noPrazo,
           memberDetalheProvider((construtoraId: 'c-1', uid: uid))
               .overrideWith(
                   (ref) => Future.value(_cm(uid, isActive: true))),
