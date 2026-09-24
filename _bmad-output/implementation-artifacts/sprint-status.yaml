@@ -218,12 +218,13 @@ action_items:
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-17.md"
   - id: "epic-4-retro-item-1-modularizar-chamada-form"
     epic: 4
-    action: "Extrair sub-componentes de chamada_form_screen.dart: progresso parcial
-      (banner de invariantes, filtros de cabecalho e sticky bottom bar ja extraidos);
-      extrair tambem o sumario de rateio; tela ainda com 585 linhas, meta <=500
-      pendente - manter este item open ate a extracao e a meta de linhas serem cumpridas"
+    action: "Extrair sub-componentes de chamada_form_screen.dart: sumario de rateio
+      e composicao visual extraidos em ChamadaRateioSummary e ChamadaFormView;
+      tela com 491 linhas apos dart format (meta <=500 cumprida), 39 testes de RH
+      passando e analise dos arquivos alterados sem problemas. Evidencias em
+      spec-epic-4-retro-item-1-modularizar-chamada-form.md"
     owner: "maranduteam"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-17.md"
   - id: "epic-4-retro-item-2-fila-offline-rh"
     epic: 4

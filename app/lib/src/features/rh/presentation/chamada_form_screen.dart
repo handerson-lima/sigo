@@ -1,11 +1,10 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../common_widgets/sigo_layout.dart';
+import '../../authentication/data/auth_repository.dart';
 import '../../lotes/data/lote_repository.dart';
 import '../../lotes/domain/lote.dart';
 import '../data/custo_mao_de_obra_service.dart';
@@ -18,10 +17,7 @@ import '../domain/rh_invariante_validator.dart';
 import '../data/chamada_repository.dart';
 import '../data/lote_persistido_service.dart';
 import '../domain/chamada_diaria.dart';
-import 'widgets/apontamento_worker_card.dart';
-import 'widgets/chamada_filtros_header.dart';
-import 'widgets/chamada_invariantes_banner.dart';
-import 'widgets/chamada_sticky_bottom_bar.dart';
+import 'widgets/chamada_form_view.dart';
 import 'widgets/retificacao_chamada_dialog.dart';
 
 class ChamadaFormScreen extends ConsumerStatefulWidget {
@@ -50,13 +46,6 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
   ChamadaDiaria? _existingChamada;
 
   String get _formattedDate => DateFormat('yyyy-MM-dd').format(_selectedDate);
-
-  int get _presentCount =>
-      _workers.where((w) => w.status == PresencaStatus.presente).length;
-  int get _meioPeriodoCount =>
-      _workers.where((w) => w.status == PresencaStatus.meioPeriodo).length;
-  int get _faltaCount =>
-      _workers.where((w) => w.status == PresencaStatus.falta).length;
 
   bool get _isFormValid =>
       _workers.isNotEmpty &&
@@ -98,9 +87,11 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
     } else {
       _checkExistingChamadaForDate(_selectedDate);
     }
-    setState(() {
-      _initialized = true;
-    });
+    if (mounted) {
+      setState(() {
+        _initialized = true;
+      });
+    }
   }
 
   Future<void> _checkExistingChamadaForDate(DateTime date) async {
@@ -135,13 +126,14 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
   }
 
   Future<void> _pickDate() async {
+    if (_isSaving || !mounted) return;
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2035),
     );
-    if (picked != null && picked != _selectedDate) {
+    if (picked != null && picked != _selectedDate && mounted) {
       setState(() {
         _selectedDate = picked;
       });
@@ -152,13 +144,16 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
   void _syncWorkersList(List<Funcionario> allFuncionarios, List<Lote> lotes) {
     if (_existingChamada != null) return; // Não sobrescreve chamada existente
 
-    final activeFuncionarios = allFuncionarios.where((f) => f.isActive).toList();
+    final activeFuncionarios = allFuncionarios
+        .where((f) => f.isActive)
+        .toList();
     final filtered = _selectedTeamId == null || _selectedTeamId!.isEmpty
         ? activeFuncionarios
         : activeFuncionarios.where((f) => f.teamId == _selectedTeamId).toList();
 
     if (_workers.isEmpty || _workers.length != filtered.length) {
-      final targetLot = lotes.where((l) => l.id == _defaultLotId).firstOrNull ??
+      final targetLot =
+          lotes.where((l) => l.id == _defaultLotId).firstOrNull ??
           (lotes.isNotEmpty ? lotes.first : null);
 
       _workers.clear();
@@ -185,6 +180,7 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
   }
 
   Future<void> _onTeamChanged(String? teamId, List<Lote> lotes) async {
+    if (_isSaving || !mounted) return;
     setState(() {
       _selectedTeamId = teamId;
       _workers.clear(); // Limpa para recalcular pela equipe
@@ -194,7 +190,10 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
       final savedLot = await ref
           .read(lotePersistidoServiceProvider)
           .getDefaultLot(obraId: widget.obraId, teamId: teamId);
-      if (savedLot != null && lotes.any((l) => l.id == savedLot) && mounted) {
+      if (savedLot != null &&
+          lotes.any((l) => l.id == savedLot) &&
+          mounted &&
+          !_isSaving) {
         setState(() {
           _defaultLotId = savedLot;
         });
@@ -203,11 +202,16 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
   }
 
   void _onDefaultLotChanged(String? lotId) {
+    if (_isSaving || !mounted) return;
     setState(() {
       _defaultLotId = lotId;
     });
-    if (lotId != null && _selectedTeamId != null && _selectedTeamId!.isNotEmpty) {
-      ref.read(lotePersistidoServiceProvider).saveDefaultLot(
+    if (lotId != null &&
+        _selectedTeamId != null &&
+        _selectedTeamId!.isNotEmpty) {
+      ref
+          .read(lotePersistidoServiceProvider)
+          .saveDefaultLot(
             obraId: widget.obraId,
             teamId: _selectedTeamId!,
             lotId: lotId,
@@ -216,7 +220,9 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
   }
 
   void _markAllPresent(List<Lote> lotes) {
-    final targetLot = lotes.where((l) => l.id == _defaultLotId).firstOrNull ??
+    if (_isSaving || !mounted) return;
+    final targetLot =
+        lotes.where((l) => l.id == _defaultLotId).firstOrNull ??
         (lotes.isNotEmpty ? lotes.first : null);
 
     setState(() {
@@ -249,6 +255,7 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
     List<Funcionario> allFuncionarios,
     List<Lote> lotes,
   ) async {
+    if (_isSaving || !mounted) return;
     final erros = _validarInvariantes(lotes);
     if (erros.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -264,17 +271,33 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
       _isSaving = true;
     });
 
+    final repo = ref.read(chamadaRepositoryProvider);
+    final user = ref.read(authRepositoryProvider).currentUser;
+    final uid = user?.uid ?? 'unknown';
+    final userName = user?.displayName ?? uid;
+    final date = _formattedDate;
+    final teamId = _selectedTeamId;
+    final teamName = teamId != null
+        ? equipes.where((e) => e.id == teamId).firstOrNull?.name
+        : null;
+    final defaultLotId = _defaultLotId;
+    final existing = _existingChamada;
+    final funcionarios = List<Funcionario>.unmodifiable(allFuncionarios);
+    final workers = [
+      for (final w in _workers)
+        w.copyWith(allocations: List<AlocacaoLote>.unmodifiable(w.allocations)),
+    ];
+
     try {
-      // 1. Checagem de conflitos Cross-Obra na mesma data
-      final crossApontamentos =
-          await ref.read(chamadaRepositoryProvider).findCrossObraApontamentos(
-                construtoraId: widget.construtoraId,
-                currentObraId: widget.obraId,
-                date: _formattedDate,
-              );
+      final crossApontamentos = await repo.findCrossObraApontamentos(
+        construtoraId: widget.construtoraId,
+        currentObraId: widget.obraId,
+        date: date,
+      );
+      if (!mounted) return;
 
       for (final cross in crossApontamentos) {
-        final workerInCurrent = _workers
+        final workerInCurrent = workers
             .where((w) => w.workerId == cross.apontamento.workerId)
             .firstOrNull;
         if (workerInCurrent != null &&
@@ -296,47 +319,31 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
                 ),
               );
             }
-            setState(() {
-              _isSaving = false;
-            });
             return;
           }
         }
       }
 
       final costResult = CustoMaoDeObraService.computeChamadaCosts(
-        funcionarios: allFuncionarios,
-        apontamentos: _workers,
+        funcionarios: funcionarios,
+        apontamentos: workers,
       );
-
-      final user = FirebaseAuth.instance.currentUser;
-      final uid = user?.uid ?? 'unknown';
-      final userName = user?.displayName ?? uid;
-      final equipeName = _selectedTeamId != null
-          ? equipes.where((e) => e.id == _selectedTeamId).firstOrNull?.name
-          : null;
 
       String? motivoRetificacao;
       ChamadaAuditEntry? auditEntry;
 
-      // 2. Fluxo de retificação para chamadas já fechadas/retificadas
-      if (_existingChamada != null) {
+      if (existing != null) {
         if (!mounted) return;
         final motivo = await showDialog<String>(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => RetificacaoChamadaDialog(
-            totalCostCentsAnterior: _existingChamada!.totalDayCostCents,
+            totalCostCentsAnterior: existing.totalDayCostCents,
             totalCostCentsNovo: costResult.totalDayCostCents,
           ),
         );
-
-        if (motivo == null) {
-          setState(() {
-            _isSaving = false;
-          });
-          return;
-        }
+        if (!mounted) return;
+        if (motivo == null) return;
 
         motivoRetificacao = motivo;
         auditEntry = ChamadaAuditEntry(
@@ -345,54 +352,49 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
           userName: userName,
           timestamp: DateTime.now(),
           motivo: motivo,
-          totalCostCentsAnterior: _existingChamada!.totalDayCostCents,
+          totalCostCentsAnterior: existing.totalDayCostCents,
           totalCostCentsNovo: costResult.totalDayCostCents,
-          versaoAnterior: _existingChamada!.versaoAuditoria,
-          snapshotAnterior: _existingChamada!.toMap(),
+          versaoAnterior: existing.versaoAuditoria,
+          snapshotAnterior: existing.toMap(),
         );
       }
 
-      final novaVersao = _existingChamada != null
-          ? _existingChamada!.versaoAuditoria + 1
-          : 1;
-      final novoAuditTrail = _existingChamada != null
-          ? [..._existingChamada!.auditTrail, ?auditEntry]
-          : <ChamadaAuditEntry>[];
-
       final chamada = ChamadaDiaria(
-        id: _existingChamada?.id ?? const Uuid().v4(),
+        id: existing?.id ?? const Uuid().v4(),
         construtoraId: widget.construtoraId,
         obraId: widget.obraId,
-        date: _formattedDate,
-        teamId: _selectedTeamId,
-        teamName: equipeName,
-        createdByUid: _existingChamada?.createdByUid ?? uid,
-        defaultLotId: _defaultLotId,
-        status: _existingChamada != null ? 'retificada' : 'fechada',
-        observacoes: _existingChamada?.observacoes,
-        workers: _workers,
+        date: date,
+        teamId: teamId,
+        teamName: teamName,
+        createdByUid: existing?.createdByUid ?? uid,
+        defaultLotId: defaultLotId,
+        status: existing != null ? 'retificada' : 'fechada',
+        observacoes: existing?.observacoes,
+        workers: workers,
         totalDayCostCents: costResult.totalDayCostCents,
         costPolicyVersion: 'v1',
         costPolicy: const CostPolicy(),
         costSnapshots: costResult.costSnapshots,
         lotCostSummaries: costResult.lotCostSummaries,
-        versaoAuditoria: novaVersao,
-        auditTrail: novoAuditTrail,
-        retificadoPor: _existingChamada != null ? userName : null,
-        retificadoEm: _existingChamada != null ? DateTime.now() : null,
+        versaoAuditoria: existing != null ? existing.versaoAuditoria + 1 : 1,
+        auditTrail: existing != null
+            ? [...existing.auditTrail, ?auditEntry]
+            : <ChamadaAuditEntry>[],
+        retificadoPor: existing != null ? userName : null,
+        retificadoEm: existing != null ? DateTime.now() : null,
         motivoRetificacao: motivoRetificacao,
-        createdAt: _existingChamada?.createdAt ?? DateTime.now(),
+        createdAt: existing?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
         schemaVersion: 1,
       );
 
-      await ref.read(chamadaRepositoryProvider).saveChamada(chamada);
+      await repo.saveChamada(chamada);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.green,
             content: Text(
-              _existingChamada != null
+              existing != null
                   ? 'Chamada retificada e registrada na auditoria com sucesso!'
                   : 'Chamada diária salva e fechada com sucesso!',
             ),
@@ -420,16 +422,13 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final funcionariosAsync =
-        ref.watch(funcionariosStreamProvider(widget.construtoraId));
+    final funcionariosAsync = ref.watch(
+      funcionariosStreamProvider(widget.construtoraId),
+    );
     final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
-    final lotesStream = ref.watch(loteRepositoryProvider).watchLotes(
-          widget.construtoraId,
-          widget.obraId,
-        );
+    final lotesStream = ref
+        .watch(loteRepositoryProvider)
+        .watchLotes(widget.construtoraId, widget.obraId);
 
     return StreamBuilder<List<Lote>>(
       stream: lotesStream,
@@ -437,9 +436,8 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
         final lotes = lotesSnap.data ?? [];
 
         return funcionariosAsync.when(
-          loading: () => const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          ),
+          loading: () =>
+              const Scaffold(body: Center(child: CircularProgressIndicator())),
           error: (e, st) => Scaffold(
             body: Center(child: Text('Erro ao carregar colaboradores: $e')),
           ),
@@ -452,128 +450,42 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
                 body: Center(child: Text('Erro ao carregar equipes: $e')),
               ),
               data: (equipes) {
-                if (_initialized && _workers.isEmpty && _existingChamada == null) {
+                if (_initialized &&
+                    _workers.isEmpty &&
+                    _existingChamada == null) {
                   _syncWorkersList(allFuncionarios, lotes);
                 }
 
-                return SigoLayout(
-                  title: _existingChamada != null
-                      ? 'Retificar Chamada Diária'
-                      : 'Nova Chamada Diária',
-                  activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
-                  actions: [
-                    if (lotes.isNotEmpty && _workers.isNotEmpty)
-                      TextButton.icon(
-                        icon: const Icon(Icons.done_all, color: Colors.green),
-                        label: const Text(
-                          'Todos Presentes',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        onPressed: () => _markAllPresent(lotes),
-                      ),
-                  ],
-                  child: Column(
-                    children: [
-                      // Cabeçalho de Seleção extraído
-                      ChamadaFiltrosHeader(
-                        selectedDate: _selectedDate,
-                        onPickDate: _pickDate,
-                        defaultLotId: _defaultLotId,
-                        lotes: lotes,
-                        onDefaultLotChanged: _onDefaultLotChanged,
-                        selectedTeamId: _selectedTeamId,
-                        equipes: equipes,
-                        onTeamChanged: (teamId) {
-                          _onTeamChanged(teamId, lotes);
-                          _syncWorkersList(allFuncionarios, lotes);
-                        },
-                      ),
-
-                      // Banner de Feedback Preventivo de Invariantes extraído
-                      Builder(
-                        builder: (context) {
-                          final erros = _validarInvariantes(lotes);
-                          return ChamadaInvariantesBanner(erros: erros);
-                        },
-                      ),
-
-                      // Lista de Operários
-                      Expanded(
-                        child: _workers.isEmpty
-                            ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24.0),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.person_off_outlined,
-                                        size: 48,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        'Nenhum colaborador encontrado para o filtro selecionado.',
-                                        textAlign: TextAlign.center,
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                itemCount: _workers.length,
-                                itemBuilder: (context, index) {
-                                  final worker = _workers[index];
-                                  final func = allFuncionarios
-                                      .where((f) => f.id == worker.workerId)
-                                      .firstOrNull;
-                                  return ApontamentoWorkerCard(
-                                    apontamento: worker,
-                                    availableLotes: lotes,
-                                    defaultLotId: _defaultLotId,
-                                    baseDailyRateCents: func?.totalDailyRateCents,
-                                    onChanged: (updated) {
-                                      setState(() {
-                                        _workers[index] = updated;
-                                      });
-                                    },
-                                  );
-                                },
-                              ),
-                      ),
-
-                      // Sticky Bottom Bar com Resumo e Botão Salvar extraída
-                      Builder(
-                        builder: (context) {
-                          final currentCosts =
-                              CustoMaoDeObraService.computeChamadaCosts(
-                            funcionarios: allFuncionarios,
-                            apontamentos: _workers,
-                          );
-
-                          return ChamadaStickyBottomBar(
-                            existingChamada: _existingChamada,
-                            currentCosts: currentCosts,
-                            formattedDate: _formattedDate,
-                            workersCount: _workers.length,
-                            presentCount: _presentCount,
-                            meioPeriodoCount: _meioPeriodoCount,
-                            faltaCount: _faltaCount,
-                            isSaving: _isSaving,
-                            isFormValid: _isFormValid,
-                            onSave: () => _saveChamada(equipes, allFuncionarios, lotes),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                return ChamadaFormView(
+                  activeRoute:
+                      '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
+                  existingChamada: _existingChamada,
+                  selectedDate: _selectedDate,
+                  formattedDate: _formattedDate,
+                  selectedTeamId: _selectedTeamId,
+                  defaultLotId: _defaultLotId,
+                  workers: _workers,
+                  funcionarios: allFuncionarios,
+                  equipes: equipes,
+                  lotes: lotes,
+                  erros: _validarInvariantes(lotes),
+                  isSaving: _isSaving,
+                  isFormValid: _isFormValid,
+                  onPickDate: _pickDate,
+                  onTeamChanged: (teamId) {
+                    if (_isSaving) return;
+                    _onTeamChanged(teamId, lotes);
+                    _syncWorkersList(allFuncionarios, lotes);
+                  },
+                  onDefaultLotChanged: _onDefaultLotChanged,
+                  onMarkAllPresent: () => _markAllPresent(lotes),
+                  onWorkerChanged: (index, updated) {
+                    if (_isSaving || !mounted) return;
+                    setState(() {
+                      _workers[index] = updated;
+                    });
+                  },
+                  onSave: () => _saveChamada(equipes, allFuncionarios, lotes),
                 );
               },
             );

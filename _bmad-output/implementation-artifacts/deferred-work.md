@@ -139,3 +139,7 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `_bmad-output/implementation-artifacts/spec-0-2-definir-politica.md`
   summary: Reconciliar edição de epic-0-context.md com restrição de somente leitura no Code Map da Story 0-2.
   evidence: commits da história alteraram objetivo e adicionaram seções ao contexto do épico; por ser arquivo de contexto de agente, requer fluxo próprio.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-4-retro-item-1-modularizar-chamada-form.md`
+  summary: Fixar snapshot consistente ou bloquear edições durante salvamento da chamada (high).
+  evidence: Problema preexistente confirmado por inspeção de `_saveChamada`: consulta cross-obra usa `_formattedDate` antes do await e criação da ChamadaDiaria lê data/trabalhadores mutáveis depois; filtros e cartões continuam habilitados enquanto `isSaving` desabilita apenas salvar. Alterar a data enquanto a consulta está pendente pode validar um dia e salvar outro. Requer correção comportamental própria com teste de consulta atrasada.
