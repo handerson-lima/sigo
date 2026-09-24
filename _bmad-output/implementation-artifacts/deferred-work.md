@@ -181,3 +181,15 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-concorrencia-salvamento-chamada.md`
   summary: Demais findings low adiados: isFormValid sem `lotesValidosDaObra`; data duplicada só advisory sem teste; `_syncWorkersList` muta em build; conflito mostra `obraId` cru; `saveDefaultLot` sem tratamento de erro; sem teste de write lento/wiring do sticky bar; exceção crua no snackbar; uid fallback `unknown`; sem `PopScope`; `findChamadaByDate` da fixture sempre null; date picker 2020–2035.
   evidence: todos pré-existente ou gap de cobertura fora do intent de concorrência; ver Review Triage Log da spec.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-1-navegacao-loteamento-quadra-lote.md`
+  summary: As Boundaries do spec descrevem a hierarquia em plural (`/construtoras/:cId/...`) enquanto o app usa o singular (`/construtora/:cId`).
+  evidence: divergência real de documentação; o singular é a convenção de todo o app (`ConstrutoraPaths.detail`) e a navegação funciona; pré-existente, não introduzido pela 11.1.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-1-navegacao-loteamento-quadra-lote.md`
+  summary: Ramos `error`/`loading` das listagens de loteamentos, quadras e lotes não têm testes.
+  evidence: lacuna de cobertura real (só vazio/dados/rebuild são exercitados); sem defeito demonstrado no comportamento atual.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-1-navegacao-loteamento-quadra-lote.md`
+  summary: `watchLoteamentosProvider`/`watchQuadrasProvider`/`watchLotesProvider` são `StreamProvider.family` sem `autoDispose`, mantendo subscriptions do Firestore por toda a sessão.
+  evidence: padrão já usado por setores/equipes; `autoDispose` reintroduziria o `AsyncLoading` que a história quer evitar; decisão de ciclo de vida de provider a revisitar.

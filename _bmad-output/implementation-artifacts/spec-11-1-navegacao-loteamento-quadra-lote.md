@@ -2,7 +2,7 @@
 title: 'Story 11.1 - Navegação Loteamento → Quadra → Lote'
 type: 'feature'
 created: '2026-09-24'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '068978981139fb56dca53c42456792da7fa71458'
@@ -65,3 +65,27 @@ context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 **Commands:**
 - `flutter analyze` -- expected: Sem problemas nos arquivos de roteamento e nas novas listagens com Records.
 - `flutter test` -- expected: Cobertura dos provedores refatorados e dos fluxos de breadcrumbs.
+
+## Review Triage Log
+
+- `false` — firestore.rules marcado `[x]` sem diff: as rules de `loteamentos`/`quadras`/`lotes` já concedem `read: if member(c)` e `write: if admin(c)` (firestore.rules:46-65); "revisar" não exige alteração e o isolamento por construtora está preservado.
+- `false` — ACs "sem marcação": são declarações Given/When/Then, não checkboxes; o template só marca `Execution`.
+- `false` — `review_loop_iteration` não incrementado: a iteração só sobe antes de um loopback, não na primeira passada de review.
+- `false` — sprint-status `in-progress` vs frontmatter `in-review`: o ciclo do sprint-status mapeia para `review` apenas na conclusão (step-05); `in-progress` durante o review é esperado.
+- `false` — `spec-fix-testes-obsoletos-lote` `done` só com defers, e notas não verificáveis no diff: artefato de outra história; não causado por esta mudança.
+- `false` — diff inclui edições de outra história (`setores_routes.dart`, `movimentacao_screen.dart`): alterações pré-existentes/não commitadas de outro escopo, ampliadas pelo range do baseline; sem dano.
+- `false` — "nenhum teste cobre os redirects entregues": os redirects `:loteamentoId→/quadras` e `:quadraId→/lotes` SÃO exercitados pelos testes que usam `construtoraRoutes` (neutralizá-los quebra a suíte). O caso `:loteId/:setorId` está tratado à parte (ver `medium` do verification-gap).
+- `false` — "ramo condicional `null` do redirect sem teste": o ramo `uri.path != matchedLocation` é exercitado pelos testes de deep path em `construtoraRoutes`.
+- `false` — "mensagem de erro fixa remove detalhe": segue o padrão das telas da 11.2; ocultar erro bruto do usuário é intencional, não regressão.
+- `false` — "dependência 11.1/11.2 não reconciliada" e "sem contrato documentado de labels dos breadcrumbs": processo/documentação; a dependência já consta no `epic-11-context` e o widget deriva labels do path, com testes fixando o comportamento.
+- `false` — "Verification sem evidência observada": `flutter analyze` (limpo) e `flutter test` (459 verdes) foram executados; o fix editaria o próprio spec do build (rejeitado por regra).
+- `false` — "id cru com `?`/`#`/`/` interpolado na URL": os ids são UUID v4 (`add_lote_screen.dart:32`) e doc ids do Firestore, URL-safe; caso inalcançável.
+- `medium` (blind-hunter + verification-gap, mesmo root cause) — testes de "rebuild sem AsyncLoading" não comprovam a propriedade: em `loteamentos_list_screen_test.dart` o `child:` `const` faz `Element.updateChild` curto-circuitar e a tela NÃO é reconstruída, então o teste passa independentemente; os testes de provider só checam `identical` (cache normal do Riverpod). Patch.
+- `medium` (verification-gap) — redirects `:loteId→/setores` e `:setorId→/equipes` sem teste: comprovado que neutralizá-los mantém a suíte relacionada verde. Patch.
+- `low` → defer — "Boundaries em plural `/construtoras/...` vs código singular `/construtora/`": divergência de documentação, mas o singular é a convenção de todo o app (`ConstrutoraPaths.detail`); navegação funciona; pré-existente.
+- `low` → defer — ramos `error`/`loading` das listagens sem teste: lacuna de cobertura, sem defeito demonstrado.
+- `low` → defer — `family` sem `autoDispose` acumula subscriptions do Firestore: padrão já usado por setores/equipes; `autoDispose` reintroduziria o `AsyncLoading` que a história quer evitar; decisão de design a revisitar.
+- `low` → rejeitado — trailing slash quebra o redirect: improvável no uso diário e o fix adiciona normalização/guard (custo > correção direta).
+- `low` → rejeitado — URLs literais em vez de `LoteamentosPaths`/`QuadrasPaths`: DRY apenas de desenvolvedor, sem dano ao usuário e refatoração não trivial.
+- `low` → rejeitado — query params perdidos no redirect: estas rotas não carregam query params; hipotético.
+- `low` → rejeitado — fakes/factories duplicados entre arquivos de teste e mistura `test/` vs `test/src/features/`: organização de testes, sem impacto funcional.

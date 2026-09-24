@@ -87,4 +87,53 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)',
+      (tester) async {
+    final rebuild = ValueNotifier<int>(0);
+    addTearDown(rebuild.dispose);
+    var buildCount = 0;
+
+    final router = GoRouter(
+      initialLocation: '/construtora/c1/loteamentos/l1/quadras',
+      routes: [
+        GoRoute(
+          path: '/construtora/c1/loteamentos/l1/quadras',
+          builder: (context, state) => ValueListenableBuilder<int>(
+            valueListenable: rebuild,
+            builder: (context, _, _) {
+              buildCount++;
+              return QuadrasListScreen(
+                construtoraId: 'c1',
+                loteamentoId: 'l1',
+              );
+            },
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          quadraRepositoryProvider.overrideWithValue(
+            FakeQuadraRepository([makeQuadra('q1')]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('Quadra q1'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    final buildsBefore = buildCount;
+
+    rebuild.value++;
+    await tester.pump();
+
+    expect(buildCount, greaterThan(buildsBefore));
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Quadra q1'), findsOneWidget);
+  });
 }

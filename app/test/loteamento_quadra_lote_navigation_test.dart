@@ -7,9 +7,15 @@ import 'package:app/src/features/loteamentos/presentation/loteamentos_list_scree
 import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/lotes/presentation/lotes_list_screen.dart';
+import 'package:app/src/features/equipes/data/equipe_repository.dart';
+import 'package:app/src/features/equipes/domain/equipe.dart';
+import 'package:app/src/features/equipes/presentation/equipes_list_screen.dart';
 import 'package:app/src/features/quadras/data/quadra_repository.dart';
 import 'package:app/src/features/quadras/domain/quadra.dart';
 import 'package:app/src/features/quadras/presentation/quadras_list_screen.dart';
+import 'package:app/src/features/setores/data/setor_repository.dart';
+import 'package:app/src/features/setores/domain/setor.dart';
+import 'package:app/src/features/setores/presentation/setores_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,6 +61,35 @@ class FakeLoteRepository implements LoteRepository {
   Future<void> createLote(Lote lote) async {}
 }
 
+class FakeSetorRepository implements SetorRepository {
+  final List<Setor> setores;
+  FakeSetorRepository(this.setores);
+
+  @override
+  Stream<List<Setor>> watchSetores(
+    String construtoraId,
+    String loteamentoId,
+    String quadraId,
+    String loteId,
+  ) =>
+      Stream.value(setores);
+}
+
+class FakeEquipeRepository implements EquipeRepository {
+  final List<Equipe> equipes;
+  FakeEquipeRepository(this.equipes);
+
+  @override
+  Stream<List<Equipe>> watchEquipes(
+    String construtoraId,
+    String loteamentoId,
+    String quadraId,
+    String loteId,
+    String setorId,
+  ) =>
+      Stream.value(equipes);
+}
+
 Loteamento makeLoteamento(String id) => Loteamento(
       id: id,
       construtoraId: 'c1',
@@ -78,6 +113,27 @@ Lote makeLote(String id) => Lote(
       name: 'Lote $id',
       phase: 'Plantas',
       status: LoteStatus.noPrazo,
+      createdAt: DateTime(2026, 1, 1),
+    );
+
+Setor makeSetor(String id) => Setor(
+      id: id,
+      construtoraId: 'c1',
+      loteamentoId: 'l1',
+      quadraId: 'q1',
+      loteId: 'lo1',
+      name: 'Setor $id',
+      createdAt: DateTime(2026, 1, 1),
+    );
+
+Equipe makeEquipe(String id) => Equipe(
+      id: id,
+      construtoraId: 'c1',
+      loteamentoId: 'l1',
+      quadraId: 'q1',
+      loteId: 'lo1',
+      setorId: 's1',
+      name: 'Equipe $id',
       createdAt: DateTime(2026, 1, 1),
     );
 
@@ -260,5 +316,76 @@ void main() {
       '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
     );
     expect(find.text('Lote lo1'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tocar em Lote no breadcrumb redireciona :loteId para a lista de setores',
+      (tester) async {
+    final router = GoRouter(
+      initialLocation:
+          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores',
+      routes: construtoraRoutes,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+          setorRepositoryProvider.overrideWithValue(
+            FakeSetorRepository([makeSetor('s1')]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byType(SetoresListScreen), findsOneWidget);
+    expect(find.text('Setor s1'), findsOneWidget);
+
+    await tester.tap(find.text('Lote'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SetoresListScreen), findsOneWidget);
+    expect(
+      router.state.uri.path,
+      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores',
+    );
+  });
+
+  testWidgets(
+      'tocar em Setor no breadcrumb redireciona :setorId para a lista de equipes',
+      (tester) async {
+    final router = GoRouter(
+      initialLocation:
+          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores/s1/equipes',
+      routes: construtoraRoutes,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+          setorRepositoryProvider.overrideWithValue(FakeSetorRepository([])),
+          equipeRepositoryProvider.overrideWithValue(
+            FakeEquipeRepository([makeEquipe('e1')]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byType(EquipesListScreen), findsOneWidget);
+    expect(find.text('Equipe e1'), findsOneWidget);
+
+    await tester.tap(find.text('Setor'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EquipesListScreen), findsOneWidget);
+    expect(
+      router.state.uri.path,
+      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores/s1/equipes',
+    );
   });
 }

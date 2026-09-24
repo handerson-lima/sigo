@@ -88,6 +88,7 @@ void main() {
       (tester) async {
     final rebuild = ValueNotifier<int>(0);
     addTearDown(rebuild.dispose);
+    var buildCount = 0;
 
     final router = GoRouter(
       initialLocation: '/construtora/c1/loteamentos',
@@ -96,8 +97,10 @@ void main() {
           path: '/construtora/c1/loteamentos',
           builder: (context, state) => ValueListenableBuilder<int>(
             valueListenable: rebuild,
-            builder: (context, _, child) => child!,
-            child: const LoteamentosListScreen(construtoraId: 'c1'),
+            builder: (context, _, _) {
+              buildCount++;
+              return LoteamentosListScreen(construtoraId: 'c1');
+            },
           ),
         ),
       ],
@@ -117,10 +120,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Loteamento l1'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+    final buildsBefore = buildCount;
 
     rebuild.value++;
     await tester.pump();
 
+    expect(buildCount, greaterThan(buildsBefore));
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('Loteamento l1'), findsOneWidget);
   });

@@ -102,4 +102,54 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)',
+      (tester) async {
+    final rebuild = ValueNotifier<int>(0);
+    addTearDown(rebuild.dispose);
+    var buildCount = 0;
+
+    final router = GoRouter(
+      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+      routes: [
+        GoRoute(
+          path: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+          builder: (context, state) => ValueListenableBuilder<int>(
+            valueListenable: rebuild,
+            builder: (context, _, _) {
+              buildCount++;
+              return LotesListScreen(
+                construtoraId: 'c1',
+                loteamentoId: 'l1',
+                quadraId: 'q1',
+              );
+            },
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          loteRepositoryProvider.overrideWithValue(
+            FakeLoteRepository([makeLote('lo1')]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('Lote lo1'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    final buildsBefore = buildCount;
+
+    rebuild.value++;
+    await tester.pump();
+
+    expect(buildCount, greaterThan(buildsBefore));
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Lote lo1'), findsOneWidget);
+  });
 }
