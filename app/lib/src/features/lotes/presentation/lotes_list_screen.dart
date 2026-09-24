@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/lote_repository.dart';
-import '../domain/lote.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 
 class LotesListScreen extends ConsumerWidget {
@@ -20,9 +19,13 @@ class LotesListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stream = ref
-        .watch(loteRepositoryProvider)
-        .watchLotes(construtoraId, loteamentoId, quadraId);
+    final lotesAsync = ref.watch(
+      watchLotesProvider((
+        construtoraId: construtoraId,
+        loteamentoId: loteamentoId,
+        quadraId: quadraId,
+      )),
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Lotes')),
@@ -31,16 +34,12 @@ class LotesListScreen extends ConsumerWidget {
         children: [
           const SigoBreadcrumbs(),
           Expanded(
-            child: StreamBuilder<List<Lote>>(
-              stream: stream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Erro: ${snapshot.error}'));
-                }
-                final items = snapshot.data ?? [];
+            child: lotesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => const Center(
+                child: Text('Não foi possível carregar os lotes. Tente novamente.'),
+              ),
+              data: (items) {
                 if (items.isEmpty) {
                   return const Center(
                     child: Text('Nenhum registro encontrado.'),

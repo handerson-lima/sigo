@@ -28,7 +28,9 @@ List<RouteBase> get setoresRoutes => [
         routes: [
           GoRoute(
             path: ':setorId',
-            redirect: (context, state) => '\${state.uri.path}/equipes',
+            redirect: (context, state) => state.uri.path == state.matchedLocation
+                ? '${state.matchedLocation}/equipes'
+                : null,
             routes: [
               ...equipesRoutes,
             ],

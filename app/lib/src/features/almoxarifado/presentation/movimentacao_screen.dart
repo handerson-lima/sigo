@@ -474,12 +474,14 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                   children: const [
                     Icon(Icons.monetization_on_outlined, size: 20, color: Colors.blueGrey),
                     SizedBox(width: 8),
-                    Text(
-                      'Custo de Apropriação ao Lote (Opcional)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueGrey,
+                    Expanded(
+                      child: Text(
+                        'Custo de Apropriação ao Lote (Opcional)',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueGrey,
+                        ),
                       ),
                     ),
                   ],
@@ -541,12 +543,14 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                   children: const [
                     Icon(Icons.calculate_outlined, size: 20, color: Colors.blueGrey),
                     SizedBox(width: 8),
-                    Text(
-                      'Rateio e Custos de Aquisição (Opcional)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueGrey,
+                    Expanded(
+                      child: Text(
+                        'Rateio e Custos de Aquisição (Opcional)',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueGrey,
+                        ),
                       ),
                     ),
                   ],

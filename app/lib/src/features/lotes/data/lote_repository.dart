@@ -30,3 +30,19 @@ class LoteRepository {
     await docRef.set(lote);
   }
 }
+
+typedef LoteParams = ({
+  String construtoraId,
+  String loteamentoId,
+  String quadraId,
+});
+
+final watchLotesProvider =
+    StreamProvider.family<List<Lote>, LoteParams>((ref, params) {
+  final repo = ref.watch(loteRepositoryProvider);
+  return repo.watchLotes(
+    params.construtoraId,
+    params.loteamentoId,
+    params.quadraId,
+  );
+});

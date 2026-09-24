@@ -30,3 +30,11 @@ class LoteamentoRepository {
     await docRef.set(loteamento);
   }
 }
+
+typedef LoteamentoParams = ({String construtoraId});
+
+final watchLoteamentosProvider =
+    StreamProvider.family<List<Loteamento>, LoteamentoParams>((ref, params) {
+  final repo = ref.watch(loteamentoRepositoryProvider);
+  return repo.watchLoteamentos(params.construtoraId);
+});

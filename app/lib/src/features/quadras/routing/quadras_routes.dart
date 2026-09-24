@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../presentation/quadras_list_screen.dart';
 import '../../../common_widgets/access_guard.dart';
@@ -26,9 +25,9 @@ List<RouteBase> get quadrasRoutes => [
         routes: [
           GoRoute(
             path: ':quadraId',
-            builder: (context, state) {
-              return const SizedBox();
-            },
+            redirect: (context, state) => state.uri.path == state.matchedLocation
+                ? '${state.matchedLocation}/lotes'
+                : null,
             routes: [
               ...lotesRoutes,
             ],

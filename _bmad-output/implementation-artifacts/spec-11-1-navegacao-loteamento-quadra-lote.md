@@ -2,10 +2,10 @@
 title: 'Story 11.1 - Navegação Loteamento → Quadra → Lote'
 type: 'feature'
 created: '2026-09-24'
-status: 'ready'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
-baseline_commit: ''
+baseline_commit: '068978981139fb56dca53c42456792da7fa71458'
 context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 ---
 

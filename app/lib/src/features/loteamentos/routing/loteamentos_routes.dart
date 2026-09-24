@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../presentation/loteamentos_list_screen.dart';
 import '../../../common_widgets/access_guard.dart';
@@ -24,13 +23,9 @@ List<RouteBase> get loteamentosRoutes => [
         routes: [
           GoRoute(
             path: ':loteamentoId',
-            builder: (context, state) {
-              // Just a placeholder or QuadrasListScreen
-              // In nested routing, usually we want a Dashboard or redirect to Quadras
-              // Let's just return a placeholder or direct builder if needed.
-              // Actually, quadrasRoutes will be attached here.
-              return const SizedBox(); // Not directly accessed, we access quadras
-            },
+            redirect: (context, state) => state.uri.path == state.matchedLocation
+                ? '${state.matchedLocation}/quadras'
+                : null,
             routes: [
               ...quadrasRoutes,
             ],

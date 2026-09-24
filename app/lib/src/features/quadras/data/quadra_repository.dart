@@ -30,3 +30,11 @@ class QuadraRepository {
     await docRef.set(quadra);
   }
 }
+
+typedef QuadraParams = ({String construtoraId, String loteamentoId});
+
+final watchQuadrasProvider =
+    StreamProvider.family<List<Quadra>, QuadraParams>((ref, params) {
+  final repo = ref.watch(quadraRepositoryProvider);
+  return repo.watchQuadras(params.construtoraId, params.loteamentoId);
+});
