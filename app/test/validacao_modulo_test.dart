@@ -121,7 +121,7 @@ void main() {
       final vistoria = ValidacaoVistoria(
         id: 'vistoria_1',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         loteId: 'lote_10',
         templateId: 'tpl_alvenaria_01',
         templateTitulo: 'Alvenaria',
@@ -160,7 +160,7 @@ void main() {
       final vistoriaSemFoto = ValidacaoVistoria(
         id: 'vistoria_2',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         loteId: 'lote_12',
         templateId: 'tpl_1',
         templateTitulo: 'Estrutura',
@@ -196,7 +196,7 @@ void main() {
       final vistoriaComEvidencia = ValidacaoVistoria(
         id: 'vistoria_3',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         loteId: 'lote_12',
         templateId: 'tpl_1',
         templateTitulo: 'Estrutura',
@@ -233,7 +233,7 @@ void main() {
       final vistoriaReprovada = ValidacaoVistoria(
         id: 'vistoria_4',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         loteId: 'lote_12',
         templateId: 'tpl_1',
         templateTitulo: 'Estrutura',
@@ -261,7 +261,7 @@ void main() {
       final vistoria = ValidacaoVistoria(
         id: 'vistoria_5',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         loteId: 'lote_5',
         templateId: 'tpl_acabamento_01',
         templateTitulo: 'Pintura Interna',

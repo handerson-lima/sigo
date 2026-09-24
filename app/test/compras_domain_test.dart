@@ -13,7 +13,7 @@ void main() {
       final compra = CompraNf(
         id: 'compra-001',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         fornecedorId: 'forn-100',
         fornecedorNome: 'Votorantim Cimentos S/A',
         fornecedorDocumento: '01234567000189',
@@ -109,7 +109,7 @@ void main() {
       final compra = CompraNf(
         id: 'c-quitada',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         fornecedorId: 'f1',
         fornecedorNome: 'Fornecedor A',
         numeroNf: '101',
@@ -143,7 +143,7 @@ void main() {
       final compra = CompraNf(
         id: 'c-atrasada',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         fornecedorId: 'f1',
         fornecedorNome: 'Fornecedor B',
         numeroNf: '102',

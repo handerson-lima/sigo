@@ -22,7 +22,7 @@ void main() {
         quantity: 15.0,
         date: now,
         responsavelId: 'user-almoxarife',
-        loteamentoId: 'obra-alphaville-01', quadraId: 'obra-alphaville-01', status: LoteStatus.noPrazo,
+        obraId: 'obra-alphaville-01',
         loteId: 'lote-12',
         apropriacaoLote: true,
         solicitante: 'Mestre Carlos',
@@ -163,7 +163,7 @@ void main() {
         Lote(
           id: 'lote-101',
           construtoraId: 'c1',
-          loteamentoId: 'obra-1', quadraId: 'obra-1', status: LoteStatus.noPrazo,
+          obraId: 'obra-1',
           name: 'Casa 01',
           phase: 'Alvenaria',
           status: LoteStatus.noPrazo,
@@ -175,7 +175,7 @@ void main() {
         ProviderScope(
           overrides: [
             construtoraObrasProvider('c1').overrideWith((ref) => fakeObras),
-            obraLotesProvider((construtoraId: 'c1', loteamentoId: 'obra-1')).overrideWith((ref) => Stream.value(fakeLotes)), quadraId: 'obra-1')).overrideWith((ref) => Stream.value(fakeLotes)), status: LoteStatus.noPrazo,
+            obraLotesProvider((construtoraId: 'c1', obraId: 'obra-1')).overrideWith((ref) => Stream.value(fakeLotes)),
           ],
           child: MaterialApp(
             home: MovimentacaoScreen(

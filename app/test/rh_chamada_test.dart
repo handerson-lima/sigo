@@ -129,7 +129,7 @@ void main() {
       final chamada = ChamadaDiaria(
         id: 'ch-1',
         construtoraId: 'const-1',
-        loteamentoId: 'obra-1', quadraId: 'obra-1', status: LoteStatus.noPrazo,
+        obraId: 'obra-1',
         date: '2026-09-17',
         createdByUid: 'encarregado-1',
         createdAt: DateTime.now(),
@@ -174,7 +174,7 @@ void main() {
       final original = ChamadaDiaria(
         id: 'ch-99',
         construtoraId: 'c-10',
-        loteamentoId: 'o-20', quadraId: 'o-20', status: LoteStatus.noPrazo,
+        obraId: 'o-20',
         date: '2026-09-17',
         teamId: 'team-alpha',
         teamName: 'Equipe Alvenaria',
@@ -213,18 +213,18 @@ void main() {
       final service = LotePersistidoService();
 
       expect(
-        await service.getDefaultLot(loteamentoId: 'obra-1', quadraId: 'obra-1', status: LoteStatus.noPrazo, teamId: 'equipe-1'),
+        await service.getDefaultLot(obraId: 'obra-1', teamId: 'equipe-1'),
         isNull,
       );
 
       await service.saveDefaultLot(
-        loteamentoId: 'obra-1', quadraId: 'obra-1', status: LoteStatus.noPrazo,
+        obraId: 'obra-1',
         teamId: 'equipe-1',
         lotId: 'lote-42',
       );
 
       final lotId = await service.getDefaultLot(
-        loteamentoId: 'obra-1', quadraId: 'obra-1', status: LoteStatus.noPrazo,
+        obraId: 'obra-1',
         teamId: 'equipe-1',
       );
       expect(lotId, equals('lote-42'));
@@ -236,7 +236,7 @@ void main() {
       Lote(
         id: 'l-1',
         construtoraId: 'c-1',
-        loteamentoId: 'o-1', quadraId: 'o-1', status: LoteStatus.noPrazo,
+        obraId: 'o-1',
         name: 'Casa 10',
         phase: 'Alvenaria',
         createdAt: DateTime.now(),
@@ -244,7 +244,7 @@ void main() {
       Lote(
         id: 'l-2',
         construtoraId: 'c-1',
-        loteamentoId: 'o-1', quadraId: 'o-1', status: LoteStatus.noPrazo,
+        obraId: 'o-1',
         name: 'Casa 11',
         phase: 'Alvenaria',
         createdAt: DateTime.now(),

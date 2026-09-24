@@ -53,7 +53,7 @@ void main() {
       );
 
       final mockResumo = ResumoCustosObra(
-        loteamentoId: 'obra-01', quadraId: 'obra-01', status: LoteStatus.noPrazo,
+        obraId: 'obra-01',
         totalGeralCents: 3000000,
         totalMateriaisCents: 1100000,
         totalMaoDeObraCents: 1400000,
@@ -67,13 +67,13 @@ void main() {
         ProviderScope(
           overrides: [
             resumoCustosObraStreamProvider(
-              (construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo),
+              (construtoraId: 'c1', obraId: 'o1'),
             ).overrideWith((ref) => Stream.value(mockResumo)),
           ],
           child: const MaterialApp(
             home: Visao360CustosScreen(
               construtoraId: 'c1',
-              loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+              obraId: 'o1',
             ),
           ),
         ),
@@ -113,7 +113,7 @@ void main() {
       );
 
       final mockResumo = ResumoCustosObra(
-        loteamentoId: 'obra-10', quadraId: 'obra-10', status: LoteStatus.noPrazo,
+        obraId: 'obra-10',
         totalGeralCents: 1150000,
         totalMateriaisCents: 400000,
         totalMaoDeObraCents: 600000,
@@ -146,16 +146,16 @@ void main() {
         ProviderScope(
           overrides: [
             resumoCustosObraStreamProvider(
-              (construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo),
+              (construtoraId: 'c1', obraId: 'o1'),
             ).overrideWith((ref) => Stream.value(mockResumo)),
             extratoLoteFutureProvider(
-              (construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo, loteId: 'lote-10'),
+              (construtoraId: 'c1', obraId: 'o1', loteId: 'lote-10'),
             ).overrideWith((ref) => Future.value(mockExtrato)),
           ],
           child: const MaterialApp(
             home: LoteCustoDetalheScreen(
               construtoraId: 'c1',
-              loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+              obraId: 'o1',
               loteId: 'lote-10',
             ),
           ),

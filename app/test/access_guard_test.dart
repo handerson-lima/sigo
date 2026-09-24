@@ -16,7 +16,7 @@ void main() {
         child: const MaterialApp(
           home: AccessGuard(
             construtoraId: 'A',
-            loteamentoId: 'B', quadraId: 'B', status: LoteStatus.noPrazo,
+            obraId: 'B',
             module: 'diario',
             child: Text('global access'),
           ),
@@ -67,15 +67,11 @@ void main() {
             construtoraPermissionProvider('c1').overrideWith(
               (ref) => Stream.value({'isActive': true, 'isAdmin': false}),
             ),
-            currentPermissionsProvider((construtoraId: 'c1', loteamentoId: 'obraB'))
+            currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraB'))
                 .overrideWith(
                   (ref) => Stream.value(
                     ObraMember(
-                      userId: 'u1', quadraId: 'obraB'))
-                .overrideWith(
-                  (ref) => Stream.value(
-                    ObraMember(
-                      userId: 'u1', status: LoteStatus.noPrazo,
+                      userId: 'u1',
                       isActive: true,
                       isAdmin: false,
                       modules: ['lotes'],
@@ -87,7 +83,7 @@ void main() {
           child: const MaterialApp(
             home: AccessGuard(
               construtoraId: 'c1',
-              loteamentoId: 'obraB', quadraId: 'obraB', status: LoteStatus.noPrazo,
+              obraId: 'obraB',
               module: 'diario',
               child: Text('area restrita'),
             ),
@@ -110,14 +106,13 @@ void main() {
             construtoraPermissionProvider('c1').overrideWith(
               (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
             ),
-            obraDocProvider((construtoraId: 'c1', loteamentoId: 'obraX'))
-                .overrideWith((ref) => Stream.value({'isActive': false})), quadraId: 'obraX'))
-                .overrideWith((ref) => Stream.value({'isActive': false})), status: LoteStatus.noPrazo,
+            obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
+                .overrideWith((ref) => Stream.value({'isActive': false})),
           ],
           child: const MaterialApp(
             home: AccessGuard(
               construtoraId: 'c1',
-              loteamentoId: 'obraX', quadraId: 'obraX', status: LoteStatus.noPrazo,
+              obraId: 'obraX',
               child: Text('painel secreto'),
             ),
           ),
@@ -139,14 +134,13 @@ void main() {
             construtoraPermissionProvider('c1').overrideWith(
               (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
             ),
-            obraDocProvider((construtoraId: 'c1', loteamentoId: 'obraX'))
-                .overrideWith((ref) => Stream.value({'isActive': false})), quadraId: 'obraX'))
-                .overrideWith((ref) => Stream.value({'isActive': false})), status: LoteStatus.noPrazo,
+            obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
+                .overrideWith((ref) => Stream.value({'isActive': false})),
           ],
           child: const MaterialApp(
             home: AccessGuard(
               construtoraId: 'c1',
-              loteamentoId: 'obraX', quadraId: 'obraX', status: LoteStatus.noPrazo,
+              obraId: 'obraX',
               child: Text('admin area'),
             ),
           ),
@@ -168,14 +162,13 @@ void main() {
             construtoraPermissionProvider('c1').overrideWith(
               (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
             ),
-            obraDocProvider((construtoraId: 'c1', loteamentoId: 'obraX'))
-                .overrideWith((ref) => Stream.value({'isActive': false})), quadraId: 'obraX'))
-                .overrideWith((ref) => Stream.value({'isActive': false})), status: LoteStatus.noPrazo,
+            obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
+                .overrideWith((ref) => Stream.value({'isActive': false})),
           ],
           child: const MaterialApp(
             home: AccessGuard(
               construtoraId: 'c1',
-              loteamentoId: 'obraX', quadraId: 'obraX', status: LoteStatus.noPrazo,
+              obraId: 'obraX',
               child: Text('painel secreto'),
             ),
           ),
@@ -196,15 +189,11 @@ void main() {
             construtoraPermissionProvider('c1').overrideWith(
               (ref) => Stream.value({'isActive': true, 'isAdmin': false}),
             ),
-            currentPermissionsProvider((construtoraId: 'c1', loteamentoId: 'obraY'))
+            currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraY'))
                 .overrideWith(
                   (ref) => Stream.value(
                     ObraMember(
-                      userId: 'u1', quadraId: 'obraY'))
-                .overrideWith(
-                  (ref) => Stream.value(
-                    ObraMember(
-                      userId: 'u1', status: LoteStatus.noPrazo,
+                      userId: 'u1',
                       isActive: true,
                       isAdmin: false,
                       modules: ['diario'],
@@ -216,7 +205,7 @@ void main() {
           child: const MaterialApp(
             home: AccessGuard(
               construtoraId: 'c1',
-              loteamentoId: 'obraY', quadraId: 'obraY', status: LoteStatus.noPrazo,
+              obraId: 'obraY',
               module: 'diario',
               child: Text('modulo diario'),
             ),
@@ -246,7 +235,7 @@ void main() {
           child: const MaterialApp(
             home: AccessGuard(
               construtoraId: 'c1',
-              loteamentoId: null, quadraId: null, status: LoteStatus.noPrazo,
+              obraId: null,
               module: 'diario',
               child: Text('allowed via fallback'),
             ),
@@ -269,7 +258,7 @@ void main() {
               (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
             ),
             currentPermissionsProvider(
-              (construtoraId: 'c1', loteamentoId: 'obraA'), quadraId: 'obraA'), status: LoteStatus.noPrazo,
+              (construtoraId: 'c1', obraId: 'obraA'),
             ).overrideWith(
               (ref) => Stream.value(
                 ObraMember(
@@ -285,7 +274,7 @@ void main() {
           child: const MaterialApp(
             home: AccessGuard(
               construtoraId: 'c1',
-              loteamentoId: 'obraA', quadraId: 'obraA', status: LoteStatus.noPrazo,
+              obraId: 'obraA',
               child: Text('painel admin'),
             ),
           ),
@@ -307,7 +296,7 @@ void main() {
               (ref) => Stream.value({'isActive': true, 'isOwner': true}),
             ),
             currentPermissionsProvider(
-              (construtoraId: 'c1', loteamentoId: 'obraB'), quadraId: 'obraB'), status: LoteStatus.noPrazo,
+              (construtoraId: 'c1', obraId: 'obraB'),
             ).overrideWith(
               (ref) => Stream.value(
                 ObraMember(
@@ -323,7 +312,7 @@ void main() {
           child: const MaterialApp(
             home: AccessGuard(
               construtoraId: 'c1',
-              loteamentoId: 'obraB', quadraId: 'obraB', status: LoteStatus.noPrazo,
+              obraId: 'obraB',
               child: Text('painel owner'),
             ),
           ),

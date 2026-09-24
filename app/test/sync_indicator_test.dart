@@ -241,7 +241,7 @@ void main() {
           child: const MaterialApp(
             home: Scaffold(
               body: Center(
-                child: SyncIndicator(construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo),
+                child: SyncIndicator(construtoraId: 'c1', obraId: 'o1'),
               ),
             ),
           ),

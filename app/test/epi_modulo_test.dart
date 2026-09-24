@@ -90,7 +90,7 @@ void main() {
       final eventoEntrega = EpiEvent(
         id: 'ev-1',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         funcionarioId: 'func-100',
         funcionarioNome: 'João Silva',
         epiId: 'epi-1',
@@ -114,7 +114,7 @@ void main() {
       final eventoDevolucao = EpiEvent(
         id: 'ev-2',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         funcionarioId: 'func-100',
         funcionarioNome: 'João Silva',
         epiId: 'epi-1',
@@ -139,7 +139,7 @@ void main() {
       final eventoVencido = EpiEvent(
         id: 'ev-3',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         funcionarioId: 'func-100',
         funcionarioNome: 'João Silva',
         epiId: 'epi-1',
@@ -172,7 +172,7 @@ void main() {
       final termo1 = TermoEpi(
         id: 'termo-1',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         funcionarioId: 'func-1',
         funcionarioNome: 'Sebastião Souza',
         funcionarioCpf: '123.456.789-00',
@@ -208,7 +208,7 @@ void main() {
       final termo = TermoEpi(
         id: 't-100',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         funcionarioId: 'func-2',
         funcionarioNome: 'Antônio Ferreira',
         funcionarioCpf: '222.333.444-55',

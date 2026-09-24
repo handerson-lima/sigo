@@ -42,7 +42,7 @@ class FakeLoteRepository implements LoteRepository {
       lotes[idx] = Lote(
         id: old.id,
         construtoraId: old.construtoraId,
-        loteamentoId: old.obraId, quadraId: old.obraId, status: LoteStatus.noPrazo,
+        obraId: old.obraId,
         name: old.name,
         phase: newPhase,
         status: old.status,
@@ -66,7 +66,7 @@ class FakeLoteRepository implements LoteRepository {
       lotes[idx] = Lote(
         id: old.id,
         construtoraId: old.construtoraId,
-        loteamentoId: old.obraId, quadraId: old.obraId, status: LoteStatus.noPrazo,
+        obraId: old.obraId,
         name: old.name,
         phase: old.phase,
         status: newStatus,
@@ -102,7 +102,7 @@ void main() {
       final lote = Lote(
         id: 'l1',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         name: 'Casa 101',
         phase: 'Fundação',
         status: LoteStatus.atrasado,
@@ -150,7 +150,7 @@ void main() {
             loteRepositoryProvider.overrideWithValue(fakeRepo),
           ],
           child: const MaterialApp(
-            home: AddLoteScreen(construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo),
+            home: AddLoteScreen(construtoraId: 'c1', obraId: 'o1'),
           ),
         ),
       );
@@ -184,7 +184,7 @@ void main() {
         Lote(
           id: 'lote-1',
           construtoraId: 'c1',
-          loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+          obraId: 'o1',
           name: 'Lote 01',
           phase: 'Fundação',
           status: LoteStatus.noPrazo,
@@ -196,12 +196,12 @@ void main() {
         ProviderScope(
           overrides: [
             loteRepositoryProvider.overrideWithValue(fakeRepo),
-            obraLotesProvider((construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo)).overrideWith(
+            obraLotesProvider((construtoraId: 'c1', obraId: 'o1')).overrideWith(
               (ref) => Stream.value(fakeRepo.lotes),
             ),
           ],
           child: const MaterialApp(
-            home: LotesListScreen(construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo),
+            home: LotesListScreen(construtoraId: 'c1', obraId: 'o1'),
           ),
         ),
       );

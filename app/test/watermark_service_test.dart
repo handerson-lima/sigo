@@ -226,7 +226,7 @@ void main() {
 
       final stampedBytes = await watermarkService.stampPhoto(
         imageBytes: originalBytes,
-        loteamentoId: 'obra-bh-101', quadraId: 'obra-bh-101', status: LoteStatus.noPrazo,
+        obraId: 'obra-bh-101',
         obraNome: 'Edifício Savassi',
         responsavelId: 'user-789',
         responsavelNome: 'Mestre Silva',

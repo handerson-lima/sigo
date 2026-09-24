@@ -29,7 +29,7 @@ void main() {
   ChamadaDiaria existingChamada() => ChamadaDiaria(
     id: 'ch1',
     construtoraId: 'c1',
-    loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+    obraId: 'o1',
     date: '2026-01-10',
     teamId: 'e1',
     teamName: 'Equipe 1',
@@ -154,7 +154,7 @@ void main() {
     view(tester).onSave();
     f.repo.pending.single.complete([
       (
-        loteamentoId: 'outra', quadraId: 'outra', status: LoteStatus.noPrazo,
+        obraId: 'outra',
         date: view(tester).formattedDate,
         apontamento: worker('f1'),
       ),

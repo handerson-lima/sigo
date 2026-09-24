@@ -247,8 +247,8 @@ void main() {
       await queue.sync();
 
       // Verifica contagem com e sem escopo de obra
-      expect(await queue.scopedFailedCount(construtoraId: 'c-1', loteamentoId: 'o-1'), quadraId: 'o-1'), status: LoteStatus.noPrazo, equals(1));
-      expect(await queue.scopedFailedCount(construtoraId: 'c-1', loteamentoId: 'o-outra'), quadraId: 'o-outra'), status: LoteStatus.noPrazo, equals(0));
+      expect(await queue.scopedFailedCount(construtoraId: 'c-1', obraId: 'o-1'), equals(1));
+      expect(await queue.scopedFailedCount(construtoraId: 'c-1', obraId: 'o-outra'), equals(0));
     });
   });
 }

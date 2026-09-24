@@ -102,7 +102,7 @@ void main() {
       expect(recovered.varianciaCents, lote.varianciaCents);
 
       final resumo = ResumoCustosObra(
-        loteamentoId: 'obra-sp-01', quadraId: 'obra-sp-01', status: LoteStatus.noPrazo,
+        obraId: 'obra-sp-01',
         totalGeralCents: 3750,
         totalMateriaisCents: 1000,
         totalMaoDeObraCents: 2000,

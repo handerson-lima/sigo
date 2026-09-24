@@ -262,7 +262,7 @@ void main() {
         final chamada = ChamadaDiaria(
           id: 'ch-1',
           construtoraId: 'c1',
-          loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+          obraId: 'o1',
           date: '2026-09-17',
           createdByUid: 'usr-1',
           status: 'retificada',
@@ -376,7 +376,7 @@ void main() {
         final chamada = ChamadaDiaria(
           id: 'ch-1',
           construtoraId: 'c1',
-          loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+          obraId: 'o1',
           date: '2026-09-17',
           createdByUid: 'usr-1',
           status: 'retificada',

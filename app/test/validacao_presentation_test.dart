@@ -83,7 +83,7 @@ void main() {
       ValidacaoVistoria(
         id: 'val_1',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         loteId: 'Lote 10',
         templateId: 'tpl_1',
         templateTitulo: 'Checklist de Alvenaria',
@@ -112,7 +112,7 @@ void main() {
           trustedDevProvider.overrideWith((ref) => Stream.value(true)),
           loteVistoriasStreamProvider((
             construtoraId: 'c1',
-            loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+            obraId: 'o1',
             loteId: 'Lote 10',
           )).overrideWith(
             (ref) => Stream.value(mockVistorias),
@@ -121,7 +121,7 @@ void main() {
         child: const MaterialApp(
           home: LoteValidacoesScreen(
             construtoraId: 'c1',
-            loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+            obraId: 'o1',
             loteId: 'Lote 10',
           ),
         ),

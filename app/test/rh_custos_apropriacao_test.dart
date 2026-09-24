@@ -249,7 +249,7 @@ void main() {
       final chamadaFechada = ChamadaDiaria(
         id: 'ch-1',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         date: '2026-09-17',
         createdByUid: 'u1',
         workers: [apontamento],
@@ -418,7 +418,7 @@ void main() {
       final chamada = ChamadaDiaria(
         id: 'ch-100',
         construtoraId: 'c1',
-        loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+        obraId: 'o1',
         date: '2026-09-17',
         createdByUid: 'u1',
         workers: const [
@@ -473,7 +473,7 @@ void main() {
         Lote(
           id: 'l1',
           construtoraId: 'c1',
-          loteamentoId: 'l1', quadraId: 'q1', status: LoteStatus.noPrazo,
+          obraId: 'o1',
           name: 'Lote 1',
           phase: 'Alvenaria',
           createdAt: DateTime.now(),
