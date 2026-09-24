@@ -4,7 +4,6 @@ import '../../../common_widgets/access_guard.dart';
 
 abstract class EquipesPaths {
   static const list = 'equipes';
-  static const detail = 'equipes/:equipeId';
 }
 
 List<RouteBase> get equipesRoutes => [

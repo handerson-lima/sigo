@@ -13,7 +13,8 @@ Setor _$SetorFromJson(Map<String, dynamic> json) => Setor(
   quadraId: json['quadraId'] as String,
   loteId: json['loteId'] as String,
   name: json['name'] as String,
-  createdAt: DateTime.parse(json['createdAt'] as String),
+  responsavelId: json['responsavelId'] as String?,
+  createdAt: _dateTimeFromTimestamp(json['createdAt']),
 );
 
 Map<String, dynamic> _$SetorToJson(Setor instance) => <String, dynamic>{
@@ -23,5 +24,6 @@ Map<String, dynamic> _$SetorToJson(Setor instance) => <String, dynamic>{
   'quadraId': instance.quadraId,
   'loteId': instance.loteId,
   'name': instance.name,
-  'createdAt': instance.createdAt.toIso8601String(),
+  'responsavelId': instance.responsavelId,
+  'createdAt': _dateTimeToTimestamp(instance.createdAt),
 };

@@ -2,9 +2,9 @@
 title: 'Story 11.2 - Navegação Lote → Setor → Equipe'
 type: 'feature'
 created: '2026-09-24'
-status: 'in-review'
+status: 'in-progress'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 1
 baseline_commit: '29e3d5c30d76508dad4bac45bbb476dea3776fd0'
 context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 ---
@@ -28,6 +28,9 @@ context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 
 **Decisions:**
 - O escopo de repositórios será COMPLETO, ou seja, além das rotas, devem ser implementados os repositories e models reais acessando o Firestore para Setor e Equipe.
+- Os modelos de Setor e Equipe devem incluir explicitamente o campo `responsavelId`.
+- As regras de segurança do Firestore (Firestore Rules) para as subcoleções `setores` e `equipes` devem ser incluídas no escopo desta história.
+- Testes automatizados para a nova navegação, componentes e modelos devem ser criados para garantir a cobertura.
 
 </frozen-after-approval>
 ## Code Map
@@ -42,13 +45,15 @@ context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `app/lib/src/common_widgets/sigo_breadcrumbs.dart` -- Criar componente de breadcrumb genérico que recebe uma lista de segmentos (label + url) e renderiza a trilha.
-- [x] `app/lib/src/features/setores/routing/setores_routes.dart` -- Criar módulo de rotas para Setores recebendo os parâmetros ascendentes.
-- [x] `app/lib/src/features/setores/presentation/setores_list_screen.dart` -- Implementar tela base incluindo o componente Breadcrumbs gerado a partir do GoRouter state e listagem.
-- [x] `app/lib/src/features/lotes/routing/lotes_routes.dart` -- Integrar `setoresRoutes` como rotas filhas da rota `:loteId`.
-- [x] `app/lib/src/features/equipes/routing/equipes_routes.dart` -- Criar módulo de rotas para Equipes.
-- [x] `app/lib/src/features/equipes/presentation/equipes_list_screen.dart` -- Implementar tela base de Equipes, também usando Breadcrumbs.
-- [x] `app/lib/src/features/setores/routing/setores_routes.dart` -- Integrar `equipesRoutes` como rotas filhas de `:setorId`.
+- [ ] `app/lib/src/common_widgets/sigo_breadcrumbs.dart` -- Criar componente de breadcrumb genérico que recebe uma lista de segmentos (label + url) e renderiza a trilha (garantir suporte a dark mode e acessibilidade).
+- [ ] `app/lib/src/features/setores/routing/setores_routes.dart` -- Criar módulo de rotas para Setores recebendo os parâmetros ascendentes (mantendo o prefixo `/construtoras/:cId`).
+- [ ] `app/lib/src/features/setores/presentation/setores_list_screen.dart` -- Implementar tela base incluindo o componente Breadcrumbs e listagem usando StreamProvider, com tratamento de datas e erros adequados.
+- [ ] `app/lib/src/features/lotes/routing/lotes_routes.dart` -- Integrar `setoresRoutes` como rotas filhas da rota `:loteId` e resolver rotas vazias (SizedBox).
+- [ ] `app/lib/src/features/equipes/routing/equipes_routes.dart` -- Criar módulo de rotas para Equipes.
+- [ ] `app/lib/src/features/equipes/presentation/equipes_list_screen.dart` -- Implementar tela base de Equipes, também usando Breadcrumbs corretos, com tratamento de datas, erros e StreamProvider.
+- [ ] `app/lib/src/features/setores/routing/setores_routes.dart` -- Integrar `equipesRoutes` como rotas filhas de `:setorId`.
+- [ ] `firestore.rules` -- Adicionar security rules para `setores` e `equipes` mantendo a consistência da política de acesso da construtora.
+- [ ] `app/test/` -- Adicionar testes de unidade e/ou widget cobrindo os repositórios, parsing seguro de datas (Timestamp/String) e a correta formação de breadcrumbs.
 
 **Acceptance Criteria:**
 - Given que um usuário acessou a rota de um Lote específico, when ele clicar para ver setores, then a URL será atualizada para o nível de setores e a tela `SetoresListScreen` será exibida.
@@ -59,6 +64,24 @@ context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 ## Spec Change Log
 
 ## Review Triage Log
+- `low`: SigoBreadcrumbs usa Colors.black fixo em vez do tema, quebrando modo escuro.
+- `low`: SigoBreadcrumbs InkWell tem área de toque muito pequena e sem Semantics para leitor de tela.
+- `low`: SigoBreadcrumbs pinta segmentos sem url com primaryColor, aparentando ser link não-clicável.
+- `medium`: EquipeRepository falha em snapshot.data()! se o doc não tiver dados e não usa orderBy.
+- `high`: Equipe e Setor não têm responsavelId, o que contraria o requisito de "atribuição de responsáveis neste nível" definido no Intent. -> `intent_gap`
+- `high`: Equipe e Setor cracham ao fazer parse de Timestamp como String no campo createdAt do Firestore.
+- `high`: Rotas de breadcrumbs e navegação usam caminhos absolutos como `/loteamentos/...` faltando o prefixo `/construtoras/:cId`, o que quebra a navegação por completo. -> `bad_spec`
+- `medium`: Stream de equipes é criado no build em vez de provider.
+- `low`: Erros brutos expostos ao usuário nas listagens.
+- `low`: Datas sem formatação amigável (cruas).
+- `low`: EquipesPaths.detail declarado e não utilizado.
+- `low`: Indentação quebrada em lotes_list_screen.dart.
+- `medium`: Rota de Lote retorna const SizedBox() deixando a tela em branco se acessada diretamente.
+- `medium`: SetorRepository falha em snapshot.data()! sem tratamento.
+- `low`: SetoresPaths.detail não utilizado.
+- `high`: Firestore rules ausentes para as subcoleções setores e equipes, causando permission-denied. -> `intent_gap`
+- `medium`: Nenhum teste adicionado para componentes ou navegação de Setor/Equipe. -> `intent_gap`
+- `high`: Breadcrumbs construídos manualmente em vez de derivados do GoRouter state, como exigido. -> `bad_spec`
 
 ## Verification
 

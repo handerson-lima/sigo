@@ -15,13 +15,22 @@ class SetorRepository {
       _firestore
           .collection('construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores')
           .withConverter<Setor>(
-            fromFirestore: (snapshot, _) => Setor.fromJson(snapshot.data()!),
+            fromFirestore: (snapshot, _) => Setor.fromJson(snapshot.data() ?? {}),
             toFirestore: (setor, _) => setor.toJson(),
           );
 
   Stream<List<Setor>> watchSetores(String construtoraId, String loteamentoId, String quadraId, String loteId) {
     return _setoresRef(construtoraId, loteamentoId, quadraId, loteId)
-        .snapshots()
+        .orderBy('name').snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 }
+final watchSetoresProvider = StreamProvider.family<List<Setor>, Map<String, String>>((ref, params) {
+  final repo = ref.watch(setorRepositoryProvider);
+  return repo.watchSetores(
+    params['construtoraId']!,
+    params['loteamentoId']!,
+    params['quadraId']!,
+    params['loteId']!,
+  );
+});

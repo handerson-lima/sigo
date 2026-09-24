@@ -1,4 +1,37 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+
+void main() async {
+  // Fix SigoBreadcrumbs
+  final bcFile = File('app/lib/src/common_widgets/sigo_breadcrumbs.dart');
+  var bcContent = await bcFile.readAsString();
+  bcContent = bcContent.replaceAll(
+'''
+class BreadcrumbSegment {
+  final String label;
+  final String? url;
+
+  const BreadcrumbSegment({required this.label, this.url});
+}
+
+class SigoBreadcrumbs extends StatelessWidget {
+  final List<BreadcrumbSegment> segments;
+
+  const SigoBreadcrumbs({super.key, required this.segments});
+''',
+'''
+class BreadcrumbSegment {
+  final String label;
+  final String? url;
+
+  const BreadcrumbSegment({required this.label, this.url});
+}
+
+class SigoBreadcrumbs extends StatelessWidget {
+  const SigoBreadcrumbs({super.key});
+''');
+
+  // We need to rewrite build method of SigoBreadcrumbs
+  bcContent = '''import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class BreadcrumbSegment {
@@ -21,35 +54,35 @@ class SigoBreadcrumbs extends StatelessWidget {
     String currentUrl = '';
 
     for (int i = 0; i < pathSegments.length; i++) {
-      currentUrl += '/${pathSegments[i]}';
+      currentUrl += '/\${pathSegments[i]}';
       
       if (pathSegments[i] == 'loteamentos') {
         if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Loteamento', url: '$currentUrl/${pathSegments[i + 1]}'));
+          segments.add(BreadcrumbSegment(label: 'Loteamento', url: '\$currentUrl/\${pathSegments[i + 1]}'));
         } else {
           segments.add(BreadcrumbSegment(label: 'Loteamentos'));
         }
       } else if (pathSegments[i] == 'quadras') {
         if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Quadra', url: '$currentUrl/${pathSegments[i + 1]}'));
+          segments.add(BreadcrumbSegment(label: 'Quadra', url: '\$currentUrl/\${pathSegments[i + 1]}'));
         } else {
           segments.add(BreadcrumbSegment(label: 'Quadras'));
         }
       } else if (pathSegments[i] == 'lotes') {
         if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Lote', url: '$currentUrl/${pathSegments[i + 1]}'));
+          segments.add(BreadcrumbSegment(label: 'Lote', url: '\$currentUrl/\${pathSegments[i + 1]}'));
         } else {
           segments.add(BreadcrumbSegment(label: 'Lotes'));
         }
       } else if (pathSegments[i] == 'setores') {
         if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Setor', url: '$currentUrl/${pathSegments[i + 1]}'));
+          segments.add(BreadcrumbSegment(label: 'Setor', url: '\$currentUrl/\${pathSegments[i + 1]}'));
         } else {
           segments.add(BreadcrumbSegment(label: 'Setores'));
         }
       } else if (pathSegments[i] == 'equipes') {
          if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Equipe', url: '$currentUrl/${pathSegments[i + 1]}'));
+          segments.add(BreadcrumbSegment(label: 'Equipe', url: '\$currentUrl/\${pathSegments[i + 1]}'));
         } else {
           segments.add(BreadcrumbSegment(label: 'Equipes'));
         }
@@ -102,4 +135,7 @@ class SigoBreadcrumbs extends StatelessWidget {
       ),
     );
   }
+}
+''';
+  await bcFile.writeAsString(bcContent);
 }

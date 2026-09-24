@@ -15,13 +15,23 @@ class EquipeRepository {
       _firestore
           .collection('construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/$setorId/equipes')
           .withConverter<Equipe>(
-            fromFirestore: (snapshot, _) => Equipe.fromJson(snapshot.data()!),
+            fromFirestore: (snapshot, _) => Equipe.fromJson(snapshot.data() ?? {}),
             toFirestore: (equipe, _) => equipe.toJson(),
           );
 
   Stream<List<Equipe>> watchEquipes(String construtoraId, String loteamentoId, String quadraId, String loteId, String setorId) {
     return _equipesRef(construtoraId, loteamentoId, quadraId, loteId, setorId)
-        .snapshots()
+        .orderBy('name').snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 }
+final watchEquipesProvider = StreamProvider.family<List<Equipe>, Map<String, String>>((ref, params) {
+  final repo = ref.watch(equipeRepositoryProvider);
+  return repo.watchEquipes(
+    params['construtoraId']!,
+    params['loteamentoId']!,
+    params['quadraId']!,
+    params['loteId']!,
+    params['setorId']!,
+  );
+});

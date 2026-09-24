@@ -14,7 +14,8 @@ Equipe _$EquipeFromJson(Map<String, dynamic> json) => Equipe(
   loteId: json['loteId'] as String,
   setorId: json['setorId'] as String,
   name: json['name'] as String,
-  createdAt: DateTime.parse(json['createdAt'] as String),
+  responsavelId: json['responsavelId'] as String?,
+  createdAt: _dateTimeFromTimestamp(json['createdAt']),
 );
 
 Map<String, dynamic> _$EquipeToJson(Equipe instance) => <String, dynamic>{
@@ -25,5 +26,6 @@ Map<String, dynamic> _$EquipeToJson(Equipe instance) => <String, dynamic>{
   'loteId': instance.loteId,
   'setorId': instance.setorId,
   'name': instance.name,
-  'createdAt': instance.createdAt.toIso8601String(),
+  'responsavelId': instance.responsavelId,
+  'createdAt': _dateTimeToTimestamp(instance.createdAt),
 };

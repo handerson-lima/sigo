@@ -6,7 +6,6 @@ import '../../equipes/routing/equipes_routes.dart';
 
 abstract class SetoresPaths {
   static const list = 'setores';
-  static const detail = 'setores/:setorId';
 }
 
 List<RouteBase> get setoresRoutes => [
@@ -30,9 +29,7 @@ List<RouteBase> get setoresRoutes => [
         routes: [
           GoRoute(
             path: ':setorId',
-            builder: (context, state) {
-              return const SizedBox();
-            },
+            redirect: (context, state) => '\${state.uri.path}/equipes',
             routes: [
               ...equipesRoutes,
             ],

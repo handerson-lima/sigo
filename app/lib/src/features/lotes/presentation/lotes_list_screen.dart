@@ -28,8 +28,8 @@ class LotesListScreen extends ConsumerWidget {
         children: [
           SigoBreadcrumbs(
             segments: [
-              BreadcrumbSegment(label: 'Loteamento', url: '/loteamentos/$loteamentoId'),
-              BreadcrumbSegment(label: 'Quadra', url: '/loteamentos/$loteamentoId/quadras/$quadraId'),
+              BreadcrumbSegment(label: 'Loteamento', url: '/construtora/$construtoraId/loteamentos/$loteamentoId'),
+              BreadcrumbSegment(label: 'Quadra', url: '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId'),
               const BreadcrumbSegment(label: 'Lotes'),
             ],
           ),
@@ -54,7 +54,7 @@ class LotesListScreen extends ConsumerWidget {
                 title: Text(item.name),
                 subtitle: Text('Status: ${item.status} | Phase: ${item.phase}'),
                 onTap: () {
-                  context.go('/loteamentos/$loteamentoId/quadras/$quadraId/lotes/${item.id}/setores');
+                  context.go('/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/${item.id}/setores');
                 },
               );
             },

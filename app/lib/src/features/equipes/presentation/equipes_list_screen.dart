@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/equipe_repository.dart';
+import 'package:intl/intl.dart';
 import '../domain/equipe.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 
@@ -22,42 +23,29 @@ class EquipesListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stream = ref.watch(equipeRepositoryProvider).watchEquipes(construtoraId, loteamentoId, quadraId, loteId, setorId);
+    final equipesAsync = ref.watch(watchEquipesProvider({'construtoraId': construtoraId, 'loteamentoId': loteamentoId, 'quadraId': quadraId, 'loteId': loteId, 'setorId': setorId}));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Equipes')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SigoBreadcrumbs(
-            segments: [
-              BreadcrumbSegment(label: 'Loteamento', url: '/loteamentos/$loteamentoId'),
-              BreadcrumbSegment(label: 'Quadra', url: '/loteamentos/$loteamentoId/quadras/$quadraId'),
-              BreadcrumbSegment(label: 'Lote', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId'),
-              BreadcrumbSegment(label: 'Setor', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/$setorId'),
-              const BreadcrumbSegment(label: 'Equipes'),
-            ],
-          ),
+          const SigoBreadcrumbs(),
           Expanded(
-            child: StreamBuilder<List<Equipe>>(
-              stream: stream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Erro: ${snapshot.error}'));
-                }
-                final items = snapshot.data ?? [];
+            child: equipesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(child: Text('Não foi possível carregar as equipes. Tente novamente.')),
+              data: (items) {
                 if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
 
                 return ListView.builder(
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
+                    final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(item.createdAt);
                     return ListTile(
                       title: Text(item.name),
-                      subtitle: Text('Criado em: ${item.createdAt}'),
+                      subtitle: Text('Criado em: $dateStr'),
                     );
                   },
                 );

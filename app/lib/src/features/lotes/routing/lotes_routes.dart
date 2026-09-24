@@ -27,9 +27,7 @@ List<RouteBase> get lotesRoutes => [
         routes: [
           GoRoute(
             path: ':loteId',
-            builder: (context, state) {
-              return const SizedBox();
-            },
+            redirect: (context, state) => '\${state.uri.path}/setores',
             routes: [
               ...setoresRoutes,
             ],

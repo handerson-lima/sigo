@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../data/setor_repository.dart';
+import 'package:intl/intl.dart';
 import '../domain/setor.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 
@@ -21,43 +22,31 @@ class SetoresListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stream = ref.watch(setorRepositoryProvider).watchSetores(construtoraId, loteamentoId, quadraId, loteId);
+    final setoresAsync = ref.watch(watchSetoresProvider({'construtoraId': construtoraId, 'loteamentoId': loteamentoId, 'quadraId': quadraId, 'loteId': loteId}));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Setores')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SigoBreadcrumbs(
-            segments: [
-              BreadcrumbSegment(label: 'Loteamento', url: '/loteamentos/$loteamentoId'),
-              BreadcrumbSegment(label: 'Quadra', url: '/loteamentos/$loteamentoId/quadras/$quadraId'),
-              BreadcrumbSegment(label: 'Lote', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId'),
-              const BreadcrumbSegment(label: 'Setores'),
-            ],
-          ),
+          const SigoBreadcrumbs(),
           Expanded(
-            child: StreamBuilder<List<Setor>>(
-              stream: stream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Erro: ${snapshot.error}'));
-                }
-                final items = snapshot.data ?? [];
+            child: setoresAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(child: Text('Não foi possível carregar os setores. Tente novamente.')),
+              data: (items) {
                 if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
 
                 return ListView.builder(
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
+                    final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(item.createdAt);
                     return ListTile(
                       title: Text(item.name),
-                      subtitle: Text('Criado em: ${item.createdAt}'),
+                      subtitle: Text('Criado em: $dateStr'),
                       onTap: () {
-                        context.go('/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/${item.id}/equipes');
+                        context.go('/construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/${item.id}/equipes');
                       },
                     );
                   },
