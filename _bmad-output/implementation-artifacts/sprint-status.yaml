@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-24-2026 17:30
+last_updated: 09-24-2026 18:41
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -128,7 +128,7 @@ development_status:
   epic-11: in-progress
   11-1-navegação-loteamento-quadra-lote: done
   11-2-navegação-lote-setor-equipe: review
-  epic-11-retrospective: optional
+  epic-11-retrospective: done
 legacy_scope_mapping:
   "1-4-subcolecao-members": "construtoras/{cId}/obras/{oId}/members/{uid}"
   "1-5-descoberta-obras": "Validar queries atuais de construtora_members e members"
@@ -328,7 +328,7 @@ action_items:
     action: "A11y do overflow ObraVinculoRow: alvo >=48dp e menu fora do excludeSemantics;
       decidir alvo dos FilterChip (48dp ou CheckboxListTile)"
     owner: "maranduteam"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
   - id: "epic-10-retro-item-26-dialog-guards-popscope-durante-submit-no"
     epic: 10
@@ -369,3 +369,106 @@ action_items:
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
+  - id: "epic-11-retro-item-31-migrar-obra_lotes_provider-dart-8-e-cham"
+    epic: 11
+    action: "Migrar obra_lotes_provider.dart:8 e chamada_form_screen.dart:430 para
+      ids reais da hierarquia (remover 'dummy'/'dummy_loteamento'/'dummy_quadra')"
+    owner: "dev (Amelia)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-32-restaurar-rota-construtora-cid-obra-oid"
+    epic: 11
+    action: "Restaurar rota /construtora/:cId/obra/:oId/lotes (redirect para a nova
+      arvore) ou atualizar sigo_sidebar.dart:240, obra_dashboard_screen.dart:151,168
+      e lote_validacoes_screen.dart:210"
+    owner: "dev (Amelia)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-33-corrigir-decodificacao-de-lote-legado-em"
+    epic: 11
+    action: "Corrigir decodificacao de Lote legado em custos_360_repository.dart:52-53
+      e decidir migracao de obras/{o}/lotes para a hierarquia"
+    owner: "dev + arquiteto (Winston)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-34-reconciliar-cap-3-ad-3-implementar-acl-p"
+    epic: 11
+    action: "Reconciliar CAP-3/AD-3: implementar ACL por no em firestore.rules ou
+      registrar formalmente fora de escopo em SPEC/ARCHITECTURE-SPINE"
+    owner: "Winston + humano"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-35-reconciliar-ad-1-documentar-coexistencia"
+    epic: 11
+    action: "Reconciliar AD-1: documentar coexistencia de Obras e da nova hierarquia
+      (e papel de cada uma) ou completar a adaptacao"
+    owner: "Winston"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-36-endurecer-firestore-rules-47-60-validand"
+    epic: 11
+    action: "Endurecer firestore.rules:47-60 validando construtoraId==c, id e coerencia
+      de pai nas escritas"
+    owner: "dev (Amelia)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-37-recuperar-acao-de-criacao-de-lote-rota-f"
+    epic: 11
+    action: "Recuperar acao de criacao de Lote (rota + FAB) ou remover AddLoteScreen
+      morto e declarar criacao fora de escopo"
+    owner: "dev/PM"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-38-envolver-as-5-telas-novas-em-sigolayout"
+    epic: 11
+    action: "Envolver as 5 telas novas em SigoLayout com activeRoute correto"
+    owner: "dev (Amelia)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-39-unificar-codec-de-data-timestamp-string"
+    epic: 11
+    action: "Unificar codec de data (Timestamp/String/int) nos 5 modelos e padronizar
+      data()/orderBy/cachedList entre os 5 repositorios"
+    owner: "dev (Amelia)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-40-localizar-status-phase-em-lotes_list_scr"
+    epic: 11
+    action: "Localizar status/phase em lotes_list_screen.dart:56 e ajustar obras_lotes_crud_test.dart:171"
+    owner: "dev (Amelia)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-41-fechar-lacunas-vg-1-vg-4-testes-de-path"
+    epic: 11
+    action: "Fechar lacunas VG-1..VG-4: testes de path real (rules/contract), encaminhamento
+      de ids niveis 4-5 e redirects 1-2"
+    owner: "QA"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-42-remover-fix_-dart-app-scratch-e-scratch"
+    epic: 11
+    action: "Remover fix_*.dart, app/scratch/* e scratch/* do versionamento e adicionar
+      a .gitignore"
+    owner: "dev (Amelia)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-43-criar-gate-de-consumidores-cruzados-ao-a"
+    epic: 11
+    action: "Criar gate de consumidores cruzados ao alterar modelo compartilhado antes
+      de declarar final-epic-ok"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-44-executar-historias-na-ordem-de-dependenc"
+    epic: 11
+    action: "Executar historias na ordem de dependencia declarada (11.1 antes de 11.2)
+      ou atualizar epic-11-context"
+    owner: "PM/Scrum"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-11-retro-item-45-concluir-a-historia-11-2-sair-de-review"
+    epic: 11
+    action: "Concluir a historia 11-2 (sair de review): verificacao e review formal"
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
