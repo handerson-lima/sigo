@@ -2,6 +2,22 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'lote.g.dart';
 
+enum LoteStatus {
+  noPrazo,
+  atrasado,
+  paralisado,
+  concluido,
+}
+
+const List<String> defaultLotePhases = [
+  'Plantas',
+  'Fundação',
+  'Estrutura',
+  'Alvenaria',
+  'Acabamento',
+  'Entregue'
+];
+
 @JsonSerializable()
 class Lote {
   final String id;
@@ -10,7 +26,7 @@ class Lote {
   final String quadraId;
   final String name;
   final String phase;
-  final String status;
+  final LoteStatus status;
   final String? responsavelId;
   final DateTime createdAt;
 

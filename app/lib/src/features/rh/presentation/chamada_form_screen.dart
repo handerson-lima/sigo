@@ -426,9 +426,8 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
       funcionariosStreamProvider(widget.construtoraId),
     );
     final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
-    final lotesStream = ref
-        .watch(loteRepositoryProvider)
-        .watchLotes(widget.construtoraId, widget.obraId);
+    // TODO: refatorar para hierarquia de 5 níveis
+    final lotesStream = ref.watch(loteRepositoryProvider).watchLotes(widget.construtoraId, 'dummy_loteamento', 'dummy_quadra');
 
     return StreamBuilder<List<Lote>>(
       stream: lotesStream,

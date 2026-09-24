@@ -5,5 +5,5 @@ import '../domain/lote.dart';
 
 final obraLotesProvider = StreamProvider.autoDispose.family<List<Lote>, ObraScope>((ref, scope) {
   final repo = ref.watch(loteRepositoryProvider);
-  return repo.watchLotes(scope.construtoraId, scope.obraId);
+  return repo.watchLotes(scope.construtoraId, 'dummy', 'dummy');
 });

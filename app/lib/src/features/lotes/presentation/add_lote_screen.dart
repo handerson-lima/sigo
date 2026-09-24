@@ -9,9 +9,10 @@ import '../domain/lote.dart';
 
 class AddLoteScreen extends ConsumerStatefulWidget {
   final String construtoraId;
-  final String obraId;
+  final String loteamentoId;
+  final String quadraId;
 
-  const AddLoteScreen({super.key, required this.construtoraId, required this.obraId});
+  const AddLoteScreen({super.key, required this.construtoraId, required this.loteamentoId, required this.quadraId});
 
   @override
   ConsumerState<AddLoteScreen> createState() => _AddLoteScreenState();
@@ -45,7 +46,8 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
       final lote = Lote(
         id: _loteId,
         construtoraId: widget.construtoraId,
-        obraId: widget.obraId,
+        loteamentoId: widget.loteamentoId,
+        quadraId: widget.quadraId,
         name: _nameController.text.trim(),
         phase: _selectedPhase,
         status: _selectedStatus,
@@ -75,7 +77,7 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
   Widget build(BuildContext context) {
     return SigoLayout(
       title: 'Novo Lote',
-      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/lotes',
+      activeRoute: '/construtora/${widget.construtoraId}/loteamentos/${widget.loteamentoId}/quadras/${widget.quadraId}/lotes',
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
