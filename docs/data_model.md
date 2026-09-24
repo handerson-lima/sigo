@@ -9,9 +9,12 @@ Atualizado em 2026-09-15. A seção 1 descreve o código local; as demais seçõ
 | `users/{uid}` | `id`, `email`, `displayName`, `photoUrl`, `globalRole`, `createdAt`, `updatedAt` |
 | `construtoras/{cId}` | Dados da construtora |
 | `construtoras/{cId}/construtora_members/{uid}` | `userId`, `isOwner`, `isAdmin`, `isActive`, `joinedAt` |
-| `construtoras/{cId}/obras/{oId}` | Dados da obra e `construtoraId` |
-| `construtoras/{cId}/obras/{oId}/members/{uid}` | `userId`, `isAdmin`, `modules`, `isActive`, `joinedAt` |
-| `construtoras/{cId}/obras/{oId}/lotes/{loteId}` | `id`, `construtoraId`, `obraId`, `name`, `phase`, `status`, `responsavelId`, `createdAt` |
+| `construtoras/{cId}/loteamentos/{loteamentoId}` | `id`, `construtoraId`, `name`, `status`, `createdAt` |
+| `construtoras/{cId}/loteamentos/{loteamentoId}/quadras/{quadraId}` | `id`, `name`, `status` |
+| `construtoras/{cId}/loteamentos/{loteamentoId}/quadras/{quadraId}/lotes/{loteId}` | `id`, `name`, `phase`, `status`, `responsavelId`, `createdAt` |
+| `construtoras/{cId}/loteamentos/{loteamentoId}/quadras/{quadraId}/lotes/{loteId}/setores/{setorId}` | `id`, `name` |
+| `construtoras/{cId}/loteamentos/{loteamentoId}/quadras/{quadraId}/lotes/{loteId}/setores/{setorId}/equipes/{equipeId}` | `id`, `name`, `responsavelId` |
+| `construtoras/{cId}/hierarquia_members/{uid}` | Coleção para vincular usuários a qualquer nó da hierarquia (ex: Loteamento, Setor ou Equipe). Campos: `userId`, `nodeType`, `nodeId`, `role`, `modules`, `isActive`, `joinedAt` |
 | `construtoras/{cId}/materiais/{materialId}` | `id`, `construtoraId`, `name`, `unit`, `currentQuantity` (`double`) |
 | `construtoras/{cId}/materiais/{materialId}/movimentacoes/{movId}` | `id`, `materialId`, `type`, `quantity`, `date`, `responsavelId`, `obraId?`, `loteId?`, `observacao?` |
 | `construtoras/{cId}/despesas/{despesaId}` | `id`, `construtoraId`, `obraId?`, `descricao`, `valor` (`double`), `dataVencimento`, `dataPagamento?`, `status`, `categoria`, `responsavelId`, `createdAt` |

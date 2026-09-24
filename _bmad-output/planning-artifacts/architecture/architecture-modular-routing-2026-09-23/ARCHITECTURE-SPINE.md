@@ -28,9 +28,12 @@ flowchart LR
     A[auth_routes.dart]
     B[dev_routes.dart]
     C[construtora_routes.dart]
-    D[obra_routes.dart]
-    E[lotes_routes.dart]
-    F[almoxarifado_routes.dart]
+    D[loteamento_routes.dart]
+    E[quadra_routes.dart]
+    F[lotes_routes.dart]
+    G[setor_routes.dart]
+    H[equipe_routes.dart]
+    I[almoxarifado_routes.dart]
     G[diario_routes.dart]
     H[rh_routes.dart]
     I[epi_routes.dart]
@@ -112,8 +115,11 @@ flowchart LR
 | `authRoutes` | `authentication` | `/login` |
 | `devRoutes` | `developer` | `/dev`, `/dev/users`, `/dev/users/:uid`, `/dev/construtoras` |
 | `construtoraRoutes` | `construtoras` | `/`, `/construtora/:cId`, `/construtora/:cId/membros` |
-| `obraRoutes` | `obras` | `/construtora/:cId/obra/:oId` |
-| `lotesRoutes` | `lotes` | `…/lotes`, `…/lotes/novo` |
+| `loteamentoRoutes` | `loteamentos` | `/construtora/:cId/loteamentos`, `/construtora/:cId/loteamentos/:loteamentoId` |
+| `quadraRoutes` | `quadras` | `.../loteamentos/:loteamentoId/quadras`, `.../quadras/:quadraId` |
+| `lotesRoutes` | `lotes` | `.../quadras/:quadraId/lotes`, `.../lotes/:loteId` |
+| `setorRoutes` | `setores` | `.../lotes/:loteId/setores`, `.../setores/:setorId` |
+| `equipeRoutes` | `equipes` | `.../setores/:setorId/equipes`, `.../equipes/:equipeId` |
 | `almoxarifadoRoutes` | `almoxarifado` | `/construtora/:cId/almoxarifado`, `…/novo_material`, `…/movimentacao` |
 | `diarioRoutes` | `diario` | `…/diarios`, `…/diarios/novo`, `…/diarios/sync`, `/construtora/:cId/sync` |
 | `rhRoutes` | `rh` | `/construtora/:cId/rh`, `…/funcionarios`, `…/funcionarios/novo`, `…/funcionarios/:fId/editar`, `…/obra/:oId/rh/chamadas`, `…/chamadas/nova`, `…/chamadas/:chId` |
@@ -132,8 +138,11 @@ flowchart TD
     APP -->|imports| AUTH[auth_routes]
     APP -->|imports| DEV[dev_routes]
     APP -->|imports| CONST[construtora_routes]
-    APP -->|imports| OBRA[obra_routes]
+    APP -->|imports| LOTEA[loteamento_routes]
+    APP -->|imports| QUAD[quadra_routes]
     APP -->|imports| LOTES[lotes_routes]
+    APP -->|imports| SETOR[setor_routes]
+    APP -->|imports| EQUI[equipe_routes]
     APP -->|imports| ALM[almoxarifado_routes]
     APP -->|imports| DIA[diario_routes]
     APP -->|imports| RH[rh_routes]
@@ -148,8 +157,11 @@ flowchart TD
     AUTH -.->|uses| CW[common_widgets]
     DEV -.->|uses| CW
     CONST -.->|uses| CW
-    OBRA -.->|uses| CW
+    LOTEA -.->|uses| CW
+    QUAD -.->|uses| CW
     LOTES -.->|uses| CW
+    SETOR -.->|uses| CW
+    EQUI -.->|uses| CW
     ALM -.->|uses| CW
     DIA -.->|uses| CW
     RH -.->|uses| CW
@@ -175,7 +187,7 @@ flowchart TD
 | Naming — paths | classe abstrata `<Feature>Paths` com `static const String` por rota |
 | Data & formats | paths sempre começam com `/`; parâmetros mantêm nome existente (`:cId`, `:oId`, `:fId`, etc.) |
 | State & cross-cutting | `routerProvider` permanece `Provider<GoRouter>` com Riverpod; sem provider por feature de routing |
-| Ordenação no router | auth → dev → construtora → obra → features de obra (lotes, diario, rh, epi, …) → features de construtora (almoxarifado, financeiro, rh-construtora, validacao, fornecedores, compras, custos_360, despesas_adm) |
+| Ordenação no router | auth → dev → construtora → loteamento → quadra → lote → setor → equipe → features (almoxarifado, financeiro, rh, etc.) |
 
 ## Stack
 
