@@ -473,9 +473,11 @@ void main() {
         Lote(
           id: 'l1',
           construtoraId: 'c1',
-          obraId: 'o1',
+          loteamentoId: 'lt1',
+          quadraId: 'qd1',
           name: 'Lote 1',
           phase: 'Alvenaria',
+          status: LoteStatus.noPrazo,
           createdAt: DateTime.now(),
         ),
       ];

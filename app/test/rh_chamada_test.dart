@@ -236,17 +236,21 @@ void main() {
       Lote(
         id: 'l-1',
         construtoraId: 'c-1',
-        obraId: 'o-1',
+        loteamentoId: 'lt-1',
+        quadraId: 'qd-1',
         name: 'Casa 10',
         phase: 'Alvenaria',
+        status: LoteStatus.noPrazo,
         createdAt: DateTime.now(),
       ),
       Lote(
         id: 'l-2',
         construtoraId: 'c-1',
-        obraId: 'o-1',
+        loteamentoId: 'lt-1',
+        quadraId: 'qd-1',
         name: 'Casa 11',
         phase: 'Alvenaria',
+        status: LoteStatus.noPrazo,
         createdAt: DateTime.now(),
       ),
     ];

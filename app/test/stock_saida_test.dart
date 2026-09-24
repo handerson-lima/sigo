@@ -163,7 +163,8 @@ void main() {
         Lote(
           id: 'lote-101',
           construtoraId: 'c1',
-          obraId: 'obra-1',
+          loteamentoId: 'lt1',
+          quadraId: 'qd1',
           name: 'Casa 01',
           phase: 'Alvenaria',
           status: LoteStatus.noPrazo,

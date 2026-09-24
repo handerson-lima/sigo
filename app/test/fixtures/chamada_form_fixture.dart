@@ -94,15 +94,17 @@ class TestLoteRepository implements LoteRepository {
       Lote(
         id: id,
         construtoraId: 'c1',
-        obraId: 'o1',
+        loteamentoId: 'lt1',
+        quadraId: 'qd1',
         name: id,
         phase: 'Estrutura',
+        status: LoteStatus.noPrazo,
         createdAt: DateTime(2026),
       ),
   ];
   late final stream = Stream.value(lotes).asBroadcastStream();
   @override
-  Stream<List<Lote>> watchLotes(String c, String o) => stream;
+  Stream<List<Lote>> watchLotes(String construtoraId, String loteamentoId, String quadraId) => stream;
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

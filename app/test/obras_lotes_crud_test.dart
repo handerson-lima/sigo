@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/lotes/presentation/add_lote_screen.dart';
 import 'package:app/src/features/lotes/presentation/lotes_list_screen.dart';
-import 'package:app/src/features/lotes/presentation/obra_lotes_provider.dart';
 import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/obras/domain/obra.dart';
 import 'package:app/src/features/obras/presentation/obras_list_screen.dart';
@@ -15,65 +14,15 @@ import 'package:app/src/features/authentication/data/user_repository.dart';
 
 class FakeLoteRepository implements LoteRepository {
   final List<Lote> lotes = [];
-  String? lastUpdatedPhase;
-  LoteStatus? lastUpdatedStatus;
 
   @override
-  Stream<List<Lote>> watchLotes(String construtoraId, String obraId) {
+  Stream<List<Lote>> watchLotes(String construtoraId, String loteamentoId, String quadraId) {
     return Stream.value(lotes);
   }
 
   @override
   Future<void> createLote(Lote lote) async {
     lotes.add(lote);
-  }
-
-  @override
-  Future<void> updatePhase(
-    String construtoraId,
-    String obraId,
-    String loteId,
-    String newPhase,
-  ) async {
-    lastUpdatedPhase = newPhase;
-    final idx = lotes.indexWhere((l) => l.id == loteId);
-    if (idx != -1) {
-      final old = lotes[idx];
-      lotes[idx] = Lote(
-        id: old.id,
-        construtoraId: old.construtoraId,
-        obraId: old.obraId,
-        name: old.name,
-        phase: newPhase,
-        status: old.status,
-        responsavelId: old.responsavelId,
-        createdAt: old.createdAt,
-      );
-    }
-  }
-
-  @override
-  Future<void> updateStatus(
-    String construtoraId,
-    String obraId,
-    String loteId,
-    LoteStatus newStatus,
-  ) async {
-    lastUpdatedStatus = newStatus;
-    final idx = lotes.indexWhere((l) => l.id == loteId);
-    if (idx != -1) {
-      final old = lotes[idx];
-      lotes[idx] = Lote(
-        id: old.id,
-        construtoraId: old.construtoraId,
-        obraId: old.obraId,
-        name: old.name,
-        phase: old.phase,
-        status: newStatus,
-        responsavelId: old.responsavelId,
-        createdAt: old.createdAt,
-      );
-    }
   }
 }
 
@@ -102,7 +51,8 @@ void main() {
       final lote = Lote(
         id: 'l1',
         construtoraId: 'c1',
-        obraId: 'o1',
+        loteamentoId: 'lt1',
+        quadraId: 'qd1',
         name: 'Casa 101',
         phase: 'Fundação',
         status: LoteStatus.atrasado,
@@ -150,7 +100,7 @@ void main() {
             loteRepositoryProvider.overrideWithValue(fakeRepo),
           ],
           child: const MaterialApp(
-            home: AddLoteScreen(construtoraId: 'c1', obraId: 'o1'),
+            home: AddLoteScreen(construtoraId: 'c1', loteamentoId: 'lt1', quadraId: 'qd1'),
           ),
         ),
       );
@@ -178,13 +128,14 @@ void main() {
       expect(fakeRepo.lotes.first.status, LoteStatus.noPrazo);
     });
 
-    testWidgets('LotesListScreen abre bottom sheet para alterar fase e status do lote', (tester) async {
+    testWidgets('LotesListScreen exibe a lista de lotes com status e fase', (tester) async {
       final fakeRepo = FakeLoteRepository();
       fakeRepo.lotes.add(
         Lote(
           id: 'lote-1',
           construtoraId: 'c1',
-          obraId: 'o1',
+          loteamentoId: 'lt1',
+          quadraId: 'qd1',
           name: 'Lote 01',
           phase: 'Fundação',
           status: LoteStatus.noPrazo,
@@ -196,33 +147,16 @@ void main() {
         ProviderScope(
           overrides: [
             loteRepositoryProvider.overrideWithValue(fakeRepo),
-            obraLotesProvider((construtoraId: 'c1', obraId: 'o1')).overrideWith(
-              (ref) => Stream.value(fakeRepo.lotes),
-            ),
           ],
           child: const MaterialApp(
-            home: LotesListScreen(construtoraId: 'c1', obraId: 'o1'),
+            home: LotesListScreen(construtoraId: 'c1', loteamentoId: 'lt1', quadraId: 'qd1'),
           ),
         ),
       );
 
       await tester.pumpAndSettle();
       expect(find.text('Lote 01'), findsOneWidget);
-      expect(find.text('Fase: Fundação'), findsOneWidget);
-
-      // Toca no card do lote para abrir edição
-      await tester.tap(find.text('Lote 01'));
-      await tester.pumpAndSettle();
-
-      // Verifica que a BottomSheet de edição abriu
-      expect(find.text('Lote: Lote 01'), findsOneWidget);
-      expect(find.text('Salvar Alterações'), findsOneWidget);
-
-      // Altera e clica em Salvar Alterações
-      await tester.tap(find.text('Salvar Alterações'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Salvar Alterações'), findsNothing);
+      expect(find.textContaining('Phase: Fundação'), findsOneWidget);
     });
 
     testWidgets('ObrasListScreen exibe botao de Nova Obra para Administrador', (tester) async {
