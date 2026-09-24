@@ -3,21 +3,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
-void main() {
-  testWidgets('renderiza todos os segmentos e separadores', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: SigoBreadcrumbs(
-             
-              BreadcrumbSegment(label: 'Loteamento', url: '/a'),
-              BreadcrumbSegment(label: 'Quadra', url: '/b'),
-              BreadcrumbSegment(label: 'Lotes'),
-            ],
-          ),
+GoRouter _router() => GoRouter(
+      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+      routes: [
+        GoRoute(
+          path: '/construtora/:cId',
+          routes: [
+            GoRoute(
+              path: 'loteamentos/:loteamentoId',
+              routes: [
+                GoRoute(
+                  path: 'quadras/:quadraId',
+                  builder: (context, state) =>
+                      const Scaffold(body: Text('quadras destino')),
+                  routes: [
+                    GoRoute(
+                      path: 'lotes',
+                      builder: (context, state) =>
+                          const Scaffold(body: SigoBreadcrumbs()),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
         ),
-      ),
+      ],
     );
+
+void main() {
+  testWidgets('renderiza a trilha derivada do path com separadores', (tester) async {
+    await tester.pumpWidget(MaterialApp.router(routerConfig: _router()));
+    await tester.pumpAndSettle();
 
     expect(find.text('Loteamento'), findsOneWidget);
     expect(find.text('Quadra'), findsOneWidget);
@@ -26,61 +43,23 @@ void main() {
   });
 
   testWidgets('tocar num segmento com url navega para a url', (tester) async {
-    final router = GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const Scaffold(
-            body: SigoBreadcrumbs(
-               
-                BreadcrumbSegment(label: 'Loteamento', url: '/destino'),
-                BreadcrumbSegment(label: 'Lotes'),
-              ],
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/destino',
-          builder: (context, state) => const Scaffold(body: Text('chegou')),
-        ),
-      ],
-    );
-
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-    await tester.tap(find.text('Loteamento'));
+    await tester.pumpWidget(MaterialApp.router(routerConfig: _router()));
     await tester.pumpAndSettle();
 
-    expect(find.text('chegou'), findsOneWidget);
+    await tester.tap(find.text('Quadra'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('quadras destino'), findsOneWidget);
   });
 
   testWidgets('ultimo segmento nao e clicavel e nao navega', (tester) async {
-    final router = GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const Scaffold(
-            body: SigoBreadcrumbs(
-               
-                BreadcrumbSegment(label: 'Loteamento', url: '/destino'),
-                BreadcrumbSegment(label: 'Lotes'),
-              ],
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/destino',
-          builder: (context, state) => const Scaffold(body: Text('chegou')),
-        ),
-      ],
-    );
+    await tester.pumpWidget(MaterialApp.router(routerConfig: _router()));
+    await tester.pumpAndSettle();
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.tap(find.text('Lotes'));
     await tester.pumpAndSettle();
 
-    expect(find.text('chegou'), findsNothing);
+    expect(find.text('quadras destino'), findsNothing);
     expect(find.text('Loteamento'), findsOneWidget);
   });
 }

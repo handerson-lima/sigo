@@ -45,7 +45,7 @@ class SetoresListScreen extends ConsumerWidget {
                       title: Text(item.name),
                       subtitle: Text('Criado em: $dateStr'),
                       onTap: () {
-                        context.go('/construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/${item.id}/equipes');
+                        context.go('/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/${item.id}/equipes');
                       },
                     );
                   },

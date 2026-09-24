@@ -29,20 +29,7 @@ class LotesListScreen extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SigoBreadcrumbs(
-            segments: [
-              BreadcrumbSegment(
-                label: 'Loteamento',
-                url: '/construtora/$construtoraId/loteamentos/$loteamentoId',
-              ),
-              BreadcrumbSegment(
-                label: 'Quadra',
-                url:
-                    '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId',
-              ),
-              const BreadcrumbSegment(label: 'Lotes'),
-            ],
-          ),
+          const SigoBreadcrumbs(),
           Expanded(
             child: StreamBuilder<List<Lote>>(
               stream: stream,
