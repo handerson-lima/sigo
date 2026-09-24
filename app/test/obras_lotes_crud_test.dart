@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/lotes/presentation/add_lote_screen.dart';
 import 'package:app/src/features/lotes/presentation/lotes_list_screen.dart';
@@ -143,14 +144,25 @@ void main() {
         ),
       );
 
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const LotesListScreen(
+              construtoraId: 'c1',
+              loteamentoId: 'lt1',
+              quadraId: 'qd1',
+            ),
+          ),
+        ],
+      );
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             loteRepositoryProvider.overrideWithValue(fakeRepo),
           ],
-          child: const MaterialApp(
-            home: LotesListScreen(construtoraId: 'c1', loteamentoId: 'lt1', quadraId: 'qd1'),
-          ),
+          child: MaterialApp.router(routerConfig: router),
         ),
       );
 

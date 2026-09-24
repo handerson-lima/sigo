@@ -8,9 +8,11 @@ GoRouter _router() => GoRouter(
       routes: [
         GoRoute(
           path: '/construtora/:cId',
+          builder: (context, state) => const SizedBox(),
           routes: [
             GoRoute(
               path: 'loteamentos/:loteamentoId',
+              builder: (context, state) => const SizedBox(),
               routes: [
                 GoRoute(
                   path: 'quadras/:quadraId',
