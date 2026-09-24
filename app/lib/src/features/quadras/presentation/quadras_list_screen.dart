@@ -1,28 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../data/lote_repository.dart';
-import '../domain/lote.dart';
+import '../data/quadra_repository.dart';
+import '../domain/quadra.dart';
 
-class LotesListScreen extends ConsumerWidget {
+class QuadrasListScreen extends ConsumerWidget {
   final String construtoraId;
   final String loteamentoId;
-  final String quadraId;
 
-  const LotesListScreen({
+  const QuadrasListScreen({
     super.key,
     required this.construtoraId,
     required this.loteamentoId,
-    required this.quadraId,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stream = ref.watch(loteRepositoryProvider).watchLotes(construtoraId, loteamentoId, quadraId);
+    final stream = ref.watch(quadraRepositoryProvider).watchQuadras(construtoraId, loteamentoId);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Lotes')),
-      body: StreamBuilder<List<Lote>>(
+      appBar: AppBar(title: const Text('Quadras')),
+      body: StreamBuilder<List<Quadra>>(
         stream: stream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

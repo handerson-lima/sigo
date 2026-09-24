@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Drill-down Epic 11</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #F8FAFC;
+      margin: 0;
+      color: #0F172A;
+    }
+    .header {
+      background: linear-gradient(to right, #0D47A1, #1565C0);
+      color: white;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+    }
+    .breadcrumbs {
+      font-size: 14px;
+      color: #CBD5E1;
+      margin-bottom: 8px;
+    }
+    .breadcrumbs span {
+      cursor: pointer;
+    }
+    .breadcrumbs span:hover {
+      text-decoration: underline;
+      color: white;
+    }
+    .breadcrumbs .active {
+      color: white;
+      font-weight: bold;
+      text-decoration: none;
+    }
+    .title {
+      font-size: 32px;
+      font-weight: 700;
+    }
+    .container {
+      padding: 32px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+    }
+    .hierarchical-card {
+      background-color: #FFFFFF;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      border-left: 4px solid #2196F3;
+    }
+    .hierarchical-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      border-color: #FCA906;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .card-meta {
+      font-size: 14px;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <div class="breadcrumbs">
+        <span>Construtora Alpha</span> > 
+        <span>Obra Central</span> > 
+        <span class="active">Loteamentos</span>
+      </div>
+      <div class="title">Selecione o Loteamento</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="grid">
+      <div class="hierarchical-card">
+        <div class="card-title">Loteamento Norte</div>
+        <div class="card-meta">12 Quadras • 48 Lotes</div>
+      </div>
+      <div class="hierarchical-card">
+        <div class="card-title">Loteamento Sul</div>
+        <div class="card-meta">8 Quadras • 32 Lotes</div>
+      </div>
+      <div class="hierarchical-card">
+        <div class="card-title">Loteamento Leste</div>
+        <div class="card-meta">15 Quadras • 60 Lotes</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

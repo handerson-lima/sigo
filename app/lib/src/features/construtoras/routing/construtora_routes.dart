@@ -6,7 +6,7 @@ import '../../obras/presentation/obras_list_screen.dart';
 import '../presentation/membros_screen.dart';
 
 import '../../obras/routing/obra_routes.dart';
-import '../../lotes/routing/lotes_routes.dart';
+import '../../loteamentos/routing/loteamentos_routes.dart';
 import '../../almoxarifado/routing/almoxarifado_routes.dart';
 import '../../diario/routing/diario_routes.dart';
 import '../../rh/routing/rh_routes.dart';
@@ -56,7 +56,7 @@ List<RouteBase> get construtoraRoutes => [
             },
           ),
           ...obraRoutes,
-          ...lotesRoutes,
+          ...loteamentosRoutes,
           ...almoxarifadoRoutes,
           ...diarioRoutes,
           ...rhRoutes,

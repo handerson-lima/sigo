@@ -128,6 +128,11 @@ components:
     background: '{colors.surface-raised}'
     foreground: '{colors.ink-primary}'
     radius: '{rounded.md}'
+  HierarchicalCard:
+    min-width-preferred: 280px
+    background: '{colors.surface-raised}'
+    foreground: '{colors.ink-primary}'
+    radius: '{rounded.md}'
   SigoLayout:
     background: '{colors.surface-base}'
   ActionButton:
@@ -274,6 +279,7 @@ Padrões Material não especificados mantêm os defaults da plataforma. Nomes ge
 | Componente | Contrato visual |
 |---|---|
 | ConstrutoraCard | Direção B: card claro com área de logo destacada e ação azul; acento dourado na composição. [ASSUMPTION] Logo com proporção preservada; nome como texto principal, CNPJ secundário quando disponível, borda/foco visível. Faixa gráfica superior e sombra suave são acabamento proposto, não obrigação de fotografia por empresa. Logo opcional sem corte ou recoloração; fallback com iniciais. Não acrescentar KPIs sem requisito |
+| HierarchicalCard | [ASSUMPTION] Utilizado para Loteamento, Quadra, Setor e Equipe. Segue a estrutura visual do LoteCard (compacto, limpo), porém exibe dados agregados (ex: quantidade de sub-itens). O clique/toque em qualquer parte do card aprofunda a navegação para o próximo nível (drill-down). |
 | LoteCard | [ASSUMPTION] Superfície clara, nome/identificação dominante, fase em linha própria e badge de status com ícone + texto. Faixa curta azul e detalhe dourado reforçam marca; status não pinta todo o card. Rodapé com Atualizar lote e Vistorias visíveis, foco claro e alvos confortáveis. Altura adapta a nomes/fases longos; sem percentual, foto ou métrica presumidos |
 | SigoLayout | Canvas claro; no desktop, sidebar azul profundo e cabeçalho azul marcante com acentos dourados conforme direção B. SigoTopBar e SigoSidebar herdados; contexto da obra separado do título da tarefa. Aplicação às demais telas ainda é hipótese |
 | ActionButton | Primário com action-blue e texto branco; secundário Material; ocupado sem deslocar rótulo; foco visível |

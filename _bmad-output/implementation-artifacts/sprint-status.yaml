@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-24-2026 09:15
+last_updated: 09-24-2026 12:28
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -115,17 +115,20 @@ development_status:
   epic-8-retrospective: done
 
   epic-9: done
-  9-1-atribuir-operario-a-obra: done
+  9-1-atribuir-operário-à-obra: done
   9-2-atribuir-admin-erros-e-offline: done
   epic-9-retrospective: done
 
   epic-10: done
-  10-1-trocar-papel-modulos-na-obra: done
+  10-1-trocar-papel-módulos-na-obra: done
   10-2-remover-da-obra: done
   10-3-trocar-cargo-na-construtora-e-desativar: done
   epic-10-retrospective: done
 
-# Os títulos históricos não impõem caminhos projects/ ou proibição de dev global.
+  epic-11: backlog
+  11-1-navegação-loteamento-quadra-lote: backlog
+  11-2-navegação-lote-setor-equipe: backlog
+  epic-11-retrospective: optional
 legacy_scope_mapping:
   "1-4-subcolecao-members": "construtoras/{cId}/obras/{oId}/members/{uid}"
   "1-5-descoberta-obras": "Validar queries atuais de construtora_members e members"
@@ -219,10 +222,9 @@ action_items:
   - id: "epic-4-retro-item-1-modularizar-chamada-form"
     epic: 4
     action: "Extrair sub-componentes de chamada_form_screen.dart: sumario de rateio
-      e composicao visual extraidos em ChamadaRateioSummary e ChamadaFormView;
-      tela com 491 linhas apos dart format (meta <=500 cumprida), 39 testes de RH
-      passando e analise dos arquivos alterados sem problemas. Evidencias em
-      spec-epic-4-retro-item-1-modularizar-chamada-form.md"
+      e composicao visual extraidos em ChamadaRateioSummary e ChamadaFormView; tela
+      com 491 linhas apos dart format (meta <=500 cumprida), 39 testes de RH passando
+      e analise dos arquivos alterados sem problemas. Evidencias em spec-epic-4-retro-item-1-modularizar-chamada-form.md"
     owner: "maranduteam"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-17.md"
@@ -345,7 +347,10 @@ action_items:
     ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"
   - id: "epic-10-retro-item-28-fechar-gaps-de-verificacao-10-x-testes-d"
     epic: 10
-    action: "Fechar gaps de verificacao 10.x restantes: (19-21 fechados em spec-estabilizar-vinculos-epicos-8-10 — setCargo real, wiring sheet, prefill overflow); ainda abertos: asserts de invalidacao, desativar nObras:2 com N+1 e progresso, a11y (Esc, 48dp, Editar vinculo, textScale 1.3)"
+    action: "Fechar gaps de verificacao 10.x restantes: (19-21 fechados em spec-estabilizar-vinculos-epicos-8-10
+      — setCargo real, wiring sheet, prefill overflow); ainda abertos: asserts de
+      invalidacao, desativar nObras:2 com N+1 e progresso, a11y (Esc, 48dp, Editar
+      vinculo, textScale 1.3)"
     owner: "maranduteam"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-22.md"

@@ -71,16 +71,20 @@ FR10: Epic 9 (reuso Epic 10) - erros mapeados pt-br
 ## Epic List
 
 ### Epic 8: Visibilidade dos vínculos
-Adm/owner enxerga cada membro com Cargo · N obras e abre o detalhe.
+Adm/owner enxerga cada membro com Cargo · N nós da hierarquia e abre o detalhe.
 **FRs covered:** FR1, FR2, FR3
 
-### Epic 9: Atribuição à obra
-Adm/owner atribui operário e admin à obra com papel + módulos.
+### Epic 9: Atribuição na Hierarquia (Loteamento a Equipe)
+Adm/owner atribui operário/equipe em um nível específico (ex: Lote ou Equipe) com papel + módulos.
 **FRs covered:** FR4, FR5, FR10
 
 ### Epic 10: Gestão do vínculo
-Adm/owner troca papel/módulos, remove da obra, troca cargo na construtora e desativa.
+Adm/owner troca papel/módulos na hierarquia, remove de um nó, troca cargo na construtora e desativa.
 **FRs covered:** FR6, FR7, FR8, FR9
+
+### Epic 11: Drill-down do Dashboard
+O usuário navega pela hierarquia estrutural após o login para detalhar os componentes da construção.
+**FRs covered:** (Nova feature de navegação estrutural)
 
 ## Epic 8: Visibilidade dos vínculos
 
@@ -127,9 +131,9 @@ So that decido atribuir/remover/trocar.
 **And** sem obra mostra `Nenhuma obra vinculada — Atribuir`; inativo mostra aviso `Ative na construtora primeiro` (AD-9)
 **And** leitor de tela anuncia nome, cargo, N obras, status (NFR4)
 
-## Epic 9: Atribuição à obra
+## Epic 9: Atribuição na Hierarquia (Loteamento a Equipe)
 
-Adm/owner atribui operário e admin à obra com papel + módulos.
+Adm/owner atribui operário/equipe em um nível específico (ex: Lote ou Equipe) com papel + módulos.
 
 ### Story 9.1: Atribuir operário à obra
 
@@ -202,3 +206,31 @@ So that gerencio o ciclo completo do membro.
 **Then** chama `setConstrutoraRole{role:admin}`; opção `owner` oculta sem `trustedDev` (só dev altera owner — AD-8/FR8)
 **And** ao Desativar com N obras → confirm `Remover de N obras + desativar?` dispara N `setMembership{obraId,isActive:false}` + `setMembership{isActive:false}` construtora (AD-7/FR9)
 **And** revogação efetiva imediata via gate `active(cm)` mesmo com docs órfãos
+
+## Epic 11: Drill-down do Dashboard
+
+O usuário navega pela hierarquia estrutural após o login para detalhar os componentes da construção.
+
+### Story 11.1: Navegação Loteamento → Quadra → Lote
+
+As a usuário logado,
+I want visualizar a lista de Loteamentos e clicar para ver suas Quadras, e em seguida os Lotes,
+So that eu chegue ao contexto correto.
+
+**Acceptance Criteria:**
+**Given** estou logado e tenho acesso à construtora
+**When** abro o dashboard
+**Then** vejo a lista de Loteamentos disponíveis
+**And** ao clicar em um Loteamento, navego para a lista de suas Quadras, e sucessivamente até os Lotes.
+
+### Story 11.2: Navegação Lote → Setor → Equipe
+
+As a usuário logado no contexto de um Lote,
+I want visualizar os Setores e suas respectivas Equipes,
+So that eu veja quem está responsável.
+
+**Acceptance Criteria:**
+**Given** que naveguei até um Lote
+**When** acesso seus detalhes
+**Then** vejo os Setores associados e as Equipes alocadas
+**And** posso visualizar as responsabilidades e papéis em cada nó.

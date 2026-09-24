@@ -1,0 +1,11 @@
+stories:
+  - id: "11.1"
+    description: "Navegação Aninhada Níveis 1 a 3 (Loteamento → Quadra → Lote)"
+    spec_checkpoint: "Rotas GoRouter criadas e UI de navegação/cards para Loteamento, Quadras e Lotes funcionais com acesso ao Firestore."
+    done_checkpoint: "A navegação de Loteamento até Lote está integrada, deep links mapeados e regras de segurança testadas para esses 3 níveis."
+    invoke_dev_with: "Implemente os repositories, entities, e telas para Loteamento, Quadra e Lote, incluindo o roteamento parametrizado."
+  - id: "11.2"
+    description: "Navegação Aninhada Níveis 4 a 5 (Setor → Equipe)"
+    spec_checkpoint: "Extensão das rotas GoRouter e interface para Setores e Equipes a partir de um Lote."
+    done_checkpoint: "O drill-down chega até Equipe e os breadcrumbs permitem o retorno rápido aos níveis superiores perfeitamente."
+    invoke_dev_with: "Implemente os endpoints finais da hierarquia de navegação no GoRouter, validando as permissões."

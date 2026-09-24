@@ -30,7 +30,11 @@ Escopo das evidências: Gestão de Membros (épicos 8–10) e módulos do épico
 | Superfície | Entrada/contexto | Jornada coberta | Telefone / desktop |
 |---|---|---|---|
 | Seleção de construtora | Lista de construtoras acessíveis | Escolher construtora | Card em coluna / grid adaptativo [ASSUMPTION] |
-| Mapa de Lotes | Obra → Lotes e Setores | Identificar e atualizar lote; iniciar vistoria | [ASSUMPTION] Cards em coluna / grid adaptativo |
+| Drill-down: Loteamento | Pós-login ou seleção | Visualizar Loteamentos da Obra/Construtora | [ASSUMPTION] Cards em coluna / grid adaptativo |
+| Drill-down: Quadra | Seleção de Loteamento | Visualizar Quadras de um Loteamento | [ASSUMPTION] Cards em coluna / grid adaptativo |
+| Drill-down: Lote | Seleção de Quadra | Visualizar Lotes de uma Quadra | [ASSUMPTION] Cards em coluna / grid adaptativo |
+| Drill-down: Setor | Seleção de Lote | Visualizar Setores de um Lote | [ASSUMPTION] Cards em coluna / grid adaptativo |
+| Drill-down: Equipe | Seleção de Setor | Visualizar Equipes do Setor | [ASSUMPTION] Cards em coluna / grid adaptativo |
 | Editar lote | Card do lote | Identificar e atualizar lote | [ASSUMPTION] Sheet / dialog; preserva seletores existentes |
 | Novo Lote | Ação na lista | Cadastrar lote | Formulário de nome, fase e status |
 | Gestão de Membros | Rota restrita a admin/owner | Fluxos 1–3; stories 8.1–10.3 | Lista / lista com filtros |
@@ -140,6 +144,22 @@ Nomes de fluxos 1–3 preservados do UX de membros. Passos condensados, sem dupl
 2. Reconhece nome e, quando disponível, logo da empresa; CNPJ ajuda a distinguir nomes semelhantes.
 3. **Clímax:** entra na construtora correta e vê seu contexto explícito antes de escolher obra/tarefa.
 4. Falha: imagem ausente/indisponível mantém iniciais e nome; vínculo revogado não permite entrada. O card atual não oferece upload; decidir futuramente quem poderá incluir logo e em qual superfície.
+
+### Epic 11 — Navegação Loteamento → Quadra → Lote
+
+1. [ASSUMPTION] Carla clica para abrir a construtora/obra e o dashboard exibe a lista de **Loteamentos**.
+2. Ela navega tocando/clicando no Loteamento, que abre a camada de **Quadras**.
+3. Em seguida, ela escolhe uma Quadra para ver os **Lotes** nela contidos.
+4. **Clímax:** Acessa o contexto correto visualizando as informações agregadas do Lote.
+5. Falha: Um nó vazio informa que não há elementos cadastrados abaixo daquela hierarquia. Breadcrumbs permitem voltar rapidamente aos níveis anteriores.
+
+### Epic 11 — Navegação Lote → Setor → Equipe
+
+1. [ASSUMPTION] Carla, dentro do nível de **Lote**, escolhe detalhar a estrutura organizacional.
+2. Ela visualiza a lista de **Setores** responsáveis naquele Lote.
+3. Em seguida, ela acessa um Setor para visualizar as **Equipes** alocadas nele.
+4. **Clímax:** Ela consegue ver exatamente qual Equipe está responsável por qual Setor no Lote.
+5. Falha: Se não houver equipe alocada, o sistema exibe estado vazio claro sugerindo que a alocação precisa ser feita (se ela for administradora).
 
 ### Identificar e atualizar lote
 
