@@ -2,7 +2,7 @@
 title: '0-2 definir politica'
 type: 'chore'
 created: '09-22-2026'
-status: 'done'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '2eb09d70b0f95a6eaba7c23b9842fbaa7fef2d83'
@@ -64,6 +64,25 @@ context: [/Users/usuario/obras/_bmad-output/implementation-artifacts/epic-0-cont
 - Given as fontes vigentes e D1–D7, when a política é criada, then toda cláusula de acesso/privilégio remete a D# ou a seção citada das fontes, sem decisão nova
 - Given as Pendências de `docs/decisoes.md`, when a política é revisada, then devs legítimos, regras de produção e volume legado aparecem como pendente-evidência (ou referência conforme COLETA), nunca como resolvidos
 - Given os Boundaries, when o changeset é conferido, then `decisoes.md` D1–D7, archive, rules, functions e `app/` permanecem intactos; nenhum deploy/migração
+
+### Review Findings (24/09/2026)
+
+- [x] [Review][Patch] Remover ou regenerar o diff histórico truncado e autorreferente, que mistura outras entregas com a Story 0-2 (blind-hunter + acceptance-auditor; medium): removido o artefato inconsistente. [_bmad-output/implementation-artifacts/diff-spec-0-2.diff:96]
+- [x] [Review][Patch] Preservar no item da retrospectiva a extração do sumário de rateio (edge-case-hunter; medium): requisito reposto junto à meta de linhas. [_bmad-output/implementation-artifacts/sprint-status.yaml:221]
+- [x] [Review][Patch] Explicitar comandos auditados para operações de suporte do dev em estoque e financeiro (blind-hunter; low): exigência adicionada ao perfil de dev. [docs/politica.md:21]
+- [x] [Review][Defer] Corrigir aceite C5 de Chrome/Safari móvel (blind-hunter; medium) [docs/task.md:73] — deferred: pendência preexistente: item marcado concluído, mas docs/validacao-c0-c6.md:139 ainda exige testes em navegadores reais; fora do changeset documental de 0-2.
+- [x] [Review][Defer] Reconciliar edição do contexto do Épico 0 com a restrição de somente leitura (acceptance-auditor; medium) [_bmad-output/implementation-artifacts/epic-0-context.md:7] — deferred: mudanças reais em arquivo de contexto de agente, explicitamente reservado para leitura pela spec; revisão de contexto segue fluxo próprio.
+
+Rejected (vereditos individuais):
+
+- blind-2 — false: `review` no sprint é o estado correto enquanto este code review está aberto; `done` na spec se refere à execução e o aceite documental foi registrado.
+- blind-3 — false: mudanças em `app/` aparecem apenas como texto dentro do diff histórico; o changeset real dos commits não toca `app/` nem `functions/`.
+- blind-4 — false: `docs/task.md:24` marca inventário/critério demonstrado em dev, enquanto a política distingue identificação de identidades legítimas reais, ainda pendente para migração.
+- blind-5 — false: `docs/task.md:31` marca validação em desenvolvimento, não retirada do fallback nem verificação de identidades reais; docs/task.md:5 delimita o sentido de `[x]`.
+- blind-7 — false: `app/README.md` não foi alterado pelos commits 0-2; a citação vem exclusivamente do diff histórico incorporado.
+- blind-8 — false: `scripts/check-docs.py` não foi alterado pelos commits 0-2; o trecho é texto no diff histórico incorporado.
+- blind-9 — false: idem, o script não faz parte das alterações reais de 0-2.
+- blind-10 — false: idem, o script não faz parte das alterações reais de 0-2.
 
 ## Implementation Notes
 

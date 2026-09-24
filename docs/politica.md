@@ -18,7 +18,7 @@ A política orienta a implementação de C1 (autorização), a coerência entre 
 
 Cinco perfis, com vocabulário conforme `docs/plano-de-correcao-2026-09-15.md` seção 3 @90e550d (D5). Escopos abaixo são resumos rastreáveis; a matriz literal é a do plano §3:
 
-1. **Dev confiável** — administração global, inclusive papéis via servidor; acesso global de suporte em dados de obra, estoque, financeiro e arquivos conforme operação autorizada. Não exige vínculo individual de obra.
+1. **Dev confiável** — administração global, inclusive papéis via servidor; acesso global de suporte em dados de obra, estoque, financeiro e arquivos conforme operação autorizada. Correções de estoque e financeiro devem usar comandos auditados, sem gravação direta arbitrária de saldo ou histórico. Não exige vínculo individual de obra.
    *Base:* D1 e D5 — [decisoes.md](decisoes.md); `docs/plano-de-correcao-2026-09-15.md` seção 1 e seção 3 @90e550d; `docs/implementation_plan.md` seção 4 @90e550d.
 2. **Admin/proprietário ativo da construtora** — perfis mínimos e vínculos da própria construtora; nunca concede dev; todas as obras da construtora; administra estoque, financeiro e arquivos no próprio escopo. Dispensa membership em cada obra da própria construtora.
    *Base:* D5 — [decisoes.md](decisoes.md); `docs/plano-de-correcao-2026-09-15.md` seção 3 @90e550d; `docs/data_model.md` seção 2 @90e550d.

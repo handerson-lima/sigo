@@ -130,3 +130,12 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `spec-hardening-credenciais-seed.md`
   summary: Testes automatizados de regressão para os caminhos de falha do seed em modo cloud
   evidence: Harness node --test existe em functions; hoje a proteção contra reintrodução do fallback é só code review.
+
+## Deferred from: code review of spec-0-2-definir-politica.md (2026-09-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-0-2-definir-politica.md`
+  summary: Corrigir aceite C5 de Chrome/Safari móvel marcado concluído em docs/task.md:73.
+  evidence: docs/validacao-c0-c6.md:139 ainda lista testes de Safari móvel e Chrome Android; divergência anterior à Story 0-2, fora do changeset documental.
+- source_spec: `_bmad-output/implementation-artifacts/spec-0-2-definir-politica.md`
+  summary: Reconciliar edição de epic-0-context.md com restrição de somente leitura no Code Map da Story 0-2.
+  evidence: commits da história alteraram objetivo e adicionaram seções ao contexto do épico; por ser arquivo de contexto de agente, requer fluxo próprio.
