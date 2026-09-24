@@ -1,29 +1,48 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:obras/src/features/setores/presentation/setores_list_screen.dart';
-import 'package:obras/src/features/setores/data/setor_repository.dart';
-import 'package:obras/src/features/setores/domain/setor.dart';
+import 'package:go_router/go_router.dart';
+import 'package:app/src/features/setores/presentation/setores_list_screen.dart';
+import 'package:app/src/features/setores/data/setor_repository.dart';
+import 'package:app/src/features/setores/domain/setor.dart';
 
 void main() {
+  Widget buildTestWidget(Widget child) {
+    final router = GoRouter(
+      initialLocation: '/setores',
+      routes: [
+        GoRoute(
+          path: '/setores',
+          builder: (context, state) => child,
+        ),
+      ],
+    );
+
+    return MaterialApp.router(
+      routerConfig: router,
+    );
+  }
+
   testWidgets('Renderiza lista de setores vazia', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           watchSetoresProvider.overrideWith((ref, arg) => Stream.value([])),
         ],
-        child: const MaterialApp(
-          home: SetoresListScreen(
-            construtoraId: 'c1',
-            loteamentoId: 'l1',
-            quadraId: 'q1',
-            loteId: 'lo1',
-          ),
-        ),
+        child: buildTestWidget(const SetoresListScreen(
+          construtoraId: 'c1',
+          loteamentoId: 'l1',
+          quadraId: 'q1',
+          loteId: 'lo1',
+        )),
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump(); // Resolve GoRouter
+    await tester.pump(); // First frame of SetoresListScreen
+    await tester.pump(const Duration(milliseconds: 100)); // Wait for Stream.value
+    await tester.pump(); // Render data
+
     expect(find.text('Nenhum registro encontrado.'), findsOneWidget);
   });
 
@@ -43,18 +62,20 @@ void main() {
         overrides: [
           watchSetoresProvider.overrideWith((ref, arg) => Stream.value([mockSetor])),
         ],
-        child: const MaterialApp(
-          home: SetoresListScreen(
-            construtoraId: 'c1',
-            loteamentoId: 'l1',
-            quadraId: 'q1',
-            loteId: 'lo1',
-          ),
-        ),
+        child: buildTestWidget(const SetoresListScreen(
+          construtoraId: 'c1',
+          loteamentoId: 'l1',
+          quadraId: 'q1',
+          loteId: 'lo1',
+        )),
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump(); // Resolve GoRouter
+    await tester.pump(); // First frame of SetoresListScreen
+    await tester.pump(const Duration(milliseconds: 100)); // Wait for Stream.value
+    await tester.pump(); // Render data
+
     expect(find.text('Setor A'), findsOneWidget);
   });
 }

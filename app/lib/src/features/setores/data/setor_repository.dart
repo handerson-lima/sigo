@@ -25,12 +25,14 @@ class SetorRepository {
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 }
-final watchSetoresProvider = StreamProvider.family<List<Setor>, Map<String, String>>((ref, params) {
+typedef SetorParams = ({String construtoraId, String loteamentoId, String quadraId, String loteId});
+
+final watchSetoresProvider = StreamProvider.family<List<Setor>, SetorParams>((ref, params) {
   final repo = ref.watch(setorRepositoryProvider);
   return repo.watchSetores(
-    params['construtoraId']!,
-    params['loteamentoId']!,
-    params['quadraId']!,
-    params['loteId']!,
+    params.construtoraId,
+    params.loteamentoId,
+    params.quadraId,
+    params.loteId,
   );
 });

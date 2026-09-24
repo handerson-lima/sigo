@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../data/setor_repository.dart';
 import 'package:intl/intl.dart';
-import '../domain/setor.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 
 class SetoresListScreen extends ConsumerWidget {
@@ -22,7 +21,7 @@ class SetoresListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final setoresAsync = ref.watch(watchSetoresProvider({'construtoraId': construtoraId, 'loteamentoId': loteamentoId, 'quadraId': quadraId, 'loteId': loteId}));
+    final setoresAsync = ref.watch(watchSetoresProvider((construtoraId: construtoraId, loteamentoId: loteamentoId, quadraId: quadraId, loteId: loteId)));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Setores')),

@@ -9,7 +9,7 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: SigoBreadcrumbs(
-            segments: [
+             
               BreadcrumbSegment(label: 'Loteamento', url: '/a'),
               BreadcrumbSegment(label: 'Quadra', url: '/b'),
               BreadcrumbSegment(label: 'Lotes'),
@@ -33,7 +33,7 @@ void main() {
           path: '/',
           builder: (context, state) => const Scaffold(
             body: SigoBreadcrumbs(
-              segments: [
+               
                 BreadcrumbSegment(label: 'Loteamento', url: '/destino'),
                 BreadcrumbSegment(label: 'Lotes'),
               ],
@@ -62,7 +62,7 @@ void main() {
           path: '/',
           builder: (context, state) => const Scaffold(
             body: SigoBreadcrumbs(
-              segments: [
+               
                 BreadcrumbSegment(label: 'Loteamento', url: '/destino'),
                 BreadcrumbSegment(label: 'Lotes'),
               ],

@@ -7,18 +7,6 @@ import '../features/authentication/data/user_repository.dart';
 import '../features/authentication/routing/auth_routes.dart';
 import '../features/developer/routing/dev_routes.dart';
 import '../features/construtoras/routing/construtora_routes.dart';
-import '../features/obras/routing/obra_routes.dart';
-import '../features/lotes/routing/lotes_routes.dart';
-import '../features/almoxarifado/routing/almoxarifado_routes.dart';
-import '../features/diario/routing/diario_routes.dart';
-import '../features/rh/routing/rh_routes.dart';
-import '../features/epi/routing/epi_routes.dart';
-import '../features/financeiro/routing/financeiro_routes.dart';
-import '../features/validacao/routing/validacao_routes.dart';
-import '../features/despesas_adm/routing/despesas_adm_routes.dart';
-import '../features/fornecedores/routing/fornecedores_routes.dart';
-import '../features/compras_parcelas/routing/compras_routes.dart';
-import '../features/custos_360/routing/custos_360_routes.dart';
 
 // Opcional: Uma tela 404 padrão
 import 'package:flutter/material.dart';

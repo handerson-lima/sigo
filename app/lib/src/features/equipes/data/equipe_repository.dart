@@ -25,13 +25,15 @@ class EquipeRepository {
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 }
-final watchEquipesProvider = StreamProvider.family<List<Equipe>, Map<String, String>>((ref, params) {
+typedef EquipeParams = ({String construtoraId, String loteamentoId, String quadraId, String loteId, String setorId});
+
+final watchEquipesProvider = StreamProvider.family<List<Equipe>, EquipeParams>((ref, params) {
   final repo = ref.watch(equipeRepositoryProvider);
   return repo.watchEquipes(
-    params['construtoraId']!,
-    params['loteamentoId']!,
-    params['quadraId']!,
-    params['loteId']!,
-    params['setorId']!,
+    params.construtoraId,
+    params.loteamentoId,
+    params.quadraId,
+    params.loteId,
+    params.setorId,
   );
 });

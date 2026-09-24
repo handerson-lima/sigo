@@ -1,4 +1,27 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'dart:io';
+
+void main() async {
+  // Revert SigoBreadcrumbs
+  final bcFile = File('app/lib/src/common_widgets/sigo_breadcrumbs.dart');
+  var bcText = await bcFile.readAsString();
+  bcText = bcText.replaceFirst(
+    '''    final state = GoRouterState.maybeOf(context);
+    if (state == null) {
+      return const SizedBox.shrink();
+    }''',
+    '''    final state = GoRouterState.of(context);'''
+  );
+  await bcFile.writeAsString(bcText);
+
+  // Fix setores test
+  final sTest = File('app/test/src/features/setores/presentation/setores_list_screen_test.dart');
+  var sText = await sTest.readAsString();
+  sText = sText.replaceAll('await tester.pumpAndSettle();', 'await tester.pump(); await tester.pump(const Duration(milliseconds: 100));');
+  await sTest.writeAsString(sText);
+
+  // Fix equipes test
+  final eTest = File('app/test/src/features/equipes/presentation/equipes_list_screen_test.dart');
+  var eText = '''import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -39,11 +62,8 @@ void main() {
       ),
     );
 
-    await tester.pump(); // Resolve GoRouter
-    await tester.pump(); // First frame of EquipesListScreen
-    await tester.pump(const Duration(milliseconds: 100)); // Wait for Stream.value
-    await tester.pump(); // Render data
-    
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Nenhum registro encontrado.'), findsOneWidget);
   });
 
@@ -74,11 +94,11 @@ void main() {
       ),
     );
 
-    await tester.pump(); // Resolve GoRouter
-    await tester.pump(); // First frame of EquipesListScreen
-    await tester.pump(const Duration(milliseconds: 100)); // Wait for Stream.value
-    await tester.pump(); // Render data
-    
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Equipe A'), findsOneWidget);
   });
+}
+''';
+  await eTest.writeAsString(eText);
 }

@@ -1,6 +1,5 @@
 import 'package:go_router/go_router.dart';
 
-import '../../../common_widgets/access_guard.dart';
 import '../presentation/dev_panel_screen.dart';
 import '../presentation/users_list_screen.dart';
 import '../presentation/user_details_screen.dart';

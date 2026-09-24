@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/equipe_repository.dart';
 import 'package:intl/intl.dart';
-import '../domain/equipe.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 
 class EquipesListScreen extends ConsumerWidget {
@@ -23,7 +22,7 @@ class EquipesListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final equipesAsync = ref.watch(watchEquipesProvider({'construtoraId': construtoraId, 'loteamentoId': loteamentoId, 'quadraId': quadraId, 'loteId': loteId, 'setorId': setorId}));
+    final equipesAsync = ref.watch(watchEquipesProvider((construtoraId: construtoraId, loteamentoId: loteamentoId, quadraId: quadraId, loteId: loteId, setorId: setorId)));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Equipes')),

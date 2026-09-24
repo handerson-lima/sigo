@@ -54,10 +54,11 @@ class LotesListScreen extends ConsumerWidget {
                   return Center(child: Text('Erro: ${snapshot.error}'));
                 }
                 final items = snapshot.data ?? [];
-                if (items.isEmpty)
+                if (items.isEmpty) {
                   return const Center(
                     child: Text('Nenhum registro encontrado.'),
                   );
+                }
 
                 return ListView.builder(
                   itemCount: items.length,

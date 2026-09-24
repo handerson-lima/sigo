@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../presentation/setores_list_screen.dart';
 import '../../../common_widgets/access_guard.dart';

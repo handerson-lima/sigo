@@ -13,7 +13,7 @@ class LoteRepository {
 
   CollectionReference<Lote> _lotesRef(String construtoraId, String loteamentoId, String quadraId) =>
       _firestore
-          .collection('construtoras/${construtoraId}/loteamentos/${loteamentoId}/quadras/${quadraId}/lotes')
+          .collection('construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes')
           .withConverter<Lote>(
             fromFirestore: (snapshot, _) => Lote.fromJson(snapshot.data()!),
             toFirestore: (lote, _) => lote.toJson(),

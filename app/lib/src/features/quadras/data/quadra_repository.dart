@@ -13,7 +13,7 @@ class QuadraRepository {
 
   CollectionReference<Quadra> _quadrasRef(String construtoraId, String loteamentoId) =>
       _firestore
-          .collection('construtoras/${construtoraId}/loteamentos/${loteamentoId}/quadras')
+          .collection('construtoras/$construtoraId/loteamentos/$loteamentoId/quadras')
           .withConverter<Quadra>(
             fromFirestore: (snapshot, _) => Quadra.fromJson(snapshot.data()!),
             toFirestore: (quadra, _) => quadra.toJson(),
