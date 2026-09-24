@@ -33,7 +33,6 @@ class ControlledChamadaRepository implements ChamadaRepository {
   final queries = <String>[];
   final pending = <Completer<List<CrossApontamento>>>[];
   final saved = <ChamadaDiaria>[];
-  Completer<void>? saving;
   bool failNextSave = false;
 
   @override
@@ -66,7 +65,6 @@ class ControlledChamadaRepository implements ChamadaRepository {
       throw StateError('falha simulada');
     }
     saved.add(chamada);
-    if (saving != null) await saving!.future;
   }
 
   @override
@@ -163,7 +161,6 @@ class ChamadaFormFixture {
   final lotes = TestLoteRepository();
   final defaultLot = TestDefaultLot();
   late GoRouter router;
-  late ProviderContainer container;
 
   ChamadaFormView view(WidgetTester tester) =>
       tester.widget<ChamadaFormView>(find.byType(ChamadaFormView));
@@ -219,9 +216,6 @@ class ChamadaFormFixture {
     );
     router.push('/form');
     await tester.pumpAndSettle();
-    container = ProviderScope.containerOf(
-      tester.element(find.byType(ChamadaFormScreen)),
-    );
     if (chamadaId == null) {
       view(tester).onDefaultLotChanged('l1');
       view(tester).onTeamChanged('e1');

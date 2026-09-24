@@ -1,6 +1,6 @@
 # Trabalho diferido — SIGO
 
-Atualizado em 2026-09-23.
+Atualizado em 2026-09-24.
 
 ## Deferred from: code review (2026-09-23) — story 3-infraestrutura-segura-para-gestao-de-logos
 
@@ -141,5 +141,43 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
   evidence: commits da história alteraram objetivo e adicionaram seções ao contexto do épico; por ser arquivo de contexto de agente, requer fluxo próprio.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-4-retro-item-1-modularizar-chamada-form.md`
-  summary: Fixar snapshot consistente ou bloquear edições durante salvamento da chamada (high).
-  evidence: Problema preexistente confirmado por inspeção de `_saveChamada`: consulta cross-obra usa `_formattedDate` antes do await e criação da ChamadaDiaria lê data/trabalhadores mutáveis depois; filtros e cartões continuam habilitados enquanto `isSaving` desabilita apenas salvar. Alterar a data enquanto a consulta está pendente pode validar um dia e salvar outro. Requer correção comportamental própria com teste de consulta atrasada.
+  summary: Fixar snapshot consistente ou bloquear edições durante salvamento da chamada (high) — RESOLVIDO por `spec-corrigir-concorrencia-salvamento-chamada.md` (single-flight + snapshot antes do await + guards).
+  evidence: Implementado e coberto por 8 testes de regressão em `chamada_form_screen_test.dart`; 47 testes RH verdes.
+
+## Deferred from: review of spec-corrigir-concorrencia-salvamento-chamada.md (2026-09-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-concorrencia-salvamento-chamada.md`
+  summary: Unicidade data/obra e atomicidade check→save no repositório de chamadas (transação/precondição Firestore).
+  evidence: medium real e pré-existente; `saveChamada` grava UUID novo sem constraint; TOCTOU entre `findCrossObraApontamentos` e `saveChamada`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-concorrencia-salvamento-chamada.md`
+  summary: Retificação sem precondição de versão + `SetOptions(merge: true)` pode sofrer lost update entre editores.
+  evidence: medium real e pré-existente em `chamada_repository.dart:141-143` + `versaoAuditoria + 1` no cliente.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-concorrencia-salvamento-chamada.md`
+  summary: Race na troca de equipe — `_syncWorkersList` roda com `_defaultLotId` stale enquanto `getDefaultLot` ainda pendura; workers não re-sincronizam quando o lote chega.
+  evidence: medium real e pré-existente (`chamada_form_screen.dart` wrapper `onTeamChanged` + `_onTeamChanged` async); assentaria com teste de troca de equipe com `getDefaultLot` atrasado.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-concorrencia-salvamento-chamada.md`
+  summary: Trocar equipe na tela de retificação esvazia `_workers` permanentemente (`_syncWorkersList` retorna cedo quando `_existingChamada != null`).
+  evidence: medium real e pré-existente; assentaria com teste de retificação + `onTeamChanged`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-concorrencia-salvamento-chamada.md`
+  summary: Sync de workers por comprimento de lista (sem merge por `workerId`) — troca 1-a-1 não refresca; mudança de contagem apaga marcações/rateio.
+  evidence: medium real e pré-existente em `_syncWorkersList`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-concorrencia-salvamento-chamada.md`
+  summary: `_loadInitialData` sem try/catch — `getChamada` quebrando vira unhandled async e `_initialized` nunca seta; `chamadaId` inexistente cai em modo nova sem aviso.
+  evidence: maybe-false unverified medium; assentaria com repo que lança em `getChamada` + asserção de UI de erro/retry; pré-existente.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-concorrencia-salvamento-chamada.md`
+  summary: SnackBar "Ver Chamada" usa `context.pushReplacement` sem `context.mounted` — snackBar pode sobreviver à rota.
+  evidence: maybe-false unverified medium; assentaria com teste de tap na ação após navegar para longe; pré-existente.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-concorrencia-salvamento-chamada.md`
+  summary: `onWorkerChanged` sem guarda de bounds e view recebe `_workers` viva — index obsoleto derrubaria RangeError em vez de no-op.
+  evidence: maybe-false unverified medium; assentaria com caminho reproduzível em que a lista encolhe entre build e callback; lista viva pré-existente.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrigir-concorrencia-salvamento-chamada.md`
+  summary: Demais findings low adiados: isFormValid sem `lotesValidosDaObra`; data duplicada só advisory sem teste; `_syncWorkersList` muta em build; conflito mostra `obraId` cru; `saveDefaultLot` sem tratamento de erro; sem teste de write lento/wiring do sticky bar; exceção crua no snackbar; uid fallback `unknown`; sem `PopScope`; `findChamadaByDate` da fixture sempre null; date picker 2020–2035.
+  evidence: todos pré-existente ou gap de cobertura fora do intent de concorrência; ver Review Triage Log da spec.

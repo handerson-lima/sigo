@@ -13,6 +13,7 @@ class ChamadaFiltrosHeader extends StatelessWidget {
   final String? selectedTeamId;
   final List<Equipe> equipes;
   final ValueChanged<String?> onTeamChanged;
+  final bool isSaving;
 
   const ChamadaFiltrosHeader({
     super.key,
@@ -24,6 +25,7 @@ class ChamadaFiltrosHeader extends StatelessWidget {
     required this.selectedTeamId,
     required this.equipes,
     required this.onTeamChanged,
+    this.isSaving = false,
   });
 
   @override
@@ -31,11 +33,13 @@ class ChamadaFiltrosHeader extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     // Garante que o valor defaultLotId existe nos lotes para evitar erro no Dropdown
-    final safeDefaultLotId = (defaultLotId != null && lotes.any((l) => l.id == defaultLotId))
+    final safeDefaultLotId =
+        (defaultLotId != null && lotes.any((l) => l.id == defaultLotId))
         ? defaultLotId
         : null;
 
-    final safeSelectedTeamId = (selectedTeamId != null && equipes.any((e) => e.id == selectedTeamId))
+    final safeSelectedTeamId =
+        (selectedTeamId != null && equipes.any((e) => e.id == selectedTeamId))
         ? selectedTeamId
         : null;
 
@@ -50,7 +54,7 @@ class ChamadaFiltrosHeader extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: InkWell(
-                  onTap: onPickDate,
+                  onTap: isSaving ? null : onPickDate,
                   borderRadius: BorderRadius.circular(10),
                   child: InputDecorator(
                     decoration: InputDecoration(
@@ -91,15 +95,14 @@ class ChamadaFiltrosHeader extends StatelessWidget {
                   ),
                   hint: const Text('Selecionar lote...'),
                   items: [
-                    ...lotes.map((l) => DropdownMenuItem(
-                          value: l.id,
-                          child: Text(
-                            l.name,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        )),
+                    ...lotes.map(
+                      (l) => DropdownMenuItem(
+                        value: l.id,
+                        child: Text(l.name, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
                   ],
-                  onChanged: onDefaultLotChanged,
+                  onChanged: isSaving ? null : onDefaultLotChanged,
                 ),
               ),
             ],
@@ -125,12 +128,11 @@ class ChamadaFiltrosHeader extends StatelessWidget {
                 value: null,
                 child: Text('Todos os Colaboradores da Obra'),
               ),
-              ...equipes.map((e) => DropdownMenuItem(
-                    value: e.id,
-                    child: Text(e.name),
-                  )),
+              ...equipes.map(
+                (e) => DropdownMenuItem(value: e.id, child: Text(e.name)),
+              ),
             ],
-            onChanged: onTeamChanged,
+            onChanged: isSaving ? null : onTeamChanged,
           ),
         ],
       ),

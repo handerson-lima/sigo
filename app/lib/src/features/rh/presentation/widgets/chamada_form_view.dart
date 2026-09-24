@@ -75,7 +75,7 @@ class ChamadaFormView extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            onPressed: onMarkAllPresent,
+            onPressed: isSaving ? null : onMarkAllPresent,
           ),
       ],
       child: Column(
@@ -89,6 +89,7 @@ class ChamadaFormView extends StatelessWidget {
             selectedTeamId: selectedTeamId,
             equipes: equipes,
             onTeamChanged: onTeamChanged,
+            isSaving: isSaving,
           ),
           ChamadaInvariantesBanner(erros: erros),
           Expanded(

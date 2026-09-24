@@ -4,6 +4,7 @@ import 'package:app/src/features/rh/data/custo_mao_de_obra_service.dart';
 import 'package:app/src/features/rh/domain/chamada_diaria.dart';
 import 'package:app/src/features/rh/presentation/chamada_form_screen.dart';
 import 'package:app/src/features/rh/presentation/widgets/chamada_form_view.dart';
+import 'package:app/src/features/rh/presentation/widgets/chamada_filtros_header.dart';
 import 'package:app/src/features/rh/presentation/widgets/retificacao_chamada_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -239,6 +240,40 @@ void main() {
     f.repo.pending.single.complete([]);
     await tester.pumpAndSettle();
     expect(f.repo.saved, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('controles de filtro ficam desabilitados durante o salvamento', (
+    tester,
+  ) async {
+    final f = ChamadaFormFixture();
+    await f.mount(tester);
+    view(tester).onSave();
+    await tester.pump();
+
+    final header = tester.widget<ChamadaFiltrosHeader>(
+      find.byType(ChamadaFiltrosHeader),
+    );
+    expect(header.isSaving, isTrue);
+
+    final markAll = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Todos Presentes'),
+    );
+    expect(markAll.onPressed, isNull);
+
+    final lotDropdown = tester.widget<DropdownButtonFormField<String>>(
+      find.byType(DropdownButtonFormField<String>),
+    );
+    expect(lotDropdown.onChanged, isNull);
+
+    final teamDropdown = tester.widget<DropdownButtonFormField<String?>>(
+      find.byType(DropdownButtonFormField<String?>),
+    );
+    expect(teamDropdown.onChanged, isNull);
+
+    f.repo.pending.single.complete([]);
+    await tester.pumpAndSettle();
+    expect(f.repo.saved, hasLength(1));
     expect(tester.takeException(), isNull);
   });
 }
