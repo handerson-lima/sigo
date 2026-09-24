@@ -43,6 +43,26 @@ service cloud.firestore {
    allow update: if admin(c) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','cnpj','address','logoUrl','updatedAt']) && (!('logoUrl' in request.resource.data) || request.resource.data.logoUrl == null || request.resource.data.logoUrl is string);
    allow delete: if dev();
    match /construtora_members/{uid} { allow read: if signed() && (request.auth.uid == uid || admin(c)); allow write: if dev(); }
+   match /loteamentos/{loteamentoId} {
+     allow read: if member(c);
+     allow write: if admin(c);
+     match /quadras/{quadraId} {
+       allow read: if member(c);
+       allow write: if admin(c);
+       match /lotes/{loteId} {
+         allow read: if member(c);
+         allow write: if admin(c);
+         match /setores/{setorId} {
+           allow read: if member(c);
+           allow write: if admin(c);
+           match /equipes/{equipeId} {
+             allow read: if member(c);
+             allow write: if admin(c);
+           }
+         }
+       }
+     }
+   }
    match /commands/{id} { allow read: if dev() || (signed() && resource.data.actor == request.auth.uid); allow write: if dev(); }
    match /funcionarios/{f} {
     allow read: if rh(c);
