@@ -2,7 +2,7 @@
 title: 'Story 11.2 - Navegação Lote → Setor → Equipe'
 type: 'feature'
 created: '2026-09-24'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 1
 baseline_commit: '29e3d5c30d76508dad4bac45bbb476dea3776fd0'
@@ -45,15 +45,15 @@ context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `app/lib/src/common_widgets/sigo_breadcrumbs.dart` -- Criar componente de breadcrumb genérico que recebe uma lista de segmentos (label + url) e renderiza a trilha (garantir suporte a dark mode e acessibilidade).
-- [ ] `app/lib/src/features/setores/routing/setores_routes.dart` -- Criar módulo de rotas para Setores recebendo os parâmetros ascendentes (mantendo o prefixo `/construtoras/:cId`).
-- [ ] `app/lib/src/features/setores/presentation/setores_list_screen.dart` -- Implementar tela base incluindo o componente Breadcrumbs e listagem usando StreamProvider, com tratamento de datas e erros adequados.
-- [ ] `app/lib/src/features/lotes/routing/lotes_routes.dart` -- Integrar `setoresRoutes` como rotas filhas da rota `:loteId` e resolver rotas vazias (SizedBox).
-- [ ] `app/lib/src/features/equipes/routing/equipes_routes.dart` -- Criar módulo de rotas para Equipes.
-- [ ] `app/lib/src/features/equipes/presentation/equipes_list_screen.dart` -- Implementar tela base de Equipes, também usando Breadcrumbs corretos, com tratamento de datas, erros e StreamProvider.
-- [ ] `app/lib/src/features/setores/routing/setores_routes.dart` -- Integrar `equipesRoutes` como rotas filhas de `:setorId`.
-- [ ] `firestore.rules` -- Adicionar security rules para `setores` e `equipes` mantendo a consistência da política de acesso da construtora.
-- [ ] `app/test/` -- Adicionar testes de unidade e/ou widget cobrindo os repositórios, parsing seguro de datas (Timestamp/String) e a correta formação de breadcrumbs.
+- [x] `app/lib/src/common_widgets/sigo_breadcrumbs.dart` -- Criar componente de breadcrumb genérico que recebe uma lista de segmentos (label + url) e renderiza a trilha (garantir suporte a dark mode e acessibilidade).
+- [x] `app/lib/src/features/setores/routing/setores_routes.dart` -- Criar módulo de rotas para Setores recebendo os parâmetros ascendentes (mantendo o prefixo `/construtoras/:cId`).
+- [x] `app/lib/src/features/setores/presentation/setores_list_screen.dart` -- Implementar tela base incluindo o componente Breadcrumbs e listagem usando StreamProvider, com tratamento de datas e erros adequados.
+- [x] `app/lib/src/features/lotes/routing/lotes_routes.dart` -- Integrar `setoresRoutes` como rotas filhas da rota `:loteId` e resolver rotas vazias (SizedBox).
+- [x] `app/lib/src/features/equipes/routing/equipes_routes.dart` -- Criar módulo de rotas para Equipes.
+- [x] `app/lib/src/features/equipes/presentation/equipes_list_screen.dart` -- Implementar tela base de Equipes, também usando Breadcrumbs corretos, com tratamento de datas, erros e StreamProvider.
+- [x] `app/lib/src/features/setores/routing/setores_routes.dart` -- Integrar `equipesRoutes` como rotas filhas de `:setorId`.
+- [x] `firestore.rules` -- Adicionar security rules para `setores` e `equipes` mantendo a consistência da política de acesso da construtora.
+- [x] `app/test/` -- Adicionar testes de unidade e/ou widget cobrindo os repositórios, parsing seguro de datas (Timestamp/String) e a correta formação de breadcrumbs.
 
 **Acceptance Criteria:**
 - Given que um usuário acessou a rota de um Lote específico, when ele clicar para ver setores, then a URL será atualizada para o nível de setores e a tela `SetoresListScreen` será exibida.

@@ -127,7 +127,7 @@ development_status:
 
   epic-11: in-progress
   11-1-navegação-loteamento-quadra-lote: done
-  11-2-navegação-lote-setor-equipe: in-progress
+  11-2-navegação-lote-setor-equipe: review
   epic-11-retrospective: optional
 legacy_scope_mapping:
   "1-4-subcolecao-members": "construtoras/{cId}/obras/{oId}/members/{uid}"
