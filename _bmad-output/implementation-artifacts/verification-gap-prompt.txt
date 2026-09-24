@@ -1,0 +1,717 @@
+Read the following completely and follow it as your review instructions.
+
+# Verification Gap Review
+
+**Goal:** Find changed behavior that could break without reliable verification catching it. Ask one question — "if the behavior this change is supposed to produce broke where it's actually used, would verification fail?" Do not hunt for correctness bugs, but report genuine problems you notice while tracing verification.
+
+The main verification gap shapes are:
+
+1. **Regression gap:** the changed code regresses where it's used, and no test covering that use would fail.
+2. **Missing-adoption gap:** a place that should now use the new behavior doesn't; it handles the same case its own way, or not at all, and no test would flag the omission.
+3. **Broken-verification gap:** a test appears to cover the changed behavior, but would not actually protect it because it is skipped, flaky, not run in the normal verification path, or too weak to observe the regression.
+
+## Evidence Rules
+
+- Read a test before claiming what it covers, runs, asserts, or misses.
+- Before claiming no test exists, search the whole repo by the symbol under test and by import references; expected file locations are not enough.
+- Never assert what you did not verify. If a finding cannot be grounded, drop it.
+- In a finding, say what you actually checked — "none of the tests I read cover this" — and show how far you looked. Say a test doesn't exist anywhere only when the symbol/import-reference search actually shows that.
+- Do not assign severity, confidence, priority, or ranking.
+
+## Review Sequence
+
+### Step 1: Screen for behavioral change
+
+Screen each part of the change separately. If a part is non-behavioral, skip it. Call a part non-behavioral only when the changed code does not alter return values, thrown errors, caller-visible side effects, or observable state (including iteration order and emitted messages). Once a part meets that test, move on; do not inspect callers or tests for extra confirmation.
+
+Common non-behavioral examples: formatting, comments, whitespace; pure renames; trivial getters/setters and pass-throughs; type-only or compiler-enforced changes with no runtime effect; etc.
+
+Only outcomes produced by deterministic code are worth automatically testing; tests are useless on static source text and brittle on LLM output. Skip those parts.
+
+If every part is skipped, output the clean result (see Output Format).
+
+### Step 2: Find the behavior that changed
+
+Identify what behavior changed compared to the previous version: output, side effect, branch, error path, schema/event shape, config default, validation/authorization rule, external contract, etc. If the change affects more than one behavior, handle each separately.
+
+Treat broad-impact changes as behavioral even when no single changed line looks important: dependency, toolchain, build/config, data-file, etc.
+
+### Step 3: Trace where that behavior is used
+
+Trace the changed behavior to the places that observe it. Start with direct callers and registered entry points (routes, commands, DI), contract consumers (schemas, events, APIs, database readers), and reverse-dependency info if already available.
+
+Follow a path only while the changed behavior is reachable and unverified. Stop when a test at that boundary would fail, the consumer does not observe the changed behavior, or the next hop is guesswork (dynamic dispatch, reflection, outside-repo consumers, etc.). Prefer the nearest observable boundary, often one to three hops away, especially across contract, integration, or service edges. If there are more than five similar consumers, group obvious repeats and check representative paths; expand only when a consumer observes the behavior differently.
+
+### Step 4: Qualify the consumer, then check its test
+
+For each consumer, name the smallest realistic regression this consumer would observe: invert the branch, drop the default, omit the field, return the old error code, skip the integration call, etc. This is the Demonstration. If no such regression exists, drop the path; untested downstream code is not a finding.
+
+A `Missing-adoption gap` qualifies not by the adoption failure alone but by a supersession signal: the change gives clear evidence the new behavior is meant to replace the local one — PR intent, naming or docs, a replaced sibling site, deleted duplicate logic, or a test defining the new rule — and the local site shares the same observable contract. Without a supersession signal and a shared observable contract, it is a refactor suggestion, not a verification-gap finding. Once both hold, check whether any test for that site would flag the non-adoption; missing coverage of the non-adoption is the gap itself, not a disqualifier.
+
+Find and read the relevant test. Ask whether the Demonstration would make an assertion fail.
+
+- If yes, the behavior is verified. No finding.
+- For a regression-style Demonstration: if no test runs the path, the test is skipped/flaky/not run normally, or the test runs the code without checking the changed result, report a `Regression gap` or `Broken-verification gap`.
+- For a qualifying Missing-adoption case: if none of the site tests you found assert it adopts the new behavior, report a `Missing-adoption gap`.
+
+A test counts only if it runs normally and an assertion observes the changed output, branch, or contract. These do not count: no execution; source-text assertions that match a file's wording instead of running it; success/no-throw/snapshot-only checks; mock/log-call checks; human-only checks; tests that mock away the integration; e2e tests that pass through without checking the changed output; stale assertions or fixtures.
+
+For example, `expect(x ?? DEFAULT).toBe(DEFAULT)` passes when `x` is missing.
+
+Common patterns:
+
+- **Caller-path gap** — helper test covers the branch, but caller values skip it.
+- **Contract drift** — payload/schema/event changes must be verified at the consumer.
+- **Migration compatibility** — tests only create new-format rows or fresh schemas.
+- **Phantom exception** — handled partial-failure path has no test.
+- **Missing-adoption gap** — sibling site should use the new rule/helper and does not.
+- **Removed verification** — deleted test or weakened assertion leaves behavior unpinned; removing a source-text assertion is not this, since it never counted.
+
+### Step 5: Confirm each finding is real
+
+Before writing a finding, re-open the specific tests or search results the finding relies on. Verify the Demonstration would not make any test you checked fail, or that the absence claim is backed by the symbol/import-reference search. Do not claim more than you verified; drop any finding you cannot ground.
+
+Explain why the test misses the bug using what the test sets up and checks.
+
+Do not report: compiler/type-checker-enforced cases; behavior already verified by an integration, contract, or e2e test; implementation-detail or mock-only tests; low coverage or a missing test file by itself; legacy untested code the change did not affect.
+
+Report genuine problems you noticed while tracing verification, even if they are not verification gaps. Put them under `Other findings` in the output. This permits reporting what you already reached, not extra hunting. A claim that code misbehaves is a defect, not a gap — it goes under `Other findings` for standard triage, however you found it.
+
+## OUTPUT FORMAT
+
+Emit each verification-gap finding as one block. No general advice, no severity or confidence. Triage trusts a gap finding as filed and does not re-verify it, so each block must stand on its own evidence.
+
+```markdown
+### <one-line title naming the gap>
+
+- **Changed surface:** the exact behavior or contract that changed — `file:line`.
+- **Impacted consumer or site:** named concretely with `file:line` (e.g. "the `createInvoice` mutation used by the billing dashboard at `billing/dashboard.ts:88`," not "callers of this function").
+- **Existing test evidence:**
+  - `Regression gap`: what the relevant test actually asserts, with `file:line`; or, if none, the symbol/import-reference searches run and their result.
+  - `Missing-adoption gap`: tests for the impacted site, and whether any assert it adopts the new behavior.
+  - `Broken-verification gap`: the apparent test or verification path, and why it does not count.
+- **Missing verification:** the precise assertion or check that's absent.
+- **Demonstration:**
+  - `Regression gap` / `Broken-verification gap`: the concrete regression that would ship undetected, and why the tests you checked would not fail.
+  - `Missing-adoption gap`: the case the site mishandles by not adopting the new behavior, and that none of the tests you read assert adoption.
+- **Consequence:** the concrete thing that ships wrong — a regression the checked evidence would not catch, or a site that should use the new behavior and doesn't.
+- **Disposition:** `patch` — name the test to add, fit to the repo's own way of verifying (don't impose a generic test pyramid) — or `defer` when the gap is real but not worth closing as part of this change, with one sentence of why.
+```
+
+If you noticed genuine non-gap problems while tracing verification, append:
+
+```markdown
+## Other findings
+
+- <description only; no severity, confidence, priority, or ranking>
+```
+
+When you find no verification gaps and no other findings, output exactly this single line, not an empty response:
+
+`No verification gaps found.`
+
+## CONTENT SOURCE
+
+"Review content:" in the message that launched you gives the content itself or a path to read it from. Read the file when it is a path; either way that is the content under review, and this instruction file never is. If no content is supplied, or the file it points to is missing, empty, or unreadable, say exactly that and stop — never report a clean review for content you could not read.
+
+
+Review content: 
+diff --git a/app/lib/src/common_widgets/sigo_breadcrumbs.dart b/app/lib/src/common_widgets/sigo_breadcrumbs.dart
+new file mode 100644
+index 0000000..bdaa573
+--- /dev/null
++++ b/app/lib/src/common_widgets/sigo_breadcrumbs.dart
+@@ -0,0 +1,49 @@
++import 'package:flutter/material.dart';
++import 'package:go_router/go_router.dart';
++
++class BreadcrumbSegment {
++  final String label;
++  final String? url;
++
++  const BreadcrumbSegment({required this.label, this.url});
++}
++
++class SigoBreadcrumbs extends StatelessWidget {
++  final List<BreadcrumbSegment> segments;
++
++  const SigoBreadcrumbs({super.key, required this.segments});
++
++  @override
++  Widget build(BuildContext context) {
++    return Padding(
++      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
++      child: Wrap(
++        crossAxisAlignment: WrapCrossAlignment.center,
++        children: segments.asMap().entries.map((entry) {
++          final index = entry.key;
++          final segment = entry.value;
++          final isLast = index == segments.length - 1;
++
++          return Row(
++            mainAxisSize: MainAxisSize.min,
++            children: [
++              InkWell(
++                onTap: (segment.url != null && !isLast)
++                    ? () => context.go(segment.url!)
++                    : null,
++                child: Text(
++                  segment.label,
++                  style: TextStyle(
++                    color: isLast ? Colors.black : Theme.of(context).primaryColor,
++                    fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
++                  ),
++                ),
++              ),
++              if (!isLast) const Padding(padding: EdgeInsets.symmetric(horizontal: 4.0), child: Text('/')),
++            ],
++          );
++        }).toList(),
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/equipes/data/equipe_repository.dart b/app/lib/src/features/equipes/data/equipe_repository.dart
+new file mode 100644
+index 0000000..96c2c40
+--- /dev/null
++++ b/app/lib/src/features/equipes/data/equipe_repository.dart
+@@ -0,0 +1,27 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import '../domain/equipe.dart';
++
++final equipeRepositoryProvider = Provider<EquipeRepository>((ref) {
++  return EquipeRepository(FirebaseFirestore.instance);
++});
++
++class EquipeRepository {
++  final FirebaseFirestore _firestore;
++
++  EquipeRepository(this._firestore);
++
++  CollectionReference<Equipe> _equipesRef(String construtoraId, String loteamentoId, String quadraId, String loteId, String setorId) =>
++      _firestore
++          .collection('construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/$setorId/equipes')
++          .withConverter<Equipe>(
++            fromFirestore: (snapshot, _) => Equipe.fromJson(snapshot.data()!),
++            toFirestore: (equipe, _) => equipe.toJson(),
++          );
++
++  Stream<List<Equipe>> watchEquipes(String construtoraId, String loteamentoId, String quadraId, String loteId, String setorId) {
++    return _equipesRef(construtoraId, loteamentoId, quadraId, loteId, setorId)
++        .snapshots()
++        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
++  }
++}
+diff --git a/app/lib/src/features/equipes/domain/equipe.dart b/app/lib/src/features/equipes/domain/equipe.dart
+new file mode 100644
+index 0000000..c1287d7
+--- /dev/null
++++ b/app/lib/src/features/equipes/domain/equipe.dart
+@@ -0,0 +1,29 @@
++import 'package:json_annotation/json_annotation.dart';
++
++part 'equipe.g.dart';
++
++@JsonSerializable()
++class Equipe {
++  final String id;
++  final String construtoraId;
++  final String loteamentoId;
++  final String quadraId;
++  final String loteId;
++  final String setorId;
++  final String name;
++  final DateTime createdAt;
++
++  Equipe({
++    required this.id,
++    required this.construtoraId,
++    required this.loteamentoId,
++    required this.quadraId,
++    required this.loteId,
++    required this.setorId,
++    required this.name,
++    required this.createdAt,
++  });
++
++  factory Equipe.fromJson(Map<String, dynamic> json) => _$EquipeFromJson(json);
++  Map<String, dynamic> toJson() => _$EquipeToJson(this);
++}
+diff --git a/app/lib/src/features/equipes/domain/equipe.g.dart b/app/lib/src/features/equipes/domain/equipe.g.dart
+new file mode 100644
+index 0000000..3e8680a
+--- /dev/null
++++ b/app/lib/src/features/equipes/domain/equipe.g.dart
+@@ -0,0 +1,29 @@
++// GENERATED CODE - DO NOT MODIFY BY HAND
++
++part of 'equipe.dart';
++
++// **************************************************************************
++// JsonSerializableGenerator
++// **************************************************************************
++
++Equipe _$EquipeFromJson(Map<String, dynamic> json) => Equipe(
++  id: json['id'] as String,
++  construtoraId: json['construtoraId'] as String,
++  loteamentoId: json['loteamentoId'] as String,
++  quadraId: json['quadraId'] as String,
++  loteId: json['loteId'] as String,
++  setorId: json['setorId'] as String,
++  name: json['name'] as String,
++  createdAt: DateTime.parse(json['createdAt'] as String),
++);
++
++Map<String, dynamic> _$EquipeToJson(Equipe instance) => <String, dynamic>{
++  'id': instance.id,
++  'construtoraId': instance.construtoraId,
++  'loteamentoId': instance.loteamentoId,
++  'quadraId': instance.quadraId,
++  'loteId': instance.loteId,
++  'setorId': instance.setorId,
++  'name': instance.name,
++  'createdAt': instance.createdAt.toIso8601String(),
++};
+diff --git a/app/lib/src/features/equipes/presentation/equipes_list_screen.dart b/app/lib/src/features/equipes/presentation/equipes_list_screen.dart
+new file mode 100644
+index 0000000..0d63c48
+--- /dev/null
++++ b/app/lib/src/features/equipes/presentation/equipes_list_screen.dart
+@@ -0,0 +1,71 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import '../data/equipe_repository.dart';
++import '../domain/equipe.dart';
++import '../../../common_widgets/sigo_breadcrumbs.dart';
++
++class EquipesListScreen extends ConsumerWidget {
++  final String construtoraId;
++  final String loteamentoId;
++  final String quadraId;
++  final String loteId;
++  final String setorId;
++
++  const EquipesListScreen({
++    super.key,
++    required this.construtoraId,
++    required this.loteamentoId,
++    required this.quadraId,
++    required this.loteId,
++    required this.setorId,
++  });
++
++  @override
++  Widget build(BuildContext context, WidgetRef ref) {
++    final stream = ref.watch(equipeRepositoryProvider).watchEquipes(construtoraId, loteamentoId, quadraId, loteId, setorId);
++
++    return Scaffold(
++      appBar: AppBar(title: const Text('Equipes')),
++      body: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          SigoBreadcrumbs(
++            segments: [
++              BreadcrumbSegment(label: 'Loteamento', url: '/loteamentos/$loteamentoId'),
++              BreadcrumbSegment(label: 'Quadra', url: '/loteamentos/$loteamentoId/quadras/$quadraId'),
++              BreadcrumbSegment(label: 'Lote', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId'),
++              BreadcrumbSegment(label: 'Setor', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/$setorId'),
++              const BreadcrumbSegment(label: 'Equipes'),
++            ],
++          ),
++          Expanded(
++            child: StreamBuilder<List<Equipe>>(
++              stream: stream,
++              builder: (context, snapshot) {
++                if (snapshot.connectionState == ConnectionState.waiting) {
++                  return const Center(child: CircularProgressIndicator());
++                }
++                if (snapshot.hasError) {
++                  return Center(child: Text('Erro: ${snapshot.error}'));
++                }
++                final items = snapshot.data ?? [];
++                if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
++
++                return ListView.builder(
++                  itemCount: items.length,
++                  itemBuilder: (context, index) {
++                    final item = items[index];
++                    return ListTile(
++                      title: Text(item.name),
++                      subtitle: Text('Criado em: ${item.createdAt}'),
++                    );
++                  },
++                );
++              },
++            ),
++          ),
++        ],
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/equipes/routing/equipes_routes.dart b/app/lib/src/features/equipes/routing/equipes_routes.dart
+new file mode 100644
+index 0000000..0b3b5be
+--- /dev/null
++++ b/app/lib/src/features/equipes/routing/equipes_routes.dart
+@@ -0,0 +1,31 @@
++import 'package:go_router/go_router.dart';
++import '../presentation/equipes_list_screen.dart';
++import '../../../common_widgets/access_guard.dart';
++
++abstract class EquipesPaths {
++  static const list = 'equipes';
++  static const detail = 'equipes/:equipeId';
++}
++
++List<RouteBase> get equipesRoutes => [
++      GoRoute(
++        path: EquipesPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final loteamentoId = state.pathParameters['loteamentoId']!;
++          final quadraId = state.pathParameters['quadraId']!;
++          final loteId = state.pathParameters['loteId']!;
++          final setorId = state.pathParameters['setorId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: EquipesListScreen(
++              construtoraId: cId,
++              loteamentoId: loteamentoId,
++              quadraId: quadraId,
++              loteId: loteId,
++              setorId: setorId,
++            ),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/lotes/presentation/lotes_list_screen.dart b/app/lib/src/features/lotes/presentation/lotes_list_screen.dart
+index 836ed6e..1f42a74 100644
+--- a/app/lib/src/features/lotes/presentation/lotes_list_screen.dart
++++ b/app/lib/src/features/lotes/presentation/lotes_list_screen.dart
+@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:go_router/go_router.dart';
+ import '../data/lote_repository.dart';
+ import '../domain/lote.dart';
++import '../../../common_widgets/sigo_breadcrumbs.dart';
+ 
+ class LotesListScreen extends ConsumerWidget {
+   final String construtoraId;
+@@ -22,17 +23,28 @@ class LotesListScreen extends ConsumerWidget {
+ 
+     return Scaffold(
+       appBar: AppBar(title: const Text('Lotes')),
+-      body: StreamBuilder<List<Lote>>(
+-        stream: stream,
+-        builder: (context, snapshot) {
+-          if (snapshot.connectionState == ConnectionState.waiting) {
+-            return const Center(child: CircularProgressIndicator());
+-          }
+-          if (snapshot.hasError) {
+-            return Center(child: Text('Erro: ${snapshot.error}'));
+-          }
+-          final items = snapshot.data ?? [];
+-          if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
++      body: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          SigoBreadcrumbs(
++            segments: [
++              BreadcrumbSegment(label: 'Loteamento', url: '/loteamentos/$loteamentoId'),
++              BreadcrumbSegment(label: 'Quadra', url: '/loteamentos/$loteamentoId/quadras/$quadraId'),
++              const BreadcrumbSegment(label: 'Lotes'),
++            ],
++          ),
++          Expanded(
++            child: StreamBuilder<List<Lote>>(
++              stream: stream,
++              builder: (context, snapshot) {
++                if (snapshot.connectionState == ConnectionState.waiting) {
++                  return const Center(child: CircularProgressIndicator());
++                }
++                if (snapshot.hasError) {
++                  return Center(child: Text('Erro: ${snapshot.error}'));
++                }
++                final items = snapshot.data ?? [];
++                if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
+ 
+           return ListView.builder(
+             itemCount: items.length,
+@@ -42,13 +54,16 @@ class LotesListScreen extends ConsumerWidget {
+                 title: Text(item.name),
+                 subtitle: Text('Status: ${item.status} | Phase: ${item.phase}'),
+                 onTap: () {
+-                  // In the future this goes to Setores
++                  context.go('/loteamentos/$loteamentoId/quadras/$quadraId/lotes/${item.id}/setores');
+                 },
+               );
+             },
+           );
+         },
+       ),
++    ),
++  ],
++),
+     );
+   }
+ }
+diff --git a/app/lib/src/features/lotes/routing/lotes_routes.dart b/app/lib/src/features/lotes/routing/lotes_routes.dart
+index 9753d89..873d2cd 100644
+--- a/app/lib/src/features/lotes/routing/lotes_routes.dart
++++ b/app/lib/src/features/lotes/routing/lotes_routes.dart
+@@ -1,6 +1,7 @@
+ import 'package:go_router/go_router.dart';
+ import '../presentation/lotes_list_screen.dart';
+ import '../../../common_widgets/access_guard.dart';
++import '../../setores/routing/setores_routes.dart';
+ 
+ abstract class LotesPaths {
+   static const list = 'lotes';
+@@ -22,5 +23,16 @@ List<RouteBase> get lotesRoutes => [
+             ),
+           );
+         },
++        routes: [
++          GoRoute(
++            path: ':loteId',
++            builder: (context, state) {
++              return const SizedBox();
++            },
++            routes: [
++              ...setoresRoutes,
++            ],
++          )
++        ],
+       ),
+     ];
+diff --git a/app/lib/src/features/setores/data/setor_repository.dart b/app/lib/src/features/setores/data/setor_repository.dart
+new file mode 100644
+index 0000000..333eebc
+--- /dev/null
++++ b/app/lib/src/features/setores/data/setor_repository.dart
+@@ -0,0 +1,27 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import '../domain/setor.dart';
++
++final setorRepositoryProvider = Provider<SetorRepository>((ref) {
++  return SetorRepository(FirebaseFirestore.instance);
++});
++
++class SetorRepository {
++  final FirebaseFirestore _firestore;
++
++  SetorRepository(this._firestore);
++
++  CollectionReference<Setor> _setoresRef(String construtoraId, String loteamentoId, String quadraId, String loteId) =>
++      _firestore
++          .collection('construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores')
++          .withConverter<Setor>(
++            fromFirestore: (snapshot, _) => Setor.fromJson(snapshot.data()!),
++            toFirestore: (setor, _) => setor.toJson(),
++          );
++
++  Stream<List<Setor>> watchSetores(String construtoraId, String loteamentoId, String quadraId, String loteId) {
++    return _setoresRef(construtoraId, loteamentoId, quadraId, loteId)
++        .snapshots()
++        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
++  }
++}
+diff --git a/app/lib/src/features/setores/domain/setor.dart b/app/lib/src/features/setores/domain/setor.dart
+new file mode 100644
+index 0000000..207858e
+--- /dev/null
++++ b/app/lib/src/features/setores/domain/setor.dart
+@@ -0,0 +1,27 @@
++import 'package:json_annotation/json_annotation.dart';
++
++part 'setor.g.dart';
++
++@JsonSerializable()
++class Setor {
++  final String id;
++  final String construtoraId;
++  final String loteamentoId;
++  final String quadraId;
++  final String loteId;
++  final String name;
++  final DateTime createdAt;
++
++  Setor({
++    required this.id,
++    required this.construtoraId,
++    required this.loteamentoId,
++    required this.quadraId,
++    required this.loteId,
++    required this.name,
++    required this.createdAt,
++  });
++
++  factory Setor.fromJson(Map<String, dynamic> json) => _$SetorFromJson(json);
++  Map<String, dynamic> toJson() => _$SetorToJson(this);
++}
+diff --git a/app/lib/src/features/setores/domain/setor.g.dart b/app/lib/src/features/setores/domain/setor.g.dart
+new file mode 100644
+index 0000000..209d8ef
+--- /dev/null
++++ b/app/lib/src/features/setores/domain/setor.g.dart
+@@ -0,0 +1,27 @@
++// GENERATED CODE - DO NOT MODIFY BY HAND
++
++part of 'setor.dart';
++
++// **************************************************************************
++// JsonSerializableGenerator
++// **************************************************************************
++
++Setor _$SetorFromJson(Map<String, dynamic> json) => Setor(
++  id: json['id'] as String,
++  construtoraId: json['construtoraId'] as String,
++  loteamentoId: json['loteamentoId'] as String,
++  quadraId: json['quadraId'] as String,
++  loteId: json['loteId'] as String,
++  name: json['name'] as String,
++  createdAt: DateTime.parse(json['createdAt'] as String),
++);
++
++Map<String, dynamic> _$SetorToJson(Setor instance) => <String, dynamic>{
++  'id': instance.id,
++  'construtoraId': instance.construtoraId,
++  'loteamentoId': instance.loteamentoId,
++  'quadraId': instance.quadraId,
++  'loteId': instance.loteId,
++  'name': instance.name,
++  'createdAt': instance.createdAt.toIso8601String(),
++};
+diff --git a/app/lib/src/features/setores/presentation/setores_list_screen.dart b/app/lib/src/features/setores/presentation/setores_list_screen.dart
+new file mode 100644
+index 0000000..e47d265
+--- /dev/null
++++ b/app/lib/src/features/setores/presentation/setores_list_screen.dart
+@@ -0,0 +1,72 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:go_router/go_router.dart';
++import '../data/setor_repository.dart';
++import '../domain/setor.dart';
++import '../../../common_widgets/sigo_breadcrumbs.dart';
++
++class SetoresListScreen extends ConsumerWidget {
++  final String construtoraId;
++  final String loteamentoId;
++  final String quadraId;
++  final String loteId;
++
++  const SetoresListScreen({
++    super.key,
++    required this.construtoraId,
++    required this.loteamentoId,
++    required this.quadraId,
++    required this.loteId,
++  });
++
++  @override
++  Widget build(BuildContext context, WidgetRef ref) {
++    final stream = ref.watch(setorRepositoryProvider).watchSetores(construtoraId, loteamentoId, quadraId, loteId);
++
++    return Scaffold(
++      appBar: AppBar(title: const Text('Setores')),
++      body: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          SigoBreadcrumbs(
++            segments: [
++              BreadcrumbSegment(label: 'Loteamento', url: '/loteamentos/$loteamentoId'),
++              BreadcrumbSegment(label: 'Quadra', url: '/loteamentos/$loteamentoId/quadras/$quadraId'),
++              BreadcrumbSegment(label: 'Lote', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId'),
++              const BreadcrumbSegment(label: 'Setores'),
++            ],
++          ),
++          Expanded(
++            child: StreamBuilder<List<Setor>>(
++              stream: stream,
++              builder: (context, snapshot) {
++                if (snapshot.connectionState == ConnectionState.waiting) {
++                  return const Center(child: CircularProgressIndicator());
++                }
++                if (snapshot.hasError) {
++                  return Center(child: Text('Erro: ${snapshot.error}'));
++                }
++                final items = snapshot.data ?? [];
++                if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
++
++                return ListView.builder(
++                  itemCount: items.length,
++                  itemBuilder: (context, index) {
++                    final item = items[index];
++                    return ListTile(
++                      title: Text(item.name),
++                      subtitle: Text('Criado em: ${item.createdAt}'),
++                      onTap: () {
++                        context.go('/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/${item.id}/equipes');
++                      },
++                    );
++                  },
++                );
++              },
++            ),
++          ),
++        ],
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/setores/routing/setores_routes.dart b/app/lib/src/features/setores/routing/setores_routes.dart
+new file mode 100644
+index 0000000..4d84084
+--- /dev/null
++++ b/app/lib/src/features/setores/routing/setores_routes.dart
+@@ -0,0 +1,42 @@
++import 'package:flutter/material.dart';
++import 'package:go_router/go_router.dart';
++import '../presentation/setores_list_screen.dart';
++import '../../../common_widgets/access_guard.dart';
++import '../../equipes/routing/equipes_routes.dart';
++
++abstract class SetoresPaths {
++  static const list = 'setores';
++  static const detail = 'setores/:setorId';
++}
++
++List<RouteBase> get setoresRoutes => [
++      GoRoute(
++        path: SetoresPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final loteamentoId = state.pathParameters['loteamentoId']!;
++          final quadraId = state.pathParameters['quadraId']!;
++          final loteId = state.pathParameters['loteId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: SetoresListScreen(
++              construtoraId: cId,
++              loteamentoId: loteamentoId,
++              quadraId: quadraId,
++              loteId: loteId,
++            ),
++          );
++        },
++        routes: [
++          GoRoute(
++            path: ':setorId',
++            builder: (context, state) {
++              return const SizedBox();
++            },
++            routes: [
++              ...equipesRoutes,
++            ],
++          )
++        ],
++      ),
++    ];
+
+
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.

@@ -1,36 +1,40 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../presentation/lotes_list_screen.dart';
+import '../presentation/setores_list_screen.dart';
 import '../../../common_widgets/access_guard.dart';
-import '../../setores/routing/setores_routes.dart';
+import '../../equipes/routing/equipes_routes.dart';
 
-abstract class LotesPaths {
-  static const list = 'lotes';
+abstract class SetoresPaths {
+  static const list = 'setores';
+  static const detail = 'setores/:setorId';
 }
 
-List<RouteBase> get lotesRoutes => [
+List<RouteBase> get setoresRoutes => [
       GoRoute(
-        path: LotesPaths.list,
+        path: SetoresPaths.list,
         builder: (context, state) {
           final cId = state.pathParameters['cId']!;
           final loteamentoId = state.pathParameters['loteamentoId']!;
           final quadraId = state.pathParameters['quadraId']!;
+          final loteId = state.pathParameters['loteId']!;
           return AccessGuard(
             construtoraId: cId,
-            child: LotesListScreen(
+            child: SetoresListScreen(
               construtoraId: cId,
               loteamentoId: loteamentoId,
               quadraId: quadraId,
+              loteId: loteId,
             ),
           );
         },
         routes: [
           GoRoute(
-            path: ':loteId',
+            path: ':setorId',
             builder: (context, state) {
               return const SizedBox();
             },
             routes: [
-              ...setoresRoutes,
+              ...equipesRoutes,
             ],
           )
         ],

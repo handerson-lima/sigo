@@ -1,28 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../data/lote_repository.dart';
-import '../domain/lote.dart';
+import '../data/equipe_repository.dart';
+import '../domain/equipe.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 
-class LotesListScreen extends ConsumerWidget {
+class EquipesListScreen extends ConsumerWidget {
   final String construtoraId;
   final String loteamentoId;
   final String quadraId;
+  final String loteId;
+  final String setorId;
 
-  const LotesListScreen({
+  const EquipesListScreen({
     super.key,
     required this.construtoraId,
     required this.loteamentoId,
     required this.quadraId,
+    required this.loteId,
+    required this.setorId,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stream = ref.watch(loteRepositoryProvider).watchLotes(construtoraId, loteamentoId, quadraId);
+    final stream = ref.watch(equipeRepositoryProvider).watchEquipes(construtoraId, loteamentoId, quadraId, loteId, setorId);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Lotes')),
+      appBar: AppBar(title: const Text('Equipes')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -30,11 +33,13 @@ class LotesListScreen extends ConsumerWidget {
             segments: [
               BreadcrumbSegment(label: 'Loteamento', url: '/loteamentos/$loteamentoId'),
               BreadcrumbSegment(label: 'Quadra', url: '/loteamentos/$loteamentoId/quadras/$quadraId'),
-              const BreadcrumbSegment(label: 'Lotes'),
+              BreadcrumbSegment(label: 'Lote', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId'),
+              BreadcrumbSegment(label: 'Setor', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/$setorId'),
+              const BreadcrumbSegment(label: 'Equipes'),
             ],
           ),
           Expanded(
-            child: StreamBuilder<List<Lote>>(
+            child: StreamBuilder<List<Equipe>>(
               stream: stream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -46,24 +51,21 @@ class LotesListScreen extends ConsumerWidget {
                 final items = snapshot.data ?? [];
                 if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
 
-          return ListView.builder(
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return ListTile(
-                title: Text(item.name),
-                subtitle: Text('Status: ${item.status} | Phase: ${item.phase}'),
-                onTap: () {
-                  context.go('/loteamentos/$loteamentoId/quadras/$quadraId/lotes/${item.id}/setores');
-                },
-              );
-            },
-          );
-        },
+                return ListView.builder(
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    return ListTile(
+                      title: Text(item.name),
+                      subtitle: Text('Criado em: ${item.createdAt}'),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
-    ),
-  ],
-),
     );
   }
 }
