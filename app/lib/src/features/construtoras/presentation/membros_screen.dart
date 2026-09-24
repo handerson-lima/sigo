@@ -9,6 +9,7 @@ import 'add_membro_dialog.dart';
 import 'member_detalhe_sheet.dart';
 import 'membros_providers.dart';
 import 'widgets/member_row.dart';
+import 'widgets/membros_filtros_header.dart';
 import 'widgets/role_chip.dart';
 
 export 'membros_providers.dart' show membrosProvider, pendingRequestsProvider;
@@ -102,116 +103,28 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
     );
   }
 
-  Widget _buildFiltroBar(
-    String construtoraId,
+  Widget _buildFiltroHeader(
     FiltroMembros filtro,
     String? obraSelecionada,
     String query,
     AsyncValue<List<Obra>> obrasAtivasAsync,
   ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SegmentedButton<FiltroMembros>(
-              segments: const [
-                ButtonSegment<FiltroMembros>(
-                  value: FiltroMembros.todos,
-                  label: Text('Todos'),
-                  icon: Icon(Icons.list),
-                ),
-                ButtonSegment<FiltroMembros>(
-                  value: FiltroMembros.porObra,
-                  label: Text('Por obra'),
-                  icon: Icon(Icons.business),
-                ),
-                ButtonSegment<FiltroMembros>(
-                  value: FiltroMembros.pendentes,
-                  label: Text('Pendentes'),
-                  icon: Icon(Icons.hourglass_top_rounded),
-                ),
-              ],
-              selected: {filtro},
-              onSelectionChanged: (selecao) {
-                ref
-                    .read(filtroMembrosProvider.notifier)
-                    .setFiltro(selecao.first);
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _buscaController,
-            decoration: InputDecoration(
-              labelText: 'Buscar por email ou nome',
-              hintText: 'Ex.: ana@obra.com',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: query.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      tooltip: 'Limpar busca',
-                      onPressed: () {
-                        _buscaController.clear();
-                        ref.read(buscaMembrosProvider.notifier).limpar();
-                      },
-                    )
-                  : null,
-              border: const OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.search,
-            onChanged: (value) =>
-                ref.read(buscaMembrosProvider.notifier).setQuery(value),
-          ),
-          if (filtro == FiltroMembros.porObra) ...[
-            const SizedBox(height: 8),
-            obrasAtivasAsync.when(
-              data: (obras) {
-                if (obras.isEmpty) {
-                  return const Text('Nenhuma obra ativa');
-                }
-                final sel = obraSelecionada;
-                final selecionadaValida =
-                    sel != null && obras.any((o) => o.id == sel);
-                return DropdownButtonFormField<String>(
-                  // Key derivada da seleção: recria o FormField quando a
-                  // seleção muda, para o initialValue refletir a obra
-                  // selecionada mesmo após reload (value está depreciado
-                  // no Flutter 3.47 em favor de initialValue).
-                  key: ValueKey(
-                    'filtro-obra-dropdown-${selecionadaValida ? sel : 'nenhuma'}',
-                  ),
-                  initialValue: selecionadaValida ? sel : null,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Obra',
-                    border: OutlineInputBorder(),
-                  ),
-                  hint: const Text('Selecionar obra'),
-                  items: [
-                    for (final obra in obras)
-                      DropdownMenuItem<String>(
-                        value: obra.id,
-                        child: Text(
-                          obra.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                  ],
-                  onChanged: (value) => ref
-                      .read(obraSelecionadaProvider.notifier)
-                      .selecionar(value),
-                );
-              },
-              loading: () => const LinearProgressIndicator(),
-              error: (err, stack) =>
-                  const Text('Não foi possível carregar as obras.'),
-            ),
-          ],
-        ],
-      ),
+    return MembrosFiltrosHeader(
+      filtro: filtro,
+      obraSelecionada: obraSelecionada,
+      query: query,
+      buscaController: _buscaController,
+      obrasAtivasAsync: obrasAtivasAsync,
+      onFiltroChanged: (value) =>
+          ref.read(filtroMembrosProvider.notifier).setFiltro(value),
+      onQueryChanged: (value) =>
+          ref.read(buscaMembrosProvider.notifier).setQuery(value),
+      onLimparBusca: () {
+        _buscaController.clear();
+        ref.read(buscaMembrosProvider.notifier).limpar();
+      },
+      onObraChanged: (value) =>
+          ref.read(obraSelecionadaProvider.notifier).selecionar(value),
     );
   }
 
@@ -350,8 +263,7 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  _buildFiltroBar(
-                    construtoraId,
+                  _buildFiltroHeader(
                     filtro,
                     obraSelecionada,
                     query,
@@ -398,8 +310,7 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                   totalFiltrado + (mostrarBannerPendente ? 1 : 0) + 1,
               itemBuilder: (context, index) {
                 if (index == 0) {
-                  return _buildFiltroBar(
-                    construtoraId,
+                  return _buildFiltroHeader(
                     filtro,
                     obraSelecionada,
                     query,

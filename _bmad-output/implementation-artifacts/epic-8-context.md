@@ -4,7 +4,7 @@
 
 ## Goal
 
-Permitir que admin e owner da construtora enxerguem cada membro com cargo, quantidade de obras vinculadas e pendentes no topo, e abram o detalhe do vínculo, para saber quem está alocado onde antes de atribuir, remover ou trocar papéis.
+Dar visibilidade completa dos vínculos a admin e owner da construtora: a lista de membros mostra cada pessoa com cargo e contagem de obras (`Operário · 2 obras`), pendentes no topo, filtros e busca para localizar alguém rápido, e um detalhe com o vínculo da construtora mais as obras vinculadas — para o gestor decidir corretamente quem atribuir, remover ou trocar nos epics seguintes, sem tela de atribuição às cegas.
 
 ## Stories
 
@@ -14,33 +14,32 @@ Permitir que admin e owner da construtora enxerguem cada membro com cargo, quant
 
 ## Requirements & Constraints
 
-- Rota de membros restrita a admin/owner; operário nunca acessa.
-- Lista mostra pendentes no topo e ativos abaixo com subtitle no formato cargo mais contador de obras.
-- Filtros Todos / Por obra / Pendentes mais busca local por email/displayName; estados vazios com mensagens explícitas em pt-br.
-- Detalhe exibe bloco de vínculo da construtora (cargo, status, desde quando) mais bloco de obras vinculadas; sem obra mostra chamada para atribuir e membro inativo mostra aviso de pré-requisito com atalho de ativação.
-- Leitura pode usar cache Firestore; sem escrita neste epic.
-- Papel nunca comunicado só por cor; honrar textScale até 1.3x sem quebrar layout.
-- Responsivo Mobile + Web PWA no layout padrão (bottomsheet mobile / dialog desktop).
+- Rota `/construtora/:cId/membros` restrita a admin/owner (`AccessGuard(adminOnly:true)`); operário nunca acessa.
+- Lista: pendentes no topo (`Pendente · Cargo`) e ativos abaixo com subtitle `Cargo · N obras`; avatar e chip por papel (owner âmbar com estrelas, admin azul, operário neutro, pendente laranja); papel nunca comunicado só por cor.
+- Filtros `Todos / Por obra / Pendentes` mais busca local por email/displayName; estados vazios explícitos em pt-br (`Nenhum membro encontrado.`, `Nenhuma obra ativa`).
+- Detalhe do membro: bloco vínculo construtora (cargo, status, desde quando), bloco obras vinculadas (`ObraVinculoRow`) e ações; sem obras mostra `Nenhuma obra vinculada — Atribuir`; membro inativo mostra aviso de pré-requisito com atalho `Ativar`.
+- Epic somente leitura — nenhuma escrita de vínculo aqui; leitura pode usar cache Firestore.
+- Acessibilidade: leitor anuncia nome, cargo, N obras e status; chips com rótulo semântico; `textScale` até 1.3x sem quebrar trailing; alvos ≥48dp; foco trap em dialog com `Esc` fecha.
+- Responsivo Mobile + Web PWA em `SigoLayout`: detalhe como BottomSheet arrastável (mobile) / Dialog 480px (desktop); microcopy pt-br operacional.
 
 ## Technical Decisions
 
-- Agregação de obras no cliente: lista base combina membros da construtora mais pedidos pendentes; filtro por obra abre um stream por obra ativa e junta em memória por uid, sem collectionGroup.
-- Novos acessos de leitura: observar membros por obra e obras por membro; seguir convenções de nomes de providers e repositories já definidas (membros por construtora, membros por par construtora+obra, obras da construtora).
-- Leitura segue padrão de StreamProvider com descarte automático; após mutações futuras invalidar providers de membros e de membros por obra com pull-to-refresh.
-- Normalizar papel legado de leitura para Operário; nunca tratar owner como papel de obra.
-- Revogação de acesso é avaliada por vínculo ativo na construtora; documentos órfãos são inócuos.
-- Datas de vínculo toleram formato legado na leitura; auditoria permanece só no servidor sem UI.
+- Agregação no cliente (sem `collectionGroup`): base `Todos` = `watchMembros(c)` + `watchPendingRequests(c)`; `Por obra` = um `watchObraMembers(c,o)` por obra ativa + junção em memória `uid→[obras]`; busca filtra email/displayName localmente.
+- Novos caminhos de leitura e providers: `watchObraMembers`, `watchObrasDoMembro`, `obrasDaConstrutoraProvider(c)`, `membrosProvider(c)`, `obraMembersProvider((c,o))`; padrão `StreamProvider.autoDispose.family`.
+- Papel legado `member` lido como `Operário`; `owner` nunca é papel de obra.
+- Revogação efetiva avaliada por vínculo ativo na construtora (gate `active(cm)`); documentos órfãos são inócuos.
+- Datas de vínculo toleram formato legado na leitura; auditoria permanece só no servidor, sem UI.
+- Preparação para mutações dos epics 9–10: após qualquer mutação futura invalidar `membrosProvider` + `obraMembersProvider`; pull-to-refresh como fallback.
 
 ## UX & Interaction Patterns
 
-- Linha do membro com avatar por papel, subtitle de cargo e contador, chip de papel mais chevron; tap abre detalhe.
-- Chips de papel com tokens fixos por papel (proprietário âmbar, admin azul, operário neutro, pendente laranja) usando ícone mais texto.
-- Detalhe como bottomsheet arrastável no mobile e dialog estreito no desktop, com blocos de vínculo, obras e ações; linha por obra com nome, papel, status e menu.
-- Filtro em segmented mais busca no topo; dropdown de obra com estado vazio explícito.
-- Estados de loading com skeleton, erro com retry, vazio com mensagem pt-br; microcopy operacional com nome da obra e papel explícitos.
-- Acessibilidade: leitor anuncia nome, cargo, N obras e status; chips com rótulo semântico; foco preso no dialog com Esc para fechar e Enter para confirmar; alvos de toque mínimos.
+- `MemberRow`: avatar 40px por papel, nome/email em 1 linha, subtitle `Cargo · N obras`, trailing chip + chevron; tap abre detalhe (pendente não abre detalhe — tap mostra info do pedido).
+- `RoleChip` com tokens fixos por papel (âmbar/azul/neutro/laranja), sempre ícone + texto.
+- Detalhe em BottomSheet mobile / Dialog desktop com três blocos: Vínculo construtora, Obras vinculadas (`ObraVinculoRow`: nome, papel obra, status), Ações (gatilhos de atribuição/gestão ficam para epics 9–10).
+- Filtro segmented + busca no header; estados de loading com skeleton, erro com retry, vazio com mensagem pt-br.
+- Acessibilidade: semântica por linha, foco trap + `Esc`/`Enter` em dialogs, contraste Material.
 
 ## Cross-Story Dependencies
 
-- Lista base sustenta filtros/busca e detalhe; detalhe prepara atribuição, troca de papel/módulos, remoção e desativação tratados nos epics seguintes.
-- Contador de obras depende da agregação por obra ativa; detalhe depende do vínculo ativo na construtora como pré-requisito.
+- 8.1 entrega a lista base que sustenta os filtros/busca de 8.2 e o tap para o detalhe de 8.3; o contador `N obras` depende da agregação por obra ativa.
+- O detalhe de 8.3 (bloco de obras + entrada `Atribuir` + aviso de pré-requisito inativo) é pré-requisito das Stories 9.1/9.2 (atribuição) e 10.1–10.3 (gestão do vínculo).
