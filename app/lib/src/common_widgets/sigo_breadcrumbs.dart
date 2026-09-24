@@ -25,31 +25,31 @@ class SigoBreadcrumbs extends StatelessWidget {
       
       if (pathSegments[i] == 'loteamentos') {
         if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Loteamento', url: '$currentUrl/${pathSegments[i + 1]}'));
+          segments.add(BreadcrumbSegment(label: 'Loteamento', url: currentUrl));
         } else {
           segments.add(BreadcrumbSegment(label: 'Loteamentos'));
         }
       } else if (pathSegments[i] == 'quadras') {
         if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Quadra', url: '$currentUrl/${pathSegments[i + 1]}'));
+          segments.add(BreadcrumbSegment(label: 'Quadra', url: currentUrl));
         } else {
           segments.add(BreadcrumbSegment(label: 'Quadras'));
         }
       } else if (pathSegments[i] == 'lotes') {
         if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Lote', url: '$currentUrl/${pathSegments[i + 1]}'));
+          segments.add(BreadcrumbSegment(label: 'Lote', url: currentUrl));
         } else {
           segments.add(BreadcrumbSegment(label: 'Lotes'));
         }
       } else if (pathSegments[i] == 'setores') {
         if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Setor', url: '$currentUrl/${pathSegments[i + 1]}'));
+          segments.add(BreadcrumbSegment(label: 'Setor', url: currentUrl));
         } else {
           segments.add(BreadcrumbSegment(label: 'Setores'));
         }
       } else if (pathSegments[i] == 'equipes') {
          if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Equipe', url: '$currentUrl/${pathSegments[i + 1]}'));
+          segments.add(BreadcrumbSegment(label: 'Equipe', url: currentUrl));
         } else {
           segments.add(BreadcrumbSegment(label: 'Equipes'));
         }

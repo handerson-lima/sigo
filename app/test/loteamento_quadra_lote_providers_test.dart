@@ -21,11 +21,14 @@ class FakeLoteamentoRepository implements LoteamentoRepository {
 
 class FakeQuadraRepository implements QuadraRepository {
   final List<Quadra> quadras;
+  final List<(String, String)> calls = [];
   FakeQuadraRepository(this.quadras);
 
   @override
-  Stream<List<Quadra>> watchQuadras(String construtoraId, String loteamentoId) =>
-      Stream.value(quadras);
+  Stream<List<Quadra>> watchQuadras(String construtoraId, String loteamentoId) {
+    calls.add((construtoraId, loteamentoId));
+    return Stream.value(quadras);
+  }
 
   @override
   Future<void> createQuadra(Quadra quadra) async {}
@@ -33,6 +36,7 @@ class FakeQuadraRepository implements QuadraRepository {
 
 class FakeLoteRepository implements LoteRepository {
   final List<Lote> lotes;
+  final List<(String, String, String)> calls = [];
   FakeLoteRepository(this.lotes);
 
   @override
@@ -40,8 +44,10 @@ class FakeLoteRepository implements LoteRepository {
     String construtoraId,
     String loteamentoId,
     String quadraId,
-  ) =>
-      Stream.value(lotes);
+  ) {
+    calls.add((construtoraId, loteamentoId, quadraId));
+    return Stream.value(lotes);
+  }
 
   @override
   Future<void> createLote(Lote lote) async {}
@@ -103,12 +109,11 @@ void main() {
     expect(identical(data, reread), isTrue);
   });
 
-  test('watchQuadrasProvider resolve via Records sem novo loading', () async {
+  test('watchQuadrasProvider encaminha os IDs na ordem correta', () async {
+    final fake = FakeQuadraRepository([makeQuadra('q1')]);
     final container = ProviderContainer(
       overrides: [
-        quadraRepositoryProvider.overrideWithValue(
-          FakeQuadraRepository([makeQuadra('q1')]),
-        ),
+        quadraRepositoryProvider.overrideWithValue(fake),
       ],
     );
     addTearDown(container.dispose);
@@ -128,16 +133,17 @@ void main() {
     expect(data.hasValue, isTrue);
     expect(data.value!.single.name, 'Quadra q1');
 
+    expect(fake.calls, [('c1', 'l1')]);
+
     final reread = container.read(watchQuadrasProvider(params));
     expect(identical(data, reread), isTrue);
   });
 
-  test('watchLotesProvider resolve via Records sem novo loading', () async {
+  test('watchLotesProvider encaminha os IDs na ordem correta', () async {
+    final fake = FakeLoteRepository([makeLote('lo1')]);
     final container = ProviderContainer(
       overrides: [
-        loteRepositoryProvider.overrideWithValue(
-          FakeLoteRepository([makeLote('lo1')]),
-        ),
+        loteRepositoryProvider.overrideWithValue(fake),
       ],
     );
     addTearDown(container.dispose);
@@ -157,7 +163,32 @@ void main() {
     expect(data.hasValue, isTrue);
     expect(data.value!.single.name, 'Lote lo1');
 
+    expect(fake.calls, [('c1', 'l1', 'q1')]);
+
     final reread = container.read(watchLotesProvider(params));
     expect(identical(data, reread), isTrue);
+  });
+
+  test('watchLotesProvider isola chaves de family distintas', () async {
+    final fake = FakeLoteRepository([makeLote('lo1')]);
+    final container = ProviderContainer(
+      overrides: [
+        loteRepositoryProvider.overrideWithValue(fake),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    const a = (construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q1');
+    const b = (construtoraId: 'c1', loteamentoId: 'l1', quadraId: 'q2');
+
+    final subA = container.listen(watchLotesProvider(a), (_, _) {});
+    final subB = container.listen(watchLotesProvider(b), (_, _) {});
+    addTearDown(subA.close);
+    addTearDown(subB.close);
+
+    await container.read(watchLotesProvider(a).future);
+    await container.read(watchLotesProvider(b).future);
+
+    expect(fake.calls, containsAll([('c1', 'l1', 'q1'), ('c1', 'l1', 'q2')]));
   });
 }

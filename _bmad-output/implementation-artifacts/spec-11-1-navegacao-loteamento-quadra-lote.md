@@ -89,3 +89,42 @@ context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 - `low` → rejeitado — URLs literais em vez de `LoteamentosPaths`/`QuadrasPaths`: DRY apenas de desenvolvedor, sem dano ao usuário e refatoração não trivial.
 - `low` → rejeitado — query params perdidos no redirect: estas rotas não carregam query params; hipotético.
 - `low` → rejeitado — fakes/factories duplicados entre arquivos de teste e mistura `test/` vs `test/src/features/`: organização de testes, sem impacto funcional.
+
+### Review Findings
+
+#### Decision
+
+- [x] [Review][Decision] AC1 sem ponto de entrada no dashboard — `LoteamentosListScreen` existe, mas `ObrasListScreen` não expõe nenhuma ação/atalho para `/construtora/:cId/loteamentos` (actions só cobrem obras/membros/rh/almoxarifado/financeiro/validacao/epis/fornecedores). O fluxo do AC1 ("abrir Loteamentos" a partir do dashboard) só é alcançável por URL manual/deep-link. Definir se adiciona entrada e qual permissão a gateia, ou se a AC deve ser lida como deep-link. [app/lib/src/features/obras/presentation/obras_list_screen.dart:79-150]
+- [x] [Review][Decision] Segmento-pai do breadcrumb não ascende — em `/.../quadras/q1/lotes`, o crumb "Quadra" aponta para `/.../quadras/q1`, que redireciona de volta para `/.../lotes` (mesma tela); só o crumb "Loteamento" sobe de nível. Definir se crumbs-pai devem apontar para a rota de listagem (`/.../quadras`) — mudança em `sigo_breadcrumbs.dart`, compartilhado com a 11.2. [app/lib/src/common_widgets/sigo_breadcrumbs.dart:34]
+
+#### Patch
+
+- [x] [Review][Patch] IDs encaminhados pelos providers não são verificados por teste — os fakes ignoram os argumentos (`Stream.value`), então trocar a ordem dos IDs em `quadra_repository.dart:39` / `lote_repository.dart:43-47` mantém a suíte verde e uma regressão de path do Firestore passa silenciosamente. Assertar os IDs recebidos e isolar chaves de `family` distintas. [app/test/loteamento_quadra_lote_providers_test.dart:1059]
+- [x] [Review][Patch] Ramos de erro das 3 listagens sem teste — os callbacks `error:` só são exercitados por `Stream.value`; nenhum override com `AsyncError`/`Stream.error`. Adicionar um teste por tela assertando a mensagem fixa. [app/test/src/features/lotes/presentation/lotes_list_screen_test.dart:1311]
+
+#### Defer
+
+- [x] [Review][Defer] `StreamProvider.family` sem `autoDispose` acumula subscriptions do Firestore [app/lib/src/features/loteamentos/data/loteamento_repository.dart:36] — deferred: padrão pré-existente de setores/equipes; `autoDispose` reintroduziria o `AsyncLoading` que a história quer evitar; decisão de ciclo de vida a revisitar.
+
+#### Rejected
+
+- `false` — frontmatter `status: done` vs sprint-status `review`: trackers com propósitos distintos (autoria do spec vs tracking de sprint); `review` é o estado esperado durante o review; sem efeito de código.
+- `false` — `review_loop_iteration` em 0: contador só sobe em loopback, não na primeira passada.
+- `false` — testes de provider "só checam `identical`": o `identical` reflete o cache normal do Riverpod; a lacuna acionável é o mapeamento de IDs (item Patch acima).
+- `false` — teste de "rebuild sem AsyncLoading" mede `buildCount` no wrapper, não na tela: o wrapper reconstrói um `LoteamentosListScreen` não-`const`, logo a tela é reconstruída e a ausência de `CircularProgressIndicator` é assertion válida (o defeito de `child:` `const` foi corrigido).
+- `false` — "nenhum teste dirige transições lista→lista pelas rotas reais": o teste de breadcrumbs usa `construtoraRoutes` e navega Lotes→Quadras; os testes de item-tap usam routers que replicam os paths.
+- `false` — redirects `:loteId`/`:setorId` "não exercitados": o tap no crumb "Lote"/"Setor" navega para a origem do redirect (`/lotes/:loteId`, `/setores/:setorId`), e remover o redirect quebraria esses testes.
+- `false` — providers como `final` de topo na camada de dados: mesma convenção de `watchSetoresProvider`/`watchEquipesProvider` (definidos nos respectivos `*_repository.dart`).
+- `false` — `firestore.rules` marcado `[x]` sem diff: as rules de `loteamentos`/`quadras`/`lotes` já concedem `read: if member(c)` / `write: if admin(c)` (firestore.rules:46-65); "revisar" não exige alteração.
+- `false` — `spec-fix-testes-obsoletos-lote` `done` só com defers: artefato de outra história, não causado por esta mudança.
+- `false` — sem hash/listagem de traceability na triage: registro de processo; a própria triage cita comando e contagem.
+- `false` — ACs nunca mapeadas a testes: são declarações Given/When/Then; o template só marca `Execution`.
+- `false` — `generated` do sprint-status desatualizado: metadado sem impacto funcional.
+- `false` — escopo com `movimentacao_screen.dart`/`setores_routes.dart`: alterações pré-existentes de outro escopo ampliadas pelo range do baseline; sem dano.
+- `false` — IDs com caracteres especiais interpolados sem encode: ids são UUID v4 e doc ids do Firestore, URL-safe; caso inalcançável.
+- `low` (rejeitado) — query params/fragment perdidos no redirect: estas rotas não carregam query params; hipotético; fix adiciona branch.
+- `low` (rejeitado) — trailing slash quebra o redirect: improvável no uso diário; fix adiciona normalização/guard.
+- `low` (rejeitado) — `state.uri.path` (decodificado) vs `matchedLocation` (codificado): divergência só com ids especiais, que não ocorrem.
+- `low` (rejeitado) — Boundaries em plural `/construtoras/...` vs código singular: pré-existente; o fix editaria o próprio spec.
+- `low` (rejeitado) — URLs literais em vez de `LoteamentosPaths`/`QuadrasPaths`: DRY apenas de desenvolvedor, sem dano; refatoração não trivial.
+- `low` (rejeitado) — fakes/factories duplicados e mistura `test/` vs `test/src/features/`: organização de testes, sem impacto funcional.

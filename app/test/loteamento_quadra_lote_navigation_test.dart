@@ -228,7 +228,7 @@ void main() {
   });
 
   testWidgets(
-      'rotas reais aninhadas renderizam breadcrumbs e ascendem para quadras',
+      'rotas reais aninhadas renderizam breadcrumbs e crumb-pai ascende para a lista',
       (tester) async {
     final router = GoRouter(
       initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
@@ -272,16 +272,18 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Loteamento'));
+    await tester.tap(find.text('Quadra'));
     await tester.pumpAndSettle();
 
     expect(find.byType(QuadrasListScreen), findsOneWidget);
     expect(find.text('Quadra q1'), findsOneWidget);
+    expect(
+      router.state.uri.path,
+      '/construtora/c1/loteamentos/l1/quadras',
+    );
   });
 
-  testWidgets(
-      'tocar em Quadra no breadcrumb mantém os IDs pais na URL ao voltar para lotes',
-      (tester) async {
+  testWidgets('crumb raiz ascende para a lista de loteamentos', (tester) async {
     final router = GoRouter(
       initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
       routes: construtoraRoutes,
@@ -307,23 +309,20 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Quadra'));
+    await tester.tap(find.text('Loteamento'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(LotesListScreen), findsOneWidget);
+    expect(find.byType(LoteamentosListScreen), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+      '/construtora/c1/loteamentos',
     );
-    expect(find.text('Lote lo1'), findsOneWidget);
   });
 
-  testWidgets(
-      'tocar em Lote no breadcrumb redireciona :loteId para a lista de setores',
+  testWidgets('deep-link em :loteId redireciona para a lista de setores',
       (tester) async {
     final router = GoRouter(
-      initialLocation:
-          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores',
+      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1',
       routes: construtoraRoutes,
     );
 
@@ -340,25 +339,20 @@ void main() {
     );
 
     await tester.pumpAndSettle();
+
     expect(find.byType(SetoresListScreen), findsOneWidget);
     expect(find.text('Setor s1'), findsOneWidget);
-
-    await tester.tap(find.text('Lote'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(SetoresListScreen), findsOneWidget);
     expect(
       router.state.uri.path,
       '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores',
     );
   });
 
-  testWidgets(
-      'tocar em Setor no breadcrumb redireciona :setorId para a lista de equipes',
+  testWidgets('deep-link em :setorId redireciona para a lista de equipes',
       (tester) async {
     final router = GoRouter(
       initialLocation:
-          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores/s1/equipes',
+          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores/s1',
       routes: construtoraRoutes,
     );
 
@@ -376,16 +370,47 @@ void main() {
     );
 
     await tester.pumpAndSettle();
+
     expect(find.byType(EquipesListScreen), findsOneWidget);
     expect(find.text('Equipe e1'), findsOneWidget);
+    expect(
+      router.state.uri.path,
+      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores/s1/equipes',
+    );
+  });
+
+  testWidgets('crumb de Setor ascende para a lista de setores', (tester) async {
+    final router = GoRouter(
+      initialLocation:
+          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores/s1/equipes',
+      routes: construtoraRoutes,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+          setorRepositoryProvider.overrideWithValue(
+            FakeSetorRepository([makeSetor('s1')]),
+          ),
+          equipeRepositoryProvider.overrideWithValue(
+            FakeEquipeRepository([makeEquipe('e1')]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byType(EquipesListScreen), findsOneWidget);
 
     await tester.tap(find.text('Setor'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(EquipesListScreen), findsOneWidget);
+    expect(find.byType(SetoresListScreen), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores/s1/equipes',
+      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores',
     );
   });
 }

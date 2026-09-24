@@ -72,6 +72,7 @@ class ObrasListScreen extends ConsumerWidget {
     final despesasAsync = admin
         ? ref.watch(despesasConstrutoraProvider(construtoraId))
         : const AsyncData<List<Despesa>>([]);
+    final canViewLoteamentos = admin || cm?['isActive'] == true;
 
     return SigoLayout(
       title: 'Painel da Construtora',
@@ -94,6 +95,14 @@ class ObrasListScreen extends ConsumerWidget {
             tooltip: 'Gerenciar Membros',
             onPressed: () {
               context.go('/construtora/$construtoraId/membros');
+            },
+          ),
+        if (canViewLoteamentos)
+          IconButton(
+            icon: const Icon(Icons.map_outlined, color: Colors.black54),
+            tooltip: 'Loteamentos',
+            onPressed: () {
+              context.go('/construtora/$construtoraId/loteamentos');
             },
           ),
         if (hasRh)

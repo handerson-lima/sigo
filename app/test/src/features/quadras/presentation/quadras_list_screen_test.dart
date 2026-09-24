@@ -88,6 +88,29 @@ void main() {
     );
   });
 
+  testWidgets('Renderiza mensagem de erro quando o stream falha',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          watchQuadrasProvider.overrideWith(
+            (ref, arg) => Stream.error(Exception('falha')),
+          ),
+        ],
+        child: buildTestWidget(
+          const QuadrasListScreen(construtoraId: 'c1', loteamentoId: 'l1'),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Não foi possível carregar as quadras. Tente novamente.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)',
       (tester) async {
     final rebuild = ValueNotifier<int>(0);

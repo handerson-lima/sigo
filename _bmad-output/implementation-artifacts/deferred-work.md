@@ -193,3 +193,7 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-1-navegacao-loteamento-quadra-lote.md`
   summary: `watchLoteamentosProvider`/`watchQuadrasProvider`/`watchLotesProvider` são `StreamProvider.family` sem `autoDispose`, mantendo subscriptions do Firestore por toda a sessão.
   evidence: padrão já usado por setores/equipes; `autoDispose` reintroduziria o `AsyncLoading` que a história quer evitar; decisão de ciclo de vida de provider a revisitar.
+
+## Deferred from: code review of spec-11-1-navegacao-loteamento-quadra-lote (2026-09-24)
+
+- `StreamProvider.family` sem `autoDispose` acumula subscriptions do Firestore. source_spec: `_bmad-output/implementation-artifacts/spec-11-1-navegacao-loteamento-quadra-lote.md`; location: `app/lib/src/features/loteamentos/data/loteamento_repository.dart:36`. Evidence: padrão pré-existente de setores/equipes; `autoDispose` reintroduziria o `AsyncLoading` que a história quer evitar; decisão de ciclo de vida de provider a revisitar.

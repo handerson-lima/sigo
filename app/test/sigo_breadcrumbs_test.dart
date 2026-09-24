@@ -11,18 +11,31 @@ GoRouter _router() => GoRouter(
           builder: (context, state) => const SizedBox(),
           routes: [
             GoRoute(
-              path: 'loteamentos/:loteamentoId',
-              builder: (context, state) => const SizedBox(),
+              path: 'loteamentos',
+              builder: (context, state) =>
+                  const Scaffold(body: Text('loteamentos destino')),
               routes: [
                 GoRoute(
-                  path: 'quadras/:quadraId',
-                  builder: (context, state) =>
-                      const Scaffold(body: Text('quadras destino')),
+                  path: ':loteamentoId',
+                  builder: (context, state) => const SizedBox(),
                   routes: [
                     GoRoute(
-                      path: 'lotes',
+                      path: 'quadras',
                       builder: (context, state) =>
-                          const Scaffold(body: SigoBreadcrumbs()),
+                          const Scaffold(body: Text('quadras destino')),
+                      routes: [
+                        GoRoute(
+                          path: ':quadraId',
+                          builder: (context, state) => const SizedBox(),
+                          routes: [
+                            GoRoute(
+                              path: 'lotes',
+                              builder: (context, state) =>
+                                  const Scaffold(body: SigoBreadcrumbs()),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -44,7 +57,8 @@ void main() {
     expect(find.text('/'), findsNWidgets(2));
   });
 
-  testWidgets('tocar num segmento com url navega para a url', (tester) async {
+  testWidgets('tocar num segmento com url navega para a lista do nivel',
+      (tester) async {
     await tester.pumpWidget(MaterialApp.router(routerConfig: _router()));
     await tester.pumpAndSettle();
 
@@ -52,6 +66,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('quadras destino'), findsOneWidget);
+  });
+
+  testWidgets('tocar no segmento raiz navega para a lista de loteamentos',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp.router(routerConfig: _router()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Loteamento'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('loteamentos destino'), findsOneWidget);
   });
 
   testWidgets('ultimo segmento nao e clicavel e nao navega', (tester) async {
