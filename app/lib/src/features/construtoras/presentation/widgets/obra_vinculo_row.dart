@@ -7,7 +7,7 @@ import 'role_chip.dart';
 
 /// Microcopy congelada do estado vazio (texto estático na 8.3 — sem CTA
 /// acionável; o botão Atribuir entra no epic 9).
-const String obrasVinculadasVazioLabel = 'Nenhuma obra vinculada — Atribuir';
+const String obrasVinculadasVazioLabel = 'Nenhum loteamento vinculado — Atribuir';
 
 /// Estado vazio do bloco Obras do detalhe (UX-DR3).
 class ObraVinculoVazio extends StatelessWidget {

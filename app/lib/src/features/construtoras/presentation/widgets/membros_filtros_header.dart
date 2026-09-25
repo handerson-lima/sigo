@@ -125,7 +125,7 @@ class MembrosFiltrosHeader extends StatelessWidget {
               },
               loading: () => const LinearProgressIndicator(),
               error: (err, stack) =>
-                  const Text('Não foi possível carregar as obras.'),
+                  const Text('Não foi possível carregar os loteamentos.'),
             ),
           ],
         ],

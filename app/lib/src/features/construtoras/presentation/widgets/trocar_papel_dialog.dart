@@ -216,6 +216,7 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
               const SizedBox(height: 4),
               DropdownButtonFormField<String>(
                 key: TrocarPapelDialog.papelDropdownKey,
+                isExpanded: true,
                 initialValue: _selectedRole,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),

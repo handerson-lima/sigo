@@ -272,6 +272,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                     )
                   else
                     DropdownButtonFormField<String>(
+                isExpanded: true,
                       key: AtribuirObraDialog.obraDropdownKey,
                       initialValue: _selectedObraId,
                       decoration: const InputDecoration(

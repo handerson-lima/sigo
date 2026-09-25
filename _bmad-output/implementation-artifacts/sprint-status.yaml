@@ -61,7 +61,7 @@ development_status:
 
   epic-13: in-progress
   13-1-atualizar-esquema-de-dados-raiz-no-firestore: backlog
-  13-2-rotas-declarativas-e-drill-down-inicial: in-progress
+  13-2-rotas-declarativas-e-drill-down-inicial: review
   13-3-ramificação-específica-de-etapas-por-lote: backlog
   13-4-navegação-final-alocação-de-equipe-na-etapa: backlog
   epic-13-retrospective: optional
