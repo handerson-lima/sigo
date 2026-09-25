@@ -80,7 +80,9 @@ class TestUser implements User {
   final String uid;
   @override
   final String? displayName;
-  TestUser(this.uid, this.displayName);
+  @override
+  final String? email;
+  TestUser(this.uid, this.displayName, [this.email]);
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

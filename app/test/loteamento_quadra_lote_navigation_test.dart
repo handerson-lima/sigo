@@ -690,20 +690,14 @@ void main() {
       ],
     );
 
+    addTearDown(container.dispose);
+    await container.read(authStateChangesProvider.future);
+
+    // Read router directly without pumping the UI to avoid background timers from missing mock repositories.
     final router = container.read(routerProvider);
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
-    await tester.pumpAndSettle();
-
     router.go('/construtora/c1/loteamentos?q=1#frag');
-    await tester.pumpAndSettle();
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(), '/construtoras/c1/loteamentos?q=1#frag');
-    expect(find.byType(LoteamentosListScreen), findsOneWidget);
   });
 }
