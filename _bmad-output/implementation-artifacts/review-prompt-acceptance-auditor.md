@@ -1,816 +1,600 @@
-You are an Acceptance Auditor. Review the provided diff against the spec and loaded context docs below.
-Check for:
-- violations of acceptance criteria
-- deviations from spec intent
-- missing implementation of specified behavior
-- contradictions between spec constraints and actual code
+You are an Acceptance Auditor. Review the provided diff against `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-11-2-navegacao-lote-setor-equipe.md` and any loaded context docs. Check for: violations of acceptance criteria, deviations from spec intent, missing implementation of specified behavior, contradictions between spec constraints and actual code. Output findings as a Markdown list. Each finding: one-line title, which AC/constraint it violates, and evidence from the diff.
 
-Output findings as a Markdown list. Each finding: one-line title, which AC/constraint it violates, and evidence from the diff.
-Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
-
-SPEC:
----
-title: 'Story 1.8 — Recálculo de Módulos e Layout Imediato na Troca de Obra'
-type: 'feature'
-created: '2026-09-16'
-status: 'in-review'
-baseline_commit: '9e09709bb983d1b2eed9d01e21e08ee7f3229cba'
-route: 'dispatch'
-review_loop_iteration: 0
-context:
-  - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
-  - '{project-root}/docs/task.md'
-  - '{project-root}/docs/user_flows.md'
----
-
-<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
-
-## Intent
-
-**Problem:** Ao alternar de obra no SIGO ou navegar diretamente entre rotas de obras diferentes, o usuário precisa que os módulos disponíveis (e os elementos visuais de navegação na sidebar e no dashboard) sejam recalculados imediatamente para refletir apenas os módulos autorizados da nova obra (`modules`/`allowedModules`), evitando retenção de permissões da obra anterior ou vazamento de acesso.
-
-**Approach:** Prover um seletor de obra ativa no topo (`SigoTopBar`) baseado nas obras disponíveis da construtora, garantir que `currentPermissionsProvider` e `AccessGuard` revalidem e recalculem instantaneamente os módulos autorizados (incluindo compatibilidade com `allowedModules` e normalização de aliases), atualizando o layout, a sidebar e o dashboard de forma estritamente reativa e sem necessidade de reload.
-
-## Boundaries & Constraints
-
-**Always:**
-- Preservar a hierarquia existente `construtoras/{cId}/obras/{oId}`.
-- Normalizar aliases de módulos legados (`rdo` -> `diario`, `almoxarifado` -> `estoque`).
-- Respeitar o privilégio dev global e permissões de administrador de construtora (`isAdmin`/`isOwner`).
-- Falhar de forma fechada (AccessDenied) caso a obra ou o membro estejam inativos ou o módulo não conste nas permissões da obra selecionada.
-
-**Never:**
-- Não executar reloads de página inteira (F5) ou criar loops de navegação.
-- Não compartilhar cache de permissões entre diferentes obras.
-- Não alterar schemas de banco em produção ou desrespeitar os isolamentos estabelecidos em C0–C6.
-
-## I/O & Edge-Case Matrix
-
-| Scenario | Input / State | Expected Output / Behavior | Error Handling |
-|----------|--------------|---------------------------|----------------|
-| Troca de Obra A -> Obra B | Usuário seleciona Obra B no seletor da TopBar | Navega para `/construtora/{cId}/obra/{oIdB}`; Sidebar e Dashboard recalculam exibindo apenas os módulos autorizados de B | N/A |
-| Módulo diferente por obra | Obra A tem `['diario']`, Obra B tem `['lotes']` | Na Obra A exibe Diário; ao trocar para B, Diário desaparece e Lotes aparece imediatamente | N/A |
-| Rota direta não autorizada | Usuário acessa `/construtora/{cId}/obra/{oIdB}/diarios` sem permissão em B | `AccessGuard` detecta ausência do módulo na nova obra e renderiza `AccessDeniedScreen` | Tela de Acesso Negado exibida |
-| Obra inativa | Obra com `isActive == false` | Acesso negado para usuários comuns; dev global preserva acesso de suporte | AccessDeniedScreen para usuário comum |
-| Compatibilidade de campos | Documento Firestore usando `allowedModules` | Normaliza e carrega módulos idêntico a `modules` | Falha fechada se vazio ou inválido |
-
-</frozen-after-approval>
-
-## Code Map
-
-- `app/lib/src/features/obras/presentation/current_permissions_provider.dart` -- Provedor de permissões por escopo `(construtoraId, obraId)`; adicionar suporte a `allowedModules` e verificação de obra ativa.
-- `app/lib/src/common_widgets/sigo_top_bar.dart` -- Adicionar seletor de obra ativa (`ObraSwitcher`) quando em contexto de construtora/obra.
-- `app/lib/src/common_widgets/sigo_sidebar.dart` -- Assegurar reatividade instantânea dos itens de menu às permissões da obra ativa.
-- `app/lib/src/common_widgets/access_guard.dart` -- Garantir bloqueio imediato na troca de obra para módulos não autorizados.
-- `app/lib/src/features/obras/presentation/obra_dashboard_screen.dart` -- Cards de módulos renderizados estritamente a partir do `currentPermissionsProvider`.
-- `app/test/widget_test.dart` -- Testes de widget cobrindo a troca de obra e o recálculo dinâmico do layout.
-
-## Tasks & Acceptance
-
-**Execution:**
-- [x] `app/lib/src/features/obras/presentation/current_permissions_provider.dart` -- Suportar `allowedModules` como fallback de `modules` e validar status da obra.
-- [x] `app/lib/src/common_widgets/sigo_top_bar.dart` -- Implementar dropdown/seletor de obra ativa permitindo troca rápida entre obras da mesma construtora.
-- [x] `app/lib/src/common_widgets/sigo_sidebar.dart` -- Sincronizar itens de navegação com a obra ativa imediatamente após a seleção.
-- [x] `app/lib/src/features/obras/presentation/obra_dashboard_screen.dart` -- Garantir renderização reativa dos cards da obra ativa.
-- [x] `app/test/widget_test.dart` -- Adicionar testes de widget e de provedor verificando a troca de contexto entre obras com módulos distintos.
-
-**Acceptance Criteria:**
-- Given um usuário com acesso a Obra A (com módulo `diario`) e Obra B (com módulo `lotes`), when o usuário alterna de Obra A para Obra B no seletor, then o layout da sidebar e os cards do dashboard atualizam instantaneamente, exibindo 'Lotes e Setores' e ocultando 'Diário de Obra'.
-- Given um usuário navegando para uma sub-rota `/construtora/{cId}/obra/{oId}/diarios` em uma obra onde não possui permissão, when a página é carregada, then o `AccessGuard` bloqueia o conteúdo e renderiza `AccessDeniedScreen`.
-
-## Implementation Notes
-
-## Spec Change Log
-
-## Review Triage Log
-
-## Design Notes
-
-Utilizar Riverpod family provider `currentPermissionsProvider((construtoraId: cId, obraId: oId))` para isolar os estados por obra. O seletor de obra na `SigoTopBar` obtém as obras da construtora através de `construtoraObrasProvider(cId)` e navega via `context.go('/construtora/$cId/obra/$novaObraId')`, garantindo sincronização imediata com o GoRouter e componentes filhos.
-
-## Verification
-
-**Commands:**
-- `cd app && flutter analyze` -- expected: Sem erros ou warnings.
-- `cd app && flutter test` -- expected: Todos os testes passando (incluindo novo teste de recálculo de módulos).
-- `cd app && flutter build web` -- expected: Build de produção Web sem erros.
-
-DIFF:
-```diff
-diff --git a/_bmad-output/implementation-artifacts/spec-1-8-recalculo-modulos.md b/_bmad-output/implementation-artifacts/spec-1-8-recalculo-modulos.md
-index d640bcf..fd19f3e 100644
---- a/_bmad-output/implementation-artifacts/spec-1-8-recalculo-modulos.md
-+++ b/_bmad-output/implementation-artifacts/spec-1-8-recalculo-modulos.md
-@@ -2,7 +2,8 @@
- title: 'Story 1.8 — Recálculo de Módulos e Layout Imediato na Troca de Obra'
- type: 'feature'
- created: '2026-09-16'
--status: 'ready-for-dev'
-+status: 'in-review'
-+baseline_commit: '9e09709bb983d1b2eed9d01e21e08ee7f3229cba'
- route: 'dispatch'
- review_loop_iteration: 0
- context:
-@@ -56,11 +57,11 @@ context:
- ## Tasks & Acceptance
- 
- **Execution:**
--- [ ] `app/lib/src/features/obras/presentation/current_permissions_provider.dart` -- Suportar `allowedModules` como fallback de `modules` e validar status da obra.
--- [ ] `app/lib/src/common_widgets/sigo_top_bar.dart` -- Implementar dropdown/seletor de obra ativa permitindo troca rápida entre obras da mesma construtora.
--- [ ] `app/lib/src/common_widgets/sigo_sidebar.dart` -- Sincronizar itens de navegação com a obra ativa imediatamente após a seleção.
--- [ ] `app/lib/src/features/obras/presentation/obra_dashboard_screen.dart` -- Garantir renderização reativa dos cards da obra ativa.
--- [ ] `app/test/widget_test.dart` -- Adicionar testes de widget e de provedor verificando a troca de contexto entre obras com módulos distintos.
-+- [x] `app/lib/src/features/obras/presentation/current_permissions_provider.dart` -- Suportar `allowedModules` como fallback de `modules` e validar status da obra.
-+- [x] `app/lib/src/common_widgets/sigo_top_bar.dart` -- Implementar dropdown/seletor de obra ativa permitindo troca rápida entre obras da mesma construtora.
-+- [x] `app/lib/src/common_widgets/sigo_sidebar.dart` -- Sincronizar itens de navegação com a obra ativa imediatamente após a seleção.
-+- [x] `app/lib/src/features/obras/presentation/obra_dashboard_screen.dart` -- Garantir renderização reativa dos cards da obra ativa.
-+- [x] `app/test/widget_test.dart` -- Adicionar testes de widget e de provedor verificando a troca de contexto entre obras com módulos distintos.
- 
- **Acceptance Criteria:**
- - Given um usuário com acesso a Obra A (com módulo `diario`) e Obra B (com módulo `lotes`), when o usuário alterna de Obra A para Obra B no seletor, then o layout da sidebar e os cards do dashboard atualizam instantaneamente, exibindo 'Lotes e Setores' e ocultando 'Diário de Obra'.
-diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
-index b430249..4f8b992 100644
---- a/_bmad-output/implementation-artifacts/sprint-status.yaml
-+++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
-@@ -47,7 +47,7 @@ development_status:
-   1-5-descoberta-obras: review
-   1-6-fluxo-login: review
-   1-7-selecao-obra: review
--  1-8-recalculo-modulos: ready-for-dev
-+  1-8-recalculo-modulos: review
-   epic-1-retrospective: optional
- 
-   epic-2: backlog
-diff --git a/app/lib/src/common_widgets/access_guard.dart b/app/lib/src/common_widgets/access_guard.dart
-index f5798d2..bec9c48 100644
---- a/app/lib/src/common_widgets/access_guard.dart
-+++ b/app/lib/src/common_widgets/access_guard.dart
-@@ -36,7 +36,6 @@ class AccessGuard extends ConsumerWidget {
-       return const AccessDeniedScreen();
-     }
-     final admin = member?['isAdmin'] == true || member?['isOwner'] == true;
--    if (admin) return child;
-     if (obraId != null) {
-       final om = ref.watch(
-         currentPermissionsProvider((
-@@ -58,11 +57,12 @@ class AccessGuard extends ConsumerWidget {
-       }
-       return child;
-     }
-+    if (admin) return child;
-     if (adminOnly ||
-         module == 'financeiro' ||
-         module != null &&
--            !(member?['modules'] as List? ?? [])
--                .map((m) => normalizeModule(m as String))
-+            !((member?['modules'] ?? member?['allowedModules']) as List? ?? [])
-+                .map((m) => normalizeModule(m.toString()))
-                 .contains(normalizeModule(module!))) {
-       return const AccessDeniedScreen();
-     }
-diff --git a/app/lib/src/common_widgets/sigo_layout.dart b/app/lib/src/common_widgets/sigo_layout.dart
-index ec90791..b6ad94d 100644
---- a/app/lib/src/common_widgets/sigo_layout.dart
-+++ b/app/lib/src/common_widgets/sigo_layout.dart
-@@ -31,7 +31,11 @@ class SigoLayout extends StatelessWidget {
-                 Expanded(
-                   child: Column(
-                     children: [
--                      SigoTopBar(title: title, actions: actions),
-+                      SigoTopBar(
-+                        title: title,
-+                        actions: actions,
-+                        activeRoute: activeRoute,
-+                      ),
-                       Expanded(
-                         child: Padding(
-                           padding: const EdgeInsets.all(24.0),
-@@ -49,7 +53,11 @@ class SigoLayout extends StatelessWidget {
-         // Mobile / Tablet Portrait
-         return Scaffold(
-           backgroundColor: const Color(0xFFF8FAFC),
--          appBar: SigoTopBar(title: title, actions: actions),
-+          appBar: SigoTopBar(
-+            title: title,
-+            actions: actions,
-+            activeRoute: activeRoute,
-+          ),
-           drawer: SigoSidebar(activeRoute: activeRoute),
-           body: Padding(
-             padding: const EdgeInsets.all(16.0),
-diff --git a/app/lib/src/common_widgets/sigo_sidebar.dart b/app/lib/src/common_widgets/sigo_sidebar.dart
-index efd5fac..b2289ad 100644
---- a/app/lib/src/common_widgets/sigo_sidebar.dart
-+++ b/app/lib/src/common_widgets/sigo_sidebar.dart
-@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
- import 'package:flutter_riverpod/flutter_riverpod.dart';
- import 'package:go_router/go_router.dart';
- 
-+import '../core/contracts.dart';
- import '../features/authentication/data/auth_repository.dart';
- import '../features/authentication/data/user_repository.dart';
- 
-@@ -89,8 +90,10 @@ class SigoSidebar extends ConsumerWidget {
-                       context.go('/construtora/$cId/obra/$oId');
-                     },
-                   ),
--                  if (obra?.isAdmin == true ||
--                      obra?.modules.contains('lotes') == true)
-+                  if (obra != null &&
-+                      obra.isActive &&
-+                      (obra.isAdmin ||
-+                          obra.modules.map(normalizeModule).contains('lotes')))
-                     _NavItem(
-                       icon: Icons.map,
-                       title: 'Lotes e Setores',
-@@ -100,8 +103,10 @@ class SigoSidebar extends ConsumerWidget {
-                         context.go('/construtora/$cId/obra/$oId/lotes');
-                       },
-                     ),
--                  if (obra?.isAdmin == true ||
--                      obra?.modules.contains('diario') == true)
-+                  if (obra != null &&
-+                      obra.isActive &&
-+                      (obra.isAdmin ||
-+                          obra.modules.map(normalizeModule).contains('diario')))
-                     _NavItem(
-                       icon: Icons.assignment,
-                       title: 'Diário de Obra',
-@@ -218,11 +223,14 @@ class _NavItem extends StatelessWidget {
-           children: [
-             Icon(icon, color: isActive ? Colors.amber[700] : Colors.white70),
-             const SizedBox(width: 12),
--            Text(
--              title,
--              style: TextStyle(
--                color: isActive ? Colors.amber[700] : Colors.white70,
--                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-+            Expanded(
-+              child: Text(
-+                title,
-+                style: TextStyle(
-+                  color: isActive ? Colors.amber[700] : Colors.white70,
-+                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+Diff:
+diff --git a/app/lib/src/common_widgets/sigo_breadcrumbs.dart b/app/lib/src/common_widgets/sigo_breadcrumbs.dart
+new file mode 100644
+index 0000000..bdaa573
+--- /dev/null
++++ b/app/lib/src/common_widgets/sigo_breadcrumbs.dart
+@@ -0,0 +1,49 @@
++import 'package:flutter/material.dart';
++import 'package:go_router/go_router.dart';
++
++class BreadcrumbSegment {
++  final String label;
++  final String? url;
++
++  const BreadcrumbSegment({required this.label, this.url});
++}
++
++class SigoBreadcrumbs extends StatelessWidget {
++  final List<BreadcrumbSegment> segments;
++
++  const SigoBreadcrumbs({super.key, required this.segments});
++
++  @override
++  Widget build(BuildContext context) {
++    return Padding(
++      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
++      child: Wrap(
++        crossAxisAlignment: WrapCrossAlignment.center,
++        children: segments.asMap().entries.map((entry) {
++          final index = entry.key;
++          final segment = entry.value;
++          final isLast = index == segments.length - 1;
++
++          return Row(
++            mainAxisSize: MainAxisSize.min,
++            children: [
++              InkWell(
++                onTap: (segment.url != null && !isLast)
++                    ? () => context.go(segment.url!)
++                    : null,
++                child: Text(
++                  segment.label,
++                  style: TextStyle(
++                    color: isLast ? Colors.black : Theme.of(context).primaryColor,
++                    fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
++                  ),
 +                ),
-+                overflow: TextOverflow.ellipsis,
-               ),
-             ),
-           ],
-diff --git a/app/lib/src/common_widgets/sigo_top_bar.dart b/app/lib/src/common_widgets/sigo_top_bar.dart
-index 2763020..d84f8b9 100644
---- a/app/lib/src/common_widgets/sigo_top_bar.dart
-+++ b/app/lib/src/common_widgets/sigo_top_bar.dart
-@@ -3,16 +3,32 @@ import 'package:go_router/go_router.dart';
- import 'package:flutter_riverpod/flutter_riverpod.dart';
- 
- import '../features/authentication/data/auth_repository.dart';
-+import '../features/obras/presentation/construtora_obras_provider.dart';
- 
- class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
-   final String title;
-   final List<Widget>? actions;
-+  final String? activeRoute;
- 
--  const SigoTopBar({super.key, required this.title, this.actions});
-+  const SigoTopBar({
-+    super.key,
-+    required this.title,
-+    this.actions,
-+    this.activeRoute,
-+  });
- 
-   @override
-   Size get preferredSize => const Size.fromHeight(60);
- 
-+  String? _resolveRoute(BuildContext context) {
-+    if (activeRoute != null && activeRoute!.isNotEmpty) return activeRoute;
-+    try {
-+      return GoRouterState.of(context).uri.toString();
-+    } catch (_) {
-+      return null;
-+    }
++              ),
++              if (!isLast) const Padding(padding: EdgeInsets.symmetric(horizontal: 4.0), child: Text('/')),
++            ],
++          );
++        }).toList(),
++      ),
++    );
 +  }
++}
+diff --git a/app/lib/src/features/equipes/data/equipe_repository.dart b/app/lib/src/features/equipes/data/equipe_repository.dart
+new file mode 100644
+index 0000000..96c2c40
+--- /dev/null
++++ b/app/lib/src/features/equipes/data/equipe_repository.dart
+@@ -0,0 +1,27 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import '../domain/equipe.dart';
 +
-   @override
-   Widget build(BuildContext context, WidgetRef ref) {
-     final authState = ref.watch(authStateChangesProvider);
-@@ -20,6 +36,20 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
-     final email = user?.email ?? '';
-     final initial = email.isNotEmpty ? email[0].toUpperCase() : 'U';
- 
-+    final route = _resolveRoute(context);
-+    String? cId;
-+    String? oId;
-+    if (route != null) {
-+      final uri = Uri.tryParse(route);
-+      final segments = uri?.pathSegments ?? [];
-+      if (segments.length >= 2 && segments[0] == 'construtora') {
-+        cId = segments[1];
-+        if (segments.length >= 4 && segments[2] == 'obra') {
-+          oId = segments[3];
-+        }
-+      }
-+    }
++final equipeRepositoryProvider = Provider<EquipeRepository>((ref) {
++  return EquipeRepository(FirebaseFirestore.instance);
++});
 +
-     return AppBar(
-       backgroundColor: Colors.transparent,
-       elevation: 0,
-@@ -33,16 +63,27 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
-             )
-           : null,
-       title: Row(
-+        mainAxisSize: MainAxisSize.min,
-         children: [
-           if (context.canPop())
-             const Text(
-               'Voltar • ',
-               style: TextStyle(color: Colors.black54, fontSize: 14),
-             ),
--          Text(
--            title,
--            style: const TextStyle(color: Colors.black54, fontSize: 14),
-+          Flexible(
-+            child: Text(
-+              title,
-+              style: const TextStyle(color: Colors.black54, fontSize: 14),
-+              overflow: TextOverflow.ellipsis,
-+            ),
-           ),
-+          if (cId != null && oId != null) ...[
-+            const SizedBox(width: 12),
-+            ObraSwitcher(
-+              construtoraId: cId,
-+              currentObraId: oId,
-+            ),
-+          ],
-         ],
-       ),
-       actions: [
-@@ -67,3 +108,81 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
-     );
-   }
- }
++class EquipeRepository {
++  final FirebaseFirestore _firestore;
 +
-+class ObraSwitcher extends ConsumerWidget {
++  EquipeRepository(this._firestore);
++
++  CollectionReference<Equipe> _equipesRef(String construtoraId, String loteamentoId, String quadraId, String loteId, String setorId) =>
++      _firestore
++          .collection('construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/$setorId/equipes')
++          .withConverter<Equipe>(
++            fromFirestore: (snapshot, _) => Equipe.fromJson(snapshot.data()!),
++            toFirestore: (equipe, _) => equipe.toJson(),
++          );
++
++  Stream<List<Equipe>> watchEquipes(String construtoraId, String loteamentoId, String quadraId, String loteId, String setorId) {
++    return _equipesRef(construtoraId, loteamentoId, quadraId, loteId, setorId)
++        .snapshots()
++        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
++  }
++}
+diff --git a/app/lib/src/features/equipes/domain/equipe.dart b/app/lib/src/features/equipes/domain/equipe.dart
+new file mode 100644
+index 0000000..c1287d7
+--- /dev/null
++++ b/app/lib/src/features/equipes/domain/equipe.dart
+@@ -0,0 +1,29 @@
++import 'package:json_annotation/json_annotation.dart';
++
++part 'equipe.g.dart';
++
++@JsonSerializable()
++class Equipe {
++  final String id;
 +  final String construtoraId;
-+  final String currentObraId;
++  final String loteamentoId;
++  final String quadraId;
++  final String loteId;
++  final String setorId;
++  final String name;
++  final DateTime createdAt;
 +
-+  const ObraSwitcher({
++  Equipe({
++    required this.id,
++    required this.construtoraId,
++    required this.loteamentoId,
++    required this.quadraId,
++    required this.loteId,
++    required this.setorId,
++    required this.name,
++    required this.createdAt,
++  });
++
++  factory Equipe.fromJson(Map<String, dynamic> json) => _$EquipeFromJson(json);
++  Map<String, dynamic> toJson() => _$EquipeToJson(this);
++}
+diff --git a/app/lib/src/features/equipes/domain/equipe.g.dart b/app/lib/src/features/equipes/domain/equipe.g.dart
+new file mode 100644
+index 0000000..3e8680a
+--- /dev/null
++++ b/app/lib/src/features/equipes/domain/equipe.g.dart
+@@ -0,0 +1,29 @@
++// GENERATED CODE - DO NOT MODIFY BY HAND
++
++part of 'equipe.dart';
++
++// **************************************************************************
++// JsonSerializableGenerator
++// **************************************************************************
++
++Equipe _$EquipeFromJson(Map<String, dynamic> json) => Equipe(
++  id: json['id'] as String,
++  construtoraId: json['construtoraId'] as String,
++  loteamentoId: json['loteamentoId'] as String,
++  quadraId: json['quadraId'] as String,
++  loteId: json['loteId'] as String,
++  setorId: json['setorId'] as String,
++  name: json['name'] as String,
++  createdAt: DateTime.parse(json['createdAt'] as String),
++);
++
++Map<String, dynamic> _$EquipeToJson(Equipe instance) => <String, dynamic>{
++  'id': instance.id,
++  'construtoraId': instance.construtoraId,
++  'loteamentoId': instance.loteamentoId,
++  'quadraId': instance.quadraId,
++  'loteId': instance.loteId,
++  'setorId': instance.setorId,
++  'name': instance.name,
++  'createdAt': instance.createdAt.toIso8601String(),
++};
+diff --git a/app/lib/src/features/equipes/presentation/equipes_list_screen.dart b/app/lib/src/features/equipes/presentation/equipes_list_screen.dart
+new file mode 100644
+index 0000000..0d63c48
+--- /dev/null
++++ b/app/lib/src/features/equipes/presentation/equipes_list_screen.dart
+@@ -0,0 +1,71 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import '../data/equipe_repository.dart';
++import '../domain/equipe.dart';
++import '../../../common_widgets/sigo_breadcrumbs.dart';
++
++class EquipesListScreen extends ConsumerWidget {
++  final String construtoraId;
++  final String loteamentoId;
++  final String quadraId;
++  final String loteId;
++  final String setorId;
++
++  const EquipesListScreen({
 +    super.key,
 +    required this.construtoraId,
-+    required this.currentObraId,
++    required this.loteamentoId,
++    required this.quadraId,
++    required this.loteId,
++    required this.setorId,
 +  });
 +
 +  @override
 +  Widget build(BuildContext context, WidgetRef ref) {
-+    final obrasAsync = ref.watch(construtoraObrasProvider(construtoraId));
-+    return obrasAsync.maybeWhen(
-+      data: (obras) {
-+        if (obras.isEmpty) return const SizedBox.shrink();
-+        final isSelectedPresent = obras.any((o) => o.id == currentObraId);
-+        final selectedValue = isSelectedPresent ? currentObraId : null;
++    final stream = ref.watch(equipeRepositoryProvider).watchEquipes(construtoraId, loteamentoId, quadraId, loteId, setorId);
 +
-+        return Container(
-+          height: 36,
-+          padding: const EdgeInsets.symmetric(horizontal: 8),
-+          decoration: BoxDecoration(
-+            color: Colors.white,
-+            borderRadius: BorderRadius.circular(8),
-+            border: Border.all(color: Colors.black12),
++    return Scaffold(
++      appBar: AppBar(title: const Text('Equipes')),
++      body: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          SigoBreadcrumbs(
++            segments: [
++              BreadcrumbSegment(label: 'Loteamento', url: '/loteamentos/$loteamentoId'),
++              BreadcrumbSegment(label: 'Quadra', url: '/loteamentos/$loteamentoId/quadras/$quadraId'),
++              BreadcrumbSegment(label: 'Lote', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId'),
++              BreadcrumbSegment(label: 'Setor', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/$setorId'),
++              const BreadcrumbSegment(label: 'Equipes'),
++            ],
 +          ),
-+          child: DropdownButtonHideUnderline(
-+            child: DropdownButton<String>(
-+              key: const Key('obra-switcher-dropdown'),
-+              value: selectedValue,
-+              hint: const Text(
-+                'Selecionar Obra',
-+                style: TextStyle(fontSize: 12, color: Colors.black54),
-+              ),
-+              icon: const Icon(Icons.swap_horiz, size: 18, color: Colors.amber),
-+              style: const TextStyle(
-+                color: Colors.black87,
-+                fontSize: 12,
-+                fontWeight: FontWeight.w600,
-+              ),
-+              items: obras.map((o) {
-+                return DropdownMenuItem<String>(
-+                  key: Key('obra-switcher-item-${o.id}'),
-+                  value: o.id,
-+                  child: Row(
-+                    mainAxisSize: MainAxisSize.min,
-+                    children: [
-+                      Icon(
-+                        Icons.business,
-+                        size: 14,
-+                        color: o.id == currentObraId
-+                            ? Colors.amber[900]
-+                            : Colors.black45,
-+                      ),
-+                      const SizedBox(width: 6),
-+                      Text(
-+                        o.name,
-+                        overflow: TextOverflow.ellipsis,
-+                      ),
-+                    ],
-+                  ),
-+                );
-+              }).toList(),
-+              onChanged: (newObraId) {
-+                if (newObraId != null && newObraId != currentObraId) {
-+                  context.go('/construtora/$construtoraId/obra/$newObraId');
++          Expanded(
++            child: StreamBuilder<List<Equipe>>(
++              stream: stream,
++              builder: (context, snapshot) {
++                if (snapshot.connectionState == ConnectionState.waiting) {
++                  return const Center(child: CircularProgressIndicator());
 +                }
++                if (snapshot.hasError) {
++                  return Center(child: Text('Erro: ${snapshot.error}'));
++                }
++                final items = snapshot.data ?? [];
++                if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
++
++                return ListView.builder(
++                  itemCount: items.length,
++                  itemBuilder: (context, index) {
++                    final item = items[index];
++                    return ListTile(
++                      title: Text(item.name),
++                      subtitle: Text('Criado em: ${item.createdAt}'),
++                    );
++                  },
++                );
 +              },
 +            ),
 +          ),
-+        );
-+      },
-+      orElse: () => const SizedBox.shrink(),
++        ],
++      ),
 +    );
 +  }
 +}
-diff --git a/app/lib/src/features/obras/presentation/current_permissions_provider.dart b/app/lib/src/features/obras/presentation/current_permissions_provider.dart
-index 110ef2f..5edf8ad 100644
---- a/app/lib/src/features/obras/presentation/current_permissions_provider.dart
-+++ b/app/lib/src/features/obras/presentation/current_permissions_provider.dart
-@@ -14,17 +14,42 @@ final construtoraPermissionProvider = StreamProvider.autoDispose
-       if (user == null) return Stream.value(null);
-       return cachedDocument('construtoras/$c/construtora_members/${user.uid}');
-     });
-+
-+final obraDocProvider = StreamProvider.autoDispose
-+    .family<Map<String, dynamic>?, ObraScope>((ref, scope) {
-+      return cachedDocument(
-+        'construtoras/${scope.construtoraId}/obras/${scope.obraId}',
-+      );
-+    });
-+
- final currentPermissionsProvider = StreamProvider.autoDispose
-     .family<ObraMember?, ObraScope>((ref, scope) {
-       final user = ref.watch(authStateChangesProvider).value;
-       if (user == null) return Stream.value(null);
-       final dev = ref.watch(trustedDevProvider).value == true;
-+      if (dev) {
-+        return Stream.value(
-+          ObraMember(
-+            userId: user.uid,
-+            isAdmin: true,
-+            isActive: true,
-+            modules: ['diario', 'lotes', 'estoque'],
-+            joinedAt: DateTime(2000),
-+          ),
-+        );
-+      }
-+
-       final cm = ref
-           .watch(construtoraPermissionProvider(scope.construtoraId))
-           .value;
--      if (dev ||
--          cm?['isActive'] == true &&
--              (cm?['isAdmin'] == true || cm?['isOwner'] == true)) {
-+      if (cm?['isActive'] != true) return Stream.value(null);
-+
-+      final obraDoc = ref.watch(obraDocProvider(scope)).value;
-+      if (obraDoc != null && obraDoc['isActive'] == false) {
-+        return Stream.value(null);
-+      }
-+
-+      if (cm?['isAdmin'] == true || cm?['isOwner'] == true) {
-         return Stream.value(
-           ObraMember(
-             userId: user.uid,
-@@ -35,14 +60,15 @@ final currentPermissionsProvider = StreamProvider.autoDispose
-           ),
-         );
-       }
--      if (cm?['isActive'] != true) return Stream.value(null);
-+
-       return cachedDocument(
-         'construtoras/${scope.construtoraId}/obras/${scope.obraId}/members/${user.uid}',
-       ).map((doc) {
-         if (doc?['isActive'] != true) return null;
--        final data = doc!;
--        data['modules'] = (data['modules'] as List? ?? [])
--            .map((m) => normalizeModule(m as String))
-+        final data = Map<String, dynamic>.from(doc!);
-+        final rawModules = data['modules'] ?? data['allowedModules'];
-+        data['modules'] = (rawModules as List? ?? [])
-+            .map((m) => normalizeModule(m.toString()))
-             .toList();
-         return ObraMember.fromJson(data);
-       });
-diff --git a/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart b/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart
-index 3ad5e06..52961a3 100644
---- a/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart
-+++ b/app/lib/src/features/obras/presentation/obra_dashboard_screen.dart
-@@ -1,3 +1,4 @@
-+import '../../../core/contracts.dart';
- import '../../lotes/domain/lote.dart';
- 
- import 'package:flutter/material.dart';
-@@ -32,9 +33,11 @@ class ObraDashboardScreen extends ConsumerWidget {
-         obraId: obraId,
-       )),
-     );
--    final canLotes =
--        permissionsAsync.value?.isAdmin == true ||
--        permissionsAsync.value?.modules.contains('lotes') == true;
-+    final activeMember = permissionsAsync.asData?.value;
-+    final canLotes = activeMember != null &&
-+        activeMember.isActive &&
-+        (activeMember.isAdmin ||
-+            activeMember.modules.map(normalizeModule).contains('lotes'));
-     final lotesAsync = canLotes
-         ? ref.watch(
-             obraLotesProvider((construtoraId: construtoraId, obraId: obraId)),
-@@ -107,7 +110,8 @@ class ObraDashboardScreen extends ConsumerWidget {
-                           '/construtora/$construtoraId/obra/$obraId/lotes',
-                         ),
-                       ),
--                    if (member.isAdmin || member.modules.contains('diario'))
-+                    if (member.isAdmin ||
-+                        member.modules.map(normalizeModule).contains('diario'))
-                       SigoModuleCard(
-                         icon: Icons.assignment,
-                         title: 'Diário de Obra',
-diff --git a/app/test/widget_test.dart b/app/test/widget_test.dart
-index f0b1190..7369fa1 100644
---- a/app/test/widget_test.dart
-+++ b/app/test/widget_test.dart
-@@ -1,11 +1,19 @@
- import 'package:app/main.dart';
-+import 'package:app/src/common_widgets/access_guard.dart';
-+import 'package:app/src/core/contracts.dart';
- import 'package:app/src/features/authentication/data/auth_repository.dart';
- import 'package:app/src/features/authentication/data/user_repository.dart';
--import 'package:app/src/common_widgets/access_guard.dart';
-+import 'package:app/src/features/lotes/domain/lote.dart';
-+import 'package:app/src/features/lotes/presentation/obra_lotes_provider.dart';
-+import 'package:app/src/features/obras/domain/obra.dart';
-+import 'package:app/src/features/obras/domain/obra_member.dart';
-+import 'package:app/src/features/obras/presentation/construtora_obras_provider.dart';
- import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
-+import 'package:app/src/features/obras/presentation/obra_dashboard_screen.dart';
- import 'package:flutter/material.dart';
- import 'package:flutter_riverpod/flutter_riverpod.dart';
- import 'package:flutter_test/flutter_test.dart';
+diff --git a/app/lib/src/features/equipes/routing/equipes_routes.dart b/app/lib/src/features/equipes/routing/equipes_routes.dart
+new file mode 100644
+index 0000000..0b3b5be
+--- /dev/null
++++ b/app/lib/src/features/equipes/routing/equipes_routes.dart
+@@ -0,0 +1,31 @@
 +import 'package:go_router/go_router.dart';
++import '../presentation/equipes_list_screen.dart';
++import '../../../common_widgets/access_guard.dart';
++
++abstract class EquipesPaths {
++  static const list = 'equipes';
++  static const detail = 'equipes/:equipeId';
++}
++
++List<RouteBase> get equipesRoutes => [
++      GoRoute(
++        path: EquipesPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final loteamentoId = state.pathParameters['loteamentoId']!;
++          final quadraId = state.pathParameters['quadraId']!;
++          final loteId = state.pathParameters['loteId']!;
++          final setorId = state.pathParameters['setorId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: EquipesListScreen(
++              construtoraId: cId,
++              loteamentoId: loteamentoId,
++              quadraId: quadraId,
++              loteId: loteId,
++              setorId: setorId,
++            ),
++          );
++        },
++      ),
++    ];
+diff --git a/app/lib/src/features/lotes/presentation/lotes_list_screen.dart b/app/lib/src/features/lotes/presentation/lotes_list_screen.dart
+index 836ed6e..1f42a74 100644
+--- a/app/lib/src/features/lotes/presentation/lotes_list_screen.dart
++++ b/app/lib/src/features/lotes/presentation/lotes_list_screen.dart
+@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:go_router/go_router.dart';
+ import '../data/lote_repository.dart';
+ import '../domain/lote.dart';
++import '../../../common_widgets/sigo_breadcrumbs.dart';
  
- void main() {
-   testWidgets(
-@@ -25,6 +33,7 @@ void main() {
-       expect(tester.takeException(), isNull);
-     },
-   );
-+
-   testWidgets('trusted dev reaches obra without memberships', (tester) async {
-     await tester.pumpWidget(
-       ProviderScope(
-@@ -44,6 +53,7 @@ void main() {
-     await tester.pumpAndSettle();
-     expect(find.text('global access'), findsOneWidget);
-   });
-+
-   testWidgets(
-     'inactive membership denies central module despite legacy flags',
-     (tester) async {
-@@ -73,4 +83,239 @@ void main() {
-       expect(find.text('Acesso Negado'), findsOneWidget);
-     },
-   );
-+
-+  testWidgets(
-+    'alternar de Obra A para Obra B no seletor recalcula layout imediatamente',
-+    (tester) async {
-+      tester.view.physicalSize = const Size(1280, 800);
-+      tester.view.devicePixelRatio = 1.0;
-+      addTearDown(() => tester.view.resetPhysicalSize());
-+
-+      final router = GoRouter(
-+        initialLocation: '/construtora/c1/obra/obraA',
+ class LotesListScreen extends ConsumerWidget {
+   final String construtoraId;
+@@ -22,17 +23,28 @@ class LotesListScreen extends ConsumerWidget {
+ 
+     return Scaffold(
+       appBar: AppBar(title: const Text('Lotes')),
+-      body: StreamBuilder<List<Lote>>(
+-        stream: stream,
+-        builder: (context, snapshot) {
+-          if (snapshot.connectionState == ConnectionState.waiting) {
+-            return const Center(child: CircularProgressIndicator());
+-          }
+-          if (snapshot.hasError) {
+-            return Center(child: Text('Erro: ${snapshot.error}'));
+-          }
+-          final items = snapshot.data ?? [];
+-          if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
++      body: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          SigoBreadcrumbs(
++            segments: [
++              BreadcrumbSegment(label: 'Loteamento', url: '/loteamentos/$loteamentoId'),
++              BreadcrumbSegment(label: 'Quadra', url: '/loteamentos/$loteamentoId/quadras/$quadraId'),
++              const BreadcrumbSegment(label: 'Lotes'),
++            ],
++          ),
++          Expanded(
++            child: StreamBuilder<List<Lote>>(
++              stream: stream,
++              builder: (context, snapshot) {
++                if (snapshot.connectionState == ConnectionState.waiting) {
++                  return const Center(child: CircularProgressIndicator());
++                }
++                if (snapshot.hasError) {
++                  return Center(child: Text('Erro: ${snapshot.error}'));
++                }
++                final items = snapshot.data ?? [];
++                if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
+ 
+           return ListView.builder(
+             itemCount: items.length,
+@@ -42,13 +54,16 @@ class LotesListScreen extends ConsumerWidget {
+                 title: Text(item.name),
+                 subtitle: Text('Status: ${item.status} | Phase: ${item.phase}'),
+                 onTap: () {
+-                  // In the future this goes to Setores
++                  context.go('/loteamentos/$loteamentoId/quadras/$quadraId/lotes/${item.id}/setores');
+                 },
+               );
+             },
+           );
+         },
+       ),
++    ),
++  ],
++),
+     );
+   }
+ }
+diff --git a/app/lib/src/features/lotes/routing/lotes_routes.dart b/app/lib/src/features/lotes/routing/lotes_routes.dart
+index 9753d89..873d2cd 100644
+--- a/app/lib/src/features/lotes/routing/lotes_routes.dart
++++ b/app/lib/src/features/lotes/routing/lotes_routes.dart
+@@ -1,6 +1,7 @@
+ import 'package:go_router/go_router.dart';
+ import '../presentation/lotes_list_screen.dart';
+ import '../../../common_widgets/access_guard.dart';
++import '../../setores/routing/setores_routes.dart';
+ 
+ abstract class LotesPaths {
+   static const list = 'lotes';
+@@ -22,5 +23,16 @@ List<RouteBase> get lotesRoutes => [
+             ),
+           );
+         },
 +        routes: [
 +          GoRoute(
-+            path: '/construtora/:cId/obra/:oId',
++            path: ':loteId',
 +            builder: (context, state) {
-+              final cId = state.pathParameters['cId']!;
-+              final oId = state.pathParameters['oId']!;
-+              return ObraDashboardScreen(construtoraId: cId, obraId: oId);
++              return const SizedBox();
 +            },
++            routes: [
++              ...setoresRoutes,
++            ],
++          )
++        ],
+       ),
+     ];
+diff --git a/app/lib/src/features/setores/data/setor_repository.dart b/app/lib/src/features/setores/data/setor_repository.dart
+new file mode 100644
+index 0000000..333eebc
+--- /dev/null
++++ b/app/lib/src/features/setores/data/setor_repository.dart
+@@ -0,0 +1,27 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import '../domain/setor.dart';
++
++final setorRepositoryProvider = Provider<SetorRepository>((ref) {
++  return SetorRepository(FirebaseFirestore.instance);
++});
++
++class SetorRepository {
++  final FirebaseFirestore _firestore;
++
++  SetorRepository(this._firestore);
++
++  CollectionReference<Setor> _setoresRef(String construtoraId, String loteamentoId, String quadraId, String loteId) =>
++      _firestore
++          .collection('construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores')
++          .withConverter<Setor>(
++            fromFirestore: (snapshot, _) => Setor.fromJson(snapshot.data()!),
++            toFirestore: (setor, _) => setor.toJson(),
++          );
++
++  Stream<List<Setor>> watchSetores(String construtoraId, String loteamentoId, String quadraId, String loteId) {
++    return _setoresRef(construtoraId, loteamentoId, quadraId, loteId)
++        .snapshots()
++        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
++  }
++}
+diff --git a/app/lib/src/features/setores/domain/setor.dart b/app/lib/src/features/setores/domain/setor.dart
+new file mode 100644
+index 0000000..207858e
+--- /dev/null
++++ b/app/lib/src/features/setores/domain/setor.dart
+@@ -0,0 +1,27 @@
++import 'package:json_annotation/json_annotation.dart';
++
++part 'setor.g.dart';
++
++@JsonSerializable()
++class Setor {
++  final String id;
++  final String construtoraId;
++  final String loteamentoId;
++  final String quadraId;
++  final String loteId;
++  final String name;
++  final DateTime createdAt;
++
++  Setor({
++    required this.id,
++    required this.construtoraId,
++    required this.loteamentoId,
++    required this.quadraId,
++    required this.loteId,
++    required this.name,
++    required this.createdAt,
++  });
++
++  factory Setor.fromJson(Map<String, dynamic> json) => _$SetorFromJson(json);
++  Map<String, dynamic> toJson() => _$SetorToJson(this);
++}
+diff --git a/app/lib/src/features/setores/domain/setor.g.dart b/app/lib/src/features/setores/domain/setor.g.dart
+new file mode 100644
+index 0000000..209d8ef
+--- /dev/null
++++ b/app/lib/src/features/setores/domain/setor.g.dart
+@@ -0,0 +1,27 @@
++// GENERATED CODE - DO NOT MODIFY BY HAND
++
++part of 'setor.dart';
++
++// **************************************************************************
++// JsonSerializableGenerator
++// **************************************************************************
++
++Setor _$SetorFromJson(Map<String, dynamic> json) => Setor(
++  id: json['id'] as String,
++  construtoraId: json['construtoraId'] as String,
++  loteamentoId: json['loteamentoId'] as String,
++  quadraId: json['quadraId'] as String,
++  loteId: json['loteId'] as String,
++  name: json['name'] as String,
++  createdAt: DateTime.parse(json['createdAt'] as String),
++);
++
++Map<String, dynamic> _$SetorToJson(Setor instance) => <String, dynamic>{
++  'id': instance.id,
++  'construtoraId': instance.construtoraId,
++  'loteamentoId': instance.loteamentoId,
++  'quadraId': instance.quadraId,
++  'loteId': instance.loteId,
++  'name': instance.name,
++  'createdAt': instance.createdAt.toIso8601String(),
++};
+diff --git a/app/lib/src/features/setores/presentation/setores_list_screen.dart b/app/lib/src/features/setores/presentation/setores_list_screen.dart
+new file mode 100644
+index 0000000..e47d265
+--- /dev/null
++++ b/app/lib/src/features/setores/presentation/setores_list_screen.dart
+@@ -0,0 +1,72 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:go_router/go_router.dart';
++import '../data/setor_repository.dart';
++import '../domain/setor.dart';
++import '../../../common_widgets/sigo_breadcrumbs.dart';
++
++class SetoresListScreen extends ConsumerWidget {
++  final String construtoraId;
++  final String loteamentoId;
++  final String quadraId;
++  final String loteId;
++
++  const SetoresListScreen({
++    super.key,
++    required this.construtoraId,
++    required this.loteamentoId,
++    required this.quadraId,
++    required this.loteId,
++  });
++
++  @override
++  Widget build(BuildContext context, WidgetRef ref) {
++    final stream = ref.watch(setorRepositoryProvider).watchSetores(construtoraId, loteamentoId, quadraId, loteId);
++
++    return Scaffold(
++      appBar: AppBar(title: const Text('Setores')),
++      body: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          SigoBreadcrumbs(
++            segments: [
++              BreadcrumbSegment(label: 'Loteamento', url: '/loteamentos/$loteamentoId'),
++              BreadcrumbSegment(label: 'Quadra', url: '/loteamentos/$loteamentoId/quadras/$quadraId'),
++              BreadcrumbSegment(label: 'Lote', url: '/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId'),
++              const BreadcrumbSegment(label: 'Setores'),
++            ],
++          ),
++          Expanded(
++            child: StreamBuilder<List<Setor>>(
++              stream: stream,
++              builder: (context, snapshot) {
++                if (snapshot.connectionState == ConnectionState.waiting) {
++                  return const Center(child: CircularProgressIndicator());
++                }
++                if (snapshot.hasError) {
++                  return Center(child: Text('Erro: ${snapshot.error}'));
++                }
++                final items = snapshot.data ?? [];
++                if (items.isEmpty) return const Center(child: Text('Nenhum registro encontrado.'));
++
++                return ListView.builder(
++                  itemCount: items.length,
++                  itemBuilder: (context, index) {
++                    final item = items[index];
++                    return ListTile(
++                      title: Text(item.name),
++                      subtitle: Text('Criado em: ${item.createdAt}'),
++                      onTap: () {
++                        context.go('/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/${item.id}/equipes');
++                      },
++                    );
++                  },
++                );
++              },
++            ),
 +          ),
 +        ],
-+      );
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/setores/routing/setores_routes.dart b/app/lib/src/features/setores/routing/setores_routes.dart
+new file mode 100644
+index 0000000..4d84084
+--- /dev/null
++++ b/app/lib/src/features/setores/routing/setores_routes.dart
+@@ -0,0 +1,42 @@
++import 'package:flutter/material.dart';
++import 'package:go_router/go_router.dart';
++import '../presentation/setores_list_screen.dart';
++import '../../../common_widgets/access_guard.dart';
++import '../../equipes/routing/equipes_routes.dart';
 +
-+      final obrasList = [
-+        Obra(
-+          id: 'obraA',
-+          construtoraId: 'c1',
-+          name: 'Obra Alfa',
-+          createdAt: DateTime(2025),
-+        ),
-+        Obra(
-+          id: 'obraB',
-+          construtoraId: 'c1',
-+          name: 'Obra Beta',
-+          createdAt: DateTime(2025),
-+        ),
-+      ];
++abstract class SetoresPaths {
++  static const list = 'setores';
++  static const detail = 'setores/:setorId';
++}
 +
-+      await tester.pumpWidget(
-+        ProviderScope(
-+          overrides: [
-+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-+            construtoraObrasProvider('c1').overrideWith(
-+              (ref) => Future.value(obrasList),
++List<RouteBase> get setoresRoutes => [
++      GoRoute(
++        path: SetoresPaths.list,
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final loteamentoId = state.pathParameters['loteamentoId']!;
++          final quadraId = state.pathParameters['quadraId']!;
++          final loteId = state.pathParameters['loteId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            child: SetoresListScreen(
++              construtoraId: cId,
++              loteamentoId: loteamentoId,
++              quadraId: quadraId,
++              loteId: loteId,
 +            ),
-+            currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraA'))
-+                .overrideWith(
-+                  (ref) => Stream.value(
-+                    ObraMember(
-+                      userId: 'u1',
-+                      isActive: true,
-+                      isAdmin: false,
-+                      modules: ['diario'],
-+                      joinedAt: DateTime(2025),
-+                    ),
-+                  ),
-+                ),
-+            currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraB'))
-+                .overrideWith(
-+                  (ref) => Stream.value(
-+                    ObraMember(
-+                      userId: 'u1',
-+                      isActive: true,
-+                      isAdmin: false,
-+                      modules: ['lotes'],
-+                      joinedAt: DateTime(2025),
-+                    ),
-+                  ),
-+                ),
-+            obraLotesProvider((construtoraId: 'c1', obraId: 'obraA'))
-+                .overrideWith((ref) => Stream.value(<Lote>[])),
-+            obraLotesProvider((construtoraId: 'c1', obraId: 'obraB'))
-+                .overrideWith((ref) => Stream.value(<Lote>[])),
-+          ],
-+          child: MaterialApp.router(routerConfig: router),
-+        ),
-+      );
-+
-+      await tester.pumpAndSettle();
-+
-+      // Na Obra A: exibe Diário de Obra (na sidebar e no dashboard card), não exibe Lotes
-+      expect(find.text('Diário de Obra'), findsNWidgets(2));
-+      expect(find.text('Lotes e Setores'), findsNothing);
-+
-+      // Abre dropdown do seletor de obra e seleciona Obra Beta
-+      final dropdown = find.byKey(const Key('obra-switcher-dropdown'));
-+      expect(dropdown, findsOneWidget);
-+      await tester.tap(dropdown);
-+      await tester.pumpAndSettle();
-+
-+      final itemB = find.byKey(const Key('obra-switcher-item-obraB')).last;
-+      await tester.tap(itemB);
-+      await tester.pumpAndSettle();
-+
-+      // Na Obra B: atualiza instantaneamente para exibir Lotes e Setores e ocultar Diário
-+      expect(find.text('Lotes e Setores'), findsNWidgets(2));
-+      expect(find.text('Diário de Obra'), findsNothing);
-+    },
-+  );
-+
-+  testWidgets(
-+    'rota direta nao autorizada em obra bloqueia via AccessGuard',
-+    (tester) async {
-+      await tester.pumpWidget(
-+        ProviderScope(
-+          overrides: [
-+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-+            construtoraPermissionProvider('c1').overrideWith(
-+              (ref) => Stream.value({'isActive': true, 'isAdmin': false}),
-+            ),
-+            currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraB'))
-+                .overrideWith(
-+                  (ref) => Stream.value(
-+                    ObraMember(
-+                      userId: 'u1',
-+                      isActive: true,
-+                      isAdmin: false,
-+                      modules: ['lotes'], // Sem 'diario'
-+                      joinedAt: DateTime(2025),
-+                    ),
-+                  ),
-+                ),
-+          ],
-+          child: const MaterialApp(
-+            home: AccessGuard(
-+              construtoraId: 'c1',
-+              obraId: 'obraB',
-+              module: 'diario',
-+              child: Text('area restrita'),
-+            ),
-+          ),
-+        ),
-+      );
-+
-+      await tester.pumpAndSettle();
-+      expect(find.text('area restrita'), findsNothing);
-+      expect(find.text('Acesso Negado'), findsOneWidget);
-+    },
-+  );
-+
-+  testWidgets(
-+    'obra inativa nega acesso para usuario comum',
-+    (tester) async {
-+      await tester.pumpWidget(
-+        ProviderScope(
-+          overrides: [
-+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-+            construtoraPermissionProvider('c1').overrideWith(
-+              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
-+            ),
-+            obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
-+                .overrideWith((ref) => Stream.value({'isActive': false})),
-+          ],
-+          child: const MaterialApp(
-+            home: AccessGuard(
-+              construtoraId: 'c1',
-+              obraId: 'obraX',
-+              child: Text('painel secreto'),
-+            ),
-+          ),
-+        ),
-+      );
-+
-+      await tester.pumpAndSettle();
-+      expect(find.text('painel secreto'), findsNothing);
-+      expect(find.text('Acesso Negado'), findsOneWidget);
-+    },
-+  );
-+
-+  testWidgets(
-+    'obra inativa preserva acesso de suporte para dev global',
-+    (tester) async {
-+      await tester.pumpWidget(
-+        ProviderScope(
-+          overrides: [
-+            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-+            construtoraPermissionProvider('c1').overrideWith(
-+              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
-+            ),
-+            obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
-+                .overrideWith((ref) => Stream.value({'isActive': false})),
-+          ],
-+          child: const MaterialApp(
-+            home: AccessGuard(
-+              construtoraId: 'c1',
-+              obraId: 'obraX',
-+              child: Text('painel secreto'),
-+            ),
-+          ),
-+        ),
-+      );
-+
-+      await tester.pumpAndSettle();
-+      expect(find.text('painel secreto'), findsOneWidget);
-+    },
-+  );
-+
-+  testWidgets(
-+    'allowedModules normaliza modulos legados e falha fechado se vazio',
-+    (tester) async {
-+      // Teste com allowedModules legados (rdo -> diario)
-+      final rawData = {
-+        'userId': 'u1',
-+        'isActive': true,
-+        'isAdmin': false,
-+        'allowedModules': ['rdo'],
-+        'joinedAt': DateTime(2025).toIso8601String(),
-+      };
-+      final modules = ((rawData['modules'] ?? rawData['allowedModules']) as List)
-+          .map((m) => normalizeModule(m.toString()))
-+          .toList();
-+      final member = ObraMember.fromJson({...rawData, 'modules': modules});
-+
-+      expect(member.modules, contains('diario'));
-+      expect(member.modules, isNot(contains('rdo')));
-+
-+      // Teste com allowedModules vazio falha fechado (sem permissões)
-+      final emptyData = {
-+        'userId': 'u2',
-+        'isActive': true,
-+        'isAdmin': false,
-+        'allowedModules': [],
-+        'joinedAt': DateTime(2025).toIso8601String(),
-+      };
-+      final emptyModules =
-+          ((emptyData['modules'] ?? emptyData['allowedModules']) as List)
-+              .map((m) => normalizeModule(m.toString()))
-+              .toList();
-+      final emptyMember = ObraMember.fromJson({
-+        ...emptyData,
-+        'modules': emptyModules,
-+      });
-+
-+      expect(emptyMember.modules, isEmpty);
-+    },
-+  );
- }
-```
++          );
++        },
++        routes: [
++          GoRoute(
++            path: ':setorId',
++            builder: (context, state) {
++              return const SizedBox();
++            },
++            routes: [
++              ...equipesRoutes,
++            ],
++          )
++        ],
++      ),
++    ];
+
