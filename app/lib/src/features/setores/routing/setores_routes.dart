@@ -17,6 +17,7 @@ List<RouteBase> get setoresRoutes => [
           final loteId = state.pathParameters['loteId']!;
           return AccessGuard(
             construtoraId: cId,
+            module: 'lotes',
             child: SetoresListScreen(
               construtoraId: cId,
               loteamentoId: loteamentoId,
@@ -29,7 +30,9 @@ List<RouteBase> get setoresRoutes => [
           GoRoute(
             path: ':setorId',
             redirect: (context, state) => state.uri.path == state.matchedLocation
-                ? '${state.matchedLocation}/equipes'
+                ? state.uri
+                      .replace(path: '${state.matchedLocation}/equipes')
+                      .toString()
                 : null,
             routes: [
               ...equipesRoutes,

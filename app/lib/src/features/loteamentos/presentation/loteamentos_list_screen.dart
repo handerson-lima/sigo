@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../data/loteamento_repository.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
+import '../../../common_widgets/sigo_empty_state.dart';
+import '../../../common_widgets/sigo_error_state.dart';
+import '../../../common_widgets/sigo_layout.dart';
 
 class LoteamentosListScreen extends ConsumerWidget {
   final String construtoraId;
@@ -14,26 +17,29 @@ class LoteamentosListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final loteamentosAsync = ref.watch(
-      watchLoteamentosProvider((construtoraId: construtoraId)),
-    );
+    final params = (construtoraId: construtoraId);
+    final loteamentosAsync = ref.watch(watchLoteamentosProvider(params));
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Loteamentos')),
-      body: Column(
+    return SigoLayout(
+      title: 'Loteamentos',
+      activeRoute: '/construtora/$construtoraId/loteamentos',
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SigoBreadcrumbs(),
           Expanded(
             child: loteamentosAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => const Center(
-                child: Text('Não foi possível carregar os loteamentos. Tente novamente.'),
+              error: (err, stack) => SigoErrorState(
+                message: 'Não foi possível carregar os loteamentos.',
+                cause: err,
+                onRetry: () => ref.invalidate(watchLoteamentosProvider(params)),
               ),
               data: (items) {
                 if (items.isEmpty) {
-                  return const Center(
-                    child: Text('Nenhum registro encontrado.'),
+                  return const SigoEmptyState(
+                    message: 'Nenhum loteamento cadastrado',
+                    icon: Icons.map_outlined,
                   );
                 }
 

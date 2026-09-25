@@ -1,5 +1,4 @@
 import '../../../core/contracts.dart';
-import '../../lotes/domain/lote.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,10 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import 'current_permissions_provider.dart';
 import 'access_denied_screen.dart';
-
-import 'package:fl_chart/fl_chart.dart';
-
-import '../../lotes/presentation/obra_lotes_provider.dart';
 
 import '../../../common_widgets/sigo_layout.dart';
 import '../../../common_widgets/sigo_module_card.dart';
@@ -71,11 +66,6 @@ class ObraDashboardScreen extends ConsumerWidget {
         (activeMember.isAdmin ||
             activeMember.modules.map(normalizeModule).contains('validacao') ||
             activeMember.modules.map(normalizeModule).contains('qualidade'));
-    final lotesAsync = canLotes
-        ? ref.watch(
-            obraLotesProvider((construtoraId: construtoraId, obraId: obraId)),
-          )
-        : const AsyncData<List<Lote>>([]);
 
     return permissionsAsync.when(
       loading: () =>
@@ -148,7 +138,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.map,
                         title: 'Lotes e Setores',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/$obraId/lotes',
+                          '/construtora/$construtoraId/loteamentos',
                         ),
                       ),
                     if (member.isAdmin ||
@@ -165,7 +155,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.rule,
                         title: 'Validação & Qualidade',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/$obraId/lotes',
+                          '/construtora/$construtoraId/loteamentos',
                         ),
                       ),
                   ],
@@ -271,94 +261,6 @@ class ObraDashboardScreen extends ConsumerWidget {
                         ),
                       ),
                   ],
-                ),
-                const SizedBox(height: 32),
-
-                // Analytics
-                lotesAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (_, _) => const SizedBox(),
-                  data: (lotes) {
-                    if (lotes.isEmpty) return const SizedBox();
-
-                    final Map<String, int> statusCount = {};
-                    for (var lote in lotes) {
-                      statusCount[lote.phase] =
-                          (statusCount[lote.phase] ?? 0) + 1;
-                    }
-                    final colors = [
-                      Colors.blue,
-                      Colors.orange,
-                      Colors.purple,
-                      Colors.green,
-                      Colors.teal,
-                    ];
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Status dos Lotes',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          height: 150,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: PieChart(
-                                  PieChartData(
-                                    sectionsSpace: 2,
-                                    centerSpaceRadius: 30,
-                                    sections: statusCount.entries.map((e) {
-                                      final idx = statusCount.keys
-                                          .toList()
-                                          .indexOf(e.key);
-                                      return PieChartSectionData(
-                                        value: e.value.toDouble(),
-                                        color: colors[idx % colors.length],
-                                        title: '${e.value}',
-                                        radius: 20,
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: ListView.builder(
-                                  itemCount: statusCount.length,
-                                  itemBuilder: (context, index) {
-                                    final entry = statusCount.entries.elementAt(
-                                      index,
-                                    );
-                                    return ListTile(
-                                      leading: Container(
-                                        width: 12,
-                                        height: 12,
-                                        decoration: BoxDecoration(
-                                          color: colors[index % colors.length],
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                      ),
-                                      title: Text(
-                                        entry.key,
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
                 ),
               ],
             ),

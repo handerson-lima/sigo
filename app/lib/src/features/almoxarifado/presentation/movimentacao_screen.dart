@@ -12,7 +12,7 @@ import '../data/almoxarifado_repository.dart';
 import '../domain/material.dart' as mat;
 import '../domain/movimentacao.dart';
 import '../../obras/presentation/construtora_obras_provider.dart';
-import '../../lotes/presentation/obra_lotes_provider.dart';
+import '../../lotes/presentation/widgets/lote_hierarchy_selector.dart';
 import '../../fornecedores/presentation/widgets/fornecedor_autocomplete_field.dart';
 
 class MovimentacaoScreen extends ConsumerStatefulWidget {
@@ -49,6 +49,8 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
   final _custoTotalSaidaController = TextEditingController();
   String? _selectedObraId;
   String? _selectedLoteId;
+  String? _loteamentoId;
+  String? _quadraId;
   bool _apropriacaoLote = false;
   bool _isLoading = false;
 
@@ -362,90 +364,40 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                if ((_selectedObraId ?? _obraController.text.trim()).isNotEmpty)
-                  ref
-                      .watch(obraLotesProvider((
-                        construtoraId: widget.construtoraId,
-                        obraId: _selectedObraId ?? _obraController.text.trim()
-                      )))
-                      .when(
-                        data: (lotes) {
-                          if (lotes.isNotEmpty) {
-                            return DropdownButtonFormField<String>(
-                              key: const Key('lote-dropdown'),
-                              initialValue: _selectedLoteId,
-                              decoration: const InputDecoration(
-                                labelText: 'Lote de Destino (Opcional)',
-                              ),
-                              items: [
-                                const DropdownMenuItem<String>(
-                                  value: null,
-                                  child: Text('Nenhum lote específico (Geral da Obra)'),
-                                ),
-                                ...lotes.map((l) => DropdownMenuItem(
-                                      value: l.id,
-                                      child: Text('${l.name} (${l.phase})'),
-                                    )),
-                              ],
-                              onChanged: (val) {
-                                setState(() {
-                                  _selectedLoteId = val;
-                                  _loteController.text = val ?? '';
-                                });
-                              },
-                              validator: (val) {
-                                if (_apropriacaoLote &&
-                                    (val == null || val.isEmpty) &&
-                                    _loteController.text.trim().isEmpty) {
-                                  return 'Selecione o lote para apropriação';
-                                }
-                                return null;
-                              },
-                            );
-                          }
-                          return TextFormField(
-                            controller: _loteController,
-                            decoration: const InputDecoration(
-                              labelText: 'Lote de Destino (Opcional)',
-                            ),
-                            validator: (v) {
-                              if (_apropriacaoLote &&
-                                  (v == null || v.trim().isEmpty)) {
-                                return 'Selecione o lote para apropriação';
-                              }
-                              return null;
-                            },
-                          );
-                        },
-                        loading: () => const LinearProgressIndicator(),
-                        error: (_, _) => TextFormField(
-                          controller: _loteController,
-                          decoration: const InputDecoration(
-                            labelText: 'Lote de Destino (Opcional)',
-                          ),
-                          validator: (v) {
-                            if (_apropriacaoLote &&
-                                (v == null || v.trim().isEmpty)) {
-                              return 'Selecione o lote para apropriação';
-                            }
-                            return null;
-                          },
-                        ),
-                      )
-                else
-                  TextFormField(
-                    controller: _loteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Lote de Destino (Opcional)',
-                    ),
-                    validator: (v) {
-                      if (_apropriacaoLote && (v == null || v.trim().isEmpty)) {
-                        debugPrint('DEBUG lote empty with apropriacaoLote true');
-                        return 'Selecione o lote para apropriação';
-                      }
-                      return null;
-                    },
-                  ),
+                LoteHierarchySelector(
+                  construtoraId: widget.construtoraId,
+                  loteamentoId: _loteamentoId,
+                  quadraId: _quadraId,
+                  loteId: _selectedLoteId,
+                  enabled: !_isLoading,
+                  loteValidator: (val) {
+                    if (_apropriacaoLote && (val == null || val.isEmpty)) {
+                      return 'Selecione o lote para apropriação';
+                    }
+                    return null;
+                  },
+                  onLoteamentoChanged: (val) {
+                    setState(() {
+                      _loteamentoId = val;
+                      _quadraId = null;
+                      _selectedLoteId = null;
+                      _loteController.clear();
+                    });
+                  },
+                  onQuadraChanged: (val) {
+                    setState(() {
+                      _quadraId = val;
+                      _selectedLoteId = null;
+                      _loteController.clear();
+                    });
+                  },
+                  onLoteChanged: (val) {
+                    setState(() {
+                      _selectedLoteId = val;
+                      _loteController.text = val ?? '';
+                    });
+                  },
+                ),
                 const SizedBox(height: 10),
                 SwitchListTile(
                   key: const Key('apropriacao-lote-switch'),

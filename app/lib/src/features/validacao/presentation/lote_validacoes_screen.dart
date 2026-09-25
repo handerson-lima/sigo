@@ -207,7 +207,7 @@ class LoteValidacoesScreen extends ConsumerWidget {
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
-                  context.go('/construtora/$construtoraId/obra/$obraId/lotes');
+                  context.go('/construtora/$construtoraId/loteamentos');
                 },
                 tooltip: 'Voltar aos Lotes',
               ),

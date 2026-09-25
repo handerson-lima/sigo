@@ -43,7 +43,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100)); // Wait for Stream.value
     await tester.pump(); // Render data
 
-    expect(find.text('Nenhum registro encontrado.'), findsOneWidget);
+    expect(find.text('Nenhum setor cadastrado'), findsOneWidget);
   });
 
   testWidgets('Renderiza lista com setores', (tester) async {
@@ -77,5 +77,36 @@ void main() {
     await tester.pump(); // Render data
 
     expect(find.text('Setor A'), findsOneWidget);
+  });
+
+  testWidgets('Renderiza erro e recarrega ao tentar novamente', (tester) async {
+    var stream = Stream<List<Setor>>.error(Exception('falha'));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          watchSetoresProvider.overrideWith((ref, arg) => stream),
+        ],
+        child: buildTestWidget(const SetoresListScreen(
+          construtoraId: 'c1',
+          loteamentoId: 'l1',
+          quadraId: 'q1',
+          loteId: 'lo1',
+        )),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Não foi possível carregar os setores.'),
+      findsOneWidget,
+    );
+
+    stream = Stream.value([]);
+    await tester.tap(find.text('Tentar novamente'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nenhum setor cadastrado'), findsOneWidget);
   });
 }

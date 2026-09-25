@@ -16,6 +16,7 @@ List<RouteBase> get quadrasRoutes => [
           final loteamentoId = state.pathParameters['loteamentoId']!;
           return AccessGuard(
             construtoraId: cId,
+            module: 'lotes',
             child: QuadrasListScreen(
               construtoraId: cId,
               loteamentoId: loteamentoId,
@@ -26,7 +27,9 @@ List<RouteBase> get quadrasRoutes => [
           GoRoute(
             path: ':quadraId',
             redirect: (context, state) => state.uri.path == state.matchedLocation
-                ? '${state.matchedLocation}/lotes'
+                ? state.uri
+                      .replace(path: '${state.matchedLocation}/lotes')
+                      .toString()
                 : null,
             routes: [
               ...lotesRoutes,

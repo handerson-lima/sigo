@@ -9,6 +9,15 @@ enum LoteStatus {
   concluido,
 }
 
+extension LoteStatusLabel on LoteStatus {
+  String get label => switch (this) {
+    LoteStatus.noPrazo => 'No prazo',
+    LoteStatus.atrasado => 'Atrasado',
+    LoteStatus.paralisado => 'Paralisado',
+    LoteStatus.concluido => 'Concluído',
+  };
+}
+
 const List<String> defaultLotePhases = [
   'Plantas',
   'Fundação',

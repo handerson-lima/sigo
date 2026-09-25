@@ -197,3 +197,7 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 ## Deferred from: code review of spec-11-1-navegacao-loteamento-quadra-lote (2026-09-24)
 
 - `StreamProvider.family` sem `autoDispose` acumula subscriptions do Firestore. source_spec: `_bmad-output/implementation-artifacts/spec-11-1-navegacao-loteamento-quadra-lote.md`; location: `app/lib/src/features/loteamentos/data/loteamento_repository.dart:36`. Evidence: padrão pré-existente de setores/equipes; `autoDispose` reintroduziria o `AsyncLoading` que a história quer evitar; decisão de ciclo de vida de provider a revisitar.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-3-corrige-navegacao-hierarquia.md`
+  summary: Criar telas/ações de criação para Loteamento e Quadra (e Setor/Equipe) na hierarquia; hoje só Lote tem `AddLoteScreen` roteada.
+  evidence: `LoteamentoRepository.createLoteamento` e `QuadraRepository.createQuadra` existem, mas nenhum formulário/rota os usa; as listagens novas ficam sem CTA de criação nesses níveis (spec-11-3 só entregou vazio + CTA de Lote por não haver formulário).

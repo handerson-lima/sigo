@@ -7,7 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../common_widgets/sigo_layout.dart';
 import '../../authentication/data/auth_repository.dart';
-import '../../lotes/presentation/obra_lotes_provider.dart';
+import '../../lotes/presentation/widgets/lote_hierarchy_selector.dart';
 import '../data/despesas_adm_repository.dart';
 import '../domain/despesa_adm.dart';
 import '../domain/parcelamento_math.dart';
@@ -40,6 +40,8 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
 
   CategoriaDespesa _categoria = CategoriaDespesa.locacao;
   String? _selectedLoteId;
+  String? _loteamentoId;
+  String? _quadraId;
 
   DateTime _dataEmissao = DateTime.now();
   DateTime _dataVencimento = DateTime.now().add(const Duration(days: 30));
@@ -268,8 +270,6 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final currency = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    final lotesAsync = ref.watch(obraLotesProvider(
-        (construtoraId: widget.construtoraId, obraId: widget.obraId)));
 
     final totalCents = _parseValorTotalCents();
     final somaParcelas = ParcelamentoMath.calcularSomaParcelas(_parcelas);
@@ -365,35 +365,28 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                     const SizedBox(height: 16),
 
                     // Lote associado (para Visão 360)
-                    lotesAsync.when(
-                      loading: () => const LinearProgressIndicator(),
-                      error: (_, _) => const SizedBox(),
-                      data: (lotes) {
-                        return DropdownButtonFormField<String?>(
-                          initialValue: _selectedLoteId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Apropriação por Lote (Opcional)',
-                            helperText:
-                                'Selecione se for custo direto do lote ou deixe vazio para rateio geral',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: [
-                            const DropdownMenuItem<String?>(
-                              value: null,
-                              child: Text('(Nenhum - Despesa Geral da Obra)'),
-                            ),
-                            ...lotes.map((l) {
-                              return DropdownMenuItem<String?>(
-                                value: l.id,
-                                child: Text('Lote: ${l.name} (${l.phase})'),
-                              );
-                            }),
-                          ],
-                          onChanged: (val) {
-                            setState(() => _selectedLoteId = val);
-                          },
-                        );
+                    LoteHierarchySelector(
+                      construtoraId: widget.construtoraId,
+                      loteamentoId: _loteamentoId,
+                      quadraId: _quadraId,
+                      loteId: _selectedLoteId,
+                      enabled: !_isLoading,
+                      loteLabel: 'Apropriação por Lote (Opcional)',
+                      onLoteamentoChanged: (val) {
+                        setState(() {
+                          _loteamentoId = val;
+                          _quadraId = null;
+                          _selectedLoteId = null;
+                        });
+                      },
+                      onQuadraChanged: (val) {
+                        setState(() {
+                          _quadraId = val;
+                          _selectedLoteId = null;
+                        });
+                      },
+                      onLoteChanged: (val) {
+                        setState(() => _selectedLoteId = val);
                       },
                     ),
                     const SizedBox(height: 16),

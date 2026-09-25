@@ -81,6 +81,7 @@ class ChamadaFiltrosHeader extends StatelessWidget {
               Expanded(
                 flex: 3,
                 child: DropdownButtonFormField<String>(
+                  key: const Key('lote-padrao-dropdown'),
                   initialValue: safeDefaultLotId,
                   decoration: InputDecoration(
                     labelText: 'Lote Padrão',

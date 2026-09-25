@@ -1,6 +1,7 @@
 import '../../authentication/data/user_repository.dart';
 import 'current_permissions_provider.dart';
 import '../../financeiro/domain/despesa.dart';
+import '../../../core/contracts.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -72,7 +73,10 @@ class ObrasListScreen extends ConsumerWidget {
     final despesasAsync = admin
         ? ref.watch(despesasConstrutoraProvider(construtoraId))
         : const AsyncData<List<Despesa>>([]);
-    final canViewLoteamentos = admin || cm?['isActive'] == true;
+    final canViewLoteamentos = admin ||
+        cm?['isActive'] == true &&
+            normalizeRawModules(cm?['modules'], cm?['allowedModules'])
+                .contains('lotes');
 
     return SigoLayout(
       title: 'Painel da Construtora',

@@ -56,7 +56,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Nenhum registro encontrado.'), findsOneWidget);
+    expect(find.text('Nenhuma quadra cadastrada'), findsOneWidget);
   });
 
   testWidgets('Renderiza lista com quadras e breadcrumbs', (tester) async {
@@ -106,9 +106,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Não foi possível carregar as quadras. Tente novamente.'),
+      find.text('Não foi possível carregar as quadras.'),
       findsOneWidget,
     );
+    expect(find.text('Tentar novamente'), findsOneWidget);
+  });
+
+  testWidgets('Botão Tentar novamente invalida o provider e recarrega',
+      (tester) async {
+    var stream = Stream<List<Quadra>>.error(Exception('falha'));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          watchQuadrasProvider.overrideWith((ref, arg) => stream),
+        ],
+        child: buildTestWidget(
+          const QuadrasListScreen(construtoraId: 'c1', loteamentoId: 'l1'),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Não foi possível carregar as quadras.'),
+      findsOneWidget,
+    );
+
+    stream = Stream.value([makeQuadra('q1')]);
+    await tester.tap(find.text('Tentar novamente'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quadra q1'), findsOneWidget);
   });
 
   testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)',

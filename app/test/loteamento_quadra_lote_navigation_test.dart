@@ -6,7 +6,9 @@ import 'package:app/src/features/loteamentos/domain/loteamento.dart';
 import 'package:app/src/features/loteamentos/presentation/loteamentos_list_screen.dart';
 import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
+import 'package:app/src/features/lotes/presentation/add_lote_screen.dart';
 import 'package:app/src/features/lotes/presentation/lotes_list_screen.dart';
+import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/equipes/data/equipe_repository.dart';
 import 'package:app/src/features/equipes/domain/equipe.dart';
 import 'package:app/src/features/equipes/presentation/equipes_list_screen.dart';
@@ -412,5 +414,128 @@ void main() {
       router.state.uri.path,
       '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores',
     );
+  });
+
+  testWidgets('deep-link em :loteamentoId redireciona para a lista de quadras',
+      (tester) async {
+    final router = GoRouter(
+      initialLocation: '/construtora/c1/loteamentos/l1',
+      routes: construtoraRoutes,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+          loteamentoRepositoryProvider.overrideWithValue(
+            FakeLoteamentoRepository([makeLoteamento('l1')]),
+          ),
+          quadraRepositoryProvider.overrideWithValue(
+            FakeQuadraRepository([makeQuadra('q1')]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byType(QuadrasListScreen), findsOneWidget);
+    expect(find.text('Quadra q1'), findsOneWidget);
+    expect(
+      router.state.uri.path,
+      '/construtora/c1/loteamentos/l1/quadras',
+    );
+  });
+
+  testWidgets('deep-link em :quadraId redireciona para a lista de lotes',
+      (tester) async {
+    final router = GoRouter(
+      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1',
+      routes: construtoraRoutes,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+          quadraRepositoryProvider.overrideWithValue(
+            FakeQuadraRepository([makeQuadra('q1')]),
+          ),
+          loteRepositoryProvider.overrideWithValue(
+            FakeLoteRepository([makeLote('lo1')]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LotesListScreen), findsOneWidget);
+    expect(find.text('Lote lo1'), findsOneWidget);
+    expect(
+      router.state.uri.path,
+      '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+    );
+  });
+
+  testWidgets('redirect preserva query e fragment do deep-link',
+      (tester) async {
+    final router = GoRouter(
+      initialLocation:
+          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1?x=1#alvo',
+      routes: construtoraRoutes,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+          setorRepositoryProvider.overrideWithValue(FakeSetorRepository([])),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      router.state.uri.path,
+      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores',
+    );
+    expect(router.state.uri.queryParameters['x'], '1');
+    expect(router.state.uri.fragment, 'alvo');
+  });
+
+  testWidgets('admin toca Novo Lote e abre AddLoteScreen com os ids corretos',
+      (tester) async {
+    final router = GoRouter(
+      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+      routes: construtoraRoutes,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+          ),
+          loteRepositoryProvider.overrideWithValue(FakeLoteRepository([])),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Novo Lote'));
+    await tester.pumpAndSettle();
+
+    final addScreen = tester.widget<AddLoteScreen>(find.byType(AddLoteScreen));
+    expect(addScreen.construtoraId, 'c1');
+    expect(addScreen.loteamentoId, 'l1');
+    expect(addScreen.quadraId, 'q1');
   });
 }

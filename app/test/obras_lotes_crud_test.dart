@@ -168,7 +168,7 @@ void main() {
 
       await tester.pumpAndSettle();
       expect(find.text('Lote 01'), findsOneWidget);
-      expect(find.textContaining('Phase: Fundação'), findsOneWidget);
+      expect(find.textContaining('Fase: Fundação'), findsOneWidget);
     });
 
     testWidgets('ObrasListScreen exibe botao de Nova Obra para Administrador', (tester) async {
@@ -197,6 +197,8 @@ void main() {
       // Encontra o botão de criar obra na AppBar e no centro do estado vazio
       expect(find.byTooltip('Nova Obra'), findsOneWidget);
       expect(find.text('Criar Nova Obra'), findsOneWidget);
+      // Admin/owner enxerga o atalho de Loteamentos
+      expect(find.byTooltip('Loteamentos'), findsOneWidget);
 
       // Clica em Nova Obra e abre diálogo
       await tester.tap(find.byTooltip('Nova Obra'));
@@ -241,6 +243,39 @@ void main() {
       // Membro comum não vê ações administrativas de criação de obra
       expect(find.byTooltip('Nova Obra'), findsNothing);
       expect(find.text('Criar Nova Obra'), findsNothing);
+      // Sem módulo lotes, o atalho de Loteamentos fica oculto
+      expect(find.byTooltip('Loteamentos'), findsNothing);
+    });
+
+    testWidgets('ObrasListScreen mostra Loteamentos para membro com módulo lotes', (tester) async {
+      final fakeRepo = FakeObraRepository();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            obraRepositoryProvider.overrideWithValue(fakeRepo),
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'isOwner': false,
+                'modules': ['lotes'],
+              }),
+            ),
+            construtoraObrasProvider('c1').overrideWith(
+              (ref) => Future.value([]),
+            ),
+          ],
+          child: const MaterialApp(
+            home: ObrasListScreen(construtoraId: 'c1'),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Loteamentos'), findsOneWidget);
     });
   });
 }

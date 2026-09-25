@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../authentication/data/auth_repository.dart';
 import '../../lotes/data/lote_repository.dart';
 import '../../lotes/domain/lote.dart';
+import '../../lotes/presentation/widgets/lote_hierarchy_selector.dart';
 import '../data/custo_mao_de_obra_service.dart';
 import '../data/rh_repository.dart';
 import '../domain/chamada_audit_entry.dart';
@@ -40,6 +41,8 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
   DateTime _selectedDate = DateTime.now();
   String? _selectedTeamId;
   String? _defaultLotId;
+  String? _loteamentoId;
+  String? _quadraId;
   final List<ApontamentoTrabalhador> _workers = [];
   bool _isSaving = false;
   bool _initialized = false;
@@ -426,67 +429,94 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
       funcionariosStreamProvider(widget.construtoraId),
     );
     final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
-    // TODO: refatorar para hierarquia de 5 níveis
-    final lotesStream = ref.watch(loteRepositoryProvider).watchLotes(widget.construtoraId, 'dummy_loteamento', 'dummy_quadra');
+    final lotesAsync = (_loteamentoId != null && _quadraId != null)
+        ? ref.watch(
+            watchLotesProvider((
+              construtoraId: widget.construtoraId,
+              loteamentoId: _loteamentoId!,
+              quadraId: _quadraId!,
+            )),
+          )
+        : const AsyncData<List<Lote>>([]);
+    final lotes = lotesAsync.value ?? [];
 
-    return StreamBuilder<List<Lote>>(
-      stream: lotesStream,
-      builder: (context, lotesSnap) {
-        final lotes = lotesSnap.data ?? [];
+    final hierarchySelector = LoteHierarchySelector(
+      construtoraId: widget.construtoraId,
+      loteamentoId: _loteamentoId,
+      quadraId: _quadraId,
+      loteId: _defaultLotId,
+      enabled: !_isSaving,
+      showLoteField: false,
+      onLoteamentoChanged: (val) {
+        setState(() {
+          _loteamentoId = val;
+          _quadraId = null;
+          _defaultLotId = null;
+        });
+      },
+      onQuadraChanged: (val) {
+        setState(() {
+          _quadraId = val;
+          _defaultLotId = null;
+        });
+      },
+      onLoteChanged: (val) {
+        setState(() => _defaultLotId = val);
+      },
+    );
 
-        return funcionariosAsync.when(
-          loading: () =>
-              const Scaffold(body: Center(child: CircularProgressIndicator())),
-          error: (e, st) => Scaffold(
-            body: Center(child: Text('Erro ao carregar colaboradores: $e')),
+    return funcionariosAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => Scaffold(
+        body: Center(child: Text('Erro ao carregar colaboradores: $e')),
+      ),
+      data: (allFuncionarios) {
+        return equipesAsync.when(
+          loading: () => const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
           ),
-          data: (allFuncionarios) {
-            return equipesAsync.when(
-              loading: () => const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              ),
-              error: (e, st) => Scaffold(
-                body: Center(child: Text('Erro ao carregar equipes: $e')),
-              ),
-              data: (equipes) {
-                if (_initialized &&
-                    _workers.isEmpty &&
-                    _existingChamada == null) {
-                  _syncWorkersList(allFuncionarios, lotes);
-                }
+          error: (e, st) => Scaffold(
+            body: Center(child: Text('Erro ao carregar equipes: $e')),
+          ),
+          data: (equipes) {
+            if (_initialized &&
+                _workers.isEmpty &&
+                _existingChamada == null) {
+              _syncWorkersList(allFuncionarios, lotes);
+            }
 
-                return ChamadaFormView(
-                  activeRoute:
-                      '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
-                  existingChamada: _existingChamada,
-                  selectedDate: _selectedDate,
-                  formattedDate: _formattedDate,
-                  selectedTeamId: _selectedTeamId,
-                  defaultLotId: _defaultLotId,
-                  workers: _workers,
-                  funcionarios: allFuncionarios,
-                  equipes: equipes,
-                  lotes: lotes,
-                  erros: _validarInvariantes(lotes),
-                  isSaving: _isSaving,
-                  isFormValid: _isFormValid,
-                  onPickDate: _pickDate,
-                  onTeamChanged: (teamId) {
-                    if (_isSaving) return;
-                    _onTeamChanged(teamId, lotes);
-                    _syncWorkersList(allFuncionarios, lotes);
-                  },
-                  onDefaultLotChanged: _onDefaultLotChanged,
-                  onMarkAllPresent: () => _markAllPresent(lotes),
-                  onWorkerChanged: (index, updated) {
-                    if (_isSaving || !mounted) return;
-                    setState(() {
-                      _workers[index] = updated;
-                    });
-                  },
-                  onSave: () => _saveChamada(equipes, allFuncionarios, lotes),
-                );
+            return ChamadaFormView(
+              activeRoute:
+                  '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
+              existingChamada: _existingChamada,
+              selectedDate: _selectedDate,
+              formattedDate: _formattedDate,
+              selectedTeamId: _selectedTeamId,
+              defaultLotId: _defaultLotId,
+              workers: _workers,
+              funcionarios: allFuncionarios,
+              equipes: equipes,
+              lotes: lotes,
+              hierarchySelector: hierarchySelector,
+              erros: _validarInvariantes(lotes),
+              isSaving: _isSaving,
+              isFormValid: _isFormValid,
+              onPickDate: _pickDate,
+              onTeamChanged: (teamId) {
+                if (_isSaving) return;
+                _onTeamChanged(teamId, lotes);
+                _syncWorkersList(allFuncionarios, lotes);
               },
+              onDefaultLotChanged: _onDefaultLotChanged,
+              onMarkAllPresent: () => _markAllPresent(lotes),
+              onWorkerChanged: (index, updated) {
+                if (_isSaving || !mounted) return;
+                setState(() {
+                  _workers[index] = updated;
+                });
+              },
+              onSave: () => _saveChamada(equipes, allFuncionarios, lotes),
             );
           },
         );

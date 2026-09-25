@@ -6,9 +6,7 @@ import 'package:app/src/features/almoxarifado/domain/material.dart' as mat;
 import 'package:app/src/features/almoxarifado/domain/movimentacao.dart';
 import 'package:app/src/features/almoxarifado/presentation/movimentacao_screen.dart';
 import 'package:app/src/features/obras/domain/obra.dart';
-import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/obras/presentation/construtora_obras_provider.dart';
-import 'package:app/src/features/lotes/presentation/obra_lotes_provider.dart';
 import 'package:app/src/sync/operation_queue.dart';
 
 void main() {
@@ -159,24 +157,10 @@ void main() {
         ),
       ];
 
-      final fakeLotes = [
-        Lote(
-          id: 'lote-101',
-          construtoraId: 'c1',
-          loteamentoId: 'lt1',
-          quadraId: 'qd1',
-          name: 'Casa 01',
-          phase: 'Alvenaria',
-          status: LoteStatus.noPrazo,
-          createdAt: DateTime(2026),
-        ),
-      ];
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             construtoraObrasProvider('c1').overrideWith((ref) => fakeObras),
-            obraLotesProvider((construtoraId: 'c1', obraId: 'obra-1')).overrideWith((ref) => Stream.value(fakeLotes)),
           ],
           child: MaterialApp(
             home: MovimentacaoScreen(

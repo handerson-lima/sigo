@@ -237,7 +237,7 @@ class SigoSidebar extends ConsumerWidget {
                       isActive: activeRoute.contains('/lotes'),
                       onTap: () {
                         Scaffold.maybeOf(context)?.closeDrawer();
-                        context.go('/construtora/$cId/obra/$oId/lotes');
+                        context.go('/construtora/$cId/loteamentos');
                       },
                     ),
                   if (obra != null &&

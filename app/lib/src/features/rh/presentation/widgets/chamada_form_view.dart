@@ -21,6 +21,7 @@ class ChamadaFormView extends StatelessWidget {
   final List<Funcionario> funcionarios;
   final List<Equipe> equipes;
   final List<Lote> lotes;
+  final Widget? hierarchySelector;
   final List<String> erros;
   final bool isSaving;
   final bool isFormValid;
@@ -44,6 +45,7 @@ class ChamadaFormView extends StatelessWidget {
     required this.funcionarios,
     required this.equipes,
     required this.lotes,
+    this.hierarchySelector,
     required this.erros,
     required this.isSaving,
     required this.isFormValid,
@@ -80,6 +82,7 @@ class ChamadaFormView extends StatelessWidget {
       ],
       child: Column(
         children: [
+          ?hierarchySelector,
           ChamadaFiltrosHeader(
             selectedDate: selectedDate,
             onPickDate: onPickDate,

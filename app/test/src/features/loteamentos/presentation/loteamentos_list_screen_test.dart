@@ -55,7 +55,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Nenhum registro encontrado.'), findsOneWidget);
+    expect(find.text('Nenhum loteamento cadastrado'), findsOneWidget);
   });
 
   testWidgets('Renderiza lista com loteamentos e breadcrumbs', (tester) async {
@@ -102,9 +102,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Não foi possível carregar os loteamentos. Tente novamente.'),
+      find.text('Não foi possível carregar os loteamentos.'),
       findsOneWidget,
     );
+    expect(find.text('Tentar novamente'), findsOneWidget);
+  });
+
+  testWidgets('Botão Tentar novamente invalida o provider e recarrega',
+      (tester) async {
+    var stream = Stream<List<Loteamento>>.error(Exception('falha'));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          watchLoteamentosProvider.overrideWith((ref, arg) => stream),
+        ],
+        child: buildTestWidget(
+          const LoteamentosListScreen(construtoraId: 'c1'),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Não foi possível carregar os loteamentos.'),
+      findsOneWidget,
+    );
+
+    stream = Stream.value([makeLoteamento('l1')]);
+    await tester.tap(find.text('Tentar novamente'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Loteamento l1'), findsOneWidget);
   });
 
   testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)',

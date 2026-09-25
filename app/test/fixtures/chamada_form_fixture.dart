@@ -2,6 +2,10 @@ import 'dart:async';
 
 import 'package:app/src/features/authentication/data/auth_repository.dart';
 import 'package:app/src/features/authentication/data/user_repository.dart';
+import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
+import 'package:app/src/features/loteamentos/domain/loteamento.dart';
+import 'package:app/src/features/quadras/data/quadra_repository.dart';
+import 'package:app/src/features/quadras/domain/quadra.dart';
 import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/obras/presentation/construtora_obras_provider.dart';
@@ -89,6 +93,7 @@ class TestAuthRepository implements AuthRepository {
 }
 
 class TestLoteRepository implements LoteRepository {
+  final calls = <(String, String, String)>[];
   final lotes = [
     for (final id in ['l1', 'l2'])
       Lote(
@@ -104,7 +109,43 @@ class TestLoteRepository implements LoteRepository {
   ];
   late final stream = Stream.value(lotes).asBroadcastStream();
   @override
-  Stream<List<Lote>> watchLotes(String construtoraId, String loteamentoId, String quadraId) => stream;
+  Stream<List<Lote>> watchLotes(String construtoraId, String loteamentoId, String quadraId) {
+    calls.add((construtoraId, loteamentoId, quadraId));
+    return stream;
+  }
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class TestLoteamentoRepository implements LoteamentoRepository {
+  final loteamentos = [
+    Loteamento(
+      id: 'lt1',
+      construtoraId: 'c1',
+      name: 'Loteamento Teste',
+      createdAt: DateTime(2026),
+    ),
+  ];
+  @override
+  Stream<List<Loteamento>> watchLoteamentos(String construtoraId) =>
+      Stream.value(loteamentos);
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class TestQuadraRepository implements QuadraRepository {
+  final quadras = [
+    Quadra(
+      id: 'qd1',
+      construtoraId: 'c1',
+      loteamentoId: 'lt1',
+      name: 'Quadra Teste',
+      createdAt: DateTime(2026),
+    ),
+  ];
+  @override
+  Stream<List<Quadra>> watchQuadras(String construtoraId, String loteamentoId) =>
+      Stream.value(quadras);
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -161,11 +202,24 @@ class ChamadaFormFixture {
   final auth = TestAuthRepository();
   final rh = TestRhRepository();
   final lotes = TestLoteRepository();
+  final loteamentos = TestLoteamentoRepository();
+  final quadras = TestQuadraRepository();
   final defaultLot = TestDefaultLot();
   late GoRouter router;
 
   ChamadaFormView view(WidgetTester tester) =>
       tester.widget<ChamadaFormView>(find.byType(ChamadaFormView));
+
+  Future<void> selecionarHierarquia(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('loteamento-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Loteamento Teste').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('quadra-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quadra Teste').last);
+    await tester.pumpAndSettle();
+  }
 
   Future<void> mount(WidgetTester tester, {String? chamadaId}) async {
     tester.view.physicalSize = const Size(1500, 1100);
@@ -199,6 +253,8 @@ class ChamadaFormFixture {
           authRepositoryProvider.overrideWithValue(auth),
           rhRepositoryProvider.overrideWithValue(rh),
           loteRepositoryProvider.overrideWithValue(lotes),
+          loteamentoRepositoryProvider.overrideWithValue(loteamentos),
+          quadraRepositoryProvider.overrideWithValue(quadras),
           lotePersistidoServiceProvider.overrideWithValue(defaultLot),
           authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
           trustedDevProvider.overrideWith((ref) => Stream.value(true)),
@@ -218,6 +274,7 @@ class ChamadaFormFixture {
     );
     router.push('/form');
     await tester.pumpAndSettle();
+    await selecionarHierarquia(tester);
     if (chamadaId == null) {
       view(tester).onDefaultLotChanged('l1');
       view(tester).onTeamChanged('e1');

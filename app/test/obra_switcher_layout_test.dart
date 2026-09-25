@@ -1,6 +1,4 @@
 import 'package:app/src/features/authentication/data/user_repository.dart';
-import 'package:app/src/features/lotes/domain/lote.dart';
-import 'package:app/src/features/lotes/presentation/obra_lotes_provider.dart';
 import 'package:app/src/features/obras/domain/obra.dart';
 import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/construtora_obras_provider.dart';
@@ -79,10 +77,6 @@ void main() {
                     ),
                   ),
                 ),
-            obraLotesProvider((construtoraId: 'c1', obraId: 'obraA'))
-                .overrideWith((ref) => Stream.value(<Lote>[])),
-            obraLotesProvider((construtoraId: 'c1', obraId: 'obraB'))
-                .overrideWith((ref) => Stream.value(<Lote>[])),
           ],
           child: MaterialApp.router(routerConfig: router),
         ),

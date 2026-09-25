@@ -262,7 +262,7 @@ void main() {
     expect(markAll.onPressed, isNull);
 
     final lotDropdown = tester.widget<DropdownButtonFormField<String>>(
-      find.byType(DropdownButtonFormField<String>),
+      find.byKey(const Key('lote-padrao-dropdown')),
     );
     expect(lotDropdown.onChanged, isNull);
 
@@ -276,4 +276,18 @@ void main() {
     expect(f.repo.saved, hasLength(1));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'seleção explícita da hierarquia consulta os lotes com ids reais',
+    (tester) async {
+      final f = ChamadaFormFixture();
+      await f.mount(tester);
+
+      await f.selecionarHierarquia(tester);
+
+      expect(f.lotes.calls, isNotEmpty);
+      expect(f.lotes.calls.last, ('c1', 'lt1', 'qd1'));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
