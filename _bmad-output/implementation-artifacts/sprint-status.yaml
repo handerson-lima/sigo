@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-24-2026 22:35
+last_updated: 09-25-2026 11:45
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -51,7 +51,7 @@ development_status:
 
   epic-11: in-progress
   11-1-navegação-loteamento-quadra-lote: done
-  11-2-navegação-lote-setor-equipe: review
+  11-2-navegação-lote-setor-equipe: in-progress
   epic-11-retrospective: done
 
   epic-12: in-progress

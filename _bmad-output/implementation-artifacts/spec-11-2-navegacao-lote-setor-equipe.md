@@ -2,7 +2,7 @@
 title: 'Story 11.2 - Navegação Lote → Setor → Equipe'
 type: 'feature'
 created: '2026-09-24'
-status: 'done'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 1
 baseline_commit: '29e3d5c30d76508dad4bac45bbb476dea3776fd0'
@@ -58,6 +58,16 @@ context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 **Acceptance Criteria:**
 - Given que um usuário acessou a rota de um Lote específico, when ele clicar para ver setores, then a URL será atualizada para o nível de setores e a tela `SetoresListScreen` será exibida.
 - Given que um usuário acessou a rota de equipes, when ele visualizar a tela, then o componente de Breadcrumbs deve mostrar os links corretos para Loteamento > Quadra > Lote > Setor, permitindo navegação para cima.
+
+### Review Findings
+- [ ] [Review][Decision] Conflito de Nomenclatura (Equipe) — A nova classe `Equipe` duplica o nome da entidade `Equipe` de RH com formato distinto, podendo gerar conflitos.
+- [ ] [Review][Decision] Conflito do SigoBreadcrumbs — O componente no diff altera a assinatura (recebe segments) o que pode quebrar usos existentes em disco (que não enviavam).
+- [ ] [Review][Patch] Rotas sem Prefixo da Construtora — As URLs nos redirects e Breadcrumbs (/loteamentos/...) não possuem o prefixo obrigatório /construtoras/:cId, resultando em tela 404 em todos os taps.
+- [ ] [Review][Patch] Rotas Vazias / Brancas — Rotas-pai `:loteId` e `:setorId` retornam `SizedBox()` sem um redirecionamento, resultando em tela branca. Além disso, `:loteId` na nova rota colide e sombreia a rota de etapas.
+- [ ] [Review][Patch] Crashes de Parse (Dados) — `snapshot.data()!` não verifica null, `createdAt` faz parse de String invés de Timestamp (causa crash), e lê id do corpo do JSON em vez de `snapshot.id`.
+- [ ] [Review][Patch] Desvio de UX (SigoLayout) — Telas estão usando Scaffold puro em vez de `SigoLayout`, perdendo a sidebar/navegação principal. Falta uso do `SigoEmptyState`/`SigoErrorState`.
+- [ ] [Review][Patch] Security Rules (Firestore) — Regras estão ausentes ou insuficientes para acessos em produção, e `AccessGuard` carece do param module correto.
+- [ ] [Review][Patch] Ausência de Testes — Faltam testes para breadcrumbs, taps e JSON parsing dos repositórios novos.
 
 ## Implementation Notes
 - O modelo `Lote` sofreu alterações em histórias anteriores (Story 11.1), resultando na quebra de 63 testes relacionados a `Lote` que esperavam parâmetros como `obraId` em vez de `loteamentoId` e `quadraId`. Esses erros de teste foram ignorados nesta etapa pois pertencem ao escopo da história anterior que não atualizou os testes adequadamente. As novas rotas não apresentam erros de análise e estão funcionando conforme o esperado.
