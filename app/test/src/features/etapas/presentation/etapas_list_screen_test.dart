@@ -25,22 +25,6 @@ class FakeEtapaRepository implements EtapaRepository {
 }
 
 
-class FakeEtapaRepository implements EtapaRepository {
-  @override
-  Future<void> createDefaultEtapas({
-    WriteBatch? batch,
-    required String construtoraId,
-    required String loteamentoId,
-    required String quadraId,
-    required String loteId,
-  }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 void main() {
   Widget buildTestWidget(Widget child) {
     final router = GoRouter(
