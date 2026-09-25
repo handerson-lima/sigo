@@ -229,6 +229,7 @@ class _EditConstrutoraDialog extends StatefulWidget {
 class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _cnpjController;
+  late bool _isActive;
   bool _isSaving = false;
 
   @override
@@ -236,6 +237,7 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
     super.initState();
     _nameController = TextEditingController(text: widget.construtora.name);
     _cnpjController = TextEditingController(text: widget.construtora.cnpj ?? '');
+    _isActive = widget.construtora.isActive;
   }
 
   Future<void> _save() async {
@@ -249,10 +251,16 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
       await docRef.update({
         'name': name,
         'cnpj': _cnpjController.text.trim(),
+        'isActive': _isActive,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_isActive ? 'Construtora ativada com sucesso.' : 'Construtora inativada com sucesso.')),
+        );
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     } finally {
@@ -285,6 +293,15 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
             TextField(
               controller: _cnpjController,
               decoration: const InputDecoration(labelText: 'CNPJ (opcional)'),
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              title: const Text('Construtora Ativa'),
+              subtitle: const Text('Desativar suspende o acesso globalmente no app.'),
+              value: _isActive,
+              onChanged: (val) {
+                setState(() => _isActive = val);
+              },
             ),
           ],
         ),
