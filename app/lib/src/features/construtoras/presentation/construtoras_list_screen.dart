@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'user_construtoras_provider.dart';
 import '../../../common_widgets/sigo_layout.dart';
+import '../../obras/presentation/current_permissions_provider.dart';
+import '../../../core/contracts.dart';
 
 class ConstrutorasListScreen extends ConsumerWidget {
   const ConstrutorasListScreen({super.key});
@@ -62,10 +64,21 @@ class ConstrutorasListScreen extends ConsumerWidget {
             itemCount: construtoras.length,
             itemBuilder: (context, index) {
               final construtora = construtoras[index];
-              return Card(
-                elevation: 4,
-                child: InkWell(
-                  onTap: () => context.go('/construtoras/${construtora.id}/loteamentos'),
+              return Consumer(
+                builder: (context, ref, child) {
+                  final cm = ref.watch(construtoraPermissionProvider(construtora.id)).value;
+                  final canViewLoteamentos = isDev || (cm?['isActive'] == true && normalizeRawModules(cm?['modules'], cm?['allowedModules']).contains('lotes'));
+
+                  return Card(
+                    elevation: 4,
+                    child: InkWell(
+                      onTap: () {
+                        if (canViewLoteamentos) {
+                          context.go('/construtoras/${construtora.id}/loteamentos');
+                        } else {
+                          context.go('/construtoras/${construtora.id}');
+                        }
+                      },
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -84,6 +97,8 @@ class ConstrutorasListScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+              );
+                },
               );
             },
           );

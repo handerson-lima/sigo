@@ -21,7 +21,7 @@ class AccessDeniedScreen extends StatelessWidget {
               Icon(Icons.block, size: 80, color: Colors.red[400]),
               const SizedBox(height: 24),
               Text(
-                'Você não tem acesso a esta obra',
+                'Você não tem acesso a este loteamento',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -37,7 +37,7 @@ class AccessDeniedScreen extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: () => context.go('/'),
                 icon: const Icon(Icons.arrow_back),
-                label: const Text('Voltar para Minhas Obras'),
+                label: const Text('Voltar para Minhas Construtoras'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),

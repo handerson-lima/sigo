@@ -17,7 +17,10 @@ class SigoBreadcrumbs extends StatelessWidget {
     final uri = state.uri;
     final pathSegments = uri.pathSegments;
 
-    final List<BreadcrumbSegment> segments = [];
+    final List<BreadcrumbSegment> segments = [
+      if (pathSegments.isNotEmpty && pathSegments[0] == 'construtoras') 
+        BreadcrumbSegment(label: 'Minhas Construtoras', url: '/'),
+    ];
     String currentUrl = '';
 
     for (int i = 0; i < pathSegments.length; i++) {
@@ -26,7 +29,7 @@ class SigoBreadcrumbs extends StatelessWidget {
       if (pathSegments[i] == 'construtoras') {
         if (i + 1 < pathSegments.length) {
           final cid = pathSegments[i + 1];
-          segments.add(BreadcrumbSegment(label: 'Construtora', url: '/construtoras/$cid/loteamentos'));
+          segments.add(BreadcrumbSegment(label: 'Construtora', url: '/construtoras/$cid'));
         }
       } else if (pathSegments[i] == 'loteamentos') {
         if (i + 1 < pathSegments.length) {

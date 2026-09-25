@@ -27,7 +27,7 @@ class SigoSidebar extends ConsumerWidget {
     String? oId;
     if (pathSegments.length >= 2 && pathSegments[0] == 'construtoras') {
       cId = pathSegments[1];
-      if (pathSegments.length >= 4 && pathSegments[2] == 'obra') {
+      if (pathSegments.length >= 4 && (pathSegments[2] == 'obra' || pathSegments[2] == 'loteamentos')) {
         oId = pathSegments[3];
       }
     }
@@ -247,7 +247,7 @@ class SigoSidebar extends ConsumerWidget {
                           obra.modules.map(normalizeModule).contains('diario')))
                     _NavItem(
                       icon: Icons.assignment,
-                      title: 'Diário de Obra',
+                      title: 'Diário de Loteamento',
                       isActive: activeRoute.contains('/diarios'),
                       onTap: () {
                         Scaffold.maybeOf(context)?.closeDrawer();

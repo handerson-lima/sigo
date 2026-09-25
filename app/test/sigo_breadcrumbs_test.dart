@@ -7,6 +7,10 @@ GoRouter _router() => GoRouter(
       initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
       routes: [
         GoRoute(
+          path: '/',
+          builder: (context, state) => const Scaffold(body: Text('root destino')),
+        ),
+        GoRoute(
           path: '/construtoras/:cId',
           builder: (context, state) => const SizedBox(),
           routes: [
@@ -51,11 +55,12 @@ void main() {
     await tester.pumpWidget(MaterialApp.router(routerConfig: _router()));
     await tester.pumpAndSettle();
 
+    expect(find.text('Minhas Construtoras'), findsOneWidget);
     expect(find.text('Construtora'), findsOneWidget);
     expect(find.text('Loteamento'), findsOneWidget);
     expect(find.text('Quadra'), findsOneWidget);
     expect(find.text('Lotes'), findsOneWidget);
-    expect(find.text('/'), findsNWidgets(3));
+    expect(find.text('/'), findsNWidgets(4));
   });
 
   testWidgets('tocar num segmento com url navega para a lista do nivel',
@@ -69,7 +74,18 @@ void main() {
     expect(find.text('quadras destino'), findsOneWidget);
   });
 
-  testWidgets('tocar no segmento raiz navega para a lista de loteamentos',
+  testWidgets('tocar em Minhas Construtoras navega para raiz',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp.router(routerConfig: _router()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Minhas Construtoras'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('root destino'), findsOneWidget);
+  });
+
+  testWidgets('tocar no segmento Loteamento navega para a lista de loteamentos',
       (tester) async {
     await tester.pumpWidget(MaterialApp.router(routerConfig: _router()));
     await tester.pumpAndSettle();

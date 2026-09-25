@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
 
 import '../../../common_widgets/access_guard.dart';
 import '../presentation/construtoras_list_screen.dart';
@@ -36,12 +37,16 @@ List<RouteBase> get construtoraRoutes => [
       ),
       GoRoute(
         path: ConstrutoraPaths.detail,
-        builder: (context, state) {
+        redirect: (context, state) {
           final cId = state.pathParameters['cId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            child: ObrasListScreen(construtoraId: cId),
-          );
+          final path = state.uri.path.replaceAll(RegExp(r'/$'), '');
+          if (path == '/construtoras/$cId') {
+            return '/construtoras/$cId/loteamentos';
+          }
+          return null;
+        },
+        builder: (context, state) {
+          return const SizedBox.shrink();
         },
         routes: [
           GoRoute(

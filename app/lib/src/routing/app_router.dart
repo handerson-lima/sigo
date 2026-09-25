@@ -17,6 +17,7 @@ class ErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('ErrorScreen built with error: $error');
     return Scaffold(
       appBar: AppBar(title: const Text('Página não encontrada')),
       body: Center(
@@ -48,15 +49,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/';
       }
 
+      if (state.uri.path == '/construtora' || state.uri.path.startsWith('/construtora/')) {
+        final newUri = state.uri.replace(path: state.uri.path.replaceFirst(RegExp(r'^/construtora'), '/construtoras'));
+        return newUri.toString();
+      }
+
       if (state.matchedLocation.startsWith('/dev')) {
         final isDev = devState.value == true;
         if (!isDev) {
           return '/';
         }
-      }
-
-      if (state.uri.path.startsWith('/construtora/')) {
-        return state.uri.replace(path: state.uri.path.replaceFirst('/construtora/', '/construtoras/')).toString();
       }
 
       return null;

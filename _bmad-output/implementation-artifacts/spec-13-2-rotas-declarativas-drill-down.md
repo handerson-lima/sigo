@@ -95,6 +95,18 @@ context: ['_bmad-output/implementation-artifacts/epic-13-context.md', '_bmad-out
 
 ## Review Triage Log
 
+- `patch`: Redirect de compatibilidade sem teste e não pega `/construtora` exato — A regex ou match ignora o path exato e falta teste.
+- `patch`: `ConstrutoraPaths.detail` cai em listagem antiga — Em vez de redirecionar para `/construtoras/:cid/loteamentos`, a rota raiz ainda carrega o entrypoint desativado.
+- `patch`: Card de construtora sem fallback de módulo — Acessar loteamentos diretamente via card quebra com `AccessDenied` se o membro ativo não tiver o módulo `lotes`.
+- `patch`: Falta teste card→Loteamentos — AC exigia cobertura específica.
+- `patch`: Sidebar "Loteamentos" some no drill-down — Extração do `oId` parou de funcionar pois o segmento mudou de `obra` para `loteamentos`.
+- `patch`: Crumb "Construtora" hardcoded para loteamentos — Remove o módulo atual se estiver em outra área.
+- `patch`: Nível raiz "Minhas Construtoras" não representado — O breadcrumb começa já na construtora.
+- `patch`: Terminologia mista "Obra" na navegação — Labels esquecidos no `ObraSwitcher`, sidebar, `AccessDeniedScreen` e tela de movimentação.
+- `patch`: Loteamentos vazio sem CTA de criação — `SigoEmptyState` perdeu o botão que havia em `ObrasListScreen`.
+- `patch`: Teste de crumb frágil e newline final — Testes com asserções fracas e lints simples.
+- `defer`: Rastreamento de sprint não acompanha baseline e artefato status contraditório — Resolvido separadamente do fluxo de código.
+
 ## Design Notes
 
 **Rota modular (padrão existente):** cada feature expõe `<Feature>Paths` + `get <feature>Routes` e é composta por spread no nó-pai (`construtora_routes.dart:58-69`); manter esse padrão e apenas migrar o prefixo/params. Não introduzir provider de navegação global — a URL é a fonte do contexto (AD-2).

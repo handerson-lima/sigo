@@ -1,6 +1,9 @@
 import 'package:app/src/common_widgets/sigo_breadcrumbs.dart';
 import 'package:app/src/features/authentication/data/user_repository.dart';
+import 'package:app/src/features/authentication/data/auth_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:app/src/features/construtoras/routing/construtora_routes.dart';
+import 'package:app/src/routing/app_router.dart';
 import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
 import 'package:app/src/features/loteamentos/domain/loteamento.dart';
 import 'package:app/src/features/loteamentos/presentation/loteamentos_list_screen.dart';
@@ -12,6 +15,7 @@ import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/access_denied_screen.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/obras/presentation/obra_dashboard_screen.dart';
+import 'fixtures/chamada_form_fixture.dart';
 import 'package:app/src/features/equipes/data/equipe_repository.dart';
 import 'package:app/src/features/equipes/domain/equipe.dart';
 import 'package:app/src/features/equipes/presentation/equipes_list_screen.dart';
@@ -649,6 +653,57 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(router.state.uri.path, '/construtoras/c1/loteamentos');
+    expect(find.byType(LoteamentosListScreen), findsOneWidget);
+  });
+
+
+  testWidgets('Legacy redirect preserves query and fragment', (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+        authStateChangesProvider.overrideWith((ref) => Stream.value(TestUser('u1', 'User Name'))),
+        construtoraPermissionProvider('c1').overrideWith(
+          (ref) => Stream.value({
+            'id': 'm1',
+            'userId': 'u1',
+            'isActive': true,
+            'isAdmin': false,
+            'modules': ['lotes'],
+          }),
+        ),
+        currentPermissionsProvider(
+          (construtoraId: 'c1', obraId: 'o1'),
+        ).overrideWith(
+          (ref) => Stream.value(
+            ObraMember(
+              userId: 'u1',
+              isActive: true,
+              isAdmin: false,
+              modules: ['lotes'],
+              joinedAt: DateTime(2025),
+            ),
+          ),
+        ),
+        loteamentoRepositoryProvider.overrideWithValue(
+          FakeLoteamentoRepository([makeLoteamento('l1')]),
+        ),
+      ],
+    );
+
+    final router = container.read(routerProvider);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    router.go('/construtora/c1/loteamentos?q=1#frag');
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/construtoras/c1/loteamentos?q=1#frag');
     expect(find.byType(LoteamentosListScreen), findsOneWidget);
   });
 }
