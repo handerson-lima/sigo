@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../common_widgets/sigo_layout.dart';
 import '../data/lote_repository.dart';
 import '../domain/lote.dart';
+import '../../etapas/data/etapa_repository.dart';
 
 class AddLoteScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -53,6 +54,12 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
       );
 
       await ref.read(loteRepositoryProvider).createLote(lote).timeout(const Duration(seconds: 15));
+      await ref.read(etapaRepositoryProvider).createDefaultEtapas(
+        construtoraId: widget.construtoraId,
+        loteamentoId: widget.loteamentoId,
+        quadraId: widget.quadraId,
+        loteId: _loteId,
+      ).timeout(const Duration(seconds: 15));
       if (mounted) {
         context.pop();
       }
