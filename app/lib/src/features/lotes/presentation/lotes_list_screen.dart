@@ -29,8 +29,11 @@ class LotesListScreen extends ConsumerWidget {
       quadraId: quadraId,
     );
     final lotesAsync = ref.watch(watchLotesProvider(params));
-    final member = ref.watch(construtoraPermissionProvider(construtoraId)).value;
-    final isAdmin = member?['isActive'] == true &&
+    final member = ref
+        .watch(construtoraPermissionProvider(construtoraId))
+        .value;
+    final isAdmin =
+        member?['isActive'] == true &&
         (member?['isAdmin'] == true || member?['isOwner'] == true);
 
     final baseRoute =
@@ -80,9 +83,7 @@ class LotesListScreen extends ConsumerWidget {
                     return ListTile(
                       title: Text(item.name),
                       onTap: () {
-                        context.go(
-                          '$baseRoute/${item.id}/etapas',
-                        );
+                        context.go('$baseRoute/${item.id}/etapas');
                       },
                     );
                   },

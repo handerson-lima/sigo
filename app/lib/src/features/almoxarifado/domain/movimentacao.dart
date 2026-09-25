@@ -20,8 +20,10 @@ class Movimentacao {
   final String? evidence; // Caminho/URL da foto ou anexo da NF
   final String? nfNumber; // Número da Nota Fiscal
   final String? fornecedor; // Razão social ou nome do fornecedor
-  final bool? apropriacaoLote; // Se a saída foi apropriada diretamente a um lote
-  final String? solicitante; // Nome ou identificação de quem solicitou/retirou o material
+  final bool?
+  apropriacaoLote; // Se a saída foi apropriada diretamente a um lote
+  final String?
+  solicitante; // Nome ou identificação de quem solicitou/retirou o material
   final int? valorItensCentavos; // Valor bruto dos itens em centavos
   final int? freteCentavos; // Valor do frete acessório em centavos
   final int? despesasCentavos; // Outras despesas acessórias em centavos
@@ -31,7 +33,8 @@ class Movimentacao {
   final int? quantityUnits; // Quantidade inteira escalada
   final int? quantityScale; // Fator de escala (padrão 1000)
   final int? deltaUnits; // Variação com sinal (+ entrada, - saída)
-  final String? commandType; // 'entrada', 'saida', 'ajuste', 'estorno', 'abertura'
+  final String?
+  commandType; // 'entrada', 'saida', 'ajuste', 'estorno', 'abertura'
   final String? reversalId; // ID da movimentação original estornada
   final String? reversedBy; // ID do estorno que reverteu este movimento
   final int? openingBalanceUnits; // Saldo de abertura para reconciliação legada
@@ -76,16 +79,16 @@ class Movimentacao {
   }
 
   String get displayQuantity => formatQuantityWithScale(
-        effectiveQuantity,
-        scale: effectiveQuantityScale,
-        useComma: false,
-      );
+    effectiveQuantity,
+    scale: effectiveQuantityScale,
+    useComma: false,
+  );
 
   String get displayQuantityBr => formatQuantityWithScale(
-        effectiveQuantity,
-        scale: effectiveQuantityScale,
-        useComma: true,
-      );
+    effectiveQuantity,
+    scale: effectiveQuantityScale,
+    useComma: true,
+  );
 
   factory Movimentacao.fromJson(Map<String, dynamic> json) {
     final copy = Map<String, dynamic>.from(json);
@@ -97,15 +100,14 @@ class Movimentacao {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        ..._$MovimentacaoToJson(this),
-        'quantity': effectiveQuantity,
-        if (quantityUnits != null) 'quantityUnits': quantityUnits,
-        if (quantityScale != null) 'quantityScale': quantityScale,
-        if (deltaUnits != null) 'deltaUnits': deltaUnits,
-        if (commandType != null) 'commandType': commandType,
-        if (reversalId != null) 'reversalId': reversalId,
-        if (reversedBy != null) 'reversedBy': reversedBy,
-        if (openingBalanceUnits != null)
-          'openingBalanceUnits': openingBalanceUnits,
-      };
+    ..._$MovimentacaoToJson(this),
+    'quantity': effectiveQuantity,
+    if (quantityUnits != null) 'quantityUnits': quantityUnits,
+    if (quantityScale != null) 'quantityScale': quantityScale,
+    if (deltaUnits != null) 'deltaUnits': deltaUnits,
+    if (commandType != null) 'commandType': commandType,
+    if (reversalId != null) 'reversalId': reversalId,
+    if (reversedBy != null) 'reversedBy': reversedBy,
+    if (openingBalanceUnits != null) 'openingBalanceUnits': openingBalanceUnits,
+  };
 }

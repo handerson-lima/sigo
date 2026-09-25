@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../domain/custo_lote_consolidado.dart';
 
 class CuboCustoCard extends StatelessWidget {
@@ -29,13 +30,29 @@ class CuboCustoCard extends StatelessWidget {
   (Color, IconData, String) _configCubo(BuildContext context) {
     switch (cubo) {
       case CuboCusto.material:
-        return (Colors.orange.shade700, Icons.inventory_2_outlined, 'Almoxarifado');
+        return (
+          Colors.orange.shade700,
+          Icons.inventory_2_outlined,
+          'Almoxarifado',
+        );
       case CuboCusto.maoDeObra:
-        return (Colors.blue.shade700, Icons.groups_outlined, 'Equipes e Diárias');
+        return (
+          Colors.blue.shade700,
+          Icons.groups_outlined,
+          'Equipes e Diárias',
+        );
       case CuboCusto.despesaDireta:
-        return (Colors.purple.shade700, Icons.receipt_long_outlined, 'Lançamentos Diretos');
+        return (
+          Colors.purple.shade700,
+          Icons.receipt_long_outlined,
+          'Lançamentos Diretos',
+        );
       case CuboCusto.rateioIndireto:
-        return (Colors.teal.shade700, Icons.pie_chart_outline_rounded, 'Despesas Comuns');
+        return (
+          Colors.teal.shade700,
+          Icons.pie_chart_outline_rounded,
+          'Despesas Comuns',
+        );
     }
   }
 
@@ -78,7 +95,10 @@ class CuboCustoCard extends StatelessWidget {
                         child: Icon(icone, color: cor, size: 20),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: cor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
@@ -106,10 +126,7 @@ class CuboCustoCard extends StatelessWidget {
                   ),
                   Text(
                     subtitulo,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

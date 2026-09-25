@@ -52,9 +52,8 @@ void main() {
         ProviderScope(
           overrides: [
             trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
-              (ref) => Stream.value(loteamentosList),
-            ),
+            watchLoteamentosProvider((construtoraId: 'c1'))
+                .overrideWith((ref) => Stream.value(loteamentosList)),
             construtoraPermissionProvider('c1').overrideWith(
               (ref) => Stream.value({
                 'isActive': true,
@@ -104,7 +103,9 @@ void main() {
       await tester.tap(dropdown);
       await tester.pumpAndSettle();
 
-      final itemB = find.byKey(const Key('loteamento-switcher-item-obraB')).last;
+      final itemB = find
+          .byKey(const Key('loteamento-switcher-item-obraB'))
+          .last;
       await tester.tap(itemB, warnIfMissed: false);
       await tester.pumpAndSettle();
 

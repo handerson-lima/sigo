@@ -23,8 +23,11 @@ class ConstrutoraMember {
   });
 
   factory ConstrutoraMember.fromJson(Map<String, dynamic> json) {
-    final compat = Map<String, dynamic>.from(compatibleDates(json, ['joinedAt']));
-    if ((compat['role'] == 'admin' || compat['role'] == 'owner') && compat['isAdmin'] != true) {
+    final compat = Map<String, dynamic>.from(
+      compatibleDates(json, ['joinedAt']),
+    );
+    if ((compat['role'] == 'admin' || compat['role'] == 'owner') &&
+        compat['isAdmin'] != true) {
       compat['isAdmin'] = true;
     }
     if (compat['role'] == 'owner' && compat['isOwner'] != true) {

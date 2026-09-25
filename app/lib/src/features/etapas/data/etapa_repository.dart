@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../domain/etapa.dart';
 
 final etapaRepositoryProvider = Provider<EtapaRepository>((ref) {
@@ -11,13 +12,12 @@ class EtapaRepository {
 
   EtapaRepository(this._firestore);
 
-  CollectionReference<Etapa> _etapasRef() =>
-      _firestore
-          .collection('etapas')
-          .withConverter<Etapa>(
-            fromFirestore: (snapshot, _) => Etapa.fromJson(snapshot.data()!),
-            toFirestore: (etapa, _) => etapa.toJson(),
-          );
+  CollectionReference<Etapa> _etapasRef() => _firestore
+      .collection('etapas')
+      .withConverter<Etapa>(
+        fromFirestore: (snapshot, _) => Etapa.fromJson(snapshot.data()!),
+        toFirestore: (etapa, _) => etapa.toJson(),
+      );
 
   Stream<List<Etapa>> watchEtapas(
     String construtoraId,
@@ -45,13 +45,13 @@ class EtapaRepository {
     required String loteamentoId,
     required String quadraId,
     required String loteId,
-    required String Function() newId,
+    required String Function(EtapaTipo) newId,
     required DateTime now,
   }) {
     return EtapaTipo.values
         .map(
           (tipo) => Etapa(
-            id: newId(),
+            id: newId(tipo),
             construtoraId: construtoraId,
             loteamentoId: loteamentoId,
             quadraId: quadraId,
@@ -70,22 +70,25 @@ class EtapaRepository {
     required String loteamentoId,
     required String quadraId,
     required String loteId,
+    WriteBatch? batch,
   }) async {
     final etapasDefault = buildDefaultEtapas(
       construtoraId: construtoraId,
       loteamentoId: loteamentoId,
       quadraId: quadraId,
       loteId: loteId,
-      newId: () => _firestore.collection('etapas').doc().id,
+      newId: (tipo) => '${loteId}_${tipo.name}',
       now: DateTime.now(),
     );
 
-    final batch = _firestore.batch();
+    final localBatch = batch ?? _firestore.batch();
     for (final etapa in etapasDefault) {
-      batch.set(_etapasRef().doc(etapa.id), etapa);
+      localBatch.set(_etapasRef().doc(etapa.id), etapa);
     }
 
-    await batch.commit();
+    if (batch == null) {
+      await localBatch.commit();
+    }
   }
 }
 
@@ -96,8 +99,10 @@ typedef EtapaParams = ({
   String loteId,
 });
 
-final watchEtapasProvider =
-    StreamProvider.family<List<Etapa>, EtapaParams>((ref, params) {
+final watchEtapasProvider = StreamProvider.family<List<Etapa>, EtapaParams>((
+  ref,
+  params,
+) {
   final repo = ref.watch(etapaRepositoryProvider);
   return repo.watchEtapas(
     params.construtoraId,

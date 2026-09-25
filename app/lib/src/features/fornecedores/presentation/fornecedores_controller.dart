@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../authentication/data/auth_repository.dart';
@@ -7,7 +8,8 @@ import '../domain/fornecedor.dart';
 
 final fornecedoresControllerProvider =
     AsyncNotifierProvider<FornecedoresController, void>(
-        FornecedoresController.new);
+      FornecedoresController.new,
+    );
 
 class FornecedoresController extends AsyncNotifier<void> {
   @override

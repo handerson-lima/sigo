@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../common_widgets/sigo_layout.dart';
 import '../data/almoxarifado_repository.dart';
 import '../domain/material.dart' as mat;
@@ -46,7 +47,8 @@ class _AddMaterialScreenState extends ConsumerState<AddMaterialScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -66,23 +68,31 @@ class _AddMaterialScreenState extends ConsumerState<AddMaterialScreen> {
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Nome do Material (Ex: Cimento CP II)'),
-                validator: (val) => val == null || val.isEmpty ? 'Campo obrigatório' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Nome do Material (Ex: Cimento CP II)',
+                ),
+                validator: (val) =>
+                    val == null || val.isEmpty ? 'Campo obrigatório' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _unitController,
-                decoration: const InputDecoration(labelText: 'Unidade (Ex: Saco 50kg, M3, Unidade)'),
-                validator: (val) => val == null || val.isEmpty ? 'Campo obrigatório' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Unidade (Ex: Saco 50kg, M3, Unidade)',
+                ),
+                validator: (val) =>
+                    val == null || val.isEmpty ? 'Campo obrigatório' : null,
               ),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _submit,
-                  child: _isLoading ? const CircularProgressIndicator() : const Text('Cadastrar'),
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text('Cadastrar'),
                 ),
-              )
+              ),
             ],
           ),
         ),

@@ -24,9 +24,8 @@ void main() {
         watchLoteamentosProvider.overrideWith(
           (ref, arg) => Stream.value(const []),
         ),
-        construtoraPermissionProvider(
-          'c1',
-        ).overrideWith((ref) => Stream.value(null)),
+        construtoraPermissionProvider('c1')
+            .overrideWith((ref) => Stream.value(null)),
       ],
     );
     addTearDown(container.dispose);
@@ -57,10 +56,7 @@ void main() {
       await go('/construtora/c1/loteamentos?q=1#frag'),
       '/construtoras/c1/loteamentos?q=1#frag',
     );
-    expect(
-      await go('/construtora/c1/membros'),
-      '/construtoras/c1/membros',
-    );
+    expect(await go('/construtora/c1/membros'), '/construtoras/c1/membros');
     expect(
       await go('/construtoras/c1/loteamentos'),
       '/construtoras/c1/loteamentos',

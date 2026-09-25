@@ -68,18 +68,19 @@ class _TrocarCargoDialogState extends ConsumerState<TrocarCargoDialog> {
   };
 
   List<String> get _rolesDisponiveis => [
-        'operario',
-        'admin',
-        if (widget.isDev) 'owner',
-      ];
+    'operario',
+    'admin',
+    if (widget.isDev) 'owner',
+  ];
 
   @override
   void initState() {
     super.initState();
     // Se o cargo atual não é reconhecido, cai em 'operario' como fallback.
     final roles = _rolesDisponiveis;
-    _selectedRole =
-        roles.contains(widget.cargoAtual) ? widget.cargoAtual : 'operario';
+    _selectedRole = roles.contains(widget.cargoAtual)
+        ? widget.cargoAtual
+        : 'operario';
   }
 
   Future<void> _confirmar() async {
@@ -91,18 +92,17 @@ class _TrocarCargoDialogState extends ConsumerState<TrocarCargoDialog> {
     });
 
     try {
-      await ref.read(membrosRepositoryProvider).setCargo(
-            widget.construtoraId,
-            widget.userId,
-            _selectedRole,
-          );
+      await ref
+          .read(membrosRepositoryProvider)
+          .setCargo(widget.construtoraId, widget.userId, _selectedRole);
 
       // Invalida providers para refletir a mudança.
       ref.invalidate(membrosProvider(widget.construtoraId));
       ref.invalidate(
-        memberDetalheProvider(
-          (construtoraId: widget.construtoraId, uid: widget.userId),
-        ),
+        memberDetalheProvider((
+          construtoraId: widget.construtoraId,
+          uid: widget.userId,
+        )),
       );
 
       if (mounted) {
@@ -121,8 +121,7 @@ class _TrocarCargoDialogState extends ConsumerState<TrocarCargoDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final rotuloSelecionado =
-        _roleLabels[_selectedRole] ?? 'Operário';
+    final rotuloSelecionado = _roleLabels[_selectedRole] ?? 'Operário';
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -151,8 +150,9 @@ class _TrocarCargoDialogState extends ConsumerState<TrocarCargoDialog> {
                   IconButton(
                     icon: const Icon(Icons.close),
                     tooltip: 'Fechar',
-                    onPressed:
-                        _isSubmitting ? null : () => Navigator.of(context).pop(),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
@@ -178,8 +178,10 @@ class _TrocarCargoDialogState extends ConsumerState<TrocarCargoDialog> {
                 initialValue: _selectedRole,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
                 items: _rolesDisponiveis
                     .map(
@@ -202,8 +204,9 @@ class _TrocarCargoDialogState extends ConsumerState<TrocarCargoDialog> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: theme.colorScheme.outlineVariant),
                 ),
@@ -249,8 +252,9 @@ class _TrocarCargoDialogState extends ConsumerState<TrocarCargoDialog> {
                 runSpacing: 8,
                 children: [
                   TextButton(
-                    onPressed:
-                        _isSubmitting ? null : () => Navigator.of(context).pop(),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('Cancelar'),
                   ),
                   FilledButton(

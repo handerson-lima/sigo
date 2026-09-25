@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../domain/parcela_compra.dart';
 
 class LiquidarParcelaDialog extends StatefulWidget {
@@ -80,14 +81,19 @@ class _LiquidarParcelaDialogState extends State<LiquidarParcelaDialog> {
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
                       'Valor a Pagar:',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     Text(
                       'R\$ ${widget.parcela.valor.toStringAsFixed(2)}',
@@ -124,10 +130,7 @@ class _LiquidarParcelaDialogState extends State<LiquidarParcelaDialog> {
                   border: OutlineInputBorder(),
                 ),
                 items: MetodoPagamentoCompra.values.map((m) {
-                  return DropdownMenuItem(
-                    value: m,
-                    child: Text(m.label),
-                  );
+                  return DropdownMenuItem(value: m, child: Text(m.label));
                 }).toList(),
                 onChanged: (val) {
                   if (val != null) setState(() => _metodoPagamento = val);

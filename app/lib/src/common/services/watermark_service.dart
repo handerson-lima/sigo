@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -50,19 +51,23 @@ class WatermarkService {
       final lines = <String>[];
 
       // Linha 1: Data e hora
-      final dateFormatted = DateFormat('dd/MM/yyyy HH:mm:ss').format(metadata.timestamp);
+      final dateFormatted = DateFormat('dd/MM/yyyy HH:mm:ss')
+          .format(metadata.timestamp);
       lines.add(dateFormatted);
 
       // Linha 2: Coordenadas geográficas
-      final gpsFormatted = metadata.location?.formatCoordinates() ?? 'GPS: Indisponível';
+      final gpsFormatted =
+          metadata.location?.formatCoordinates() ?? 'GPS: Indisponível';
       lines.add(gpsFormatted);
 
       // Linha 3: Obra e Responsável
       final contextSegments = <String>[];
-      if (metadata.obraNomeOuId != null && metadata.obraNomeOuId!.trim().isNotEmpty) {
+      if (metadata.obraNomeOuId != null &&
+          metadata.obraNomeOuId!.trim().isNotEmpty) {
         contextSegments.add('Loteamento: ${metadata.obraNomeOuId!.trim()}');
       }
-      if (metadata.responsavelNomeOuUid != null && metadata.responsavelNomeOuUid!.trim().isNotEmpty) {
+      if (metadata.responsavelNomeOuUid != null &&
+          metadata.responsavelNomeOuUid!.trim().isNotEmpty) {
         contextSegments.add('Resp: ${metadata.responsavelNomeOuUid!.trim()}');
       }
       if (contextSegments.isNotEmpty) {
@@ -89,13 +94,15 @@ class WatermarkService {
       );
 
       final bandPaint = ui.Paint()
-        ..color = const ui.Color(0xB3000000) // ~70% preto
+        ..color =
+            const ui.Color(0xB3000000) // ~70% preto
         ..style = ui.PaintingStyle.fill;
       canvas.drawRect(bandRect, bandPaint);
 
       // Linha sutil de destaque no topo da faixa
       final accentPaint = ui.Paint()
-        ..color = const ui.Color(0xFF00B4D8) // Tom ciano/azul da identidade SIGO
+        ..color =
+            const ui.Color(0xFF00B4D8) // Tom ciano/azul da identidade SIGO
         ..strokeWidth = (2.0 * scale).clamp(1.0, 6.0)
         ..style = ui.PaintingStyle.stroke;
       canvas.drawLine(
@@ -107,21 +114,22 @@ class WatermarkService {
       // 5. Renderização dos textos
       double currentY = height - bandHeight + verticalPadding;
       for (final line in lines) {
-        final paragraphBuilder = ui.ParagraphBuilder(
-          ui.ParagraphStyle(
-            textAlign: ui.TextAlign.left,
-            maxLines: 1,
-            ellipsis: '...',
-          ),
-        )
-          ..pushStyle(
-            ui.TextStyle(
-              color: const ui.Color(0xFFFFFFFF),
-              fontSize: fontSize,
-              fontWeight: ui.FontWeight.w600,
-            ),
-          )
-          ..addText(line);
+        final paragraphBuilder =
+            ui.ParagraphBuilder(
+                ui.ParagraphStyle(
+                  textAlign: ui.TextAlign.left,
+                  maxLines: 1,
+                  ellipsis: '...',
+                ),
+              )
+              ..pushStyle(
+                ui.TextStyle(
+                  color: const ui.Color(0xFFFFFFFF),
+                  fontSize: fontSize,
+                  fontWeight: ui.FontWeight.w600,
+                ),
+              )
+              ..addText(line);
 
         final paragraph = paragraphBuilder.build()
           ..layout(

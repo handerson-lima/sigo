@@ -1,19 +1,25 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../common_widgets/sigo_layout.dart';
 import '../data/lote_repository.dart';
 import '../domain/lote.dart';
-import '../../etapas/data/etapa_repository.dart';
 
 class AddLoteScreen extends ConsumerStatefulWidget {
   final String construtoraId;
   final String loteamentoId;
   final String quadraId;
 
-  const AddLoteScreen({super.key, required this.construtoraId, required this.loteamentoId, required this.quadraId});
+  const AddLoteScreen({
+    super.key,
+    required this.construtoraId,
+    required this.loteamentoId,
+    required this.quadraId,
+  });
 
   @override
   ConsumerState<AddLoteScreen> createState() => _AddLoteScreenState();
@@ -53,25 +59,30 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
         updatedAt: now,
       );
 
-      await ref.read(loteRepositoryProvider).createLote(lote).timeout(const Duration(seconds: 15));
-      await ref.read(etapaRepositoryProvider).createDefaultEtapas(
-        construtoraId: widget.construtoraId,
-        loteamentoId: widget.loteamentoId,
-        quadraId: widget.quadraId,
-        loteId: _loteId,
-      ).timeout(const Duration(seconds: 15));
+      await ref
+          .read(loteRepositoryProvider)
+          .createLoteComEtapas(lote)
+          .timeout(const Duration(seconds: 15));
       if (mounted) {
         context.pop();
       }
     } on TimeoutException {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('O envio está demorando muito. O estado é incerto, mas seus dados não foram perdidos.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'O envio está demorando muito. O estado é incerto, mas seus dados não foram perdidos.',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao salvar o lote. Tente novamente.'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -82,7 +93,8 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
   Widget build(BuildContext context) {
     return SigoLayout(
       title: 'Novo Lote',
-      activeRoute: '/construtoras/${widget.construtoraId}/loteamentos/${widget.loteamentoId}/quadras/${widget.quadraId}/lotes',
+      activeRoute:
+          '/construtoras/${widget.construtoraId}/loteamentos/${widget.loteamentoId}/quadras/${widget.quadraId}/lotes',
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -92,17 +104,23 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
               children: [
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Nome/Identificação do Lote (Ex: Casa 1)'),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Campo obrigatório' : null,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome/Identificação do Lote (Ex: Casa 1)',
+                  ),
+                  validator: (val) => val == null || val.trim().isEmpty
+                      ? 'Campo obrigatório'
+                      : null,
                 ),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _submit,
-                    child: _isLoading ? const CircularProgressIndicator() : const Text('Criar Lote'),
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : const Text('Criar Lote'),
                   ),
-                )
+                ),
               ],
             ),
           ),

@@ -65,33 +65,36 @@ final trustedDevProvider = StreamProvider<bool>((ref) {
       .doc(user.uid)
       .snapshots()
       .asyncMap((snapshot) async {
-    if (snapshot.exists && snapshot.data()?['isActive'] == true) {
-      return true;
-    }
-    // Fallback de transição e auto-provisionamento para dev legítimo com globalRole == 'dev'
-    try {
-      debugPrint('[DEBUG_DEV] Checking dev for user: ${user.uid}, email: ${user.email}');
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final data = userDoc.data();
-      debugPrint('[DEBUG_DEV] User doc data: $data');
-      if (data?['globalRole'] == 'dev' || user.email?.toLowerCase().contains('dev') == true) {
-        debugPrint('[DEBUG_DEV] User is dev! Provisioning dev_roles...');
-        await FirebaseFirestore.instance
-            .collection('dev_roles')
-            .doc(user.uid)
-            .set({
-          'isActive': true,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        debugPrint('[DEBUG_DEV] Successfully provisioned dev_roles!');
-        return true;
-      }
-    } catch (e, st) {
-      debugPrint('[DEBUG_DEV] Error checking/provisioning dev: $e\n$st');
-    }
-    return false;
-  });
+        if (snapshot.exists && snapshot.data()?['isActive'] == true) {
+          return true;
+        }
+        // Fallback de transição e auto-provisionamento para dev legítimo com globalRole == 'dev'
+        try {
+          debugPrint(
+            '[DEBUG_DEV] Checking dev for user: ${user.uid}, email: ${user.email}',
+          );
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+          final data = userDoc.data();
+          debugPrint('[DEBUG_DEV] User doc data: $data');
+          if (data?['globalRole'] == 'dev' ||
+              user.email?.toLowerCase().contains('dev') == true) {
+            debugPrint('[DEBUG_DEV] User is dev! Provisioning dev_roles...');
+            await FirebaseFirestore.instance
+                .collection('dev_roles')
+                .doc(user.uid)
+                .set({
+                  'isActive': true,
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+            debugPrint('[DEBUG_DEV] Successfully provisioned dev_roles!');
+            return true;
+          }
+        } catch (e, st) {
+          debugPrint('[DEBUG_DEV] Error checking/provisioning dev: $e\n$st');
+        }
+        return false;
+      });
 });

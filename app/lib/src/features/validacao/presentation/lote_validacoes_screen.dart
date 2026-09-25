@@ -113,7 +113,8 @@ class LoteValidacoesScreen extends ConsumerWidget {
       statusIcon = Icons.warning_amber_rounded;
       iconCol = Colors.red[700]!;
       title = 'Atenção: Não-Conformidade Ativa no Lote';
-      desc = 'Existem vistorias reprovadas aguardando retrabalho e re-inspeção.';
+      desc =
+          'Existem vistorias reprovadas aguardando retrabalho e re-inspeção.';
     } else if (hasReaberta) {
       cardBg = Colors.orange[50]!;
       borderCol = Colors.orange[200]!;
@@ -187,7 +188,8 @@ class LoteValidacoesScreen extends ConsumerWidget {
 
     return SigoLayout(
       title: 'Validação & Qualidade do Lote',
-      activeRoute: '/construtoras/$construtoraId/obra/$obraId/lotes/$loteId/validacoes',
+      activeRoute:
+          '/construtoras/$construtoraId/obra/$obraId/lotes/$loteId/validacoes',
       actions: [
         ElevatedButton.icon(
           onPressed: () {
@@ -215,9 +217,8 @@ class LoteValidacoesScreen extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'Lote: $loteId',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -225,7 +226,8 @@ class LoteValidacoesScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           vistoriasAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, _) => Center(child: Text('Erro ao carregar vistorias: $err')),
+            error: (err, _) =>
+                Center(child: Text('Erro ao carregar vistorias: $err')),
             data: (vistorias) {
               return Expanded(
                 child: Column(
@@ -247,11 +249,18 @@ class LoteValidacoesScreen extends ConsumerWidget {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.checklist, size: 64, color: Colors.grey[400]),
+                              Icon(
+                                Icons.checklist,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
                               const SizedBox(height: 16),
                               const Text(
                                 'Nenhuma vistoria realizada para este lote.',
-                                style: TextStyle(fontSize: 16, color: Colors.grey),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey,
+                                ),
                               ),
                               const SizedBox(height: 16),
                               ElevatedButton.icon(
@@ -296,19 +305,19 @@ class LoteValidacoesScreen extends ConsumerWidget {
                                         backgroundColor: vistoria.isAprovado
                                             ? Colors.green[50]
                                             : (vistoria.isReprovado
-                                                ? Colors.red[50]
-                                                : Colors.blue[50]),
+                                                  ? Colors.red[50]
+                                                  : Colors.blue[50]),
                                         child: Icon(
                                           vistoria.isAprovado
                                               ? Icons.check
                                               : (vistoria.isReprovado
-                                                  ? Icons.priority_high
-                                                  : Icons.edit_document),
+                                                    ? Icons.priority_high
+                                                    : Icons.edit_document),
                                           color: vistoria.isAprovado
                                               ? Colors.green[800]
                                               : (vistoria.isReprovado
-                                                  ? Colors.red[800]
-                                                  : Colors.blue[800]),
+                                                    ? Colors.red[800]
+                                                    : Colors.blue[800]),
                                         ),
                                       ),
                                       const SizedBox(width: 16),
@@ -324,25 +333,33 @@ class LoteValidacoesScreen extends ConsumerWidget {
                                                     vistoria.templateTitulo,
                                                     style: const TextStyle(
                                                       fontSize: 16,
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                     ),
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
                                                 ),
                                                 const SizedBox(width: 8),
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                      horizontal: 6, vertical: 2),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2,
+                                                      ),
                                                   decoration: BoxDecoration(
                                                     color: Colors.blue[50],
                                                     borderRadius:
-                                                        BorderRadius.circular(4),
+                                                        BorderRadius.circular(
+                                                          4,
+                                                        ),
                                                   ),
                                                   child: Text(
                                                     'v${vistoria.templateVersion}',
                                                     style: TextStyle(
                                                       fontSize: 11,
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                       color: Colors.blue[800],
                                                     ),
                                                   ),
@@ -365,7 +382,8 @@ class LoteValidacoesScreen extends ConsumerWidget {
                                                 color: vistoria.hasNaoConforme
                                                     ? Colors.red[800]
                                                     : Colors.grey[600],
-                                                fontWeight: vistoria.hasNaoConforme
+                                                fontWeight:
+                                                    vistoria.hasNaoConforme
                                                     ? FontWeight.bold
                                                     : FontWeight.normal,
                                               ),
@@ -375,7 +393,8 @@ class LoteValidacoesScreen extends ConsumerWidget {
                                       ),
                                       const SizedBox(width: 12),
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
                                         children: [
                                           _buildStatusBadge(vistoria.status),
                                           const SizedBox(height: 8),

@@ -75,7 +75,8 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
               controller: controller,
               decoration: const InputDecoration(
                 labelText: 'Motivo do Cancelamento *',
-                hintText: 'Ex: Boleto emitido com valor incorreto pelo fornecedor',
+                hintText:
+                    'Ex: Boleto emitido com valor incorreto pelo fornecedor',
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
@@ -98,7 +99,9 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
               } else {
                 ScaffoldMessenger.of(ctx).showSnackBar(
                   const SnackBar(
-                    content: Text('Justificativa deve ter no mínimo 10 caracteres.'),
+                    content: Text(
+                      'Justificativa deve ter no mínimo 10 caracteres.',
+                    ),
                   ),
                 );
               }
@@ -111,7 +114,9 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
 
     if (confirmado == true && mounted) {
       try {
-        await ref.read(despesasAdmRepositoryProvider).cancelarDespesa(
+        await ref
+            .read(despesasAdmRepositoryProvider)
+            .cancelarDespesa(
               construtoraId: widget.construtoraId,
               obraId: widget.obraId,
               despesaId: despesa.id,
@@ -139,12 +144,17 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    final despesasAsync = ref.watch(despesasObraStreamProvider(
-        (construtoraId: widget.construtoraId, obraId: widget.obraId)));
+    final despesasAsync = ref.watch(
+      despesasObraStreamProvider((
+        construtoraId: widget.construtoraId,
+        obraId: widget.obraId,
+      )),
+    );
 
     return SigoLayout(
       title: 'Módulo ADM — Contas a Pagar',
-      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/despesas',
+      activeRoute:
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/despesas',
       actions: [
         ElevatedButton.icon(
           onPressed: () {
@@ -158,7 +168,8 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
       ],
       child: despesasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Erro ao carregar despesas: $err')),
+        error: (err, _) =>
+            Center(child: Text('Erro ao carregar despesas: $err')),
         data: (despesas) {
           // Totais consolidados
           int totalPendenteCents = 0;
@@ -182,13 +193,15 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
             if (_termoBusca.isNotEmpty) {
               final query = _termoBusca.toLowerCase();
               final descMatch = d.descricao.toLowerCase().contains(query);
-              final fornMatch =
-                  (d.fornecedorNome ?? '').toLowerCase().contains(query);
+              final fornMatch = (d.fornecedorNome ?? '').toLowerCase().contains(
+                query,
+              );
               if (!descMatch && !fornMatch) return false;
             }
 
             return switch (_filtroStatus) {
-              'pendentes' => d.status == StatusDespesaAdm.pendente && !d.isVencida,
+              'pendentes' =>
+                d.status == StatusDespesaAdm.pendente && !d.isVencida,
               'pagos' => d.status == StatusDespesaAdm.pago,
               'atrasados' => d.isVencida,
               _ => true,
@@ -331,7 +344,8 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
                     FilterChip(
                       label: const Text('Todas'),
                       selected: _filtroStatus == 'todos',
-                      onSelected: (_) => setState(() => _filtroStatus = 'todos'),
+                      onSelected: (_) =>
+                          setState(() => _filtroStatus = 'todos'),
                     ),
                     const SizedBox(width: 8),
                     FilterChip(
@@ -351,7 +365,8 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
                     FilterChip(
                       label: const Text('Pagas'),
                       selected: _filtroStatus == 'pagos',
-                      onSelected: (_) => setState(() => _filtroStatus = 'pagos'),
+                      onSelected: (_) =>
+                          setState(() => _filtroStatus = 'pagos'),
                     ),
                   ],
                 ),

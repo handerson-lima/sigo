@@ -161,9 +161,11 @@ class ValidacaoTemplate {
 
     final rawItens = map['itens'] as List<dynamic>? ?? [];
     final parsedItens = rawItens
-        .map((item) => ChecklistTemplateItem.fromMap(
-              Map<String, dynamic>.from(item as Map),
-            ))
+        .map(
+          (item) => ChecklistTemplateItem.fromMap(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
         .toList();
 
     return ValidacaoTemplate(

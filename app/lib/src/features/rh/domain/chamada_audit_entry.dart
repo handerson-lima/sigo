@@ -24,16 +24,16 @@ class ChamadaAuditEntry {
   });
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'userId': userId,
-        'userName': userName,
-        'timestamp': timestamp.toIso8601String(),
-        'motivo': motivo,
-        'totalCostCentsAnterior': totalCostCentsAnterior,
-        'totalCostCentsNovo': totalCostCentsNovo,
-        'versaoAnterior': versaoAnterior,
-        if (snapshotAnterior != null) 'snapshotAnterior': snapshotAnterior,
-      };
+    'id': id,
+    'userId': userId,
+    'userName': userName,
+    'timestamp': timestamp.toIso8601String(),
+    'motivo': motivo,
+    'totalCostCentsAnterior': totalCostCentsAnterior,
+    'totalCostCentsNovo': totalCostCentsNovo,
+    'versaoAnterior': versaoAnterior,
+    if (snapshotAnterior != null) 'snapshotAnterior': snapshotAnterior,
+  };
 
   factory ChamadaAuditEntry.fromMap(Map<String, dynamic> map) {
     DateTime parseDate(dynamic value) {

@@ -10,21 +10,25 @@ final chamadaRepositoryProvider = Provider<ChamadaRepository>((ref) {
   return ChamadaRepository(FirebaseFirestore.instance);
 });
 
-final chamadasStreamProvider = StreamProvider.family<List<ChamadaDiaria>,
-    ({String construtoraId, String obraId})>((ref, scope) {
-  return ref
-      .watch(chamadaRepositoryProvider)
-      .watchChamadas(scope.construtoraId, scope.obraId);
-});
+final chamadasStreamProvider =
+    StreamProvider.family<
+      List<ChamadaDiaria>,
+      ({String construtoraId, String obraId})
+    >((ref, scope) {
+      return ref
+          .watch(chamadaRepositoryProvider)
+          .watchChamadas(scope.construtoraId, scope.obraId);
+    });
 
-final chamadaDetailProvider = FutureProvider.family<ChamadaDiaria?,
-    ({String construtoraId, String obraId, String chamadaId})>((ref, scope) {
-  return ref.watch(chamadaRepositoryProvider).getChamada(
-        scope.construtoraId,
-        scope.obraId,
-        scope.chamadaId,
-      );
-});
+final chamadaDetailProvider =
+    FutureProvider.family<
+      ChamadaDiaria?,
+      ({String construtoraId, String obraId, String chamadaId})
+    >((ref, scope) {
+      return ref
+          .watch(chamadaRepositoryProvider)
+          .getChamada(scope.construtoraId, scope.obraId, scope.chamadaId);
+    });
 
 class ChamadaRepository {
   final FirebaseFirestore _firestore;
@@ -84,16 +88,18 @@ class ChamadaRepository {
     String obraId,
     String date,
   ) async {
-    final query = await _chamadasRef(construtoraId, obraId)
-        .where('date', isEqualTo: date)
-        .limit(1)
-        .get();
+    final query = await _chamadasRef(
+      construtoraId,
+      obraId,
+    ).where('date', isEqualTo: date).limit(1).get();
     if (query.docs.isEmpty) return null;
     return query.docs.first.data();
   }
 
-  Future<List<({String obraId, String date, ApontamentoTrabalhador apontamento})>>
-      findCrossObraApontamentos({
+  Future<
+    List<({String obraId, String date, ApontamentoTrabalhador apontamento})>
+  >
+  findCrossObraApontamentos({
     required String construtoraId,
     required String currentObraId,
     required String date,
@@ -127,9 +133,7 @@ class ChamadaRepository {
       apontamentos: chamada.workers,
     );
     if (erros.isNotEmpty) {
-      throw ArgumentError(
-        'Invariantes de RH violadas: ${erros.join("; ")}',
-      );
+      throw ArgumentError('Invariantes de RH violadas: ${erros.join("; ")}');
     }
     if (chamada.isRetificada &&
         (chamada.motivoRetificacao == null ||
@@ -138,9 +142,10 @@ class ChamadaRepository {
         'Retificação de chamada exige justificativa com ao menos 10 caracteres.',
       );
     }
-    await _chamadasRef(chamada.construtoraId, chamada.obraId)
-        .doc(chamada.id)
-        .set(chamada, SetOptions(merge: true));
+    await _chamadasRef(
+      chamada.construtoraId,
+      chamada.obraId,
+    ).doc(chamada.id).set(chamada, SetOptions(merge: true));
   }
 
   Future<void> cancelChamada(

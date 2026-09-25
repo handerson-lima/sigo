@@ -7,7 +7,8 @@ import 'role_chip.dart';
 
 /// Microcopy congelada do estado vazio (texto estático na 8.3 — sem CTA
 /// acionável; o botão Atribuir entra no epic 9).
-const String obrasVinculadasVazioLabel = 'Nenhum loteamento vinculado — Atribuir';
+const String obrasVinculadasVazioLabel =
+    'Nenhum loteamento vinculado — Atribuir';
 
 /// Estado vazio do bloco Obras do detalhe (UX-DR3).
 class ObraVinculoVazio extends StatelessWidget {
@@ -61,8 +62,9 @@ class ObraVinculoRow extends StatelessWidget {
     final statusBg = ativo ? const Color(0xFFECFDF5) : Colors.grey.shade100;
     final statusBorder = ativo ? const Color(0xFF10B981) : Colors.grey.shade400;
     final statusInk = ativo ? const Color(0xFF065F46) : Colors.grey.shade700;
-    final statusIcon =
-        ativo ? Icons.check_circle_outline : Icons.remove_circle_outline;
+    final statusIcon = ativo
+        ? Icons.check_circle_outline
+        : Icons.remove_circle_outline;
 
     final hasMenu = onTrocarPapel != null || onRemover != null;
 
@@ -120,48 +122,47 @@ class ObraVinculoRow extends StatelessWidget {
                 ),
             ],
           ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                RoleChip(
-                  papel: vinculo.isAdmin
-                      ? PapelChip.administrador
-                      : PapelChip.operario,
-                  label: papel,
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              RoleChip(
+                papel: vinculo.isAdmin
+                    ? PapelChip.administrador
+                    : PapelChip.operario,
+                label: papel,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: statusBorder),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: statusBorder),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(statusIcon, size: 14, color: statusInk),
-                      const SizedBox(width: 4),
-                      Text(
-                        status,
-                        style: TextStyle(
-                          color: statusInk,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusIcon, size: 14, color: statusInk),
+                    const SizedBox(width: 4),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        color: statusInk,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 enum _ObraVinculoAction { trocarPapel, remover }

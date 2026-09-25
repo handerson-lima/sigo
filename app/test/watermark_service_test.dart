@@ -42,18 +42,26 @@ void main() {
       expect(pos.toString(), 'Lat: -23.55052, Long: -46.63331');
     });
 
-    test('exibe mensagem descritiva quando indisponível ou permissão negada', () {
-      const denied = GeoLocationResult.unavailable('GPS: Sem Permissão');
-      expect(denied.isAvailable, isFalse);
-      expect(denied.formatCoordinates(), 'GPS: Sem Permissão');
+    test(
+      'exibe mensagem descritiva quando indisponível ou permissão negada',
+      () {
+        const denied = GeoLocationResult.unavailable('GPS: Sem Permissão');
+        expect(denied.isAvailable, isFalse);
+        expect(denied.formatCoordinates(), 'GPS: Sem Permissão');
 
-      const timeout = GeoLocationResult.unavailable('GPS: Tempo esgotado / Indisponível');
-      expect(timeout.isAvailable, isFalse);
-      expect(timeout.formatCoordinates(), 'GPS: Tempo esgotado / Indisponível');
+        const timeout = GeoLocationResult.unavailable(
+          'GPS: Tempo esgotado / Indisponível',
+        );
+        expect(timeout.isAvailable, isFalse);
+        expect(
+          timeout.formatCoordinates(),
+          'GPS: Tempo esgotado / Indisponível',
+        );
 
-      const defaultUnavail = GeoLocationResult.unavailable();
-      expect(defaultUnavail.formatCoordinates(), 'GPS: Indisponível');
-    });
+        const defaultUnavail = GeoLocationResult.unavailable();
+        expect(defaultUnavail.formatCoordinates(), 'GPS: Indisponível');
+      },
+    );
 
     test('DefaultGeolocationService com locator customizado retorna coordenadas válidas', () async {
       final service = DefaultGeolocationService(
@@ -87,17 +95,20 @@ void main() {
       expect(result.formatCoordinates(), contains('GPS: Tempo esgotado'));
     });
 
-    test('DefaultGeolocationService captura exceções e retorna indisponível', () async {
-      final service = DefaultGeolocationService(
-        locatorOverride: ({required timeout}) async {
-          throw Exception('Hardware GPS desabilitado');
-        },
-      );
+    test(
+      'DefaultGeolocationService captura exceções e retorna indisponível',
+      () async {
+        final service = DefaultGeolocationService(
+          locatorOverride: ({required timeout}) async {
+            throw Exception('Hardware GPS desabilitado');
+          },
+        );
 
-      final result = await service.getCurrentPosition();
-      expect(result.isAvailable, isFalse);
-      expect(result.formatCoordinates(), contains('GPS: Indisponível'));
-    });
+        final result = await service.getCurrentPosition();
+        expect(result.isAvailable, isFalse);
+        expect(result.formatCoordinates(), contains('GPS: Indisponível'));
+      },
+    );
   });
 
   group('Story 2.13 — WatermarkService (Aplicação de Carimbo Visual)', () {
@@ -107,35 +118,38 @@ void main() {
       watermarkService = WatermarkService();
     });
 
-    test('aplica carimbo sobre imagem com GPS, data/hora e contexto da obra', () async {
-      final originalBytes = await createTestPngBytes(width: 400, height: 300);
-      expect(originalBytes.isNotEmpty, isTrue);
+    test(
+      'aplica carimbo sobre imagem com GPS, data/hora e contexto da obra',
+      () async {
+        final originalBytes = await createTestPngBytes(width: 400, height: 300);
+        expect(originalBytes.isNotEmpty, isTrue);
 
-      final metadata = WatermarkMetadata(
-        timestamp: DateTime(2026, 9, 16, 14, 30, 0),
-        location: const GeoLocationResult(
-          latitude: -23.55052,
-          longitude: -46.63331,
-        ),
-        obraNomeOuId: 'Residencial Aurora',
-        responsavelNomeOuUid: 'Eng. Carlos',
-      );
+        final metadata = WatermarkMetadata(
+          timestamp: DateTime(2026, 9, 16, 14, 30, 0),
+          location: const GeoLocationResult(
+            latitude: -23.55052,
+            longitude: -46.63331,
+          ),
+          obraNomeOuId: 'Residencial Aurora',
+          responsavelNomeOuUid: 'Eng. Carlos',
+        );
 
-      final stampedBytes = await watermarkService.applyWatermark(
-        originalBytes,
-        metadata,
-      );
+        final stampedBytes = await watermarkService.applyWatermark(
+          originalBytes,
+          metadata,
+        );
 
-      expect(stampedBytes, isNotNull);
-      expect(stampedBytes.isNotEmpty, isTrue);
-      expect(stampedBytes, isNot(equals(originalBytes)));
+        expect(stampedBytes, isNotNull);
+        expect(stampedBytes.isNotEmpty, isTrue);
+        expect(stampedBytes, isNot(equals(originalBytes)));
 
-      // Verifica se a imagem resultante é decodificável e preserva dimensões
-      final codec = await ui.instantiateImageCodec(stampedBytes);
-      final frame = await codec.getNextFrame();
-      expect(frame.image.width, 400);
-      expect(frame.image.height, 300);
-    });
+        // Verifica se a imagem resultante é decodificável e preserva dimensões
+        final codec = await ui.instantiateImageCodec(stampedBytes);
+        final frame = await codec.getNextFrame();
+        expect(frame.image.width, 400);
+        expect(frame.image.height, 300);
+      },
+    );
 
     test('aplica carimbo com indicação graciosa de GPS indisponível / sem permissão', () async {
       final originalBytes = await createTestPngBytes(width: 300, height: 300);
@@ -165,10 +179,7 @@ void main() {
       final portraitBytes = await createTestPngBytes(width: 300, height: 600);
       final stampedPortrait = await watermarkService.applyWatermark(
         portraitBytes,
-        WatermarkMetadata(
-          timestamp: DateTime.now(),
-          obraNomeOuId: 'Torre A',
-        ),
+        WatermarkMetadata(timestamp: DateTime.now(), obraNomeOuId: 'Torre A'),
       );
       final codecPortrait = await ui.instantiateImageCodec(stampedPortrait);
       final framePortrait = await codecPortrait.getNextFrame();
@@ -212,34 +223,37 @@ void main() {
       expect(emptyResult, equals(emptyBytes));
     });
 
-    test('stampPhoto helper executa ciclo completo integrando geolocalização', () async {
-      final originalBytes = await createTestPngBytes(width: 250, height: 250);
+    test(
+      'stampPhoto helper executa ciclo completo integrando geolocalização',
+      () async {
+        final originalBytes = await createTestPngBytes(width: 250, height: 250);
 
-      final fakeGeoService = DefaultGeolocationService(
-        locatorOverride: ({required timeout}) async {
-          return const GeoLocationResult(
-            latitude: -19.92083,
-            longitude: -43.93778,
-          );
-        },
-      );
+        final fakeGeoService = DefaultGeolocationService(
+          locatorOverride: ({required timeout}) async {
+            return const GeoLocationResult(
+              latitude: -19.92083,
+              longitude: -43.93778,
+            );
+          },
+        );
 
-      final stampedBytes = await watermarkService.stampPhoto(
-        imageBytes: originalBytes,
-        obraId: 'obra-bh-101',
-        obraNome: 'Edifício Savassi',
-        responsavelId: 'user-789',
-        responsavelNome: 'Mestre Silva',
-        geolocationService: fakeGeoService,
-      );
+        final stampedBytes = await watermarkService.stampPhoto(
+          imageBytes: originalBytes,
+          obraId: 'obra-bh-101',
+          obraNome: 'Edifício Savassi',
+          responsavelId: 'user-789',
+          responsavelNome: 'Mestre Silva',
+          geolocationService: fakeGeoService,
+        );
 
-      expect(stampedBytes.isNotEmpty, isTrue);
-      expect(stampedBytes, isNot(equals(originalBytes)));
+        expect(stampedBytes.isNotEmpty, isTrue);
+        expect(stampedBytes, isNot(equals(originalBytes)));
 
-      final codec = await ui.instantiateImageCodec(stampedBytes);
-      final frame = await codec.getNextFrame();
-      expect(frame.image.width, 250);
-      expect(frame.image.height, 250);
-    });
+        final codec = await ui.instantiateImageCodec(stampedBytes);
+        final frame = await codec.getNextFrame();
+        expect(frame.image.width, 250);
+        expect(frame.image.height, 250);
+      },
+    );
   });
 }

@@ -22,7 +22,7 @@ class SigoThemeExtension extends ThemeExtension<SigoThemeExtension> {
   final Color borderControl;
   final Color borderHairline;
   final Color danger;
-  
+
   final Color lotOnTimeBg;
   final Color lotOnTimeInk;
   final Color lotDelayedBg;
@@ -202,19 +202,52 @@ class SigoTheme {
   );
 
   static ThemeData get lightTheme {
-    final textTheme = const TextTheme(
-      displayLarge: TextStyle(fontSize: 40, height: 1.2, fontWeight: FontWeight.w700), // page-desktop
-      displayMedium: TextStyle(fontSize: 28, height: 1.28, fontWeight: FontWeight.w700), // page-mobile
-      displaySmall: TextStyle(fontSize: 24, height: 1.33, fontWeight: FontWeight.w700), // section
-      titleLarge: TextStyle(fontSize: 20, height: 1.4, fontWeight: FontWeight.w600), // constructor-name
-      titleMedium: TextStyle(fontSize: 18, height: 1.33, fontWeight: FontWeight.w600), // lot-name
-      bodyLarge: TextStyle(fontSize: 16, height: 1.5, fontWeight: FontWeight.w400), // reading
-      bodyMedium: TextStyle(fontSize: 14, height: 1.42, fontWeight: FontWeight.w400), // supporting
-      labelLarge: TextStyle(fontSize: 14, height: 1.42, fontWeight: FontWeight.w600), // action
-    ).apply(
-      bodyColor: extension.inkPrimary,
-      displayColor: extension.inkPrimary,
-    );
+    final textTheme =
+        const TextTheme(
+          displayLarge: TextStyle(
+            fontSize: 40,
+            height: 1.2,
+            fontWeight: FontWeight.w700,
+          ), // page-desktop
+          displayMedium: TextStyle(
+            fontSize: 28,
+            height: 1.28,
+            fontWeight: FontWeight.w700,
+          ), // page-mobile
+          displaySmall: TextStyle(
+            fontSize: 24,
+            height: 1.33,
+            fontWeight: FontWeight.w700,
+          ), // section
+          titleLarge: TextStyle(
+            fontSize: 20,
+            height: 1.4,
+            fontWeight: FontWeight.w600,
+          ), // constructor-name
+          titleMedium: TextStyle(
+            fontSize: 18,
+            height: 1.33,
+            fontWeight: FontWeight.w600,
+          ), // lot-name
+          bodyLarge: TextStyle(
+            fontSize: 16,
+            height: 1.5,
+            fontWeight: FontWeight.w400,
+          ), // reading
+          bodyMedium: TextStyle(
+            fontSize: 14,
+            height: 1.42,
+            fontWeight: FontWeight.w400,
+          ), // supporting
+          labelLarge: TextStyle(
+            fontSize: 14,
+            height: 1.42,
+            fontWeight: FontWeight.w600,
+          ), // action
+        ).apply(
+          bodyColor: extension.inkPrimary,
+          displayColor: extension.inkPrimary,
+        );
 
     return ThemeData(
       useMaterial3: true,
@@ -229,9 +262,7 @@ class SigoTheme {
       ),
       scaffoldBackgroundColor: extension.surfaceBase,
       textTheme: textTheme,
-      extensions: <ThemeExtension<dynamic>>[
-        extension,
-      ],
+      extensions: <ThemeExtension<dynamic>>[extension],
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: extension.actionBlue,

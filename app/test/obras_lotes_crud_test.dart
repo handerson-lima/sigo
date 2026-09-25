@@ -17,12 +17,21 @@ class FakeLoteRepository implements LoteRepository {
   final List<Lote> lotes = [];
 
   @override
-  Stream<List<Lote>> watchLotes(String construtoraId, String loteamentoId, String quadraId) {
+  Stream<List<Lote>> watchLotes(
+    String construtoraId,
+    String loteamentoId,
+    String quadraId,
+  ) {
     return Stream.value(lotes);
   }
 
   @override
   Future<void> createLote(Lote lote) async {
+    lotes.add(lote);
+  }
+
+  @override
+  Future<void> createLoteComEtapas(Lote lote) async {
     lotes.add(lote);
   }
 }
@@ -88,40 +97,45 @@ void main() {
       expect(deserialized.isActive, true);
     });
 
-    testWidgets('AddLoteScreen valida whitespace e bloqueia submissao de nome vazio', (tester) async {
-      final fakeRepo = FakeLoteRepository();
+    testWidgets(
+      'AddLoteScreen valida whitespace e bloqueia submissao de nome vazio',
+      (tester) async {
+        final fakeRepo = FakeLoteRepository();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            loteRepositoryProvider.overrideWithValue(fakeRepo),
-          ],
-          child: const MaterialApp(
-            home: AddLoteScreen(construtoraId: 'c1', loteamentoId: 'lt1', quadraId: 'qd1'),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [loteRepositoryProvider.overrideWithValue(fakeRepo)],
+            child: const MaterialApp(
+              home: AddLoteScreen(
+                construtoraId: 'c1',
+                loteamentoId: 'lt1',
+                quadraId: 'qd1',
+              ),
+            ),
           ),
-        ),
-      );
+        );
 
-      // Tenta submeter vazio
-      await tester.tap(find.text('Criar Lote'));
-      await tester.pump();
-      expect(find.text('Campo obrigatório'), findsOneWidget);
+        // Tenta submeter vazio
+        await tester.tap(find.text('Criar Lote'));
+        await tester.pump();
+        expect(find.text('Campo obrigatório'), findsOneWidget);
 
-      // Tenta submeter com apenas espaços
-      await tester.enterText(find.byType(TextFormField).first, '     ');
-      await tester.tap(find.text('Criar Lote'));
-      await tester.pump();
-      expect(find.text('Campo obrigatório'), findsOneWidget);
-      expect(fakeRepo.lotes, isEmpty);
+        // Tenta submeter com apenas espaços
+        await tester.enterText(find.byType(TextFormField).first, '     ');
+        await tester.tap(find.text('Criar Lote'));
+        await tester.pump();
+        expect(find.text('Campo obrigatório'), findsOneWidget);
+        expect(fakeRepo.lotes, isEmpty);
 
-      // Preenche nome válido
-      await tester.enterText(find.byType(TextFormField).first, 'Casa 05');
-      await tester.tap(find.text('Criar Lote'));
-      await tester.pump();
+        // Preenche nome válido
+        await tester.enterText(find.byType(TextFormField).first, 'Casa 05');
+        await tester.tap(find.text('Criar Lote'));
+        await tester.pump();
 
-      expect(fakeRepo.lotes.length, 1);
-      expect(fakeRepo.lotes.first.name, 'Casa 05');
-    });
+        expect(fakeRepo.lotes.length, 1);
+        expect(fakeRepo.lotes.first.name, 'Casa 05');
+      },
+    );
 
     testWidgets('LotesListScreen exibe a lista de lotes', (tester) async {
       final fakeRepo = FakeLoteRepository();
@@ -152,9 +166,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            loteRepositoryProvider.overrideWithValue(fakeRepo),
-          ],
+          overrides: [loteRepositoryProvider.overrideWithValue(fakeRepo)],
           child: MaterialApp.router(routerConfig: router),
         ),
       );
@@ -163,111 +175,124 @@ void main() {
       expect(find.text('Lote 01'), findsOneWidget);
     });
 
-    testWidgets('ObrasListScreen exibe botao de Novo Loteamento para Administrador', (tester) async {
-      final fakeRepo = FakeObraRepository();
+    testWidgets(
+      'ObrasListScreen exibe botao de Novo Loteamento para Administrador',
+      (tester) async {
+        final fakeRepo = FakeObraRepository();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            obraRepositoryProvider.overrideWithValue(fakeRepo),
-            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              obraRepositoryProvider.overrideWithValue(fakeRepo),
+              trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+              ),
+              construtoraObrasProvider('c1')
+                  .overrideWith((ref) => Future.value([])),
+            ],
+            child: const MaterialApp(
+              home: ObrasListScreen(construtoraId: 'c1'),
             ),
-            construtoraObrasProvider('c1').overrideWith(
-              (ref) => Future.value([]),
-            ),
-          ],
-          child: const MaterialApp(
-            home: ObrasListScreen(construtoraId: 'c1'),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // Encontra o botão de criar obra na AppBar e no centro do estado vazio
-      expect(find.byTooltip('Novo Loteamento'), findsOneWidget);
-      expect(find.text('Criar Novo Loteamento'), findsOneWidget);
-      // Admin/owner enxerga o atalho de Loteamentos
-      expect(find.byTooltip('Loteamentos'), findsOneWidget);
+        // Encontra o botão de criar obra na AppBar e no centro do estado vazio
+        expect(find.byTooltip('Novo Loteamento'), findsOneWidget);
+        expect(find.text('Criar Novo Loteamento'), findsOneWidget);
+        // Admin/owner enxerga o atalho de Loteamentos
+        expect(find.byTooltip('Loteamentos'), findsOneWidget);
 
-      // Clica em Novo Loteamento e abre diálogo
-      await tester.tap(find.byTooltip('Novo Loteamento'));
-      await tester.pumpAndSettle();
+        // Clica em Novo Loteamento e abre diálogo
+        await tester.tap(find.byTooltip('Novo Loteamento'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Novo Loteamento'), findsOneWidget);
-      expect(find.text('Nome do Loteamento *'), findsOneWidget);
+        expect(find.text('Novo Loteamento'), findsOneWidget);
+        expect(find.text('Nome do Loteamento *'), findsOneWidget);
 
-      // Preenche e submete
-      await tester.enterText(find.byType(TextFormField).first, 'Residencial Bela Vista');
-      await tester.tap(find.text('Salvar'));
-      await tester.pumpAndSettle();
+        // Preenche e submete
+        await tester.enterText(
+          find.byType(TextFormField).first,
+          'Residencial Bela Vista',
+        );
+        await tester.tap(find.text('Salvar'));
+        await tester.pumpAndSettle();
 
-      expect(fakeRepo.obras.length, 1);
-      expect(fakeRepo.obras.first.name, 'Residencial Bela Vista');
-      expect(fakeRepo.obras.first.construtoraId, 'c1');
-    });
+        expect(fakeRepo.obras.length, 1);
+        expect(fakeRepo.obras.first.name, 'Residencial Bela Vista');
+        expect(fakeRepo.obras.first.construtoraId, 'c1');
+      },
+    );
 
-    testWidgets('ObrasListScreen oculta botao de Novo Loteamento para membro comum nao-admin', (tester) async {
-      final fakeRepo = FakeObraRepository();
+    testWidgets(
+      'ObrasListScreen oculta botao de Novo Loteamento para membro comum nao-admin',
+      (tester) async {
+        final fakeRepo = FakeObraRepository();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            obraRepositoryProvider.overrideWithValue(fakeRepo),
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({'isActive': true, 'isAdmin': false, 'isOwner': false}),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              obraRepositoryProvider.overrideWithValue(fakeRepo),
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'isOwner': false,
+                }),
+              ),
+              construtoraObrasProvider('c1')
+                  .overrideWith((ref) => Future.value([])),
+            ],
+            child: const MaterialApp(
+              home: ObrasListScreen(construtoraId: 'c1'),
             ),
-            construtoraObrasProvider('c1').overrideWith(
-              (ref) => Future.value([]),
-            ),
-          ],
-          child: const MaterialApp(
-            home: ObrasListScreen(construtoraId: 'c1'),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // Membro comum não vê ações administrativas de criação de obra
-      expect(find.byTooltip('Novo Loteamento'), findsNothing);
-      expect(find.text('Criar Novo Loteamento'), findsNothing);
-      // Sem módulo lotes, o atalho de Loteamentos fica oculto
-      expect(find.byTooltip('Loteamentos'), findsNothing);
-    });
+        // Membro comum não vê ações administrativas de criação de obra
+        expect(find.byTooltip('Novo Loteamento'), findsNothing);
+        expect(find.text('Criar Novo Loteamento'), findsNothing);
+        // Sem módulo lotes, o atalho de Loteamentos fica oculto
+        expect(find.byTooltip('Loteamentos'), findsNothing);
+      },
+    );
 
-    testWidgets('ObrasListScreen mostra Loteamentos para membro com módulo lotes', (tester) async {
-      final fakeRepo = FakeObraRepository();
+    testWidgets(
+      'ObrasListScreen mostra Loteamentos para membro com módulo lotes',
+      (tester) async {
+        final fakeRepo = FakeObraRepository();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            obraRepositoryProvider.overrideWithValue(fakeRepo),
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({
-                'isActive': true,
-                'isAdmin': false,
-                'isOwner': false,
-                'modules': ['lotes'],
-              }),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              obraRepositoryProvider.overrideWithValue(fakeRepo),
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'isOwner': false,
+                  'modules': ['lotes'],
+                }),
+              ),
+              construtoraObrasProvider('c1')
+                  .overrideWith((ref) => Future.value([])),
+            ],
+            child: const MaterialApp(
+              home: ObrasListScreen(construtoraId: 'c1'),
             ),
-            construtoraObrasProvider('c1').overrideWith(
-              (ref) => Future.value([]),
-            ),
-          ],
-          child: const MaterialApp(
-            home: ObrasListScreen(construtoraId: 'c1'),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Loteamentos'), findsOneWidget);
-    });
+        expect(find.byTooltip('Loteamentos'), findsOneWidget);
+      },
+    );
   });
 }

@@ -20,12 +20,12 @@ class FakeLoteamentoRepository implements LoteamentoRepository {
 }
 
 Loteamento makeLoteamento(String id) => Loteamento(
-      id: id,
-      construtoraId: 'c1',
-      name: 'Loteamento $id',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-    );
+  id: id,
+  construtoraId: 'c1',
+  name: 'Loteamento $id',
+  createdAt: DateTime(2026, 1, 1),
+  updatedAt: DateTime(2026, 1, 1),
+);
 
 Widget buildTestWidget(Widget child) {
   final router = GoRouter(
@@ -85,8 +85,9 @@ void main() {
     );
   });
 
-  testWidgets('Renderiza mensagem de erro quando o stream falha',
-      (tester) async {
+  testWidgets('Renderiza mensagem de erro quando o stream falha', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -109,8 +110,9 @@ void main() {
     expect(find.text('Tentar novamente'), findsOneWidget);
   });
 
-  testWidgets('Botão Tentar novamente invalida o provider e recarrega',
-      (tester) async {
+  testWidgets('Botão Tentar novamente invalida o provider e recarrega', (
+    tester,
+  ) async {
     var stream = Stream<List<Loteamento>>.error(Exception('falha'));
 
     await tester.pumpWidget(
@@ -137,8 +139,9 @@ void main() {
     expect(find.text('Loteamento l1'), findsOneWidget);
   });
 
-  testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)',
-      (tester) async {
+  testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)', (
+    tester,
+  ) async {
     final rebuild = ValueNotifier<int>(0);
     addTearDown(rebuild.dispose);
     var buildCount = 0;

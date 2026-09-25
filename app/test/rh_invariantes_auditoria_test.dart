@@ -9,114 +9,117 @@ import 'package:app/src/features/rh/presentation/widgets/retificacao_chamada_dia
 
 void main() {
   group('Story 4.4 — RH: Validação de Invariantes e Auditoria', () {
-    group('1. Invariantes de Presença e Alocação de Lotes (RhInvarianteValidator)', () {
-      test('Presente com 100% em lotes válidos é aceito', () {
-        const ap = ApontamentoTrabalhador(
-          workerId: 'w1',
-          workerName: 'João Silva',
-          workerRole: 'Pedreiro',
-          status: PresencaStatus.presente,
-          allocations: [
-            AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 100),
-          ],
-        );
+    group(
+      '1. Invariantes de Presença e Alocação de Lotes (RhInvarianteValidator)',
+      () {
+        test('Presente com 100% em lotes válidos é aceito', () {
+          const ap = ApontamentoTrabalhador(
+            workerId: 'w1',
+            workerName: 'João Silva',
+            workerRole: 'Pedreiro',
+            status: PresencaStatus.presente,
+            allocations: [
+              AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 100),
+            ],
+          );
 
-        final erros = RhInvarianteValidator.validarApontamento(ap);
-        expect(erros, isEmpty);
-      });
+          final erros = RhInvarianteValidator.validarApontamento(ap);
+          expect(erros, isEmpty);
+        });
 
-      test('Presente com menos de 100% de alocação é rejeitado com mensagem descritiva', () {
-        const ap = ApontamentoTrabalhador(
-          workerId: 'w1',
-          workerName: 'João Silva',
-          workerRole: 'Pedreiro',
-          status: PresencaStatus.presente,
-          allocations: [
-            AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 80),
-          ],
-        );
+        test('Presente com menos de 100% de alocação é rejeitado com mensagem descritiva', () {
+          const ap = ApontamentoTrabalhador(
+            workerId: 'w1',
+            workerName: 'João Silva',
+            workerRole: 'Pedreiro',
+            status: PresencaStatus.presente,
+            allocations: [
+              AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 80),
+            ],
+          );
 
-        final erros = RhInvarianteValidator.validarApontamento(ap);
-        expect(erros, hasLength(1));
-        expect(erros.first, contains('somar exatamente 100%'));
-        expect(erros.first, contains('atual: 80%'));
-      });
+          final erros = RhInvarianteValidator.validarApontamento(ap);
+          expect(erros, hasLength(1));
+          expect(erros.first, contains('somar exatamente 100%'));
+          expect(erros.first, contains('atual: 80%'));
+        });
 
-      test('Presente sem lotes alocados é rejeitado', () {
-        const ap = ApontamentoTrabalhador(
-          workerId: 'w1',
-          workerName: 'João Silva',
-          workerRole: 'Pedreiro',
-          status: PresencaStatus.presente,
-          allocations: [],
-        );
+        test('Presente sem lotes alocados é rejeitado', () {
+          const ap = ApontamentoTrabalhador(
+            workerId: 'w1',
+            workerName: 'João Silva',
+            workerRole: 'Pedreiro',
+            status: PresencaStatus.presente,
+            allocations: [],
+          );
 
-        final erros = RhInvarianteValidator.validarApontamento(ap);
-        expect(erros, hasLength(1));
-        expect(erros.first, contains('ao menos 1 lote alocado'));
-      });
+          final erros = RhInvarianteValidator.validarApontamento(ap);
+          expect(erros, hasLength(1));
+          expect(erros.first, contains('ao menos 1 lote alocado'));
+        });
 
-      test('Meio-período com exatamente 50% de alocação é aceito', () {
-        const ap = ApontamentoTrabalhador(
-          workerId: 'w2',
-          workerName: 'Carlos Souza',
-          workerRole: 'Ajudante',
-          status: PresencaStatus.meioPeriodo,
-          allocations: [
-            AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 50),
-          ],
-        );
+        test('Meio-período com exatamente 50% de alocação é aceito', () {
+          const ap = ApontamentoTrabalhador(
+            workerId: 'w2',
+            workerName: 'Carlos Souza',
+            workerRole: 'Ajudante',
+            status: PresencaStatus.meioPeriodo,
+            allocations: [
+              AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 50),
+            ],
+          );
 
-        final erros = RhInvarianteValidator.validarApontamento(ap);
-        expect(erros, isEmpty);
-      });
+          final erros = RhInvarianteValidator.validarApontamento(ap);
+          expect(erros, isEmpty);
+        });
 
-      test('Meio-período com 100% de alocação é rejeitado', () {
-        const ap = ApontamentoTrabalhador(
-          workerId: 'w2',
-          workerName: 'Carlos Souza',
-          workerRole: 'Ajudante',
-          status: PresencaStatus.meioPeriodo,
-          allocations: [
-            AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 100),
-          ],
-        );
+        test('Meio-período com 100% de alocação é rejeitado', () {
+          const ap = ApontamentoTrabalhador(
+            workerId: 'w2',
+            workerName: 'Carlos Souza',
+            workerRole: 'Ajudante',
+            status: PresencaStatus.meioPeriodo,
+            allocations: [
+              AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 100),
+            ],
+          );
 
-        final erros = RhInvarianteValidator.validarApontamento(ap);
-        expect(erros, hasLength(1));
-        expect(erros.first, contains('somar exatamente 50%'));
-        expect(erros.first, contains('atual: 100%'));
-      });
+          final erros = RhInvarianteValidator.validarApontamento(ap);
+          expect(erros, hasLength(1));
+          expect(erros.first, contains('somar exatamente 50%'));
+          expect(erros.first, contains('atual: 100%'));
+        });
 
-      test('Falta com lote alocado é estritamente rejeitado', () {
-        const ap = ApontamentoTrabalhador(
-          workerId: 'w3',
-          workerName: 'Marcos Dias',
-          workerRole: 'Eletricista',
-          status: PresencaStatus.falta,
-          allocations: [
-            AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 100),
-          ],
-        );
+        test('Falta com lote alocado é estritamente rejeitado', () {
+          const ap = ApontamentoTrabalhador(
+            workerId: 'w3',
+            workerName: 'Marcos Dias',
+            workerRole: 'Eletricista',
+            status: PresencaStatus.falta,
+            allocations: [
+              AlocacaoLote(lotId: 'l1', lotName: 'Fundação', percentage: 100),
+            ],
+          );
 
-        final erros = RhInvarianteValidator.validarApontamento(ap);
-        expect(erros, hasLength(1));
-        expect(erros.first, contains('não pode ter lotes alocados'));
-      });
+          final erros = RhInvarianteValidator.validarApontamento(ap);
+          expect(erros, hasLength(1));
+          expect(erros.first, contains('não pode ter lotes alocados'));
+        });
 
-      test('Falta sem lotes alocados é aceita', () {
-        const ap = ApontamentoTrabalhador(
-          workerId: 'w3',
-          workerName: 'Marcos Dias',
-          workerRole: 'Eletricista',
-          status: PresencaStatus.falta,
-          allocations: [],
-        );
+        test('Falta sem lotes alocados é aceita', () {
+          const ap = ApontamentoTrabalhador(
+            workerId: 'w3',
+            workerName: 'Marcos Dias',
+            workerRole: 'Eletricista',
+            status: PresencaStatus.falta,
+            allocations: [],
+          );
 
-        final erros = RhInvarianteValidator.validarApontamento(ap);
-        expect(erros, isEmpty);
-      });
-    });
+          final erros = RhInvarianteValidator.validarApontamento(ap);
+          expect(erros, isEmpty);
+        });
+      },
+    );
 
     group('2. Unicidade Nominal e Validação de Lotes da Obra', () {
       test('Detecta colaborador duplicado na lista de apontamentos', () {
@@ -154,7 +157,11 @@ void main() {
             workerRole: 'Pedreiro',
             status: PresencaStatus.presente,
             allocations: [
-              AlocacaoLote(lotId: 'lote_alienigena', lotName: 'Outra Obra', percentage: 100),
+              AlocacaoLote(
+                lotId: 'lote_alienigena',
+                lotName: 'Outra Obra',
+                percentage: 100,
+              ),
             ],
           ),
         ];
@@ -169,18 +176,26 @@ void main() {
     });
 
     group('3. Validação de Conflito Cross-Obra no Mesmo Dia', () {
-      test('Bloqueia apontamento quando colaborador já está 100% em outra obra', () {
-        final conflito = RhInvarianteValidator.validarConflitoCrossObra(
-          workerId: 'w1',
-          workerName: 'João Silva',
-          statusNovo: PresencaStatus.presente,
-          statusExistenteEmOutraObra: PresencaStatus.presente,
-          nomeOutraObra: 'Residencial Aurora',
-        );
+      test(
+        'Bloqueia apontamento quando colaborador já está 100% em outra obra',
+        () {
+          final conflito = RhInvarianteValidator.validarConflitoCrossObra(
+            workerId: 'w1',
+            workerName: 'João Silva',
+            statusNovo: PresencaStatus.presente,
+            statusExistenteEmOutraObra: PresencaStatus.presente,
+            nomeOutraObra: 'Residencial Aurora',
+          );
 
-        expect(conflito, isNotNull);
-        expect(conflito, contains('tempo integral (100%) no loteamento "Residencial Aurora"'));
-      });
+          expect(conflito, isNotNull);
+          expect(
+            conflito,
+            contains(
+              'tempo integral (100%) no loteamento "Residencial Aurora"',
+            ),
+          );
+        },
+      );
 
       test('Bloqueia tempo integral quando colaborador já tem meio-período (50%) em outra obra', () {
         final conflito = RhInvarianteValidator.validarConflitoCrossObra(
@@ -239,7 +254,10 @@ void main() {
 
         expect(from.id, equals('audit-1'));
         expect(from.userName, equals('Engenheiro Chefe'));
-        expect(from.motivo, equals('Ajuste no lote de alocação do operário João'));
+        expect(
+          from.motivo,
+          equals('Ajuste no lote de alocação do operário João'),
+        );
         expect(from.totalCostCentsAnterior, equals(150000));
         expect(from.totalCostCentsNovo, equals(160000));
         expect(from.versaoAnterior, equals(1));
@@ -304,105 +322,120 @@ void main() {
     });
 
     group('5. Diálogos de Interface e Governança', () {
-      testWidgets('RetificacaoChamadaDialog exige justificativa com ao menos 10 caracteres',
-          (tester) async {
-        String? resultado;
+      testWidgets(
+        'RetificacaoChamadaDialog exige justificativa com ao menos 10 caracteres',
+        (tester) async {
+          String? resultado;
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: Builder(
-                builder: (context) => ElevatedButton(
-                  onPressed: () async {
-                    resultado = await showDialog<String>(
-                      context: context,
-                      builder: (_) => const RetificacaoChamadaDialog(
-                        totalCostCentsAnterior: 100000,
-                        totalCostCentsNovo: 120000,
-                      ),
-                    );
-                  },
-                  child: const Text('Abrir Diálogo'),
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: Builder(
+                  builder: (context) => ElevatedButton(
+                    onPressed: () async {
+                      resultado = await showDialog<String>(
+                        context: context,
+                        builder: (_) => const RetificacaoChamadaDialog(
+                          totalCostCentsAnterior: 100000,
+                          totalCostCentsNovo: 120000,
+                        ),
+                      );
+                    },
+                    child: const Text('Abrir Diálogo'),
+                  ),
                 ),
               ),
             ),
-          ),
-        );
+          );
 
-        await tester.tap(find.text('Abrir Diálogo'));
-        await tester.pumpAndSettle();
+          await tester.tap(find.text('Abrir Diálogo'));
+          await tester.pumpAndSettle();
 
-        expect(find.text('Retificação de Chamada'), findsOneWidget);
-        expect(find.text('Custo Anterior:'), findsOneWidget);
-        expect(find.text('Novo Custo:'), findsOneWidget);
+          expect(find.text('Retificação de Chamada'), findsOneWidget);
+          expect(find.text('Custo Anterior:'), findsOneWidget);
+          expect(find.text('Novo Custo:'), findsOneWidget);
 
-        final botaoConfirmar = find.widgetWithText(FilledButton, 'Confirmar Retificação');
-        expect(tester.widget<FilledButton>(botaoConfirmar).onPressed, isNull);
+          final botaoConfirmar = find.widgetWithText(
+            FilledButton,
+            'Confirmar Retificação',
+          );
+          expect(tester.widget<FilledButton>(botaoConfirmar).onPressed, isNull);
 
-        // Digitar motivo curto (< 10 chars)
-        await tester.enterText(find.byType(TextFormField), 'Curto');
-        await tester.pumpAndSettle();
-        expect(tester.widget<FilledButton>(botaoConfirmar).onPressed, isNull);
+          // Digitar motivo curto (< 10 chars)
+          await tester.enterText(find.byType(TextFormField), 'Curto');
+          await tester.pumpAndSettle();
+          expect(tester.widget<FilledButton>(botaoConfirmar).onPressed, isNull);
 
-        // Digitar motivo válido (>= 10 chars)
-        await tester.enterText(
-          find.byType(TextFormField),
-          'Correção na alocação de lotes do operário',
-        );
-        await tester.pumpAndSettle();
+          // Digitar motivo válido (>= 10 chars)
+          await tester.enterText(
+            find.byType(TextFormField),
+            'Correção na alocação de lotes do operário',
+          );
+          await tester.pumpAndSettle();
 
-        expect(tester.widget<FilledButton>(botaoConfirmar).onPressed, isNotNull);
+          expect(
+            tester.widget<FilledButton>(botaoConfirmar).onPressed,
+            isNotNull,
+          );
 
-        await tester.tap(botaoConfirmar);
-        await tester.pumpAndSettle();
+          await tester.tap(botaoConfirmar);
+          await tester.pumpAndSettle();
 
-        expect(resultado, equals('Correção na alocação de lotes do operário'));
-      });
+          expect(
+            resultado,
+            equals('Correção na alocação de lotes do operário'),
+          );
+        },
+      );
 
-      testWidgets('ChamadaAuditTimelineDialog renderiza linha do tempo de retificações',
-          (tester) async {
-        final agora = DateTime(2026, 9, 17, 14, 0);
-        final entry = ChamadaAuditEntry(
-          id: 'aud-1',
-          userId: 'usr-1',
-          userName: 'Engenheiro Responsável',
-          timestamp: agora,
-          motivo: 'Ajuste de lote após conferência do mestre de obras',
-          totalCostCentsAnterior: 200000,
-          totalCostCentsNovo: 195000,
-          versaoAnterior: 1,
-        );
+      testWidgets(
+        'ChamadaAuditTimelineDialog renderiza linha do tempo de retificações',
+        (tester) async {
+          final agora = DateTime(2026, 9, 17, 14, 0);
+          final entry = ChamadaAuditEntry(
+            id: 'aud-1',
+            userId: 'usr-1',
+            userName: 'Engenheiro Responsável',
+            timestamp: agora,
+            motivo: 'Ajuste de lote após conferência do mestre de obras',
+            totalCostCentsAnterior: 200000,
+            totalCostCentsNovo: 195000,
+            versaoAnterior: 1,
+          );
 
-        final chamada = ChamadaDiaria(
-          id: 'ch-1',
-          construtoraId: 'c1',
-          obraId: 'o1',
-          date: '2026-09-17',
-          createdByUid: 'usr-1',
-          status: 'retificada',
-          versaoAuditoria: 2,
-          auditTrail: [entry],
-          createdAt: agora,
-          updatedAt: agora,
-        );
+          final chamada = ChamadaDiaria(
+            id: 'ch-1',
+            construtoraId: 'c1',
+            obraId: 'o1',
+            date: '2026-09-17',
+            createdByUid: 'usr-1',
+            status: 'retificada',
+            versaoAuditoria: 2,
+            auditTrail: [entry],
+            createdAt: agora,
+            updatedAt: agora,
+          );
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: ChamadaAuditTimelineDialog(chamada: chamada),
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: ChamadaAuditTimelineDialog(chamada: chamada),
+              ),
             ),
-          ),
-        );
+          );
 
-        expect(find.text('Trilha de Auditoria'), findsOneWidget);
-        expect(find.text('Revisão v1 ➔ v2'), findsOneWidget);
-        expect(find.text('Por: Engenheiro Responsável'), findsOneWidget);
-        expect(
-          find.text('Motivo: "Ajuste de lote após conferência do mestre de obras"'),
-          findsOneWidget,
-        );
-        expect(find.text('Δ -R\$ 50,00'), findsOneWidget);
-      });
+          expect(find.text('Trilha de Auditoria'), findsOneWidget);
+          expect(find.text('Revisão v1 ➔ v2'), findsOneWidget);
+          expect(find.text('Por: Engenheiro Responsável'), findsOneWidget);
+          expect(
+            find.text(
+              'Motivo: "Ajuste de lote após conferência do mestre de obras"',
+            ),
+            findsOneWidget,
+          );
+          expect(find.text('Δ -R\$ 50,00'), findsOneWidget);
+        },
+      );
     });
   });
 }

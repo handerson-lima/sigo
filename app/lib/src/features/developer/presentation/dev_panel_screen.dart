@@ -20,12 +20,13 @@ class DevPanelScreen extends ConsumerWidget {
           children: [
             Text(
               'Área de Administração',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.headlineMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            const Text('Acesso restrito a desenvolvedores e administradores do sistema.'),
+            const Text(
+              'Acesso restrito a desenvolvedores e administradores do sistema.',
+            ),
             const SizedBox(height: 32),
             Wrap(
               spacing: 24,
@@ -48,9 +49,9 @@ class DevPanelScreen extends ConsumerWidget {
                   icon: Icons.science,
                   onTap: () {
                     // TODO: Implementar depois
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Em breve!')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('Em breve!')));
                   },
                 ),
               ],

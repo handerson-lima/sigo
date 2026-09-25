@@ -12,10 +12,7 @@ import 'fornecedores_controller.dart';
 class FornecedoresListScreen extends ConsumerStatefulWidget {
   final String construtoraId;
 
-  const FornecedoresListScreen({
-    super.key,
-    required this.construtoraId,
-  });
+  const FornecedoresListScreen({super.key, required this.construtoraId});
 
   @override
   ConsumerState<FornecedoresListScreen> createState() =>
@@ -95,9 +92,10 @@ class _FornecedoresListScreenState
   @override
   Widget build(BuildContext context) {
     final fornecedoresAsync = ref.watch(
-      fornecedoresStreamProvider(
-        (construtoraId: widget.construtoraId, apenasAtivos: false),
-      ),
+      fornecedoresStreamProvider((
+        construtoraId: widget.construtoraId,
+        apenasAtivos: false,
+      )),
     );
 
     return SigoLayout(
@@ -116,9 +114,8 @@ class _FornecedoresListScreenState
       ],
       child: fornecedoresAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Text('Erro ao carregar fornecedores: $err'),
-        ),
+        error: (err, _) =>
+            Center(child: Text('Erro ao carregar fornecedores: $err')),
         data: (fornecedores) {
           // Extrai todas as categorias cadastradas para o filtro
           final todasCategorias = <String>{};
@@ -204,10 +201,7 @@ class _FornecedoresListScreenState
                             label: Text('Ativos'),
                             icon: Icon(Icons.check_circle_outline, size: 16),
                           ),
-                          ButtonSegment(
-                            value: 'todos',
-                            label: Text('Todos'),
-                          ),
+                          ButtonSegment(value: 'todos', label: Text('Todos')),
                           ButtonSegment(
                             value: 'inativos',
                             label: Text('Inativos'),
@@ -263,8 +257,11 @@ class _FornecedoresListScreenState
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.business_outlined,
-                            size: 64, color: Colors.grey.shade400),
+                        Icon(
+                          Icons.business_outlined,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
                         const SizedBox(height: 16),
                         const Text(
                           'Nenhum fornecedor encontrado para os filtros atuais.',
@@ -324,17 +321,17 @@ class _FornecedoresListScreenState
                 CircleAvatar(
                   backgroundColor: f.isAtivo
                       ? (f.isPessoaJuridica
-                          ? Colors.blue.shade100
-                          : Colors.teal.shade100)
+                            ? Colors.blue.shade100
+                            : Colors.teal.shade100)
                       : Colors.grey.shade300,
                   foregroundColor: f.isAtivo
                       ? (f.isPessoaJuridica
-                          ? Colors.blue.shade800
-                          : Colors.teal.shade800)
+                            ? Colors.blue.shade800
+                            : Colors.teal.shade800)
                       : Colors.grey.shade700,
-                  child: Icon(f.isPessoaJuridica
-                      ? Icons.business
-                      : Icons.person_outline),
+                  child: Icon(
+                    f.isPessoaJuridica ? Icons.business : Icons.person_outline,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -355,7 +352,9 @@ class _FornecedoresListScreenState
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: f.isAtivo
                                   ? Colors.green.shade50
@@ -398,7 +397,9 @@ class _FornecedoresListScreenState
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.grey.shade200,
                               borderRadius: BorderRadius.circular(4),
@@ -439,8 +440,11 @@ class _FornecedoresListScreenState
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.phone_outlined,
-                          size: 15, color: Colors.grey),
+                      const Icon(
+                        Icons.phone_outlined,
+                        size: 15,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         FornecedorValidator.formatarTelefone(f.telefone),
@@ -452,8 +456,11 @@ class _FornecedoresListScreenState
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.chat_bubble_outline,
-                          size: 15, color: Colors.green),
+                      const Icon(
+                        Icons.chat_bubble_outline,
+                        size: 15,
+                        color: Colors.green,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         FornecedorValidator.formatarTelefone(f.whatsapp),
@@ -465,21 +472,24 @@ class _FornecedoresListScreenState
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.email_outlined,
-                          size: 15, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text(
-                        f.email!,
-                        style: const TextStyle(fontSize: 12),
+                      const Icon(
+                        Icons.email_outlined,
+                        size: 15,
+                        color: Colors.grey,
                       ),
+                      const SizedBox(width: 4),
+                      Text(f.email!, style: const TextStyle(fontSize: 12)),
                     ],
                   ),
                 if (f.endereco != null && f.endereco!.cidade != null)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.location_on_outlined,
-                          size: 15, color: Colors.grey),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 15,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${f.endereco!.cidade}/${f.endereco!.uf ?? ""}',
@@ -500,8 +510,10 @@ class _FornecedoresListScreenState
                   return Chip(
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: EdgeInsets.zero,
-                    labelPadding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    labelPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 0,
+                    ),
                     label: Text(
                       _formatarCategoria(c),
                       style: const TextStyle(fontSize: 11),
@@ -517,7 +529,10 @@ class _FornecedoresListScreenState
                 f.dadosBancarios!.chavePix!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.teal.shade50,
                   borderRadius: BorderRadius.circular(6),
@@ -538,7 +553,11 @@ class _FornecedoresListScreenState
                     const SizedBox(width: 8),
                     InkWell(
                       onTap: () => _copiarPix(f.dadosBancarios!.chavePix!),
-                      child: const Icon(Icons.copy, size: 14, color: Colors.teal),
+                      child: const Icon(
+                        Icons.copy,
+                        size: 14,
+                        color: Colors.teal,
+                      ),
                     ),
                   ],
                 ),

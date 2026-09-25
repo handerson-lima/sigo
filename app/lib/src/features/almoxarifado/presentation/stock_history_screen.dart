@@ -158,8 +158,8 @@ class StockHistoryScreen extends StatelessWidget {
       final double signedQty = deltaUnits != null
           ? deltaUnits / scale
           : (d['type'] == 'saida'
-              ? -(num.tryParse(d['quantity'].toString())?.toDouble() ?? 0)
-              : (num.tryParse(d['quantity'].toString())?.toDouble() ?? 0));
+                ? -(num.tryParse(d['quantity'].toString())?.toDouble() ?? 0)
+                : (num.tryParse(d['quantity'].toString())?.toDouble() ?? 0));
       final signStr = signedQty > 0 ? '+' : '';
       final qtyStr = signedQty % 1 == 0
           ? signedQty.toInt().toString()
@@ -170,10 +170,7 @@ class StockHistoryScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 6,
-              vertical: 2,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
               color: Colors.amber.shade100,
               borderRadius: BorderRadius.circular(4),
@@ -201,8 +198,8 @@ class StockHistoryScreen extends StatelessWidget {
       final double signedQty = deltaUnits != null
           ? deltaUnits / scale
           : (d['type'] == 'saida'
-              ? -(num.tryParse(d['quantity'].toString())?.toDouble() ?? 0)
-              : (num.tryParse(d['quantity'].toString())?.toDouble() ?? 0));
+                ? -(num.tryParse(d['quantity'].toString())?.toDouble() ?? 0)
+                : (num.tryParse(d['quantity'].toString())?.toDouble() ?? 0));
       final signStr = signedQty > 0 ? '+' : '';
       final qtyStr = signedQty % 1 == 0
           ? signedQty.toInt().toString()
@@ -213,10 +210,7 @@ class StockHistoryScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 6,
-              vertical: 2,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
               color: Colors.purple.shade100,
               borderRadius: BorderRadius.circular(4),
@@ -260,10 +254,7 @@ class StockHistoryScreen extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 6,
-                vertical: 2,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(4),
@@ -287,10 +278,7 @@ class StockHistoryScreen extends StatelessWidget {
             Text(baseText),
             const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 6,
-                vertical: 2,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
                 borderRadius: BorderRadius.circular(4),
@@ -355,11 +343,13 @@ class StockHistoryScreen extends StatelessWidget {
           child: mockMovements != null
               ? ListView(
                   children: mockMovements!
-                      .map((d) => _buildMovementTile(
-                            context,
-                            d,
-                            d['id'] as String? ?? 'mov-1',
-                          ))
+                      .map(
+                        (d) => _buildMovementTile(
+                          context,
+                          d,
+                          d['id'] as String? ?? 'mov-1',
+                        ),
+                      )
                       .toList(),
                 )
               : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -469,8 +459,11 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
     if (deltaUnits != null) {
       return -(deltaUnits.toDouble() / scale);
     }
-    final q = num.tryParse(orig['quantity']?.toString() ?? '')?.toDouble() ?? 0.0;
-    final origType = orig['type'] as String? ?? (orig['commandType'] == 'entrada' ? 'entrada' : 'saida');
+    final q =
+        num.tryParse(orig['quantity']?.toString() ?? '')?.toDouble() ?? 0.0;
+    final origType =
+        orig['type'] as String? ??
+        (orig['commandType'] == 'entrada' ? 'entrada' : 'saida');
     if (origType == 'saida') {
       return q;
     } else {
@@ -493,7 +486,8 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
       final q = deltaUnits.abs() / scale;
       return q % 1 == 0 ? q.toInt().toString() : q.toString();
     }
-    final q = num.tryParse(orig['quantity']?.toString() ?? '')?.toDouble() ?? 0.0;
+    final q =
+        num.tryParse(orig['quantity']?.toString() ?? '')?.toDouble() ?? 0.0;
     return q % 1 == 0 ? q.toInt().toString() : q.toString();
   }
 
@@ -558,7 +552,8 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (widget.type == 'estorno' && widget.originalMovement != null) ...[
+              if (widget.type == 'estorno' &&
+                  widget.originalMovement != null) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
@@ -582,7 +577,8 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
                         'Tipo: ${_formatOrigType(widget.originalMovement!)} · Quantidade: ${_formatOrigQuantity(widget.originalMovement!)} ${widget.material.unit}',
                         style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
-                      if (_origDetails(widget.originalMovement!).isNotEmpty) ...[
+                      if (_origDetails(widget.originalMovement!)
+                          .isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
                           _origDetails(widget.originalMovement!),
@@ -623,8 +619,11 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.warning_amber_rounded,
-                            color: Colors.red.shade700, size: 20),
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.red.shade700,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -741,10 +740,9 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Motivo da correção',
                 ),
-                validator: (v) =>
-                    (v?.trim().length ?? 0) < 5
-                        ? 'Descreva o motivo (mínimo 5 caracteres)'
-                        : null,
+                validator: (v) => (v?.trim().length ?? 0) < 5
+                    ? 'Descreva o motivo (mínimo 5 caracteres)'
+                    : null,
               ),
               TextFormField(
                 controller: _evidence,
@@ -772,9 +770,9 @@ class _CorrectionDialogState extends State<_CorrectionDialog> {
                     final cleanQuantity = widget.type == 'estorno'
                         ? '0'
                         : _quantity.text
-                            .replaceAll(',', '.')
-                            .replaceAll('+', '')
-                            .trim();
+                              .replaceAll(',', '.')
+                              .replaceAll('+', '')
+                              .trim();
                     Navigator.pop(context, {
                       'quantity': cleanQuantity,
                       'reason': _reason.text.trim(),

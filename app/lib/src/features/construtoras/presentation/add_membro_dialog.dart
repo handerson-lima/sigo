@@ -78,9 +78,7 @@ class _AddMembroDialogState extends ConsumerState<AddMembroDialog> {
         children: [
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Nome do Funcionário',
-            ),
+            decoration: const InputDecoration(labelText: 'Nome do Funcionário'),
             textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: 12),
@@ -96,10 +94,19 @@ class _AddMembroDialogState extends ConsumerState<AddMembroDialog> {
             initialValue: _selectedRole,
             decoration: const InputDecoration(labelText: 'Cargo'),
             items: [
-              const DropdownMenuItem(value: 'operario', child: Text('Operário')),
-              const DropdownMenuItem(value: 'admin', child: Text('Administrador')),
+              const DropdownMenuItem(
+                value: 'operario',
+                child: Text('Operário'),
+              ),
+              const DropdownMenuItem(
+                value: 'admin',
+                child: Text('Administrador'),
+              ),
               if (isDev)
-                const DropdownMenuItem(value: 'owner', child: Text('Proprietário')),
+                const DropdownMenuItem(
+                  value: 'owner',
+                  child: Text('Proprietário'),
+                ),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _selectedRole = val);

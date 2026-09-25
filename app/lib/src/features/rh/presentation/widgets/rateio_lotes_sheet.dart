@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/contracts.dart';
 import '../../../lotes/domain/lote.dart';
 import '../../domain/chamada_diaria.dart';
@@ -192,14 +193,18 @@ class _RateioLotesSheetState extends State<RateioLotesSheet> {
                             : 'Alocação incorreta: $_totalPercentage% de $_expectedPercentage%',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: _isValid ? Colors.green.shade800 : Colors.red.shade800,
+                          color: _isValid
+                              ? Colors.green.shade800
+                              : Colors.red.shade800,
                         ),
                       ),
                       const SizedBox(height: 4),
                       LinearProgressIndicator(
                         value: _expectedPercentage > 0
-                            ? (_totalPercentage / _expectedPercentage)
-                                .clamp(0.0, 1.0)
+                            ? (_totalPercentage / _expectedPercentage).clamp(
+                                0.0,
+                                1.0,
+                              )
                             : 0,
                         color: _isValid ? Colors.green : Colors.red,
                         backgroundColor: colorScheme.surfaceContainerHighest,
@@ -231,7 +236,9 @@ class _RateioLotesSheetState extends State<RateioLotesSheet> {
               final alloc = entry.value;
               return Card(
                 elevation: 0,
-                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -250,7 +257,9 @@ class _RateioLotesSheetState extends State<RateioLotesSheet> {
                               const SizedBox(width: 8),
                               Text(
                                 alloc.lotName.isEmpty ? 'Lote' : alloc.lotName,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
@@ -270,11 +279,13 @@ class _RateioLotesSheetState extends State<RateioLotesSheet> {
                                   if (widget.effectiveCostCents != null &&
                                       widget.effectiveCostCents! > 0)
                                     Text(
-                                      formatCents(_expectedPercentage > 0
-                                          ? (widget.effectiveCostCents! *
-                                                  alloc.percentage) ~/
-                                              _expectedPercentage
-                                          : 0),
+                                      formatCents(
+                                        _expectedPercentage > 0
+                                            ? (widget.effectiveCostCents! *
+                                                      alloc.percentage) ~/
+                                                  _expectedPercentage
+                                            : 0,
+                                      ),
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
@@ -285,7 +296,10 @@ class _RateioLotesSheetState extends State<RateioLotesSheet> {
                               ),
                               const SizedBox(width: 8),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                ),
                                 tooltip: 'Remover lote',
                                 onPressed: () => _removeAllocation(idx),
                               ),

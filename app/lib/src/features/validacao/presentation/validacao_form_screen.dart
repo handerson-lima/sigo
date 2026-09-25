@@ -65,7 +65,9 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
 
     try {
       if (widget.validacaoId != null) {
-        final v = await ref.read(validacaoRepositoryProvider).getVistoria(
+        final v = await ref
+            .read(validacaoRepositoryProvider)
+            .getVistoria(
               widget.construtoraId,
               widget.obraId,
               widget.loteId,
@@ -75,8 +77,9 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
           _vistoria = v;
           _observacoesGeraisController.text = v.observacoesGerais ?? '';
           for (final item in v.itensRespondidos) {
-            _obsControllers[item.itemId] =
-                TextEditingController(text: item.observacao ?? '');
+            _obsControllers[item.itemId] = TextEditingController(
+              text: item.observacao ?? '',
+            );
           }
         } else {
           _erroCarregamento = 'Vistoria não encontrada.';
@@ -121,7 +124,8 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
         templateVersion: tpl.version,
         status: ValidacaoStatus.pendente,
         inspetorUid: user?.uid ?? 'inspetor_anonimo',
-        inspetorNome: user?.displayName ?? user?.email ?? 'Inspetor Responsável',
+        inspetorNome:
+            user?.displayName ?? user?.email ?? 'Inspetor Responsável',
         dataVistoria: now,
         itensRespondidos: itens,
         createdAt: now,
@@ -196,7 +200,9 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Evidência fotográfica anexada com carimbo auditável!'),
+            content: Text(
+              'Evidência fotográfica anexada com carimbo auditável!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -316,10 +322,17 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: erros.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Text('• $e', style: const TextStyle(color: Colors.red)),
-            )).toList(),
+            children: erros
+                .map(
+                  (e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text(
+                      '• $e',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                )
+                .toList(),
           ),
           actions: [
             ElevatedButton(
@@ -382,7 +395,9 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
     setState(() => _salvando = true);
 
     try {
-      await ref.read(validacaoRepositoryProvider).reabrirVistoria(
+      await ref
+          .read(validacaoRepositoryProvider)
+          .reabrirVistoria(
             widget.construtoraId,
             widget.obraId,
             widget.loteId,
@@ -416,8 +431,9 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
   }
 
   Widget _buildSelecaoTemplate() {
-    final templatesAsync =
-        ref.watch(templatesListStreamProvider(widget.construtoraId));
+    final templatesAsync = ref.watch(
+      templatesListStreamProvider(widget.construtoraId),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,9 +451,8 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
             const SizedBox(width: 8),
             Text(
               'Nova Vistoria de Qualidade — Lote ${widget.loteId}',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -458,7 +473,11 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.rule_folder, size: 64, color: Colors.grey),
+                      const Icon(
+                        Icons.rule_folder,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(height: 16),
                       const Text(
                         'Nenhum template de validação ativo encontrado.',
@@ -491,9 +510,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                       side: BorderSide(color: Colors.grey[200]!),
                     ),
                     child: ListTile(
-                      leading: CircleAvatar(
-                        child: Text('v${tpl.version}'),
-                      ),
+                      leading: CircleAvatar(child: Text('v${tpl.version}')),
                       title: Text(
                         tpl.titulo,
                         style: const TextStyle(fontWeight: FontWeight.bold),
@@ -544,9 +561,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                       Flexible(
                         child: Text(
                           v.templateTitulo,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.bold),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -554,7 +569,9 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.blue[50],
                           borderRadius: BorderRadius.circular(4),
@@ -583,15 +600,17 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                 color: v.isAprovado
                     ? Colors.green[50]
                     : (v.isReprovado
-                        ? Colors.red[50]
-                        : (v.isReaberto ? Colors.orange[50] : Colors.blue[50])),
+                          ? Colors.red[50]
+                          : (v.isReaberto
+                                ? Colors.orange[50]
+                                : Colors.blue[50])),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: v.isAprovado
                       ? Colors.green
                       : (v.isReprovado
-                          ? Colors.red
-                          : (v.isReaberto ? Colors.orange : Colors.blue)),
+                            ? Colors.red
+                            : (v.isReaberto ? Colors.orange : Colors.blue)),
                 ),
               ),
               child: Text(
@@ -602,10 +621,10 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                   color: v.isAprovado
                       ? Colors.green[800]
                       : (v.isReprovado
-                          ? Colors.red[800]
-                          : (v.isReaberto
-                              ? Colors.orange[800]
-                              : Colors.blue[800])),
+                            ? Colors.red[800]
+                            : (v.isReaberto
+                                  ? Colors.orange[800]
+                                  : Colors.blue[800])),
                 ),
               ),
             ),
@@ -617,11 +636,15 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
             children: [
               Text(
                 'Itens de Avaliação do Checklist (${v.itensRespondidos.length})',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
               ...v.itensRespondidos.map((item) {
-                final obsCtrl = _obsControllers[item.itemId] ??
+                final obsCtrl =
+                    _obsControllers[item.itemId] ??
                     TextEditingController(text: item.observacao ?? '');
 
                 return Card(
@@ -655,7 +678,9 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                             if (item.obrigatorio)
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.grey[200],
                                   borderRadius: BorderRadius.circular(4),
@@ -734,8 +759,11 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                               children: [
                                 const Row(
                                   children: [
-                                    Icon(Icons.warning,
-                                        size: 18, color: Colors.red),
+                                    Icon(
+                                      Icons.warning,
+                                      size: 18,
+                                      color: Colors.red,
+                                    ),
                                     SizedBox(width: 6),
                                     Text(
                                       'Exigência de Justificativa e Evidência Fotográfica',
@@ -754,8 +782,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                                   decoration: const InputDecoration(
                                     labelText:
                                         'Descrição da Não-Conformidade *',
-                                    hintText:
-                                        'Descreva a irregularidade e o retrabalho necessário...',
+                                    hintText: 'Descreva a irregularidade e o retrabalho necessário...',
                                     border: OutlineInputBorder(),
                                     filled: true,
                                     fillColor: Colors.white,
@@ -779,8 +806,10 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                                         onPressed: _salvando
                                             ? null
                                             : () => _adicionarFoto(item),
-                                        icon: const Icon(Icons.camera_alt,
-                                            size: 16),
+                                        icon: const Icon(
+                                          Icons.camera_alt,
+                                          size: 16,
+                                        ),
                                         label: const Text('Anexar Foto'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.red[700],
@@ -803,67 +832,70 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 8,
-                                    children: List.generate(
-                                      item.fotos.length,
-                                      (fIdx) {
-                                        final fUrl = item.fotos[fIdx];
-                                        return Stack(
-                                          children: [
-                                            Container(
-                                              width: 90,
-                                              height: 90,
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey[300],
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                border: Border.all(
-                                                    color: Colors.grey[400]!),
-                                              ),
-                                              child: ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                child: fUrl.startsWith('http')
-                                                    ? Image.network(
-                                                        fUrl,
-                                                        fit: BoxFit.cover,
-                                                        errorBuilder: (context,
-                                                                error,
-                                                                stackTrace) =>
-                                                            const Icon(Icons
-                                                                .broken_image),
-                                                      )
-                                                    : const Icon(
-                                                        Icons.photo_camera,
-                                                        size: 36,
-                                                        color: Colors.grey,
-                                                      ),
+                                    children: List.generate(item.fotos.length, (
+                                      fIdx,
+                                    ) {
+                                      final fUrl = item.fotos[fIdx];
+                                      return Stack(
+                                        children: [
+                                          Container(
+                                            width: 90,
+                                            height: 90,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[300],
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.grey[400]!,
                                               ),
                                             ),
-                                            if (!isFinalizada)
-                                              Positioned(
-                                                top: 2,
-                                                right: 2,
-                                                child: InkWell(
-                                                  onTap: () => _removerFoto(
-                                                      item, fIdx),
-                                                  child: Container(
-                                                    decoration:
-                                                        const BoxDecoration(
-                                                      color: Colors.black54,
-                                                      shape: BoxShape.circle,
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              child: fUrl.startsWith('http')
+                                                  ? Image.network(
+                                                      fUrl,
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder:
+                                                          (
+                                                            context,
+                                                            error,
+                                                            stackTrace,
+                                                          ) => const Icon(
+                                                            Icons.broken_image,
+                                                          ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.photo_camera,
+                                                      size: 36,
+                                                      color: Colors.grey,
                                                     ),
-                                                    child: const Icon(
-                                                      Icons.close,
-                                                      color: Colors.white,
-                                                      size: 18,
-                                                    ),
+                                            ),
+                                          ),
+                                          if (!isFinalizada)
+                                            Positioned(
+                                              top: 2,
+                                              right: 2,
+                                              child: InkWell(
+                                                onTap: () =>
+                                                    _removerFoto(item, fIdx),
+                                                child: Container(
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color: Colors.black54,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                  child: const Icon(
+                                                    Icons.close,
+                                                    color: Colors.white,
+                                                    size: 18,
                                                   ),
                                                 ),
                                               ),
-                                          ],
-                                        );
-                                      },
-                                    ),
+                                            ),
+                                        ],
+                                      );
+                                    }),
                                   ),
                               ],
                             ),
@@ -884,8 +916,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                 controller: _observacoesGeraisController,
                 readOnly: isFinalizada,
                 decoration: const InputDecoration(
-                  hintText:
-                      'Insira comentários finais ou diretrizes para a equipe do loteamento...',
+                  hintText: 'Insira comentários finais ou diretrizes para a equipe do loteamento...',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
@@ -945,10 +976,10 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
       child: _carregando
           ? const Center(child: CircularProgressIndicator())
           : _erroCarregamento != null
-              ? Center(child: Text(_erroCarregamento!))
-              : _vistoria == null
-                  ? _buildSelecaoTemplate()
-                  : _buildFormVistoria(),
+          ? Center(child: Text(_erroCarregamento!))
+          : _vistoria == null
+          ? _buildSelecaoTemplate()
+          : _buildFormVistoria(),
     );
   }
 }

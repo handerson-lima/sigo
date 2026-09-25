@@ -9,10 +9,7 @@ import 'epi_form_dialog.dart';
 class CatalogoEpisScreen extends ConsumerStatefulWidget {
   final String construtoraId;
 
-  const CatalogoEpisScreen({
-    super.key,
-    required this.construtoraId,
-  });
+  const CatalogoEpisScreen({super.key, required this.construtoraId});
 
   @override
   ConsumerState<CatalogoEpisScreen> createState() => _CatalogoEpisScreenState();
@@ -32,16 +29,16 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
   void _abrirFormulario([EpiItem? item]) {
     showDialog(
       context: context,
-      builder: (ctx) => EpiFormDialog(
-        construtoraId: widget.construtoraId,
-        initialItem: item,
-      ),
+      builder: (ctx) =>
+          EpiFormDialog(construtoraId: widget.construtoraId, initialItem: item),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final episAsync = ref.watch(catalogoEpisStreamProvider(widget.construtoraId));
+    final episAsync = ref.watch(
+      catalogoEpisStreamProvider(widget.construtoraId),
+    );
 
     return SigoLayout(
       title: 'Catálogo de EPIs',
@@ -84,14 +81,35 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
                 DropdownButton<String>(
                   value: _selectedCategory,
                   items: const [
-                    DropdownMenuItem(value: 'todas', child: Text('Todas as Categorias')),
+                    DropdownMenuItem(
+                      value: 'todas',
+                      child: Text('Todas as Categorias'),
+                    ),
                     DropdownMenuItem(value: 'cabeca', child: Text('Cabeça')),
-                    DropdownMenuItem(value: 'ocular', child: Text('Olhos/Face')),
-                    DropdownMenuItem(value: 'auditiva', child: Text('Auditiva')),
-                    DropdownMenuItem(value: 'respiratoria', child: Text('Respiratória')),
-                    DropdownMenuItem(value: 'maos_bracos', child: Text('Membros Sup.')),
-                    DropdownMenuItem(value: 'pes_pernas', child: Text('Membros Inf.')),
-                    DropdownMenuItem(value: 'altura', child: Text('Quedas/Altura')),
+                    DropdownMenuItem(
+                      value: 'ocular',
+                      child: Text('Olhos/Face'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'auditiva',
+                      child: Text('Auditiva'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'respiratoria',
+                      child: Text('Respiratória'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'maos_bracos',
+                      child: Text('Membros Sup.'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'pes_pernas',
+                      child: Text('Membros Inf.'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'altura',
+                      child: Text('Quedas/Altura'),
+                    ),
                     DropdownMenuItem(value: 'outros', child: Text('Outros')),
                   ],
                   onChanged: (val) {
@@ -102,10 +120,22 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
                 DropdownButton<String>(
                   value: _statusFilter,
                   items: const [
-                    DropdownMenuItem(value: 'todos', child: Text('Todos os Status')),
-                    DropdownMenuItem(value: 'ativos', child: Text('Apenas Ativos')),
-                    DropdownMenuItem(value: 'ca_vencido', child: Text('C.A. Vencido')),
-                    DropdownMenuItem(value: 'ca_vencendo', child: Text('C.A. a Vencer (<30d)')),
+                    DropdownMenuItem(
+                      value: 'todos',
+                      child: Text('Todos os Status'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'ativos',
+                      child: Text('Apenas Ativos'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'ca_vencido',
+                      child: Text('C.A. Vencido'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'ca_vencendo',
+                      child: Text('C.A. a Vencer (<30d)'),
+                    ),
                   ],
                   onChanged: (val) {
                     if (val != null) setState(() => _statusFilter = val);
@@ -119,12 +149,16 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
               data: (epis) {
                 final query = _searchController.text.trim().toLowerCase();
                 final filtered = epis.where((epi) {
-                  if (_selectedCategory != 'todas' && epi.categoria != _selectedCategory) {
+                  if (_selectedCategory != 'todas' &&
+                      epi.categoria != _selectedCategory) {
                     return false;
                   }
                   if (_statusFilter == 'ativos' && !epi.isActive) return false;
-                  if (_statusFilter == 'ca_vencido' && !epi.isCaVencido) return false;
-                  if (_statusFilter == 'ca_vencendo' && !epi.isCaProximoVencimento(30)) return false;
+                  if (_statusFilter == 'ca_vencido' && !epi.isCaVencido)
+                    return false;
+                  if (_statusFilter == 'ca_vencendo' &&
+                      !epi.isCaProximoVencimento(30))
+                    return false;
 
                   if (query.isNotEmpty) {
                     final nMatch = epi.nome.toLowerCase().contains(query);
@@ -140,7 +174,11 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.shield_outlined, size: 64, color: Colors.grey),
+                        const Icon(
+                          Icons.shield_outlined,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
                         const SizedBox(height: 12),
                         const Text(
                           'Nenhum EPI encontrado com os filtros aplicados.',
@@ -158,7 +196,10 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final epi = filtered[index];
@@ -167,7 +208,8 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Erro ao carregar catálogo: $err')),
+              error: (err, stack) =>
+                  Center(child: Text('Erro ao carregar catálogo: $err')),
             ),
           ),
         ],
@@ -190,7 +232,14 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
           children: [
             Icon(Icons.error, size: 14, color: Colors.red.shade800),
             const SizedBox(width: 4),
-            Text('C.A. Vencido', style: TextStyle(color: Colors.red.shade900, fontSize: 11, fontWeight: FontWeight.bold)),
+            Text(
+              'C.A. Vencido',
+              style: TextStyle(
+                color: Colors.red.shade900,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       );
@@ -207,7 +256,14 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
           children: [
             Icon(Icons.warning_amber, size: 14, color: Colors.amber.shade900),
             const SizedBox(width: 4),
-            Text('Vence em ${epi.diasParaVencer}d', style: TextStyle(color: Colors.amber.shade900, fontSize: 11, fontWeight: FontWeight.bold)),
+            Text(
+              'Vence em ${epi.diasParaVencer}d',
+              style: TextStyle(
+                color: Colors.amber.shade900,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       );
@@ -224,7 +280,14 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
           children: [
             Icon(Icons.check_circle, size: 14, color: Colors.green.shade800),
             const SizedBox(width: 4),
-            Text('C.A. Válido', style: TextStyle(color: Colors.green.shade900, fontSize: 11, fontWeight: FontWeight.bold)),
+            Text(
+              'C.A. Válido',
+              style: TextStyle(
+                color: Colors.green.shade900,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       );
@@ -238,7 +301,9 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: epi.isActive ? Colors.blue.shade100 : Colors.grey.shade300,
+          backgroundColor: epi.isActive
+              ? Colors.blue.shade100
+              : Colors.grey.shade300,
           child: Icon(
             _getCategoryIcon(epi.categoria),
             color: epi.isActive ? Colors.blue.shade900 : Colors.grey.shade600,

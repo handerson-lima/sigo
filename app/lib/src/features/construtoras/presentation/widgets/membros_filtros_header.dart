@@ -114,10 +114,7 @@ class MembrosFiltrosHeader extends StatelessWidget {
                     for (final obra in obras)
                       DropdownMenuItem<String>(
                         value: obra.id,
-                        child: Text(
-                          obra.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        child: Text(obra.name, overflow: TextOverflow.ellipsis),
                       ),
                   ],
                   onChanged: onObraChanged,

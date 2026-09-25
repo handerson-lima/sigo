@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/contracts.dart';
 import '../../data/custo_mao_de_obra_service.dart';
 import '../../domain/chamada_diaria.dart';
@@ -55,8 +56,11 @@ class ChamadaStickyBottomBar extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.payments_outlined,
-                        size: 18, color: Colors.indigo.shade700),
+                    Icon(
+                      Icons.payments_outlined,
+                      size: 18,
+                      color: Colors.indigo.shade700,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Custo Estimado: ${formatCents(currentCosts.totalDayCostCents)}',
@@ -73,8 +77,10 @@ class ChamadaStickyBottomBar extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(Icons.analytics_outlined, size: 16),
-                  label: const Text('Resumo por Lote',
-                      style: TextStyle(fontSize: 12)),
+                  label: const Text(
+                    'Resumo por Lote',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   onPressed: () {
                     ResumoCustosChamadaDialog.show(
                       context: context,
@@ -132,8 +138,8 @@ class ChamadaStickyBottomBar extends StatelessWidget {
                   isSaving
                       ? 'Salvando Chamada...'
                       : (existingChamada != null
-                          ? 'Retificar Chamada Diária'
-                          : 'Salvar Chamada Diária'),
+                            ? 'Retificar Chamada Diária'
+                            : 'Salvar Chamada Diária'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

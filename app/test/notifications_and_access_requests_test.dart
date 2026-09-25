@@ -23,21 +23,25 @@ void main() {
       expect(notif.expiresAt, isNotNull);
 
       // Validação da regex de extração de senha provisória efêmera
-      final match = RegExp(r'Senha provisória:\s*([^\s\.]+)').firstMatch(notif.body);
+      final match = RegExp(r'Senha provisória:\s*([^\s\.]+)')
+          .firstMatch(notif.body);
       expect(match, isNotNull);
       expect(match!.group(1), equals('Mudar@1234'));
     });
 
-    test('SigoNotification handles missing optional fields with safe defaults', () {
-      final data = <String, dynamic>{};
-      final notif = SigoNotification.fromFirestore(data, 'empty_doc');
+    test(
+      'SigoNotification handles missing optional fields with safe defaults',
+      () {
+        final data = <String, dynamic>{};
+        final notif = SigoNotification.fromFirestore(data, 'empty_doc');
 
-      expect(notif.id, equals('empty_doc'));
-      expect(notif.title, equals('Notificação'));
-      expect(notif.body, equals(''));
-      expect(notif.read, isFalse);
-      expect(notif.createdAt, isNull);
-      expect(notif.expiresAt, isNull);
-    });
+        expect(notif.id, equals('empty_doc'));
+        expect(notif.title, equals('Notificação'));
+        expect(notif.body, equals(''));
+        expect(notif.read, isFalse);
+        expect(notif.createdAt, isNull);
+        expect(notif.expiresAt, isNull);
+      },
+    );
   });
 }

@@ -39,7 +39,8 @@ class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
 
     return SigoLayout(
       title: 'Chamada Diária (RH)',
-      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
+      activeRoute:
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
       actions: [
         IconButton(
           icon: const Icon(Icons.add),
@@ -67,8 +68,14 @@ class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
                   child: SegmentedButton<String>(
                     segments: const [
                       ButtonSegment(value: 'todas', label: Text('Todas')),
-                      ButtonSegment(value: 'confirmada', label: Text('Confirmadas')),
-                      ButtonSegment(value: 'retificada', label: Text('Retificadas')),
+                      ButtonSegment(
+                        value: 'confirmada',
+                        label: Text('Confirmadas'),
+                      ),
+                      ButtonSegment(
+                        value: 'retificada',
+                        label: Text('Retificadas'),
+                      ),
                     ],
                     selected: {_statusFilter},
                     onSelectionChanged: (set) {
@@ -85,9 +92,8 @@ class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
           Expanded(
             child: chamadasAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, st) => Center(
-                child: Text('Erro ao carregar chamadas: $e'),
-              ),
+              error: (e, st) =>
+                  Center(child: Text('Erro ao carregar chamadas: $e')),
               data: (chamadas) {
                 final filtered = chamadas.where((c) {
                   if (_statusFilter == 'todas') return c.status != 'cancelada';
@@ -136,7 +142,10 @@ class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final chamada = filtered[index];
@@ -161,10 +170,7 @@ class _ChamadaCard extends StatelessWidget {
   final ChamadaDiaria chamada;
   final VoidCallback onTap;
 
-  const _ChamadaCard({
-    required this.chamada,
-    required this.onTap,
-  });
+  const _ChamadaCard({required this.chamada, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -198,7 +204,11 @@ class _ChamadaCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 18, color: colorScheme.primary),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 18,
+                        color: colorScheme.primary,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         dateDisplay,
@@ -280,9 +290,8 @@ class _ChamadaCard extends StatelessWidget {
                         onPressed: () {
                           showDialog(
                             context: context,
-                            builder: (ctx) => ChamadaAuditTimelineDialog(
-                              chamada: chamada,
-                            ),
+                            builder: (ctx) =>
+                                ChamadaAuditTimelineDialog(chamada: chamada),
                           );
                         },
                       ),
@@ -346,8 +355,11 @@ class _ChamadaCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.payments_outlined,
-                        size: 16, color: Colors.indigo.shade700),
+                    Icon(
+                      Icons.payments_outlined,
+                      size: 16,
+                      color: Colors.indigo.shade700,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Custo Mão de Obra: ${chamada.formattedTotalCost}',
@@ -382,11 +394,7 @@ class _Badge extends StatelessWidget {
   final Color color;
   final IconData icon;
 
-  const _Badge({
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
+  const _Badge({required this.label, required this.color, required this.icon});
 
   @override
   Widget build(BuildContext context) {

@@ -8,10 +8,7 @@ class AccessDeniedScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Acesso Negado'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Acesso Negado'), centerTitle: true),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
@@ -22,9 +19,8 @@ class AccessDeniedScreen extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 'Você não tem acesso a este loteamento',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
@@ -39,7 +35,10 @@ class AccessDeniedScreen extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back),
                 label: const Text('Voltar para Minhas Construtoras'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],

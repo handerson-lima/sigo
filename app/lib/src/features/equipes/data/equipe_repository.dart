@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../domain/equipe.dart';
 
 final equipeRepositoryProvider = Provider<EquipeRepository>((ref) {
@@ -11,13 +12,12 @@ class EquipeRepository {
 
   EquipeRepository(this._firestore);
 
-  CollectionReference<Equipe> _equipesRef() =>
-      _firestore
-          .collection('equipes')
-          .withConverter<Equipe>(
-            fromFirestore: (snapshot, _) => Equipe.fromJson(snapshot.data() ?? {}),
-            toFirestore: (equipe, _) => equipe.toJson(),
-          );
+  CollectionReference<Equipe> _equipesRef() => _firestore
+      .collection('equipes')
+      .withConverter<Equipe>(
+        fromFirestore: (snapshot, _) => Equipe.fromJson(snapshot.data() ?? {}),
+        toFirestore: (equipe, _) => equipe.toJson(),
+      );
 
   Stream<List<Equipe>> watchEquipes(
     String construtoraId,
@@ -42,9 +42,19 @@ class EquipeRepository {
     await docRef.set(equipe);
   }
 }
-typedef EquipeParams = ({String construtoraId, String loteamentoId, String quadraId, String loteId, String etapaId});
 
-final watchEquipesProvider = StreamProvider.family<List<Equipe>, EquipeParams>((ref, params) {
+typedef EquipeParams = ({
+  String construtoraId,
+  String loteamentoId,
+  String quadraId,
+  String loteId,
+  String etapaId,
+});
+
+final watchEquipesProvider = StreamProvider.family<List<Equipe>, EquipeParams>((
+  ref,
+  params,
+) {
   final repo = ref.watch(equipeRepositoryProvider);
   return repo.watchEquipes(
     params.construtoraId,

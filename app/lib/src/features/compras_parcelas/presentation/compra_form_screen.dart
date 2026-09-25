@@ -87,7 +87,10 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
 
   int get _totalCompraCents {
     final total =
-        _valorItensCents + _freteCents + _despesasAcessoriasCents - _descontoCents;
+        _valorItensCents +
+        _freteCents +
+        _despesasAcessoriasCents -
+        _descontoCents;
     return total < 0 ? 0 : total;
   }
 
@@ -107,7 +110,9 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
     if (_totalCompraCents <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Adicione itens ou informe valores para gerar parcelas.'),
+          content: Text(
+            'Adicione itens ou informe valores para gerar parcelas.',
+          ),
         ),
       );
       return;
@@ -179,8 +184,9 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                       onChanged: (val) {
                         setDialogState(() {
                           selectedMaterialId = val;
-                          final matObj =
-                              materiais.firstWhere((m) => m.id == val);
+                          final matObj = materiais.firstWhere(
+                            (m) => m.id == val,
+                          );
                           nomeCtrl.text = matObj.name;
                           unidCtrl.text = matObj.unit;
                         });
@@ -193,8 +199,9 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                       labelText: 'Descrição do Material *',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Informe a descrição' : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Informe a descrição'
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -206,23 +213,25 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                             labelText: 'Unidade *',
                             border: OutlineInputBorder(),
                           ),
-                          validator: (v) =>
-                              v == null || v.trim().isEmpty ? 'Informe a unidade' : null,
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? 'Informe a unidade'
+                              : null,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextFormField(
                           controller: qtdCtrl,
-                          keyboardType:
-                              const TextInputType.numberWithOptions(
-                                  decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'Quantidade *',
                             border: OutlineInputBorder(),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Informe a qtd';
+                            if (v == null || v.trim().isEmpty)
+                              return 'Informe a qtd';
                             final n = double.tryParse(v.replaceAll(',', '.'));
                             if (n == null || n <= 0) return 'Valor > 0';
                             return null;
@@ -234,15 +243,17 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: precoCtrl,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Preço Unitário (R\$) *',
                       border: OutlineInputBorder(),
                       prefixText: 'R\$ ',
                     ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Informe o valor';
+                      if (v == null || v.trim().isEmpty)
+                        return 'Informe o valor';
                       final c = _parseCents(v);
                       if (c <= 0) return 'Valor > 0';
                       return null;
@@ -276,15 +287,17 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
       final totalCents = (qtd * unitCents).round();
 
       setState(() {
-        _itens.add(ItemCompraNf(
-          id: 'item_${DateTime.now().millisecondsSinceEpoch}',
-          materialId: selectedMaterialId ?? 'mat_${_itens.length + 1}',
-          materialNome: nomeCtrl.text.trim(),
-          unidadeMedida: unidCtrl.text.trim(),
-          quantidade: qtd,
-          valorUnitarioCents: unitCents,
-          valorTotalCents: totalCents,
-        ));
+        _itens.add(
+          ItemCompraNf(
+            id: 'item_${DateTime.now().millisecondsSinceEpoch}',
+            materialId: selectedMaterialId ?? 'mat_${_itens.length + 1}',
+            materialNome: nomeCtrl.text.trim(),
+            unidadeMedida: unidCtrl.text.trim(),
+            quantidade: qtd,
+            valorUnitarioCents: unitCents,
+            valorTotalCents: totalCents,
+          ),
+        );
       });
       _gerarParcelas();
     }
@@ -327,7 +340,8 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
       final uid = user?.uid ?? 'anon_user';
       final now = DateTime.now();
 
-      final idCompra = widget.compraId ??
+      final idCompra =
+          widget.compraId ??
           'compra_${widget.obraId}_${DateTime.now().millisecondsSinceEpoch}';
 
       final compra = CompraNf(
@@ -335,7 +349,8 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
         construtoraId: widget.construtoraId,
         obraId: widget.obraId,
         fornecedorId: _fornecedorSelecionado?.id ?? 'forn_manual',
-        fornecedorNome: _fornecedorSelecionado?.nomeExibicao ??
+        fornecedorNome:
+            _fornecedorSelecionado?.nomeExibicao ??
             _fornecedorNomeController.text.trim(),
         fornecedorDocumento: _fornecedorSelecionado?.documento,
         numeroNf: _numeroNfController.text.trim(),
@@ -413,17 +428,22 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
           _fornecedorNomeController.text = compra.fornecedorNome;
           _dataEmissao = compra.dataEmissao;
           _dataRecebimento = compra.dataRecebimento;
-          _freteController.text =
-              (compra.freteCents / 100.0).toStringAsFixed(2).replaceAll('.', ',');
-          _despesasController.text =
-              (compra.despesasAcessoriasCents / 100.0).toStringAsFixed(2).replaceAll('.', ',');
-          _descontoController.text =
-              (compra.descontoCents / 100.0).toStringAsFixed(2).replaceAll('.', ',');
+          _freteController.text = (compra.freteCents / 100.0)
+              .toStringAsFixed(2)
+              .replaceAll('.', ',');
+          _despesasController.text = (compra.despesasAcessoriasCents / 100.0)
+              .toStringAsFixed(2)
+              .replaceAll('.', ',');
+          _descontoController.text = (compra.descontoCents / 100.0)
+              .toStringAsFixed(2)
+              .replaceAll('.', ',');
           _itens.clear();
           _itens.addAll(compra.itens);
           _parcelas.clear();
           _parcelas.addAll(compra.parcelas);
-          _numeroParcelas = compra.parcelas.isEmpty ? 1 : compra.parcelas.length;
+          _numeroParcelas = compra.parcelas.isEmpty
+              ? 1
+              : compra.parcelas.length;
           setState(() {});
         }
       });
@@ -471,7 +491,10 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                         icon: const Icon(Icons.save),
                         label: const Text(
                           'Salvar Compra / NF',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -489,10 +512,7 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: Colors.grey.shade300),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: child,
-      ),
+      child: Padding(padding: const EdgeInsets.all(16.0), child: child),
     );
   }
 
@@ -527,8 +547,9 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                     labelText: 'Número da NF *',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Informe o número da NF' : null,
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Informe o número da NF'
+                      : null,
                 ),
               ),
               const SizedBox(width: 8),
@@ -633,7 +654,10 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
             children: [
               Text(
                 '2. Itens Faturados (${_itens.length})',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               FilledButton.tonalIcon(
                 onPressed: _adicionarItemModal,
@@ -654,7 +678,10 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
               ),
               child: const Text(
                 'Nenhum item adicionado. Adicione os materiais desta nota fiscal.',
-                style: TextStyle(color: Colors.amber, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.amber,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             )
           else
@@ -667,11 +694,11 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                 final item = _itens[idx];
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    child: Text('${idx + 1}'),
+                  leading: CircleAvatar(child: Text('${idx + 1}')),
+                  title: Text(
+                    item.materialNome,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  title: Text(item.materialNome,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(
                     '${item.quantidade} ${item.unidadeMedida} × R\$ ${item.valorUnitario.toStringAsFixed(2)}',
                   ),
@@ -686,7 +713,10 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
                         onPressed: () {
                           setState(() => _itens.removeAt(idx));
                           _gerarParcelas();
@@ -717,8 +747,9 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
               Expanded(
                 child: TextFormField(
                   controller: _freteController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Frete (R\$)',
                     border: OutlineInputBorder(),
@@ -734,8 +765,9 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
               Expanded(
                 child: TextFormField(
                   controller: _despesasController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Outras Despesas',
                     border: OutlineInputBorder(),
@@ -751,8 +783,9 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
               Expanded(
                 child: TextFormField(
                   controller: _descontoController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Desconto (R\$)',
                     border: OutlineInputBorder(),
@@ -895,9 +928,7 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
           if (_parcelas.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: Text('Nenhuma parcela gerada ainda.'),
-              ),
+              child: Center(child: Text('Nenhuma parcela gerada ainda.')),
             )
           else
             ListView.separated(
@@ -911,8 +942,10 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                   children: [
                     CircleAvatar(
                       radius: 14,
-                      child: Text('${p.numero}',
-                          style: const TextStyle(fontSize: 12)),
+                      child: Text(
+                        '${p.numero}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -928,7 +961,8 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                             .toStringAsFixed(2)
                             .replaceAll('.', ','),
                         keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
+                          decimal: true,
+                        ),
                         decoration: const InputDecoration(
                           prefixText: 'R\$ ',
                           border: OutlineInputBorder(),

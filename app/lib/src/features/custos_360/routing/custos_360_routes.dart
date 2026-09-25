@@ -7,8 +7,7 @@ import '../presentation/lote_custo_detalhe_screen.dart';
 /// Constantes de path para custos 360.
 abstract class Custos360Paths {
   static const visao360 = 'obra/:oId/custos-360';
-  static const loteCusto =
-      'obra/:oId/custos-360/lotes/:loteId';
+  static const loteCusto = 'obra/:oId/custos-360/lotes/:loteId';
 
   static String visao360For(String cId, String oId) =>
       '/construtoras/$cId/obra/$oId/custos-360';
@@ -18,35 +17,35 @@ abstract class Custos360Paths {
 
 /// Rotas do módulo de custos 360.
 List<RouteBase> get custos360Routes => [
-      GoRoute(
-        path: Custos360Paths.visao360,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'adm',
-            child: Visao360CustosScreen(construtoraId: cId, obraId: oId),
-          );
-        },
-      ),
-      GoRoute(
-        path: Custos360Paths.loteCusto,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          final loteId = state.pathParameters['loteId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'adm',
-            child: LoteCustoDetalheScreen(
-              construtoraId: cId,
-              obraId: oId,
-              loteId: loteId,
-            ),
-          );
-        },
-      ),
-    ];
+  GoRoute(
+    path: Custos360Paths.visao360,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'adm',
+        child: Visao360CustosScreen(construtoraId: cId, obraId: oId),
+      );
+    },
+  ),
+  GoRoute(
+    path: Custos360Paths.loteCusto,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      final loteId = state.pathParameters['loteId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'adm',
+        child: LoteCustoDetalheScreen(
+          construtoraId: cId,
+          obraId: oId,
+          loteId: loteId,
+        ),
+      );
+    },
+  ),
+];

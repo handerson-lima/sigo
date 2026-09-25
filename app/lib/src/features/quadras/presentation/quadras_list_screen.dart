@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../data/quadra_repository.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 import '../../../common_widgets/sigo_empty_state.dart';

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../authentication/data/auth_repository.dart';
 
 class SigoNotification {
@@ -49,9 +50,11 @@ class NotificationsRepository {
         .collection('notifications')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((doc) => SigoNotification.fromFirestore(doc.data(), doc.id))
-            .toList());
+        .map(
+          (snap) => snap.docs
+              .map((doc) => SigoNotification.fromFirestore(doc.data(), doc.id))
+              .toList(),
+        );
   }
 
   Future<void> markAsRead(String uid, String notificationId) async {
@@ -73,18 +76,20 @@ class NotificationsRepository {
   }
 }
 
-final notificationsRepositoryProvider = Provider<NotificationsRepository>((ref) {
+final notificationsRepositoryProvider = Provider<NotificationsRepository>((
+  ref,
+) {
   return NotificationsRepository(FirebaseFirestore.instance);
 });
 
 final userNotificationsProvider =
     StreamProvider.autoDispose<List<SigoNotification>>((ref) {
-  final user = ref.watch(authStateChangesProvider).value;
-  if (user == null) return Stream.value([]);
-  return ref
-      .watch(notificationsRepositoryProvider)
-      .watchNotifications(user.uid);
-});
+      final user = ref.watch(authStateChangesProvider).value;
+      if (user == null) return Stream.value([]);
+      return ref
+          .watch(notificationsRepositoryProvider)
+          .watchNotifications(user.uid);
+    });
 
 final unreadNotificationsCountProvider = Provider.autoDispose<int>((ref) {
   final notifs = ref.watch(userNotificationsProvider).value ?? [];

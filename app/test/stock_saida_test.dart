@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,65 +16,70 @@ import 'package:app/src/features/quadras/data/quadra_repository.dart';
 import 'package:app/src/features/quadras/domain/quadra.dart';
 import 'package:app/src/sync/operation_queue.dart';
 
-
 void main() {
   group('Story 3.3 — Estoque: Saída via Requisição por Lote', () {
-    test('Movimentacao serializa e desserializa apropriacaoLote e solicitante', () {
-      final now = DateTime.now();
-      final mov = Movimentacao(
-        id: 'mov-saida-001',
-        materialId: 'mat-cimento-01',
-        type: MovimentacaoType.saida,
-        quantity: 15.0,
-        date: now,
-        responsavelId: 'user-almoxarife',
-        obraId: 'obra-alphaville-01',
-        loteId: 'lote-12',
-        apropriacaoLote: true,
-        solicitante: 'Mestre Carlos',
-        observacao: 'Concretagem da viga baldrame',
-      );
+    test(
+      'Movimentacao serializa e desserializa apropriacaoLote e solicitante',
+      () {
+        final now = DateTime.now();
+        final mov = Movimentacao(
+          id: 'mov-saida-001',
+          materialId: 'mat-cimento-01',
+          type: MovimentacaoType.saida,
+          quantity: 15.0,
+          date: now,
+          responsavelId: 'user-almoxarife',
+          obraId: 'obra-alphaville-01',
+          loteId: 'lote-12',
+          apropriacaoLote: true,
+          solicitante: 'Mestre Carlos',
+          observacao: 'Concretagem da viga baldrame',
+        );
 
-      final json = mov.toJson();
-      expect(json['id'], 'mov-saida-001');
-      expect(json['type'], 'saida');
-      expect(json['quantity'], 15.0);
-      expect(json['obraId'], 'obra-alphaville-01');
-      expect(json['loteId'], 'lote-12');
-      expect(json['apropriacaoLote'], true);
-      expect(json['solicitante'], 'Mestre Carlos');
-      expect(json['observacao'], 'Concretagem da viga baldrame');
+        final json = mov.toJson();
+        expect(json['id'], 'mov-saida-001');
+        expect(json['type'], 'saida');
+        expect(json['quantity'], 15.0);
+        expect(json['obraId'], 'obra-alphaville-01');
+        expect(json['loteId'], 'lote-12');
+        expect(json['apropriacaoLote'], true);
+        expect(json['solicitante'], 'Mestre Carlos');
+        expect(json['observacao'], 'Concretagem da viga baldrame');
 
-      final restored = Movimentacao.fromJson(json);
-      expect(restored.id, mov.id);
-      expect(restored.materialId, mov.materialId);
-      expect(restored.type, MovimentacaoType.saida);
-      expect(restored.quantity, 15.0);
-      expect(restored.obraId, 'obra-alphaville-01');
-      expect(restored.loteId, 'lote-12');
-      expect(restored.apropriacaoLote, true);
-      expect(restored.solicitante, 'Mestre Carlos');
-    });
+        final restored = Movimentacao.fromJson(json);
+        expect(restored.id, mov.id);
+        expect(restored.materialId, mov.materialId);
+        expect(restored.type, MovimentacaoType.saida);
+        expect(restored.quantity, 15.0);
+        expect(restored.obraId, 'obra-alphaville-01');
+        expect(restored.loteId, 'lote-12');
+        expect(restored.apropriacaoLote, true);
+        expect(restored.solicitante, 'Mestre Carlos');
+      },
+    );
 
-    test('Movimentacao mantém retrocompatibilidade com saídas sem novos atributos', () {
-      final legacyJson = {
-        'id': 'mov-legacy-saida',
-        'materialId': 'mat-areia-01',
-        'type': 'saida',
-        'quantity': 5.0,
-        'date': DateTime.now().toIso8601String(),
-        'responsavelId': 'user-antigo',
-        'obraId': 'obra-antiga',
-      };
+    test(
+      'Movimentacao mantém retrocompatibilidade com saídas sem novos atributos',
+      () {
+        final legacyJson = {
+          'id': 'mov-legacy-saida',
+          'materialId': 'mat-areia-01',
+          'type': 'saida',
+          'quantity': 5.0,
+          'date': DateTime.now().toIso8601String(),
+          'responsavelId': 'user-antigo',
+          'obraId': 'obra-antiga',
+        };
 
-      final restored = Movimentacao.fromJson(legacyJson);
-      expect(restored.id, 'mov-legacy-saida');
-      expect(restored.type, MovimentacaoType.saida);
-      expect(restored.obraId, 'obra-antiga');
-      expect(restored.loteId, isNull);
-      expect(restored.apropriacaoLote, isNull);
-      expect(restored.solicitante, isNull);
-    });
+        final restored = Movimentacao.fromJson(legacyJson);
+        expect(restored.id, 'mov-legacy-saida');
+        expect(restored.type, MovimentacaoType.saida);
+        expect(restored.obraId, 'obra-antiga');
+        expect(restored.loteId, isNull);
+        expect(restored.apropriacaoLote, isNull);
+        expect(restored.solicitante, isNull);
+      },
+    );
 
     test('Enfileiramento de stockCommand de saída preserva apropriacaoLote e destino no OperationQueue', () async {
       final memoryStore = <String, dynamic>{};
@@ -142,68 +148,76 @@ void main() {
       expect(call['payload']['solicitante'], 'Encarregado Marcos');
     });
 
-    testWidgets('MovimentacaoScreen exibe controles de saída, switch de apropriação e solicitante', (tester) async {
-      tester.view.physicalSize = const Size(1000, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+      'MovimentacaoScreen exibe controles de saída, switch de apropriação e solicitante',
+      (tester) async {
+        tester.view.physicalSize = const Size(1000, 1200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      final testMaterial = mat.Material(
-        id: 'mat-tijolo',
-        construtoraId: 'c1',
-        name: 'Tijolo Cerâmico 8 furos',
-        unit: 'milheiro',
-        currentQuantity: 40.0,
-      );
-
-      final fakeObras = [
-        Obra(
-          id: 'obra-1',
+        final testMaterial = mat.Material(
+          id: 'mat-tijolo',
           construtoraId: 'c1',
-          name: 'Residencial Horizonte',
-          createdAt: DateTime(2026),
-        ),
-      ];
+          name: 'Tijolo Cerâmico 8 furos',
+          unit: 'milheiro',
+          currentQuantity: 40.0,
+        );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            construtoraObrasProvider('c1').overrideWith((ref) => fakeObras),
-            watchLoteamentosProvider.overrideWith(
-              (ref, arg) => Stream.value(const <Loteamento>[]),
-            ),
-            watchQuadrasProvider.overrideWith(
-              (ref, arg) => Stream.value(const <Quadra>[]),
-            ),
-            watchLotesProvider.overrideWith(
-              (ref, arg) => Stream.value(const <Lote>[]),
-            ),
-          ],
-          child: MaterialApp(
-            home: MovimentacaoScreen(
-              construtoraId: 'c1',
-              material: testMaterial,
-              type: MovimentacaoType.saida,
+        final fakeObras = [
+          Obra(
+            id: 'obra-1',
+            construtoraId: 'c1',
+            name: 'Residencial Horizonte',
+            createdAt: DateTime(2026),
+          ),
+        ];
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              construtoraObrasProvider('c1').overrideWith((ref) => fakeObras),
+              watchLoteamentosProvider.overrideWith(
+                (ref, arg) => Stream.value(const <Loteamento>[]),
+              ),
+              watchQuadrasProvider.overrideWith(
+                (ref, arg) => Stream.value(const <Quadra>[]),
+              ),
+              watchLotesProvider.overrideWith(
+                (ref, arg) => Stream.value(const <Lote>[]),
+              ),
+            ],
+            child: MaterialApp(
+              home: MovimentacaoScreen(
+                construtoraId: 'c1',
+                material: testMaterial,
+                type: MovimentacaoType.saida,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      expect(find.text('Saída de Material'), findsOneWidget);
-      expect(find.text('Loteamento de Destino'), findsOneWidget);
-      expect(find.text('Apropriar diretamente ao Lote'), findsOneWidget);
-      expect(find.text('Solicitante / Retirado por (Opcional)'), findsOneWidget);
+        expect(find.text('Saída de Material'), findsOneWidget);
+        expect(find.text('Loteamento de Destino'), findsOneWidget);
+        expect(find.text('Apropriar diretamente ao Lote'), findsOneWidget);
+        expect(
+          find.text('Solicitante / Retirado por (Opcional)'),
+          findsOneWidget,
+        );
 
-      await tester.ensureVisible(find.text('Confirmar Saída'));
-      expect(find.text('Confirmar Saída'), findsOneWidget);
+        await tester.ensureVisible(find.text('Confirmar Saída'));
+        expect(find.text('Confirmar Saída'), findsOneWidget);
 
-      // Não deve exibir campos de recebimento
-      expect(find.text('Número da Nota Fiscal (NF)'), findsNothing);
-      expect(find.text('Fornecedor'), findsNothing);
-    });
+        // Não deve exibir campos de recebimento
+        expect(find.text('Número da Nota Fiscal (NF)'), findsNothing);
+        expect(find.text('Fornecedor'), findsNothing);
+      },
+    );
 
-    testWidgets('MovimentacaoScreen bloqueia saída com estoque insuficiente', (tester) async {
+    testWidgets('MovimentacaoScreen bloqueia saída com estoque insuficiente', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1000, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -242,7 +256,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tenta informar quantidade 10 quando estoque é 5
-      final quantityField = find.widgetWithText(TextFormField, 'Quantidade (milheiro)');
+      final quantityField = find.widgetWithText(
+        TextFormField,
+        'Quantidade (milheiro)',
+      );
       await tester.enterText(quantityField, '10');
 
       final submitBtn = find.text('Confirmar Saída');
@@ -253,61 +270,70 @@ void main() {
       expect(find.text('Estoque insuficiente'), findsOneWidget);
     });
 
-    testWidgets('MovimentacaoScreen valida apropriação obrigatória por lote quando switch ativo', (tester) async {
-      tester.view.physicalSize = const Size(1000, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+      'MovimentacaoScreen valida apropriação obrigatória por lote quando switch ativo',
+      (tester) async {
+        tester.view.physicalSize = const Size(1000, 1200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      final testMaterial = mat.Material(
-        id: 'mat-cimento',
-        construtoraId: 'c1',
-        name: 'Cimento CP-II',
-        unit: 'saco',
-        currentQuantity: 50.0,
-      );
+        final testMaterial = mat.Material(
+          id: 'mat-cimento',
+          construtoraId: 'c1',
+          name: 'Cimento CP-II',
+          unit: 'saco',
+          currentQuantity: 50.0,
+        );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            watchLoteamentosProvider.overrideWith(
-              (ref, arg) => Stream.value(const <Loteamento>[]),
-            ),
-            watchQuadrasProvider.overrideWith(
-              (ref, arg) => Stream.value(const <Quadra>[]),
-            ),
-            watchLotesProvider.overrideWith(
-              (ref, arg) => Stream.value(const <Lote>[]),
-            ),
-          ],
-          child: MaterialApp(
-            home: MovimentacaoScreen(
-              construtoraId: 'c1',
-              material: testMaterial,
-              type: MovimentacaoType.saida,
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              watchLoteamentosProvider.overrideWith(
+                (ref, arg) => Stream.value(const <Loteamento>[]),
+              ),
+              watchQuadrasProvider.overrideWith(
+                (ref, arg) => Stream.value(const <Quadra>[]),
+              ),
+              watchLotesProvider.overrideWith(
+                (ref, arg) => Stream.value(const <Lote>[]),
+              ),
+            ],
+            child: MaterialApp(
+              home: MovimentacaoScreen(
+                construtoraId: 'c1',
+                material: testMaterial,
+                type: MovimentacaoType.saida,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // Preenche quantidade válida e obra
-      await tester.enterText(find.widgetWithText(TextFormField, 'Quantidade (saco)'), '5');
-      await tester.enterText(find.widgetWithText(TextFormField, 'ID do Loteamento de Destino'), 'obra-teste');
+        // Preenche quantidade válida e obra
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Quantidade (saco)'),
+          '5',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'ID do Loteamento de Destino'),
+          'obra-teste',
+        );
 
-      // Ativa switch de apropriação
-      final switchFinder = find.byKey(const Key('apropriacao-lote-switch'));
-      await tester.ensureVisible(switchFinder);
-      await tester.tap(switchFinder);
-      await tester.pumpAndSettle();
+        // Ativa switch de apropriação
+        final switchFinder = find.byKey(const Key('apropriacao-lote-switch'));
+        await tester.ensureVisible(switchFinder);
+        await tester.tap(switchFinder);
+        await tester.pumpAndSettle();
 
-      // Tenta submeter sem preencher o lote
-      final submitBtn = find.text('Confirmar Saída');
-      await tester.ensureVisible(submitBtn);
-      await tester.tap(submitBtn);
-      await tester.pumpAndSettle();
+        // Tenta submeter sem preencher o lote
+        final submitBtn = find.text('Confirmar Saída');
+        await tester.ensureVisible(submitBtn);
+        await tester.tap(submitBtn);
+        await tester.pumpAndSettle();
 
-      expect(find.text('Selecione o lote para apropriação'), findsOneWidget);
-    });
+        expect(find.text('Selecione o lote para apropriação'), findsOneWidget);
+      },
+    );
   });
 }

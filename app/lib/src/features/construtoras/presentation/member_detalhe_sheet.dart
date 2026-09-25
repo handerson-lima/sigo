@@ -89,8 +89,7 @@ class MemberDetalheSheet extends ConsumerWidget {
     final key = (construtoraId: construtoraId, uid: membro.uid);
     final vinculoAsync = ref.watch(memberDetalheProvider(key));
     final meta = ref.watch(contagemObrasMetaProvider(construtoraId));
-    final contagem =
-        ref.watch(contagemObrasPorMembroProvider(construtoraId));
+    final contagem = ref.watch(contagemObrasPorMembroProvider(construtoraId));
     final obrasVinculadas = ref.watch(obrasVinculadasProvider(key));
 
     final cargoLista = rotuloCargo(membro);
@@ -99,13 +98,14 @@ class MemberDetalheSheet extends ConsumerWidget {
     final cargoA11y = vinculo == null
         ? cargoLista
         : rotuloCargoFlags(isOwner: vinculo.isOwner, isAdmin: vinculo.isAdmin);
-    final statusLabel =
-        vinculo == null ? '' : ', ${rotuloStatusVinculo(vinculo.isActive)}';
+    final statusLabel = vinculo == null
+        ? ''
+        : ', ${rotuloStatusVinculo(vinculo.isActive)}';
     final obrasA11y = meta.carregando
         ? 'carregando loteamentos'
         : (meta.erro && count == 0)
-            ? 'erro ao carregar loteamentos'
-            : textoContagemObras(count);
+        ? 'erro ao carregar loteamentos'
+        : textoContagemObras(count);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -173,8 +173,7 @@ class MemberDetalheSheet extends ConsumerWidget {
             const SizedBox(height: 4),
             Builder(
               builder: (context) {
-                final isDev =
-                    ref.watch(trustedDevProvider).value == true;
+                final isDev = ref.watch(trustedDevProvider).value == true;
                 return Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -182,21 +181,21 @@ class MemberDetalheSheet extends ConsumerWidget {
                     FilledButton.tonal(
                       onPressed: vinculo?.isActive == true
                           ? () => AtribuirObraDialog.show(
-                                context: context,
-                                construtoraId: construtoraId,
-                                membro: membro,
-                              )
+                              context: context,
+                              construtoraId: construtoraId,
+                              membro: membro,
+                            )
                           : null,
                       child: const Text('Atribuir ao loteamento'),
                     ),
                     OutlinedButton(
                       onPressed: vinculo != null
                           ? () => _mostrarTrocarCargoDialog(
-                                context,
-                                ref,
-                                vinculo,
-                                isDev,
-                              )
+                              context,
+                              ref,
+                              vinculo,
+                              isDev,
+                            )
                           : null,
                       child: const Text('Trocar cargo'),
                     ),
@@ -204,18 +203,16 @@ class MemberDetalheSheet extends ConsumerWidget {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: theme.colorScheme.error,
                         side: BorderSide(
-                            color: theme.colorScheme.error
-                                .withValues(alpha: 0.5)),
+                          color: theme.colorScheme.error.withValues(alpha: 0.5),
+                        ),
                       ),
                       onPressed: vinculo?.isActive == true
                           ? () => _confirmarDesativar(
-                                context,
-                                ref,
-                                vinculo!,
-                                obrasVinculadas
-                                    .map((e) => e.obra)
-                                    .toList(),
-                              )
+                              context,
+                              ref,
+                              vinculo!,
+                              obrasVinculadas.map((e) => e.obra).toList(),
+                            )
                           : null,
                       child: const Text('Desativar'),
                     ),
@@ -344,8 +341,9 @@ class MemberDetalheSheet extends ConsumerWidget {
     final bg = ativo ? const Color(0xFFECFDF5) : Colors.grey.shade100;
     final border = ativo ? const Color(0xFF10B981) : Colors.grey.shade400;
     final ink = ativo ? const Color(0xFF065F46) : Colors.grey.shade700;
-    final icon =
-        ativo ? Icons.check_circle_outline : Icons.remove_circle_outline;
+    final icon = ativo
+        ? Icons.check_circle_outline
+        : Icons.remove_circle_outline;
     return Semantics(
       label: status,
       excludeSemantics: true,
@@ -435,12 +433,8 @@ class MemberDetalheSheet extends ConsumerWidget {
               entry.obra,
               entry.vinculo,
             ),
-            onRemover: () => _confirmarRemocao(
-              context,
-              ref,
-              entry.obra,
-              entry.vinculo,
-            ),
+            onRemover: () =>
+                _confirmarRemocao(context, ref, entry.obra, entry.vinculo),
           ),
       ],
     );
@@ -473,8 +467,9 @@ class MemberDetalheSheet extends ConsumerWidget {
   ) async {
     final email = membro.email.trim();
     final identificador = email.isNotEmpty ? email : 'UID: ${membro.uid}';
-    final obraNome =
-        obra.name.trim().isNotEmpty ? obra.name : 'Loteamento ${obra.id}';
+    final obraNome = obra.name.trim().isNotEmpty
+        ? obra.name
+        : 'Loteamento ${obra.id}';
     await TrocarPapelDialog.show(
       context: context,
       construtoraId: construtoraId,
@@ -522,9 +517,8 @@ class MemberDetalheSheet extends ConsumerWidget {
 
     // Providers já invalidados dentro do TrocarCargoDialog em caso de sucesso.
     if (sucesso == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cargo atualizado.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Cargo atualizado.')));
     }
   }
 
@@ -634,8 +628,8 @@ class MemberDetalheSheet extends ConsumerWidget {
               isActive: false,
             )
             .catchError((e) {
-          erroFinal ??= e.toString().replaceFirst('Exception: ', '');
-        }),
+              erroFinal ??= e.toString().replaceFirst('Exception: ', '');
+            }),
       );
 
       await Future.wait(futures, eagerError: false);
@@ -644,8 +638,8 @@ class MemberDetalheSheet extends ConsumerWidget {
       final cargoAtual = vinculo.isOwner
           ? 'owner'
           : vinculo.isAdmin
-              ? 'admin'
-              : 'operario';
+          ? 'admin'
+          : 'operario';
       await membrosRepo.setCargo(
         construtoraId,
         vinculo.userId,
@@ -656,9 +650,10 @@ class MemberDetalheSheet extends ConsumerWidget {
       // Invalida providers.
       ref.invalidate(membrosProvider(construtoraId));
       ref.invalidate(
-        memberDetalheProvider(
-          (construtoraId: construtoraId, uid: vinculo.userId),
-        ),
+        memberDetalheProvider((
+          construtoraId: construtoraId,
+          uid: vinculo.userId,
+        )),
       );
     } catch (e) {
       erroFinal ??= e.toString().replaceFirst('Exception: ', '');
@@ -671,13 +666,11 @@ class MemberDetalheSheet extends ConsumerWidget {
     if (!context.mounted) return;
 
     if (erroFinal != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(erroFinal!)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(erroFinal!)));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Membro desativado.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Membro desativado.')));
     }
   }
 
@@ -689,8 +682,9 @@ class MemberDetalheSheet extends ConsumerWidget {
   ) async {
     final email = membro.email.trim();
     final identificador = email.isNotEmpty ? email : 'UID: ${membro.uid}';
-    final obraNome =
-        obra.name.trim().isNotEmpty ? obra.name : 'Loteamento ${obra.id}';
+    final obraNome = obra.name.trim().isNotEmpty
+        ? obra.name
+        : 'Loteamento ${obra.id}';
 
     final confirmar = await showDialog<bool>(
       context: context,
@@ -720,7 +714,9 @@ class MemberDetalheSheet extends ConsumerWidget {
     if (!context.mounted) return;
 
     try {
-      await ref.read(obraMembersRepositoryProvider).setMembership(
+      await ref
+          .read(obraMembersRepositoryProvider)
+          .setMembership(
             construtoraId: construtoraId,
             obraId: obra.id,
             userId: vinculo.userId,
@@ -731,24 +727,17 @@ class MemberDetalheSheet extends ConsumerWidget {
 
       ref.invalidate(membrosProvider(construtoraId));
       ref.invalidate(
-        obraMembersProvider(
-          (construtoraId: construtoraId, obraId: obra.id),
-        ),
+        obraMembersProvider((construtoraId: construtoraId, obraId: obra.id)),
       );
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Removido de $obraNome.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Removido de $obraNome.')));
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e.toString().replaceFirst('Exception: ', ''),
-            ),
-          ),
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
         );
       }
     }

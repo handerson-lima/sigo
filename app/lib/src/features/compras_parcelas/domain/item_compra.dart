@@ -53,14 +53,14 @@ class ItemCompraNf {
     final vUnitCents = json['valorUnitarioCents'] is int
         ? json['valorUnitarioCents'] as int
         : ((json['valorUnitario'] as num?) != null
-            ? ((json['valorUnitario'] as num) * 100).round()
-            : 0);
+              ? ((json['valorUnitario'] as num) * 100).round()
+              : 0);
 
     final vTotalCents = json['valorTotalCents'] is int
         ? json['valorTotalCents'] as int
         : ((json['valorTotal'] as num?) != null
-            ? ((json['valorTotal'] as num) * 100).round()
-            : (q * vUnitCents).round());
+              ? ((json['valorTotal'] as num) * 100).round()
+              : (q * vUnitCents).round());
 
     return ItemCompraNf(
       id: json['id'] as String? ?? '',

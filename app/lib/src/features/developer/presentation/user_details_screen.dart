@@ -193,7 +193,9 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                                               as Map)['name']
                                         : 'Construtora Desconhecida';
 
-                                    final isOwner = role == 'owner' || data['isOwner'] == true;
+                                    final isOwner =
+                                        role == 'owner' ||
+                                        data['isOwner'] == true;
                                     final isAdmin = !isOwner && role == 'admin';
 
                                     return ListTile(
@@ -201,19 +203,19 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                                         backgroundColor: isOwner
                                             ? Colors.amber.shade100
                                             : (isAdmin
-                                                ? Colors.red.shade100
-                                                : Colors.green.shade100),
+                                                  ? Colors.red.shade100
+                                                  : Colors.green.shade100),
                                         child: Icon(
                                           isOwner
                                               ? Icons.stars_rounded
                                               : (isAdmin
-                                                  ? Icons.admin_panel_settings
-                                                  : Icons.person),
+                                                    ? Icons.admin_panel_settings
+                                                    : Icons.person),
                                           color: isOwner
                                               ? Colors.amber.shade900
                                               : (isAdmin
-                                                  ? Colors.red
-                                                  : Colors.green),
+                                                    ? Colors.red
+                                                    : Colors.green),
                                         ),
                                       ),
                                       title: Text(cName ?? '...'),
@@ -406,10 +408,7 @@ class _LinkConstrutoraDialogState extends State<_LinkConstrutoraDialog> {
                     value: 'admin',
                     child: Text('Administrador'),
                   ),
-                  DropdownMenuItem(
-                    value: 'owner',
-                    child: Text('Proprietário'),
-                  ),
+                  DropdownMenuItem(value: 'owner', child: Text('Proprietário')),
                 ],
                 onChanged: (value) => setState(() => _role = value!),
               ),

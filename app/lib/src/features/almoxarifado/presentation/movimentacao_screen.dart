@@ -114,12 +114,20 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
       try {
         uid = FirebaseAuth.instance.currentUser?.uid ?? 'unknown';
       } catch (_) {}
-      final finalObraId = _selectedObraId ??
-          (_obraController.text.trim().isEmpty ? null : _obraController.text.trim());
-      final finalLoteId = _selectedLoteId ??
-          (_loteController.text.trim().isEmpty ? null : _loteController.text.trim());
+      final finalObraId =
+          _selectedObraId ??
+          (_obraController.text.trim().isEmpty
+              ? null
+              : _obraController.text.trim());
+      final finalLoteId =
+          _selectedLoteId ??
+          (_loteController.text.trim().isEmpty
+              ? null
+              : _loteController.text.trim());
 
-      if (isSaida && _apropriacaoLote && (finalLoteId == null || finalLoteId.isEmpty)) {
+      if (isSaida &&
+          _apropriacaoLote &&
+          (finalLoteId == null || finalLoteId.isEmpty)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Selecione o lote para apropriação')),
         );
@@ -134,7 +142,8 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
       int? custoUnitarioCentavos;
 
       if (!isSaida) {
-        final hasFinancialInfo = _valorItensController.text.trim().isNotEmpty ||
+        final hasFinancialInfo =
+            _valorItensController.text.trim().isNotEmpty ||
             _freteController.text.trim().isNotEmpty ||
             _despesasController.text.trim().isNotEmpty ||
             _descontoController.text.trim().isNotEmpty;
@@ -147,7 +156,9 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
 
           if (vItens < 0 || vFrete < 0 || vDesp < 0 || vDesc < 0) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Valores monetários não podem ser negativos')),
+              const SnackBar(
+                content: Text('Valores monetários não podem ser negativos'),
+              ),
             );
             return;
           }
@@ -155,7 +166,9 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
           final total = (vItens + vFrete + vDesp) - vDesc;
           if (total < 0) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Desconto não pode exceder o valor total')),
+              const SnackBar(
+                content: Text('Desconto não pode exceder o valor total'),
+              ),
             );
             return;
           }
@@ -280,10 +293,15 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 ),
                 onChanged: (_) => setState(() {}),
                 validator: (val) {
-                  if (val == null || val.trim().isEmpty) return 'Informe a quantidade';
+                  if (val == null || val.trim().isEmpty)
+                    return 'Informe a quantidade';
                   final int units;
                   try {
-                    units = parseQuantityUnits(val, scale: 1000, allowNegative: false);
+                    units = parseQuantityUnits(
+                      val,
+                      scale: 1000,
+                      allowNegative: false,
+                    );
                   } on FormatException catch (e) {
                     if (e.message == 'Use até 3 casas decimais') {
                       return 'Use até 3 casas decimais';
@@ -304,65 +322,69 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
               ),
               if (isSaida) ...[
                 const SizedBox(height: 10),
-                ref.watch(construtoraObrasProvider(widget.construtoraId)).when(
-                  data: (obras) {
-                    if (obras.isNotEmpty) {
-                      return DropdownButtonFormField<String>(
-                        key: const Key('obra-dropdown'),
-                        initialValue: _selectedObraId,
-                        decoration: const InputDecoration(
-                          labelText: 'Loteamento de Destino',
-                        ),
-                        items: obras
-                            .map((o) => DropdownMenuItem(
-                                  value: o.id,
-                                  child: Text(o.name),
-                                ))
-                            .toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedObraId = val;
-                            _selectedLoteId = null;
-                            _obraController.text = val ?? '';
-                            _loteController.clear();
-                          });
-                        },
-                        validator: (v) =>
-                            (v == null || v.isEmpty) &&
-                            _obraController.text.trim().isEmpty
+                ref
+                    .watch(construtoraObrasProvider(widget.construtoraId))
+                    .when(
+                      data: (obras) {
+                        if (obras.isNotEmpty) {
+                          return DropdownButtonFormField<String>(
+                            key: const Key('obra-dropdown'),
+                            initialValue: _selectedObraId,
+                            decoration: const InputDecoration(
+                              labelText: 'Loteamento de Destino',
+                            ),
+                            items: obras
+                                .map(
+                                  (o) => DropdownMenuItem(
+                                    value: o.id,
+                                    child: Text(o.name),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedObraId = val;
+                                _selectedLoteId = null;
+                                _obraController.text = val ?? '';
+                                _loteController.clear();
+                              });
+                            },
+                            validator: (v) =>
+                                (v == null || v.isEmpty) &&
+                                    _obraController.text.trim().isEmpty
                                 ? 'Informe o loteamento de destino'
                                 : null,
-                      );
-                    }
-                    return TextFormField(
-                      controller: _obraController,
-                      decoration: const InputDecoration(
-                        labelText: 'ID do Loteamento de Destino',
+                          );
+                        }
+                        return TextFormField(
+                          controller: _obraController,
+                          decoration: const InputDecoration(
+                            labelText: 'ID do Loteamento de Destino',
+                          ),
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? 'Informe o loteamento de destino'
+                              : null,
+                        );
+                      },
+                      loading: () => TextFormField(
+                        controller: _obraController,
+                        decoration: const InputDecoration(
+                          labelText: 'ID do Loteamento de Destino',
+                        ),
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Informe o loteamento de destino'
+                            : null,
                       ),
-                      validator: (v) => v == null || v.trim().isEmpty
-                          ? 'Informe o loteamento de destino'
-                          : null,
-                    );
-                  },
-                  loading: () => TextFormField(
-                    controller: _obraController,
-                    decoration: const InputDecoration(
-                      labelText: 'ID do Loteamento de Destino',
+                      error: (_, _) => TextFormField(
+                        controller: _obraController,
+                        decoration: const InputDecoration(
+                          labelText: 'ID do Loteamento de Destino',
+                        ),
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Informe o loteamento de destino'
+                            : null,
+                      ),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Informe o loteamento de destino'
-                        : null,
-                  ),
-                  error: (_, _) => TextFormField(
-                    controller: _obraController,
-                    decoration: const InputDecoration(
-                      labelText: 'ID do Loteamento de Destino',
-                    ),
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Informe o loteamento de destino'
-                        : null,
-                  ),
-                ),
                 const SizedBox(height: 16),
                 LoteHierarchySelector(
                   construtoraId: widget.construtoraId,
@@ -424,7 +446,11 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 const Divider(),
                 Row(
                   children: const [
-                    Icon(Icons.monetization_on_outlined, size: 20, color: Colors.blueGrey),
+                    Icon(
+                      Icons.monetization_on_outlined,
+                      size: 20,
+                      color: Colors.blueGrey,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -442,7 +468,9 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 TextFormField(
                   key: const Key('custo-unitario-field'),
                   controller: _custoUnitarioSaidaController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Custo Unitário (R\$)',
                     hintText: 'Ex: 35,00',
@@ -454,7 +482,9 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 TextFormField(
                   key: const Key('custo-total-field'),
                   controller: _custoTotalSaidaController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Custo Total Apropriado (R\$)',
                     hintText: 'Ex: 350,00',
@@ -493,7 +523,11 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 const Divider(),
                 Row(
                   children: const [
-                    Icon(Icons.calculate_outlined, size: 20, color: Colors.blueGrey),
+                    Icon(
+                      Icons.calculate_outlined,
+                      size: 20,
+                      color: Colors.blueGrey,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -511,7 +545,9 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 TextFormField(
                   key: const Key('valor-itens-field'),
                   controller: _valorItensController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Valor dos Itens (R\$)',
                     hintText: 'Ex: 1500,00',
@@ -523,7 +559,9 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 TextFormField(
                   key: const Key('frete-field'),
                   controller: _freteController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Valor do Frete (R\$)',
                     hintText: 'Ex: 100,00',
@@ -535,7 +573,9 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 TextFormField(
                   key: const Key('despesas-field'),
                   controller: _despesasController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Outras Despesas Acessórias (R\$)',
                     hintText: 'Ex: 50,00',
@@ -547,7 +587,9 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 TextFormField(
                   key: const Key('desconto-field'),
                   controller: _descontoController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Desconto Concedido (R\$)',
                     hintText: 'Ex: 20,00',
@@ -557,7 +599,8 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                     final err = _validateMoneyField(val);
                     if (err != null) return err;
                     final dCents = _parseCents(val ?? '') ?? 0;
-                    final bCents = (_parseCents(_valorItensController.text) ?? 0) +
+                    final bCents =
+                        (_parseCents(_valorItensController.text) ?? 0) +
                         (_parseCents(_freteController.text) ?? 0) +
                         (_parseCents(_despesasController.text) ?? 0);
                     if (dCents > bCents) {
@@ -568,7 +611,8 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 ),
                 Builder(
                   builder: (context) {
-                    final hasFin = _valorItensController.text.trim().isNotEmpty ||
+                    final hasFin =
+                        _valorItensController.text.trim().isNotEmpty ||
                         _freteController.text.trim().isNotEmpty ||
                         _despesasController.text.trim().isNotEmpty ||
                         _descontoController.text.trim().isNotEmpty;
@@ -582,19 +626,30 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                     final isNegative = total < 0;
                     double qVal = 0.0;
                     try {
-                      qVal = parseQuantityUnits(_quantityController.text, scale: 1000) / 1000.0;
+                      qVal =
+                          parseQuantityUnits(
+                            _quantityController.text,
+                            scale: 1000,
+                          ) /
+                          1000.0;
                     } catch (_) {}
-                    final unitCents = (qVal > 0 && !isNegative) ? (total / qVal).round() : null;
+                    final unitCents = (qVal > 0 && !isNegative)
+                        ? (total / qVal).round()
+                        : null;
 
                     return Container(
                       key: const Key('rateio-preview-card'),
                       margin: const EdgeInsets.only(top: 12),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isNegative ? Colors.red.shade50 : Colors.blueGrey.shade50,
+                        color: isNegative
+                            ? Colors.red.shade50
+                            : Colors.blueGrey.shade50,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isNegative ? Colors.red.shade300 : Colors.blueGrey.shade200,
+                          color: isNegative
+                              ? Colors.red.shade300
+                              : Colors.blueGrey.shade200,
                         ),
                       ),
                       child: Column(
@@ -628,11 +683,14 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                             if (unitCents != null) ...[
                               const SizedBox(height: 4),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Custo Unitário Efetivo:',
-                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                   Text(
                                     '${_formatCents(unitCents)} / ${widget.material.unit}',
@@ -648,7 +706,10 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                             const SizedBox(height: 6),
                             Text(
                               'Composição: Itens ${_formatCents(vi)} | Frete ${_formatCents(vf)} | Desp ${_formatCents(vd)} | Desc ${_formatCents(vdesc)}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                              ),
                             ),
                           ],
                         ],

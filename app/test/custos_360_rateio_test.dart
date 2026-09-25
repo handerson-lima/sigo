@@ -56,22 +56,25 @@ void main() {
       expect(res['lote-unico'], 54321);
     });
 
-    test('despesa indireta zero ou negativa retorna zero para todos os lotes', () {
-      final lotes = ['l1', 'l2'];
-      final resZero = RateioIndiretoMath.distribuir(
-        totalDespesasIndiretasCents: 0,
-        lotesIds: lotes,
-      );
-      expect(resZero['l1'], 0);
-      expect(resZero['l2'], 0);
+    test(
+      'despesa indireta zero ou negativa retorna zero para todos os lotes',
+      () {
+        final lotes = ['l1', 'l2'];
+        final resZero = RateioIndiretoMath.distribuir(
+          totalDespesasIndiretasCents: 0,
+          lotesIds: lotes,
+        );
+        expect(resZero['l1'], 0);
+        expect(resZero['l2'], 0);
 
-      final resNeg = RateioIndiretoMath.distribuir(
-        totalDespesasIndiretasCents: -500,
-        lotesIds: lotes,
-      );
-      expect(resNeg['l1'], 0);
-      expect(resNeg['l2'], 0);
-    });
+        final resNeg = RateioIndiretoMath.distribuir(
+          totalDespesasIndiretasCents: -500,
+          lotesIds: lotes,
+        );
+        expect(resNeg['l1'], 0);
+        expect(resNeg['l2'], 0);
+      },
+    );
 
     test('sem lotes cadastrados não gera divisão por zero', () {
       final res = RateioIndiretoMath.distribuir(
@@ -91,7 +94,11 @@ void main() {
       );
 
       final soma = res.values.fold(0, (acc, v) => acc + v);
-      expect(soma, totalCents, reason: 'A soma dos rateios deve ser rigorosamente idêntica ao total.');
+      expect(
+        soma,
+        totalCents,
+        reason: 'A soma dos rateios deve ser rigorosamente idêntica ao total.',
+      );
     });
   });
 }

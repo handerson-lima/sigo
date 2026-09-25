@@ -14,19 +14,18 @@ void main() {
       overrides: [
         authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
         trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-        currentPermissionsProvider(
-          (construtoraId: 'c1', obraId: 'o1'),
-        ).overrideWith(
-          (ref) => Stream.value(
-            ObraMember(
-              userId: 'u1',
-              isActive: true,
-              isAdmin: true,
-              modules: const ['all'],
-              joinedAt: DateTime(2025),
+        currentPermissionsProvider((construtoraId: 'c1', obraId: 'o1'))
+            .overrideWith(
+              (ref) => Stream.value(
+                ObraMember(
+                  userId: 'u1',
+                  isActive: true,
+                  isAdmin: true,
+                  modules: const ['all'],
+                  joinedAt: DateTime(2025),
+                ),
+              ),
             ),
-          ),
-        ),
       ],
       child: MaterialApp(
         home: MediaQuery(
@@ -48,7 +47,9 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      await tester.pumpWidget(createTestWidget(physicalSize: const Size(1280, 800)));
+      await tester.pumpWidget(
+        createTestWidget(physicalSize: const Size(1280, 800)),
+      );
       await tester.pumpAndSettle();
 
       // Inicialmente expandido: largura 250 e texto do logo visivel
@@ -90,7 +91,9 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      await tester.pumpWidget(createTestWidget(physicalSize: const Size(400, 800)));
+      await tester.pumpWidget(
+        createTestWidget(physicalSize: const Size(400, 800)),
+      );
       await tester.pumpAndSettle();
 
       // Drawer fechado inicialmente

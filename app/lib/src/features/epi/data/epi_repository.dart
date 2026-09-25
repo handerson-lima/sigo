@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,108 +10,170 @@ import '../domain/epi_item.dart';
 import '../domain/termo_epi.dart';
 
 final epiRepositoryProvider = Provider<EpiRepository>((ref) {
-  return EpiRepository(
-    FirebaseFirestore.instance,
-    FirebaseStorage.instance,
-  );
+  return EpiRepository(FirebaseFirestore.instance, FirebaseStorage.instance);
 });
 
-final catalogoEpisStreamProvider =
-    StreamProvider.family<List<EpiItem>, String>((ref, construtoraId) {
-  return ref.watch(epiRepositoryProvider).watchCatalogo(construtoraId);
-});
+final catalogoEpisStreamProvider = StreamProvider.family<List<EpiItem>, String>(
+  (ref, construtoraId) {
+    return ref.watch(epiRepositoryProvider).watchCatalogo(construtoraId);
+  },
+);
 
 final epiEventsObraStreamProvider =
-    StreamProvider.family<List<EpiEvent>, ({String construtoraId, String obraId})>((ref, arg) {
-  return ref.watch(epiRepositoryProvider).watchEventsPorObra(arg.construtoraId, arg.obraId);
-});
+    StreamProvider.family<
+      List<EpiEvent>,
+      ({String construtoraId, String obraId})
+    >((ref, arg) {
+      return ref
+          .watch(epiRepositoryProvider)
+          .watchEventsPorObra(arg.construtoraId, arg.obraId);
+    });
 
 final epiEventsFuncionarioStreamProvider =
-    StreamProvider.family<List<EpiEvent>, ({String construtoraId, String obraId, String funcionarioId})>((ref, arg) {
-  return ref.watch(epiRepositoryProvider).watchEventsPorFuncionario(arg.construtoraId, arg.obraId, arg.funcionarioId);
-});
+    StreamProvider.family<
+      List<EpiEvent>,
+      ({String construtoraId, String obraId, String funcionarioId})
+    >((ref, arg) {
+      return ref
+          .watch(epiRepositoryProvider)
+          .watchEventsPorFuncionario(
+            arg.construtoraId,
+            arg.obraId,
+            arg.funcionarioId,
+          );
+    });
 
 final termosFuncionarioStreamProvider =
-    StreamProvider.family<List<TermoEpi>, ({String construtoraId, String obraId, String funcionarioId})>((ref, arg) {
-  return ref.watch(epiRepositoryProvider).watchTermosPorFuncionario(arg.construtoraId, arg.obraId, arg.funcionarioId);
-});
+    StreamProvider.family<
+      List<TermoEpi>,
+      ({String construtoraId, String obraId, String funcionarioId})
+    >((ref, arg) {
+      return ref
+          .watch(epiRepositoryProvider)
+          .watchTermosPorFuncionario(
+            arg.construtoraId,
+            arg.obraId,
+            arg.funcionarioId,
+          );
+    });
 
 class EpiRepository {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
 
   EpiRepository(this._firestore, [FirebaseStorage? storage])
-      : _storage = storage ?? FirebaseStorage.instance;
+    : _storage = storage ?? FirebaseStorage.instance;
 
-  CollectionReference<Map<String, dynamic>> _catalogoRef(String construtoraId) =>
-      _firestore.collection('construtoras').doc(construtoraId).collection('catalogo_epis');
+  CollectionReference<Map<String, dynamic>> _catalogoRef(
+    String construtoraId,
+  ) => _firestore
+      .collection('construtoras')
+      .doc(construtoraId)
+      .collection('catalogo_epis');
 
-  CollectionReference<Map<String, dynamic>> _eventsRef(String construtoraId, String obraId) =>
-      _firestore.collection('construtoras').doc(construtoraId).collection('obras').doc(obraId).collection('epi_events');
+  CollectionReference<Map<String, dynamic>> _eventsRef(
+    String construtoraId,
+    String obraId,
+  ) => _firestore
+      .collection('construtoras')
+      .doc(construtoraId)
+      .collection('obras')
+      .doc(obraId)
+      .collection('epi_events');
 
-  CollectionReference<Map<String, dynamic>> _termosRef(String construtoraId, String obraId) =>
-      _firestore.collection('construtoras').doc(construtoraId).collection('obras').doc(obraId).collection('termos_epi');
+  CollectionReference<Map<String, dynamic>> _termosRef(
+    String construtoraId,
+    String obraId,
+  ) => _firestore
+      .collection('construtoras')
+      .doc(construtoraId)
+      .collection('obras')
+      .doc(obraId)
+      .collection('termos_epi');
 
   Stream<List<EpiItem>> watchCatalogo(String construtoraId) {
     return cachedList(
       'construtoras/$construtoraId/catalogo_epis',
       _liveWatchCatalogo(construtoraId),
       (item) => item.toMap(),
-      (data) => EpiItem.fromMap(Map<String, dynamic>.from(data), data['id'] ?? ''),
+      (data) =>
+          EpiItem.fromMap(Map<String, dynamic>.from(data), data['id'] ?? ''),
     );
   }
 
   Stream<List<EpiItem>> _liveWatchCatalogo(String construtoraId) {
     return _catalogoRef(construtoraId).snapshots().map((snapshot) {
-      final list = snapshot.docs.map((doc) => EpiItem.fromMap(doc.data(), doc.id)).toList();
+      final list = snapshot.docs
+          .map((doc) => EpiItem.fromMap(doc.data(), doc.id))
+          .toList();
       list.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
       return list;
     });
   }
 
   Future<void> saveEpiItem(EpiItem item) async {
-    await _catalogoRef(item.construtoraId).doc(item.id).set(
-          item.toMap(),
-          SetOptions(merge: true),
-        );
+    await _catalogoRef(item.construtoraId)
+        .doc(item.id)
+        .set(item.toMap(), SetOptions(merge: true));
   }
 
-  Future<void> toggleEpiStatus(String construtoraId, String epiId, bool isActive) async {
+  Future<void> toggleEpiStatus(
+    String construtoraId,
+    String epiId,
+    bool isActive,
+  ) async {
     await _catalogoRef(construtoraId).doc(epiId).update({
       'isActive': isActive,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  Stream<List<EpiEvent>> watchEventsPorObra(String construtoraId, String obraId) {
-    return _eventsRef(construtoraId, obraId)
-        .orderBy('dataEvento', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) => EpiEvent.fromMap(doc.data(), doc.id)).toList();
+  Stream<List<EpiEvent>> watchEventsPorObra(
+    String construtoraId,
+    String obraId,
+  ) {
+    return _eventsRef(
+      construtoraId,
+      obraId,
+    ).orderBy('dataEvento', descending: true).snapshots().map((snapshot) {
+      return snapshot.docs
+          .map((doc) => EpiEvent.fromMap(doc.data(), doc.id))
+          .toList();
     });
   }
 
-  Stream<List<EpiEvent>> watchEventsPorFuncionario(String construtoraId, String obraId, String funcionarioId) {
+  Stream<List<EpiEvent>> watchEventsPorFuncionario(
+    String construtoraId,
+    String obraId,
+    String funcionarioId,
+  ) {
     return _eventsRef(construtoraId, obraId)
         .where('funcionarioId', isEqualTo: funcionarioId)
         .snapshots()
         .map((snapshot) {
-      final list = snapshot.docs.map((doc) => EpiEvent.fromMap(doc.data(), doc.id)).toList();
-      list.sort((a, b) => b.dataEvento.compareTo(a.dataEvento));
-      return list;
-    });
+          final list = snapshot.docs
+              .map((doc) => EpiEvent.fromMap(doc.data(), doc.id))
+              .toList();
+          list.sort((a, b) => b.dataEvento.compareTo(a.dataEvento));
+          return list;
+        });
   }
 
-  Stream<List<TermoEpi>> watchTermosPorFuncionario(String construtoraId, String obraId, String funcionarioId) {
+  Stream<List<TermoEpi>> watchTermosPorFuncionario(
+    String construtoraId,
+    String obraId,
+    String funcionarioId,
+  ) {
     return _termosRef(construtoraId, obraId)
         .where('funcionarioId', isEqualTo: funcionarioId)
         .snapshots()
         .map((snapshot) {
-      final list = snapshot.docs.map((doc) => TermoEpi.fromMap(doc.data(), doc.id)).toList();
-      list.sort((a, b) => b.dataAssinatura.compareTo(a.dataAssinatura));
-      return list;
-    });
+          final list = snapshot.docs
+              .map((doc) => TermoEpi.fromMap(doc.data(), doc.id))
+              .toList();
+          list.sort((a, b) => b.dataAssinatura.compareTo(a.dataAssinatura));
+          return list;
+        });
   }
 
   Future<String?> uploadAssinatura({
@@ -120,7 +183,8 @@ class EpiRepository {
     required Uint8List bytes,
   }) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final path = 'construtoras/$construtoraId/obras/$obraId/epis/$funcionarioId/termo_${timestamp}_assinatura.png';
+    final path =
+        'construtoras/$construtoraId/obras/$obraId/epis/$funcionarioId/termo_${timestamp}_assinatura.png';
     final ref = _storage.ref().child(path);
     await ref.putData(bytes, SettableMetadata(contentType: 'image/png'));
     return path;
@@ -146,7 +210,10 @@ class EpiRepository {
     String? termoId = event.termoId;
     if (termo != null) {
       termoId = termo.id;
-      final termoDoc = _termosRef(event.construtoraId, event.obraId).doc(termo.id);
+      final termoDoc = _termosRef(
+        event.construtoraId,
+        event.obraId,
+      ).doc(termo.id);
       final finalTermo = storagePath != null
           ? TermoEpi(
               id: termo.id,
@@ -167,7 +234,10 @@ class EpiRepository {
       batch.set(termoDoc, finalTermo.toMap());
     }
 
-    final eventDoc = _eventsRef(event.construtoraId, event.obraId).doc(event.id);
+    final eventDoc = _eventsRef(
+      event.construtoraId,
+      event.obraId,
+    ).doc(event.id);
     final finalEvent = event.copyWith(termoId: termoId);
     batch.set(eventDoc, finalEvent.toMap());
 
@@ -183,7 +253,10 @@ class EpiRepository {
     required String responsavelNome,
     String? motivo,
   }) async {
-    final origDoc = await _eventsRef(construtoraId, obraId).doc(eventoOriginalId).get();
+    final origDoc = await _eventsRef(
+      construtoraId,
+      obraId,
+    ).doc(eventoOriginalId).get();
     if (!origDoc.exists) return;
 
     final origData = origDoc.data()!;

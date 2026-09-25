@@ -45,13 +45,16 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
         final user = ref.read(authRepositoryProvider).currentUser;
         final uid = user?.uid ?? 'anon_user';
 
-        await ref.read(comprasRepositoryProvider).liquidarParcela(
+        await ref
+            .read(comprasRepositoryProvider)
+            .liquidarParcela(
               construtoraId: widget.construtoraId,
               obraId: widget.obraId,
               compraId: widget.compraId,
               numeroParcela: parcela.numero,
               pagoPorUid: uid,
-              metodoPagamento: result['metodoPagamento'] as MetodoPagamentoCompra,
+              metodoPagamento:
+                  result['metodoPagamento'] as MetodoPagamentoCompra,
               dataPagamento: result['dataPagamento'] as DateTime?,
               observacaoPagamento: result['observacao'] as String?,
             );
@@ -91,7 +94,9 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
         final user = ref.read(authRepositoryProvider).currentUser;
         final uid = user?.uid ?? 'anon_user';
 
-        await ref.read(comprasRepositoryProvider).receberItensNoEstoque(
+        await ref
+            .read(comprasRepositoryProvider)
+            .receberItensNoEstoque(
               construtoraId: widget.construtoraId,
               obraId: widget.obraId,
               compraId: widget.compraId,
@@ -165,7 +170,9 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
               } else {
                 ScaffoldMessenger.of(ctx).showSnackBar(
                   const SnackBar(
-                    content: Text('O motivo deve conter ao menos 10 caracteres.'),
+                    content: Text(
+                      'O motivo deve conter ao menos 10 caracteres.',
+                    ),
                   ),
                 );
               }
@@ -183,7 +190,9 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
         final user = ref.read(authRepositoryProvider).currentUser;
         final uid = user?.uid ?? 'anon_user';
 
-        await ref.read(comprasRepositoryProvider).cancelarCompra(
+        await ref
+            .read(comprasRepositoryProvider)
+            .cancelarCompra(
               construtoraId: widget.construtoraId,
               obraId: widget.obraId,
               compraId: widget.compraId,
@@ -232,9 +241,11 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
         compraAsync.maybeWhen(
           data: (compra) {
             if (compra == null) return const SizedBox.shrink();
-            final podeCancelar = compra.status != StatusCompra.cancelado &&
-                !compra.parcelas
-                    .any((p) => p.status == StatusParcelaCompra.pago);
+            final podeCancelar =
+                compra.status != StatusCompra.cancelado &&
+                !compra.parcelas.any(
+                  (p) => p.status == StatusParcelaCompra.pago,
+                );
 
             return PopupMenuButton<String>(
               onSelected: (val) {
@@ -266,8 +277,10 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
                       children: [
                         Icon(Icons.cancel, size: 20, color: Colors.red),
                         SizedBox(width: 8),
-                        Text('Cancelar Compra',
-                            style: TextStyle(color: Colors.red)),
+                        Text(
+                          'Cancelar Compra',
+                          style: TextStyle(color: Colors.red),
+                        ),
                       ],
                     ),
                   ),
@@ -281,9 +294,8 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
           ? const Center(child: CircularProgressIndicator())
           : compraAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(
-                child: Text('Erro ao carregar detalhes: $err'),
-              ),
+              error: (err, _) =>
+                  Center(child: Text('Erro ao carregar detalhes: $err')),
               data: (compra) {
                 if (compra == null) {
                   return const Center(child: Text('Compra não encontrada.'));
@@ -376,10 +388,7 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _buildBadge(
-                    label: compra.status.label,
-                    color: statusColor,
-                  ),
+                  _buildBadge(label: compra.status.label, color: statusColor),
                   const SizedBox(height: 6),
                   _buildBadge(
                     label: compra.statusRecebimento.label,
@@ -387,10 +396,7 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
                   ),
                   if (compra.isAtrasada) ...[
                     const SizedBox(height: 6),
-                    _buildBadge(
-                      label: 'Parcela em Atraso',
-                      color: Colors.red,
-                    ),
+                    _buildBadge(label: 'Parcela em Atraso', color: Colors.red),
                   ],
                 ],
               ),
@@ -410,7 +416,8 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
                   'Data de Recebimento',
                   '${compra.dataRecebimento!.day.toString().padLeft(2, '0')}/${compra.dataRecebimento!.month.toString().padLeft(2, '0')}/${compra.dataRecebimento!.year}',
                 ),
-              if (compra.chaveAcessoNf != null && compra.chaveAcessoNf!.isNotEmpty)
+              if (compra.chaveAcessoNf != null &&
+                  compra.chaveAcessoNf!.isNotEmpty)
                 _buildInfoColumn('Chave de Acesso', compra.chaveAcessoNf!),
             ],
           ),
@@ -496,8 +503,8 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
   }
 
   Widget _buildItensSection(CompraNf compra) {
-    final temPendente = !compra.isTotalmenteRecebido &&
-        compra.status != StatusCompra.cancelado;
+    final temPendente =
+        !compra.isTotalmenteRecebido && compra.status != StatusCompra.cancelado;
 
     return _buildCard(
       child: Column(
@@ -508,7 +515,10 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
             children: [
               Text(
                 'Itens Faturados (${compra.itens.length})',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               if (temPendente)
                 FilledButton.icon(
@@ -556,7 +566,10 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
                           ),
                           Text(
                             'Quantidade: ${item.quantidade} ${item.unidadeMedida} × R\$ ${item.valorUnitario.toStringAsFixed(2)}',
-                            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[700],
+                            ),
                           ),
                           Text(
                             'Recebido: ${item.quantidadeRecebida} ${item.unidadeMedida} ${item.quantidadePendente > 0 ? "(Pendente: ${item.quantidadePendente})" : ""}',
@@ -596,7 +609,10 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
             children: [
               Text(
                 'Parcelas e Vencimentos (${compra.parcelas.length})',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               if (compra.isQuitada)
                 _buildBadge(label: 'Totalmente Quitado', color: Colors.green),
@@ -646,12 +662,18 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
                         ),
                         Text(
                           'Vencimento: ${parcela.dataVencimento.day.toString().padLeft(2, '0')}/${parcela.dataVencimento.month.toString().padLeft(2, '0')}/${parcela.dataVencimento.year}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
                         ),
                         if (isPaga && parcela.dataPagamento != null)
                           Text(
                             'Pago em: ${parcela.dataPagamento!.day.toString().padLeft(2, '0')}/${parcela.dataPagamento!.month.toString().padLeft(2, '0')}/${parcela.dataPagamento!.year} via ${parcela.metodoPagamento?.label ?? "Outro"}',
-                            style: const TextStyle(fontSize: 11, color: Colors.green),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.green,
+                            ),
                           ),
                       ],
                     ),
@@ -692,7 +714,10 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
               SizedBox(width: 8),
               Text(
                 'Compra Cancelada',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
               ),
             ],
           ),
@@ -714,13 +739,20 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
       children: [
         Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         const SizedBox(height: 2),
-        Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
       ],
     );
   }
 
-  Widget _buildFinanceTile(String label, String value, Color color,
-      {bool isBold = false}) {
+  Widget _buildFinanceTile(
+    String label,
+    String value,
+    Color color, {
+    bool isBold = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -742,10 +774,7 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: child,
-      ),
+      child: Padding(padding: const EdgeInsets.all(16.0), child: child),
     );
   }
 

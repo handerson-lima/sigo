@@ -23,53 +23,53 @@ abstract class DiarioPaths {
 
 /// Rotas do módulo de diário de obra.
 List<RouteBase> get diarioRoutes => [
-      GoRoute(
-        path: DiarioPaths.syncConstrutora,
-        builder: (context, state) => AccessGuard(
-          construtoraId: state.pathParameters['cId']!,
-          child: SyncQueueScreen(
-            construtoraId: state.pathParameters['cId']!,
-            obraId: '',
-          ),
-        ),
+  GoRoute(
+    path: DiarioPaths.syncConstrutora,
+    builder: (context, state) => AccessGuard(
+      construtoraId: state.pathParameters['cId']!,
+      child: SyncQueueScreen(
+        construtoraId: state.pathParameters['cId']!,
+        obraId: '',
       ),
-      GoRoute(
-        path: DiarioPaths.list,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'diario',
-            child: DiariosListScreen(construtoraId: cId, obraId: oId),
-          );
-        },
-      ),
-      GoRoute(
-        path: DiarioPaths.novo,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'diario',
-            child: AddDiarioScreen(construtoraId: cId, obraId: oId),
-          );
-        },
-      ),
-      GoRoute(
-        path: DiarioPaths.sync,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'diario',
-            child: SyncQueueScreen(construtoraId: cId, obraId: oId),
-          );
-        },
-      ),
-    ];
+    ),
+  ),
+  GoRoute(
+    path: DiarioPaths.list,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'diario',
+        child: DiariosListScreen(construtoraId: cId, obraId: oId),
+      );
+    },
+  ),
+  GoRoute(
+    path: DiarioPaths.novo,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'diario',
+        child: AddDiarioScreen(construtoraId: cId, obraId: oId),
+      );
+    },
+  ),
+  GoRoute(
+    path: DiarioPaths.sync,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'diario',
+        child: SyncQueueScreen(construtoraId: cId, obraId: oId),
+      );
+    },
+  ),
+];

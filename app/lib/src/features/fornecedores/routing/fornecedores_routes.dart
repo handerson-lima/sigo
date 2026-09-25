@@ -18,38 +18,38 @@ abstract class FornecedoresPaths {
 
 /// Rotas do módulo de fornecedores.
 List<RouteBase> get fornecedoresRoutes => [
-      GoRoute(
-        path: FornecedoresPaths.list,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            child: FornecedoresListScreen(construtoraId: cId),
-          );
-        },
-      ),
-      GoRoute(
-        path: FornecedoresPaths.novo,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            child: FornecedorFormScreen(construtoraId: cId),
-          );
-        },
-      ),
-      GoRoute(
-        path: FornecedoresPaths.editar,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final fornecedorId = state.pathParameters['fornecedorId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            child: FornecedorFormScreen(
-              construtoraId: cId,
-              fornecedorId: fornecedorId,
-            ),
-          );
-        },
-      ),
-    ];
+  GoRoute(
+    path: FornecedoresPaths.list,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        child: FornecedoresListScreen(construtoraId: cId),
+      );
+    },
+  ),
+  GoRoute(
+    path: FornecedoresPaths.novo,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        child: FornecedorFormScreen(construtoraId: cId),
+      );
+    },
+  ),
+  GoRoute(
+    path: FornecedoresPaths.editar,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final fornecedorId = state.pathParameters['fornecedorId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        child: FornecedorFormScreen(
+          construtoraId: cId,
+          fornecedorId: fornecedorId,
+        ),
+      );
+    },
+  ),
+];

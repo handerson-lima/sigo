@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -136,8 +137,8 @@ class _DespesaLiquidarDialogState extends ConsumerState<DespesaLiquidarDialog> {
 
     final int valorCents = widget.numeroParcela != null
         ? widget.despesa.parcelas
-            .firstWhere((p) => p.numero == widget.numeroParcela)
-            .valorCents
+              .firstWhere((p) => p.numero == widget.numeroParcela)
+              .valorCents
         : widget.despesa.saldoDevedorCents;
 
     return AlertDialog(
@@ -184,7 +185,10 @@ class _DespesaLiquidarDialogState extends ConsumerState<DespesaLiquidarDialog> {
                 children: [
                   Text(
                     'Valor da Liquidação:',
-                    style: TextStyle(fontSize: 12, color: Colors.green.shade900),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.green.shade900,
+                    ),
                   ),
                   Text(
                     currency.format(valorCents / 100.0),
@@ -210,13 +214,13 @@ class _DespesaLiquidarDialogState extends ConsumerState<DespesaLiquidarDialog> {
               isExpanded: true,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
               items: MetodoPagamento.values.map((m) {
-                return DropdownMenuItem(
-                  value: m,
-                  child: Text(m.label),
-                );
+                return DropdownMenuItem(value: m, child: Text(m.label));
               }).toList(),
               onChanged: _isLoading
                   ? null
@@ -247,8 +251,10 @@ class _DespesaLiquidarDialogState extends ConsumerState<DespesaLiquidarDialog> {
                       }
                     },
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade400),
                   borderRadius: BorderRadius.circular(4),

@@ -15,8 +15,10 @@ class Membro {
 
   factory Membro.fromFirestore(Map<String, dynamic> data, String uid) {
     final isOwner = data['isOwner'] == true || data['role'] == 'owner';
-    final isAdmin = isOwner || data['isAdmin'] == true || data['role'] == 'admin';
-    final role = (data['role'] as String?) ??
+    final isAdmin =
+        isOwner || data['isAdmin'] == true || data['role'] == 'admin';
+    final role =
+        (data['role'] as String?) ??
         (isOwner ? 'owner' : (isAdmin ? 'admin' : 'operario'));
     return Membro(
       uid: uid,

@@ -1,5 +1,6 @@
 import 'package:app/src/common_widgets/sigo_breadcrumbs.dart';
 import 'package:app/src/features/authentication/data/user_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:app/src/features/construtoras/routing/construtora_routes.dart';
 import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
 import 'package:app/src/features/loteamentos/domain/loteamento.dart';
@@ -43,8 +44,10 @@ class FakeQuadraRepository implements QuadraRepository {
   FakeQuadraRepository(this.quadras);
 
   @override
-  Stream<List<Quadra>> watchQuadras(String construtoraId, String loteamentoId) =>
-      Stream.value(quadras);
+  Stream<List<Quadra>> watchQuadras(
+    String construtoraId,
+    String loteamentoId,
+  ) => Stream.value(quadras);
 
   @override
   Future<void> createQuadra(Quadra quadra) async {}
@@ -59,11 +62,13 @@ class FakeLoteRepository implements LoteRepository {
     String construtoraId,
     String loteamentoId,
     String quadraId,
-  ) =>
-      Stream.value(lotes);
+  ) => Stream.value(lotes);
 
   @override
   Future<void> createLote(Lote lote) async {}
+
+  @override
+  Future<void> createLoteComEtapas(Lote lote) async {}
 }
 
 class FakeEtapaRepository implements EtapaRepository {
@@ -76,14 +81,14 @@ class FakeEtapaRepository implements EtapaRepository {
     String loteamentoId,
     String quadraId,
     String loteId,
-  ) =>
-      Stream.value(etapas);
+  ) => Stream.value(etapas);
 
   @override
   Future<void> createEtapa(Etapa etapa) async {}
 
   @override
   Future<void> createDefaultEtapas({
+    WriteBatch? batch,
     required String construtoraId,
     required String loteamentoId,
     required String quadraId,
@@ -102,67 +107,67 @@ class FakeEquipeRepository implements EquipeRepository {
     String quadraId,
     String loteId,
     String etapaId,
-  ) =>
-      Stream.value(equipes);
+  ) => Stream.value(equipes);
 
   @override
   Future<void> createEquipe(Equipe equipe) async {}
 }
 
 Loteamento makeLoteamento(String id) => Loteamento(
-      id: id,
-      construtoraId: 'c1',
-      name: 'Loteamento $id',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-    );
+  id: id,
+  construtoraId: 'c1',
+  name: 'Loteamento $id',
+  createdAt: DateTime(2026, 1, 1),
+  updatedAt: DateTime(2026, 1, 1),
+);
 
 Quadra makeQuadra(String id) => Quadra(
-      id: id,
-      construtoraId: 'c1',
-      loteamentoId: 'l1',
-      name: 'Quadra $id',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-    );
+  id: id,
+  construtoraId: 'c1',
+  loteamentoId: 'l1',
+  name: 'Quadra $id',
+  createdAt: DateTime(2026, 1, 1),
+  updatedAt: DateTime(2026, 1, 1),
+);
 
 Lote makeLote(String id) => Lote(
-      id: id,
-      construtoraId: 'c1',
-      loteamentoId: 'l1',
-      quadraId: 'q1',
-      name: 'Lote $id',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-    );
+  id: id,
+  construtoraId: 'c1',
+  loteamentoId: 'l1',
+  quadraId: 'q1',
+  name: 'Lote $id',
+  createdAt: DateTime(2026, 1, 1),
+  updatedAt: DateTime(2026, 1, 1),
+);
 
 Etapa makeEtapa(String id) => Etapa(
-      id: id,
-      construtoraId: 'c1',
-      loteamentoId: 'l1',
-      quadraId: 'q1',
-      loteId: 'lo1',
-      nome: 'Etapa $id',
-      ordem: 1,
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-    );
+  id: id,
+  construtoraId: 'c1',
+  loteamentoId: 'l1',
+  quadraId: 'q1',
+  loteId: 'lo1',
+  nome: 'Etapa $id',
+  ordem: 1,
+  createdAt: DateTime(2026, 1, 1),
+  updatedAt: DateTime(2026, 1, 1),
+);
 
 Equipe makeEquipe(String id) => Equipe(
-      id: id,
-      construtoraId: 'c1',
-      loteamentoId: 'l1',
-      quadraId: 'q1',
-      loteId: 'lo1',
-      etapaId: 'e1',
-      name: 'Equipe $id',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-    );
+  id: id,
+  construtoraId: 'c1',
+  loteamentoId: 'l1',
+  quadraId: 'q1',
+  loteId: 'lo1',
+  etapaId: 'e1',
+  name: 'Equipe $id',
+  createdAt: DateTime(2026, 1, 1),
+  updatedAt: DateTime(2026, 1, 1),
+);
 
 void main() {
-  testWidgets('LoteamentosListScreen navega para a lista de quadras',
-      (tester) async {
+  testWidgets('LoteamentosListScreen navega para a lista de quadras', (
+    tester,
+  ) async {
     final router = GoRouter(
       initialLocation: '/construtoras/c1/loteamentos',
       routes: [
@@ -251,60 +256,58 @@ void main() {
   });
 
   testWidgets(
-      'rotas reais aninhadas renderizam breadcrumbs e crumb-pai ascende para a lista',
-      (tester) async {
-    final router = GoRouter(
-      initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
-      routes: construtoraRoutes,
-    );
+    'rotas reais aninhadas renderizam breadcrumbs e crumb-pai ascende para a lista',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
+        routes: construtoraRoutes,
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-          loteamentoRepositoryProvider.overrideWithValue(
-            FakeLoteamentoRepository([makeLoteamento('l1')]),
-          ),
-          quadraRepositoryProvider.overrideWithValue(
-            FakeQuadraRepository([makeQuadra('q1')]),
-          ),
-          loteRepositoryProvider.overrideWithValue(
-            FakeLoteRepository([makeLote('lo1')]),
-          ),
-        ],
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+            loteamentoRepositoryProvider.overrideWithValue(
+              FakeLoteamentoRepository([makeLoteamento('l1')]),
+            ),
+            quadraRepositoryProvider.overrideWithValue(
+              FakeQuadraRepository([makeQuadra('q1')]),
+            ),
+            loteRepositoryProvider.overrideWithValue(
+              FakeLoteRepository([makeLote('lo1')]),
+            ),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    expect(find.byType(LotesListScreen), findsOneWidget);
-    expect(find.text('Lote lo1'), findsOneWidget);
+      expect(find.byType(LotesListScreen), findsOneWidget);
+      expect(find.text('Lote lo1'), findsOneWidget);
 
-    final breadcrumbs = find.byType(SigoBreadcrumbs);
-    expect(
-      find.descendant(of: breadcrumbs, matching: find.text('Loteamento')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: breadcrumbs, matching: find.text('Quadra')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: breadcrumbs, matching: find.text('Lotes')),
-      findsOneWidget,
-    );
+      final breadcrumbs = find.byType(SigoBreadcrumbs);
+      expect(
+        find.descendant(of: breadcrumbs, matching: find.text('Loteamento')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: breadcrumbs, matching: find.text('Quadra')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: breadcrumbs, matching: find.text('Lotes')),
+        findsOneWidget,
+      );
 
-    await tester.tap(find.text('Quadra'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Quadra'));
+      await tester.pumpAndSettle();
 
-    expect(find.byType(QuadrasListScreen), findsOneWidget);
-    expect(find.text('Quadra q1'), findsOneWidget);
-    expect(
-      router.state.uri.path,
-      '/construtoras/c1/loteamentos/l1/quadras',
-    );
-  });
+      expect(find.byType(QuadrasListScreen), findsOneWidget);
+      expect(find.text('Quadra q1'), findsOneWidget);
+      expect(router.state.uri.path, '/construtoras/c1/loteamentos/l1/quadras');
+    },
+  );
 
   testWidgets('crumb raiz ascende para a lista de loteamentos', (tester) async {
     final router = GoRouter(
@@ -336,14 +339,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LoteamentosListScreen), findsOneWidget);
-    expect(
-      router.state.uri.path,
-      '/construtoras/c1/loteamentos',
-    );
+    expect(router.state.uri.path, '/construtoras/c1/loteamentos');
   });
 
-  testWidgets('deep-link em :loteId redireciona para a lista de etapas',
-      (tester) async {
+  testWidgets('deep-link em :loteId redireciona para a lista de etapas', (
+    tester,
+  ) async {
     final router = GoRouter(
       initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1',
       routes: construtoraRoutes,
@@ -371,8 +372,9 @@ void main() {
     );
   });
 
-  testWidgets('deep-link em :etapaId redireciona para a lista de equipes',
-      (tester) async {
+  testWidgets('deep-link em :etapaId redireciona para a lista de equipes', (
+    tester,
+  ) async {
     final router = GoRouter(
       initialLocation:
           '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1',
@@ -404,8 +406,7 @@ void main() {
 
   testWidgets('crumb de Etapa ascende para a lista de etapas', (tester) async {
     final router = GoRouter(
-      initialLocation:
-          '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1/equipes',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1/equipes',
       routes: construtoraRoutes,
     );
 
@@ -437,40 +438,40 @@ void main() {
     );
   });
 
-  testWidgets('deep-link em :loteamentoId redireciona para a lista de quadras',
-      (tester) async {
-    final router = GoRouter(
-      initialLocation: '/construtoras/c1/loteamentos/l1',
-      routes: construtoraRoutes,
-    );
+  testWidgets(
+    'deep-link em :loteamentoId redireciona para a lista de quadras',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: '/construtoras/c1/loteamentos/l1',
+        routes: construtoraRoutes,
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-          loteamentoRepositoryProvider.overrideWithValue(
-            FakeLoteamentoRepository([makeLoteamento('l1')]),
-          ),
-          quadraRepositoryProvider.overrideWithValue(
-            FakeQuadraRepository([makeQuadra('q1')]),
-          ),
-        ],
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+            loteamentoRepositoryProvider.overrideWithValue(
+              FakeLoteamentoRepository([makeLoteamento('l1')]),
+            ),
+            quadraRepositoryProvider.overrideWithValue(
+              FakeQuadraRepository([makeQuadra('q1')]),
+            ),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    expect(find.byType(QuadrasListScreen), findsOneWidget);
-    expect(find.text('Quadra q1'), findsOneWidget);
-    expect(
-      router.state.uri.path,
-      '/construtoras/c1/loteamentos/l1/quadras',
-    );
-  });
+      expect(find.byType(QuadrasListScreen), findsOneWidget);
+      expect(find.text('Quadra q1'), findsOneWidget);
+      expect(router.state.uri.path, '/construtoras/c1/loteamentos/l1/quadras');
+    },
+  );
 
-  testWidgets('deep-link em :quadraId redireciona para a lista de lotes',
-      (tester) async {
+  testWidgets('deep-link em :quadraId redireciona para a lista de lotes', (
+    tester,
+  ) async {
     final router = GoRouter(
       initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1',
       routes: construtoraRoutes,
@@ -501,8 +502,9 @@ void main() {
     );
   });
 
-  testWidgets('redirect preserva query e fragment do deep-link',
-      (tester) async {
+  testWidgets('redirect preserva query e fragment do deep-link', (
+    tester,
+  ) async {
     final router = GoRouter(
       initialLocation:
           '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1?x=1#alvo',
@@ -529,8 +531,9 @@ void main() {
     expect(router.state.uri.fragment, 'alvo');
   });
 
-  testWidgets('admin toca Novo Lote e abre AddLoteScreen com os ids corretos',
-      (tester) async {
+  testWidgets('admin toca Novo Lote e abre AddLoteScreen com os ids corretos', (
+    tester,
+  ) async {
     final router = GoRouter(
       initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
       routes: construtoraRoutes,
@@ -562,8 +565,7 @@ void main() {
 
   testWidgets('membro nao-admin nao acessa a rota lotes/novo', (tester) async {
     final router = GoRouter(
-      initialLocation:
-          '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/novo',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/novo',
       routes: construtoraRoutes,
     );
 
@@ -589,9 +591,9 @@ void main() {
     expect(find.byType(AddLoteScreen), findsNothing);
   });
 
-  testWidgets(
-      'card legado de Loteamentos navega para a lista de loteamentos',
-      (tester) async {
+  testWidgets('card legado de Loteamentos navega para a lista de loteamentos', (
+    tester,
+  ) async {
     final router = GoRouter(
       initialLocation: '/construtoras/c1/obra/o1',
       routes: [
@@ -622,19 +624,18 @@ void main() {
               'modules': ['lotes'],
             }),
           ),
-          currentPermissionsProvider(
-            (construtoraId: 'c1', obraId: 'o1'),
-          ).overrideWith(
-            (ref) => Stream.value(
-              ObraMember(
-                userId: 'u1',
-                isActive: true,
-                isAdmin: false,
-                modules: ['lotes'],
-                joinedAt: DateTime(2025),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'o1'))
+              .overrideWith(
+                (ref) => Stream.value(
+                  ObraMember(
+                    userId: 'u1',
+                    isActive: true,
+                    isAdmin: false,
+                    modules: ['lotes'],
+                    joinedAt: DateTime(2025),
+                  ),
+                ),
               ),
-            ),
-          ),
           loteamentoRepositoryProvider.overrideWithValue(
             FakeLoteamentoRepository([makeLoteamento('l1')]),
           ),
@@ -651,5 +652,4 @@ void main() {
     expect(router.state.uri.path, '/construtoras/c1/loteamentos');
     expect(find.byType(LoteamentosListScreen), findsOneWidget);
   });
-
 }

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../domain/membro.dart';
 
 /// Mensagem pt-br para falta de conexão (reutilizada em [setCargo]).
@@ -33,9 +34,9 @@ class MembrosRepository {
     this._functions, {
     Future<List<ConnectivityResult>> Function()? checkConnectivity,
     Future<dynamic> Function(Map<String, dynamic> data)? callSetCargo,
-  })  : _checkConnectivity = checkConnectivity ?? _defaultCheckConnectivity,
-        // ignore: prefer_initializing_formals
-        _callSetCargo = callSetCargo;
+  }) : _checkConnectivity = checkConnectivity ?? _defaultCheckConnectivity,
+       // ignore: prefer_initializing_formals
+       _callSetCargo = callSetCargo;
 
   static Future<List<ConnectivityResult>> _defaultCheckConnectivity() =>
       Connectivity().checkConnectivity();
@@ -46,21 +47,25 @@ class MembrosRepository {
         .doc(construtoraId)
         .collection('construtora_members')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Membro.fromFirestore(doc.data(), doc.id))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Membro.fromFirestore(doc.data(), doc.id))
+              .toList(),
+        );
   }
 
-  Stream<List<Map<String, dynamic>>> watchPendingRequests(String construtoraId) {
+  Stream<List<Map<String, dynamic>>> watchPendingRequests(
+    String construtoraId,
+  ) {
     return _firestore!
         .collection('access_requests')
         .where('construtoraId', isEqualTo: construtoraId)
         .where('status', isEqualTo: 'pending')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => {'id': d.id, ...d.data()})
-            .toList());
+        .map(
+          (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList(),
+        );
   }
 
   Stream<List<Map<String, dynamic>>> watchAllPendingRequests() {
@@ -69,9 +74,9 @@ class MembrosRepository {
         .where('status', isEqualTo: 'pending')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => {'id': d.id, ...d.data()})
-            .toList());
+        .map(
+          (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList(),
+        );
   }
 
   /// Retorna `true` se o e-mail não existe e uma solicitação foi criada.
@@ -88,7 +93,8 @@ class MembrosRepository {
         'email': email,
         'construtoraId': construtoraId,
         'role': role,
-        if (displayName != null && displayName.isNotEmpty) 'displayName': displayName,
+        if (displayName != null && displayName.isNotEmpty)
+          'displayName': displayName,
       };
       if (isOwner != null || role == 'owner') {
         payload['isOwner'] = isOwner ?? true;

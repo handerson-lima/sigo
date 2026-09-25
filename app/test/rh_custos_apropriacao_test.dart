@@ -77,72 +77,78 @@ void main() {
       expect(snapshot.lotAllocations.first.costCents, equals(7500));
     });
 
-    test('Cenário 3: Colaborador com Falta (0%) tem custo zero e zero apropriação', () {
-      final func = Funcionario(
-        id: 'f3',
-        construtoraId: 'c1',
-        name: 'Carlos Ausente',
-        cpf: '12345678909',
-        role: 'Ajudante',
-        employmentType: 'clt',
-        salaryBasis: 'diaria',
-        baseSalaryCents: 18000,
-      );
+    test(
+      'Cenário 3: Colaborador com Falta (0%) tem custo zero e zero apropriação',
+      () {
+        final func = Funcionario(
+          id: 'f3',
+          construtoraId: 'c1',
+          name: 'Carlos Ausente',
+          cpf: '12345678909',
+          role: 'Ajudante',
+          employmentType: 'clt',
+          salaryBasis: 'diaria',
+          baseSalaryCents: 18000,
+        );
 
-      final apontamento = const ApontamentoTrabalhador(
-        workerId: 'f3',
-        workerName: 'Carlos Ausente',
-        workerRole: 'Ajudante',
-        status: PresencaStatus.falta,
-        allocations: [],
-      );
+        final apontamento = const ApontamentoTrabalhador(
+          workerId: 'f3',
+          workerName: 'Carlos Ausente',
+          workerRole: 'Ajudante',
+          status: PresencaStatus.falta,
+          allocations: [],
+        );
 
-      final snapshot = CustoMaoDeObraService.computeWorkerSnapshot(
-        funcionario: func,
-        apontamento: apontamento,
-      );
+        final snapshot = CustoMaoDeObraService.computeWorkerSnapshot(
+          funcionario: func,
+          apontamento: apontamento,
+        );
 
-      expect(snapshot.baseDailyRateCents, equals(18000));
-      expect(snapshot.effectiveCostCents, equals(0));
-      expect(snapshot.lotAllocations, isEmpty);
-    });
+        expect(snapshot.baseDailyRateCents, equals(18000));
+        expect(snapshot.effectiveCostCents, equals(0));
+        expect(snapshot.lotAllocations, isEmpty);
+      },
+    );
 
-    test('Cenário 4: Rateio em Múltiplos Lotes com Centavos Exatos (40% / 60%)', () {
-      final func = Funcionario(
-        id: 'f4',
-        construtoraId: 'c1',
-        name: 'Pedro Carpinteiro',
-        cpf: '12345678909',
-        role: 'Carpinteiro',
-        employmentType: 'clt',
-        salaryBasis: 'diaria',
-        baseSalaryCents: 10000, // R$ 100,00
-      );
+    test(
+      'Cenário 4: Rateio em Múltiplos Lotes com Centavos Exatos (40% / 60%)',
+      () {
+        final func = Funcionario(
+          id: 'f4',
+          construtoraId: 'c1',
+          name: 'Pedro Carpinteiro',
+          cpf: '12345678909',
+          role: 'Carpinteiro',
+          employmentType: 'clt',
+          salaryBasis: 'diaria',
+          baseSalaryCents: 10000, // R$ 100,00
+        );
 
-      final apontamento = const ApontamentoTrabalhador(
-        workerId: 'f4',
-        workerName: 'Pedro Carpinteiro',
-        workerRole: 'Carpinteiro',
-        status: PresencaStatus.presente,
-        allocations: [
-          AlocacaoLote(lotId: 'lote-a', lotName: 'Lote A', percentage: 40),
-          AlocacaoLote(lotId: 'lote-b', lotName: 'Lote B', percentage: 60),
-        ],
-      );
+        final apontamento = const ApontamentoTrabalhador(
+          workerId: 'f4',
+          workerName: 'Pedro Carpinteiro',
+          workerRole: 'Carpinteiro',
+          status: PresencaStatus.presente,
+          allocations: [
+            AlocacaoLote(lotId: 'lote-a', lotName: 'Lote A', percentage: 40),
+            AlocacaoLote(lotId: 'lote-b', lotName: 'Lote B', percentage: 60),
+          ],
+        );
 
-      final snapshot = CustoMaoDeObraService.computeWorkerSnapshot(
-        funcionario: func,
-        apontamento: apontamento,
-      );
+        final snapshot = CustoMaoDeObraService.computeWorkerSnapshot(
+          funcionario: func,
+          apontamento: apontamento,
+        );
 
-      expect(snapshot.effectiveCostCents, equals(10000));
-      expect(snapshot.lotAllocations[0].costCents, equals(4000));
-      expect(snapshot.lotAllocations[1].costCents, equals(6000));
-      expect(
-        snapshot.lotAllocations.fold<int>(0, (s, a) => s + a.costCents),
-        equals(10000),
-      );
-    });
+        expect(snapshot.effectiveCostCents, equals(10000));
+        expect(snapshot.lotAllocations[0].costCents, equals(4000));
+        expect(snapshot.lotAllocations[1].costCents, equals(6000));
+        expect(
+          snapshot.lotAllocations.fold<int>(0, (s, a) => s + a.costCents),
+          equals(10000),
+        );
+      },
+    );
 
     test('Cenário 5: Rateio em 3 Lotes com Resíduo (33% / 33% / 34%)', () {
       final func = Funcionario(
@@ -212,9 +218,15 @@ void main() {
       );
 
       expect(snapshot.effectiveCostCents, equals(12501));
-      final sum = snapshot.lotAllocations.fold<int>(0, (s, a) => s + a.costCents);
+      final sum = snapshot.lotAllocations.fold<int>(
+        0,
+        (s, a) => s + a.costCents,
+      );
       expect(sum, equals(12501)); // Conservação rigorosa de centavos
-      expect(snapshot.lotAllocations[0].costCents, equals(6251)); // Recebe o centavo residual
+      expect(
+        snapshot.lotAllocations[0].costCents,
+        equals(6251),
+      ); // Recebe o centavo residual
       expect(snapshot.lotAllocations[1].costCents, equals(6250));
     });
 
@@ -266,8 +278,14 @@ void main() {
 
       // A chamada histórica fechada NÃO sofreu alteração:
       expect(chamadaFechada.totalDayCostCents, equals(10000));
-      expect(chamadaFechada.costSnapshots.first.effectiveCostCents, equals(10000));
-      expect(chamadaFechada.costSnapshots.first.baseSalaryCents, equals(300000));
+      expect(
+        chamadaFechada.costSnapshots.first.effectiveCostCents,
+        equals(10000),
+      );
+      expect(
+        chamadaFechada.costSnapshots.first.baseSalaryCents,
+        equals(300000),
+      );
 
       // Um novo cálculo com o cadastro reajustado gera 15000, mas o histórico permanece blindado
       final snapshotNovo = CustoMaoDeObraService.computeWorkerSnapshot(
@@ -277,46 +295,55 @@ void main() {
       expect(snapshotNovo.effectiveCostCents, equals(15000));
     });
 
-    test('Cenário 8: Divisor Personalizado da Obra (22 dias úteis vs. padrão 30)', () {
-      final funcMensal = Funcionario(
-        id: 'f8',
-        construtoraId: 'c1',
-        name: 'Ana Engenheira',
-        cpf: '12345678909',
-        role: 'Engenheira',
-        employmentType: 'clt',
-        salaryBasis: 'mensal',
-        baseSalaryCents: 220000, // R$ 2.200,00
-        additionalCostsCents: 0,
-      );
+    test(
+      'Cenário 8: Divisor Personalizado da Obra (22 dias úteis vs. padrão 30)',
+      () {
+        final funcMensal = Funcionario(
+          id: 'f8',
+          construtoraId: 'c1',
+          name: 'Ana Engenheira',
+          cpf: '12345678909',
+          role: 'Engenheira',
+          employmentType: 'clt',
+          salaryBasis: 'mensal',
+          baseSalaryCents: 220000, // R$ 2.200,00
+          additionalCostsCents: 0,
+        );
 
-      final apontamento = const ApontamentoTrabalhador(
-        workerId: 'f8',
-        workerName: 'Ana Engenheira',
-        workerRole: 'Engenheira',
-        status: PresencaStatus.presente,
-        allocations: [
-          AlocacaoLote(lotId: 'l1', lotName: 'Lote 1', percentage: 100),
-        ],
-      );
+        final apontamento = const ApontamentoTrabalhador(
+          workerId: 'f8',
+          workerName: 'Ana Engenheira',
+          workerRole: 'Engenheira',
+          status: PresencaStatus.presente,
+          allocations: [
+            AlocacaoLote(lotId: 'l1', lotName: 'Lote 1', percentage: 100),
+          ],
+        );
 
-      // Política padrão de 30 dias
-      final snapshotPadrao = CustoMaoDeObraService.computeWorkerSnapshot(
-        funcionario: funcMensal,
-        apontamento: apontamento,
-        policy: const CostPolicy(monthlyDivisor: 30),
-      );
-      expect(snapshotPadrao.baseDailyRateCents, equals(220000 ~/ 30)); // 7333 centavos
+        // Política padrão de 30 dias
+        final snapshotPadrao = CustoMaoDeObraService.computeWorkerSnapshot(
+          funcionario: funcMensal,
+          apontamento: apontamento,
+          policy: const CostPolicy(monthlyDivisor: 30),
+        );
+        expect(
+          snapshotPadrao.baseDailyRateCents,
+          equals(220000 ~/ 30),
+        ); // 7333 centavos
 
-      // Política com 22 dias úteis
-      final snapshotUteis = CustoMaoDeObraService.computeWorkerSnapshot(
-        funcionario: funcMensal,
-        apontamento: apontamento,
-        policy: const CostPolicy(monthlyDivisor: 22, version: 'v1'),
-      );
-      expect(snapshotUteis.baseDailyRateCents, equals(10000)); // R$ 100,00 exatos (220000 ~/ 22)
-      expect(snapshotUteis.effectiveCostCents, equals(10000));
-    });
+        // Política com 22 dias úteis
+        final snapshotUteis = CustoMaoDeObraService.computeWorkerSnapshot(
+          funcionario: funcMensal,
+          apontamento: apontamento,
+          policy: const CostPolicy(monthlyDivisor: 22, version: 'v1'),
+        );
+        expect(
+          snapshotUteis.baseDailyRateCents,
+          equals(10000),
+        ); // R$ 100,00 exatos (220000 ~/ 22)
+        expect(snapshotUteis.effectiveCostCents, equals(10000));
+      },
+    );
 
     test('Cenário 9: Consolidação por Lote em Chamada Completa (computeChamadaCosts)', () {
       final f1 = Funcionario(
@@ -373,17 +400,24 @@ void main() {
       expect(result.costSnapshots.length, equals(2));
 
       // Lote 10: 5000 + 3000 = 8000 (2 colaboradores)
-      final lote10 = result.lotCostSummaries.firstWhere((l) => l.lotId == 'l10');
+      final lote10 = result.lotCostSummaries.firstWhere(
+        (l) => l.lotId == 'l10',
+      );
       expect(lote10.totalCostCents, equals(8000));
       expect(lote10.workerCount, equals(2));
 
       // Lote 20: 5000 (1 colaborador)
-      final lote20 = result.lotCostSummaries.firstWhere((l) => l.lotId == 'l20');
+      final lote20 = result.lotCostSummaries.firstWhere(
+        (l) => l.lotId == 'l20',
+      );
       expect(lote20.totalCostCents, equals(5000));
       expect(lote20.workerCount, equals(1));
 
       // Soma dos lotes bate rigorosamente com o total do dia
-      final sumLots = result.lotCostSummaries.fold<int>(0, (s, l) => s + l.totalCostCents);
+      final sumLots = result.lotCostSummaries.fold<int>(
+        0,
+        (s, l) => s + l.totalCostCents,
+      );
       expect(sumLots, equals(result.totalDayCostCents));
     });
 
@@ -457,51 +491,57 @@ void main() {
   });
 
   group('Story 4.3 — Widgets e Apresentação de Custos', () {
-    testWidgets('ApontamentoWorkerCard exibe taxa diária base e custo efetivo dinâmico',
-        (tester) async {
-      final worker = const ApontamentoTrabalhador(
-        workerId: 'w1',
-        workerName: 'Carlos Teste',
-        workerRole: 'Carpinteiro',
-        status: PresencaStatus.presente,
-        allocations: [
-          AlocacaoLote(lotId: 'l1', lotName: 'Lote 1', percentage: 100),
-        ],
-      );
+    testWidgets(
+      'ApontamentoWorkerCard exibe taxa diária base e custo efetivo dinâmico',
+      (tester) async {
+        final worker = const ApontamentoTrabalhador(
+          workerId: 'w1',
+          workerName: 'Carlos Teste',
+          workerRole: 'Carpinteiro',
+          status: PresencaStatus.presente,
+          allocations: [
+            AlocacaoLote(lotId: 'l1', lotName: 'Lote 1', percentage: 100),
+          ],
+        );
 
-      final lotes = [
-        Lote(
-          id: 'l1',
-          construtoraId: 'c1',
-          loteamentoId: 'lt1',
-          quadraId: 'qd1',
-          name: 'Lote 1',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      ];
+        final lotes = [
+          Lote(
+            id: 'l1',
+            construtoraId: 'c1',
+            loteamentoId: 'lt1',
+            quadraId: 'qd1',
+            name: 'Lote 1',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ),
+        ];
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: ApontamentoWorkerCard(
-              apontamento: worker,
-              availableLotes: lotes,
-              baseDailyRateCents: 14000, // R$ 140,00
-              onChanged: (_) {},
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ApontamentoWorkerCard(
+                apontamento: worker,
+                availableLotes: lotes,
+                baseDailyRateCents: 14000, // R$ 140,00
+                onChanged: (_) {},
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      // Deve exibir o nome do colaborador, a taxa diária base e o valor efetivo formatado
-      expect(find.text('Carlos Teste'), findsOneWidget);
-      expect(find.text('R\$ 140,00/dia'), findsOneWidget);
-      expect(find.text('R\$ 140,00'), findsOneWidget); // Badge de presente (100%)
-    });
+        // Deve exibir o nome do colaborador, a taxa diária base e o valor efetivo formatado
+        expect(find.text('Carlos Teste'), findsOneWidget);
+        expect(find.text('R\$ 140,00/dia'), findsOneWidget);
+        expect(
+          find.text('R\$ 140,00'),
+          findsOneWidget,
+        ); // Badge de presente (100%)
+      },
+    );
 
-    testWidgets('ResumoCustosChamadaDialog renderiza resumo total e por lote',
-        (tester) async {
+    testWidgets('ResumoCustosChamadaDialog renderiza resumo total e por lote', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -556,7 +596,10 @@ void main() {
       expect(find.text('Fechamento Financeiro'), findsOneWidget);
       expect(find.text('R\$ 240,00'), findsOneWidget); // Total
       expect(find.text('Lote 1'), findsOneWidget);
-      expect(find.text('R\$ 140,00'), findsNWidgets(2)); // Aparece no lote e no operário
+      expect(
+        find.text('R\$ 140,00'),
+        findsNWidgets(2),
+      ); // Aparece no lote e no operário
       expect(find.text('Lote 2'), findsOneWidget);
       expect(find.text('R\$ 100,00'), findsOneWidget);
     });

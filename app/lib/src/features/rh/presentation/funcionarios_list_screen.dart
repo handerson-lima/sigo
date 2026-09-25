@@ -26,10 +26,10 @@ class _FuncionariosListScreenState
 
   @override
   Widget build(BuildContext context) {
-    final funcionariosAsync =
-        ref.watch(funcionariosStreamProvider(widget.construtoraId));
-    final equipesAsync =
-        ref.watch(equipesStreamProvider(widget.construtoraId));
+    final funcionariosAsync = ref.watch(
+      funcionariosStreamProvider(widget.construtoraId),
+    );
+    final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
 
     final Map<String, String> equipesMap = {};
     if (equipesAsync.hasValue) {
@@ -163,8 +163,7 @@ class _FuncionariosListScreenState
           const Divider(),
           Expanded(
             child: funcionariosAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, st) => Center(child: Text('Erro ao carregar RH: $e')),
               data: (funcionarios) {
                 final filtered = funcionarios.where((f) {
@@ -208,8 +207,9 @@ class _FuncionariosListScreenState
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final f = filtered[index];
-                    final teamName =
-                        f.teamId != null ? equipesMap[f.teamId] : null;
+                    final teamName = f.teamId != null
+                        ? equipesMap[f.teamId]
+                        : null;
 
                     return Card(
                       key: Key('funcionario_card_${f.id}'),
@@ -274,10 +274,8 @@ class _FuncionariosListScreenState
                                     if (action == 'edit') {
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (_) =>
-                                              FuncionarioFormScreen(
-                                            construtoraId:
-                                                widget.construtoraId,
+                                          builder: (_) => FuncionarioFormScreen(
+                                            construtoraId: widget.construtoraId,
                                             initialFuncionario: f,
                                           ),
                                         ),
@@ -328,20 +326,28 @@ class _FuncionariosListScreenState
                                           ),
                                         ),
                                         builder: (ctx) => SizedBox(
-                                          height: MediaQuery.of(context).size.height * 0.85,
+                                          height:
+                                              MediaQuery.of(context)
+                                                  .size
+                                                  .height *
+                                              0.85,
                                           child: Scaffold(
                                             appBar: AppBar(
-                                              title: Text('Ficha de EPIs — ${f.name}'),
+                                              title: Text(
+                                                'Ficha de EPIs — ${f.name}',
+                                              ),
                                               automaticallyImplyLeading: false,
                                               actions: [
                                                 IconButton(
                                                   icon: const Icon(Icons.close),
-                                                  onPressed: () => Navigator.of(ctx).pop(),
+                                                  onPressed: () =>
+                                                      Navigator.of(ctx).pop(),
                                                 ),
                                               ],
                                             ),
                                             body: ColaboradorEpisTab(
-                                              construtoraId: widget.construtoraId,
+                                              construtoraId:
+                                                  widget.construtoraId,
                                               funcionarioId: f.id,
                                               funcionarioNome: f.name,
                                             ),
@@ -355,7 +361,11 @@ class _FuncionariosListScreenState
                                       value: 'epis',
                                       child: Row(
                                         children: [
-                                          Icon(Icons.health_and_safety, size: 18, color: Colors.indigo),
+                                          Icon(
+                                            Icons.health_and_safety,
+                                            size: 18,
+                                            color: Colors.indigo,
+                                          ),
                                           SizedBox(width: 8),
                                           Text('Ficha de EPIs'),
                                         ],

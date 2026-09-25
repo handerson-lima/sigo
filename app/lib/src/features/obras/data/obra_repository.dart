@@ -89,11 +89,9 @@ class ObraRepository {
     String obraId,
   ) {
     return _membersRef(construtoraId, obraId).snapshots().map(
-          (snapshot) => snapshot.docs
-              .map((d) => d.data())
-              .where((m) => m.isActive)
-              .toList(),
-        );
+      (snapshot) =>
+          snapshot.docs.map((d) => d.data()).where((m) => m.isActive).toList(),
+    );
   }
 
   // Se o user for admin da construtora, traz todas as obras dela.
@@ -128,13 +126,11 @@ class ObraRepository {
           .get(const GetOptions(source: Source.server));
 
       final obrasFutures = querySnapshot.docs
-          .where(
-            (doc) {
-              final obraRef = doc.reference.parent.parent;
-              final construtoraRef = obraRef?.parent.parent;
-              return construtoraRef != null && construtoraRef.id == construtoraId;
-            },
-          )
+          .where((doc) {
+            final obraRef = doc.reference.parent.parent;
+            final construtoraRef = obraRef?.parent.parent;
+            return construtoraRef != null && construtoraRef.id == construtoraId;
+          })
           .map((doc) async {
             final obraDocRef = doc.reference.parent.parent;
             if (obraDocRef == null) return null;

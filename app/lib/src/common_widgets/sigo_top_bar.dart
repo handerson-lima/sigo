@@ -106,9 +106,7 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
       elevation: 0,
       centerTitle: false,
       titleSpacing: 8,
-      iconTheme: IconThemeData(
-        color: theme?.focusHeader ?? Colors.white,
-      ),
+      iconTheme: IconThemeData(color: theme?.focusHeader ?? Colors.white),
       leadingWidth: hasBack ? 96 : 56,
       leading: Row(
         mainAxisSize: MainAxisSize.min,
@@ -124,7 +122,10 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
           if (hasBack)
             IconButton(
               key: const Key('sigo-back-button'),
-              icon: Icon(Icons.arrow_back, color: theme?.focusHeader ?? Colors.white70),
+              icon: Icon(
+                Icons.arrow_back,
+                color: theme?.focusHeader ?? Colors.white70,
+              ),
               tooltip: 'Voltar',
               onPressed: () => _pop(context),
             ),
@@ -141,13 +142,20 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
                         if (hasBack)
                           TextSpan(
                             text: 'Voltar • ',
-                            style:
-                                TextStyle(color: theme?.focusHeader.withValues(alpha: 0.8) ?? Colors.white70, fontSize: 14),
+                            style: TextStyle(
+                              color:
+                                  theme?.focusHeader.withValues(alpha: 0.8) ??
+                                  Colors.white70,
+                              fontSize: 14,
+                            ),
                           ),
                         TextSpan(
                           text: title,
                           style: TextStyle(
-                              color: theme?.focusHeader ?? Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                            color: theme?.focusHeader ?? Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -168,11 +176,20 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
                   if (hasBack)
                     TextSpan(
                       text: 'Voltar • ',
-                      style: TextStyle(color: theme?.focusHeader.withValues(alpha: 0.8) ?? Colors.white70, fontSize: 14),
+                      style: TextStyle(
+                        color:
+                            theme?.focusHeader.withValues(alpha: 0.8) ??
+                            Colors.white70,
+                        fontSize: 14,
+                      ),
                     ),
                   TextSpan(
                     text: title,
-                    style: TextStyle(color: theme?.focusHeader ?? Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: theme?.focusHeader ?? Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -181,10 +198,7 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
       actions: [
         ...?actions,
-        SyncIndicator(
-          construtoraId: cId,
-          obraId: oId,
-        ),
+        SyncIndicator(construtoraId: cId, obraId: oId),
         const SizedBox(width: 6),
         const NotificationsButton(),
         const SizedBox(width: 8),
@@ -216,11 +230,15 @@ class LoteamentoSwitcher extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final loteamentosAsync = ref.watch(watchLoteamentosProvider((construtoraId: construtoraId)));
+    final loteamentosAsync = ref.watch(
+      watchLoteamentosProvider((construtoraId: construtoraId)),
+    );
     return loteamentosAsync.maybeWhen(
       data: (loteamentos) {
         if (loteamentos.isEmpty) return const SizedBox.shrink();
-        final isSelectedPresent = loteamentos.any((l) => l.id == currentLoteamentoId);
+        final isSelectedPresent = loteamentos.any(
+          (l) => l.id == currentLoteamentoId,
+        );
         final selectedValue = isSelectedPresent ? currentLoteamentoId : null;
 
         return Container(
@@ -260,17 +278,17 @@ class LoteamentoSwitcher extends ConsumerWidget {
                             : Colors.black45,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        l.name,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      Text(l.name, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 );
               }).toList(),
               onChanged: (newLoteamentoId) {
-                if (newLoteamentoId != null && newLoteamentoId != currentLoteamentoId) {
-                  context.go('/construtoras/$construtoraId/obra/$newLoteamentoId');
+                if (newLoteamentoId != null &&
+                    newLoteamentoId != currentLoteamentoId) {
+                  context.go(
+                    '/construtoras/$construtoraId/obra/$newLoteamentoId',
+                  );
                 }
               },
             ),

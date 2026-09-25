@@ -10,16 +10,16 @@ class CostPolicy {
   });
 
   Map<String, dynamic> toMap() => {
-        'version': version,
-        'monthlyDivisor': monthlyDivisor,
-        'description': description,
-      };
+    'version': version,
+    'monthlyDivisor': monthlyDivisor,
+    'description': description,
+  };
 
   factory CostPolicy.fromMap(Map<String, dynamic> map) => CostPolicy(
-        version: map['version'] as String? ?? 'v1',
-        monthlyDivisor: (map['monthlyDivisor'] as num?)?.toInt() ?? 30,
-        description: map['description'] as String? ?? '',
-      );
+    version: map['version'] as String? ?? 'v1',
+    monthlyDivisor: (map['monthlyDivisor'] as num?)?.toInt() ?? 30,
+    description: map['description'] as String? ?? '',
+  );
 
   CostPolicy copyWith({
     String? version,
@@ -59,11 +59,11 @@ class LotCostAllocationSnapshot {
   });
 
   Map<String, dynamic> toMap() => {
-        'lotId': lotId,
-        'lotName': lotName,
-        'percentage': percentage,
-        'costCents': costCents,
-      };
+    'lotId': lotId,
+    'lotName': lotName,
+    'percentage': percentage,
+    'costCents': costCents,
+  };
 
   factory LotCostAllocationSnapshot.fromMap(Map<String, dynamic> map) =>
       LotCostAllocationSnapshot(
@@ -112,17 +112,17 @@ class WorkerCostSnapshot {
   });
 
   Map<String, dynamic> toMap() => {
-        'workerId': workerId,
-        'workerName': workerName,
-        'workerRole': workerRole,
-        'salaryBasis': salaryBasis,
-        'baseSalaryCents': baseSalaryCents,
-        'additionalCostsCents': additionalCostsCents,
-        'baseDailyRateCents': baseDailyRateCents,
-        'effectiveCostCents': effectiveCostCents,
-        'status': status,
-        'lotAllocations': lotAllocations.map((a) => a.toMap()).toList(),
-      };
+    'workerId': workerId,
+    'workerName': workerName,
+    'workerRole': workerRole,
+    'salaryBasis': salaryBasis,
+    'baseSalaryCents': baseSalaryCents,
+    'additionalCostsCents': additionalCostsCents,
+    'baseDailyRateCents': baseDailyRateCents,
+    'effectiveCostCents': effectiveCostCents,
+    'status': status,
+    'lotAllocations': lotAllocations.map((a) => a.toMap()).toList(),
+  };
 
   factory WorkerCostSnapshot.fromMap(Map<String, dynamic> map) =>
       WorkerCostSnapshot(
@@ -137,8 +137,11 @@ class WorkerCostSnapshot {
         effectiveCostCents: (map['effectiveCostCents'] as num?)?.toInt() ?? 0,
         status: map['status'] as String? ?? 'falta',
         lotAllocations: ((map['lotAllocations'] as List<dynamic>?) ?? [])
-            .map((a) => LotCostAllocationSnapshot.fromMap(
-                Map<String, dynamic>.from(a as Map)))
+            .map(
+              (a) => LotCostAllocationSnapshot.fromMap(
+                Map<String, dynamic>.from(a as Map),
+              ),
+            )
             .toList(),
       );
 
@@ -170,18 +173,18 @@ class LotCostSummary {
   });
 
   Map<String, dynamic> toMap() => {
-        'lotId': lotId,
-        'lotName': lotName,
-        'totalCostCents': totalCostCents,
-        'workerCount': workerCount,
-      };
+    'lotId': lotId,
+    'lotName': lotName,
+    'totalCostCents': totalCostCents,
+    'workerCount': workerCount,
+  };
 
   factory LotCostSummary.fromMap(Map<String, dynamic> map) => LotCostSummary(
-        lotId: map['lotId'] as String? ?? '',
-        lotName: map['lotName'] as String? ?? '',
-        totalCostCents: (map['totalCostCents'] as num?)?.toInt() ?? 0,
-        workerCount: (map['workerCount'] as num?)?.toInt() ?? 0,
-      );
+    lotId: map['lotId'] as String? ?? '',
+    lotName: map['lotName'] as String? ?? '',
+    totalCostCents: (map['totalCostCents'] as num?)?.toInt() ?? 0,
+    workerCount: (map['workerCount'] as num?)?.toInt() ?? 0,
+  );
 
   @override
   bool operator ==(Object other) =>

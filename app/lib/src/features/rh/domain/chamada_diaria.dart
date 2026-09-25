@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../../core/contracts.dart';
 import 'chamada_audit_entry.dart';
 import 'chamada_status.dart';
@@ -42,11 +43,7 @@ class AlocacaoLote {
   });
 
   Map<String, dynamic> toMap() {
-    return {
-      'lotId': lotId,
-      'lotName': lotName,
-      'percentage': percentage,
-    };
+    return {'lotId': lotId, 'lotName': lotName, 'percentage': percentage};
   }
 
   factory AlocacaoLote.fromMap(Map<String, dynamic> map) {
@@ -57,11 +54,7 @@ class AlocacaoLote {
     );
   }
 
-  AlocacaoLote copyWith({
-    String? lotId,
-    String? lotName,
-    int? percentage,
-  }) {
+  AlocacaoLote copyWith({String? lotId, String? lotName, int? percentage}) {
     return AlocacaoLote(
       lotId: lotId ?? this.lotId,
       lotName: lotName ?? this.lotName,
@@ -294,26 +287,36 @@ class ChamadaDiaria {
       status: map['status'] as String? ?? 'fechada',
       observacoes: map['observacoes'] as String?,
       workers: rawWorkers
-          .map((w) =>
-              ApontamentoTrabalhador.fromMap(Map<String, dynamic>.from(w as Map)))
+          .map(
+            (w) => ApontamentoTrabalhador.fromMap(
+              Map<String, dynamic>.from(w as Map),
+            ),
+          )
           .toList(),
       totalDayCostCents: (map['totalDayCostCents'] as num?)?.toInt() ?? 0,
       costPolicyVersion: map['costPolicyVersion'] as String? ?? 'v1',
       costPolicy: map['costPolicy'] != null
-          ? CostPolicy.fromMap(Map<String, dynamic>.from(map['costPolicy'] as Map))
+          ? CostPolicy.fromMap(
+              Map<String, dynamic>.from(map['costPolicy'] as Map),
+            )
           : null,
       costSnapshots: rawCostSnapshots
-          .map((s) =>
-              WorkerCostSnapshot.fromMap(Map<String, dynamic>.from(s as Map)))
+          .map(
+            (s) =>
+                WorkerCostSnapshot.fromMap(Map<String, dynamic>.from(s as Map)),
+          )
           .toList(),
       lotCostSummaries: rawLotCostSummaries
-          .map((l) =>
-              LotCostSummary.fromMap(Map<String, dynamic>.from(l as Map)))
+          .map(
+            (l) => LotCostSummary.fromMap(Map<String, dynamic>.from(l as Map)),
+          )
           .toList(),
       versaoAuditoria: (map['versaoAuditoria'] as num?)?.toInt() ?? 1,
       auditTrail: rawAuditTrail
-          .map((a) =>
-              ChamadaAuditEntry.fromMap(Map<String, dynamic>.from(a as Map)))
+          .map(
+            (a) =>
+                ChamadaAuditEntry.fromMap(Map<String, dynamic>.from(a as Map)),
+          )
           .toList(),
       retificadoPor: map['retificadoPor'] as String?,
       retificadoEm: parseNullableDate(map['retificadoEm']),

@@ -23,50 +23,50 @@ abstract class AlmoxarifadoPaths {
 
 /// Rotas do módulo de almoxarifado.
 List<RouteBase> get almoxarifadoRoutes => [
-      GoRoute(
-        path: AlmoxarifadoPaths.list,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            module: 'estoque',
-            child: AlmoxarifadoListScreen(construtoraId: cId),
-          );
-        },
-      ),
-      GoRoute(
-        path: AlmoxarifadoPaths.novoMaterial,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            module: 'estoque',
-            child: AddMaterialScreen(construtoraId: cId),
-          );
-        },
-      ),
-      GoRoute(
-        path: AlmoxarifadoPaths.movimentacao,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          if (state.extra is! Map<String, dynamic>) {
-            return const AccessDeniedScreen();
-          }
-          final extra = state.extra as Map<String, dynamic>;
-          final material = extra['material'] as mat.Material;
-          final typeStr = extra['type'] as String;
-          final type = typeStr == 'entrada'
-              ? MovimentacaoType.entrada
-              : MovimentacaoType.saida;
-          return AccessGuard(
-            construtoraId: cId,
-            module: 'estoque',
-            child: MovimentacaoScreen(
-              construtoraId: cId,
-              material: material,
-              type: type,
-            ),
-          );
-        },
-      ),
-    ];
+  GoRoute(
+    path: AlmoxarifadoPaths.list,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        module: 'estoque',
+        child: AlmoxarifadoListScreen(construtoraId: cId),
+      );
+    },
+  ),
+  GoRoute(
+    path: AlmoxarifadoPaths.novoMaterial,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        module: 'estoque',
+        child: AddMaterialScreen(construtoraId: cId),
+      );
+    },
+  ),
+  GoRoute(
+    path: AlmoxarifadoPaths.movimentacao,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      if (state.extra is! Map<String, dynamic>) {
+        return const AccessDeniedScreen();
+      }
+      final extra = state.extra as Map<String, dynamic>;
+      final material = extra['material'] as mat.Material;
+      final typeStr = extra['type'] as String;
+      final type = typeStr == 'entrada'
+          ? MovimentacaoType.entrada
+          : MovimentacaoType.saida;
+      return AccessGuard(
+        construtoraId: cId,
+        module: 'estoque',
+        child: MovimentacaoScreen(
+          construtoraId: cId,
+          material: material,
+          type: type,
+        ),
+      );
+    },
+  ),
+];

@@ -57,127 +57,121 @@ void main() {
     },
   );
 
-  testWidgets(
-    'rota direta nao autorizada em obra bloqueia via AccessGuard',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({'isActive': true, 'isAdmin': false}),
-            ),
-            currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraB'))
-                .overrideWith(
-                  (ref) => Stream.value(
-                    ObraMember(
-                      userId: 'u1',
-                      isActive: true,
-                      isAdmin: false,
-                      modules: ['lotes'],
-                      joinedAt: DateTime(2025),
-                    ),
+  testWidgets('rota direta nao autorizada em obra bloqueia via AccessGuard', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isAdmin': false}),
+          ),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraB'))
+              .overrideWith(
+                (ref) => Stream.value(
+                  ObraMember(
+                    userId: 'u1',
+                    isActive: true,
+                    isAdmin: false,
+                    modules: ['lotes'],
+                    joinedAt: DateTime(2025),
                   ),
                 ),
-          ],
-          child: const MaterialApp(
-            home: AccessGuard(
-              construtoraId: 'c1',
-              obraId: 'obraB',
-              module: 'diario',
-              child: Text('area restrita'),
-            ),
+              ),
+        ],
+        child: const MaterialApp(
+          home: AccessGuard(
+            construtoraId: 'c1',
+            obraId: 'obraB',
+            module: 'diario',
+            child: Text('area restrita'),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('area restrita'), findsNothing);
-      expect(find.text('Acesso Negado'), findsOneWidget);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('area restrita'), findsNothing);
+    expect(find.text('Acesso Negado'), findsOneWidget);
+  });
 
-  testWidgets(
-    'obra inativa nega acesso para usuario comum',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
-            ),
-            obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
-                .overrideWith((ref) => Stream.value({'isActive': false})),
-          ],
-          child: const MaterialApp(
-            home: AccessGuard(
-              construtoraId: 'c1',
-              obraId: 'obraX',
-              child: Text('painel secreto'),
-            ),
+  testWidgets('obra inativa nega acesso para usuario comum', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+          ),
+          obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
+              .overrideWith((ref) => Stream.value({'isActive': false})),
+        ],
+        child: const MaterialApp(
+          home: AccessGuard(
+            construtoraId: 'c1',
+            obraId: 'obraX',
+            child: Text('painel secreto'),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('painel secreto'), findsNothing);
-      expect(find.text('Acesso Negado'), findsOneWidget);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('painel secreto'), findsNothing);
+    expect(find.text('Acesso Negado'), findsOneWidget);
+  });
 
-  testWidgets(
-    'admin de construtora nao bypassa verificaao de obra inativa',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
-            ),
-            obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
-                .overrideWith((ref) => Stream.value({'isActive': false})),
-          ],
-          child: const MaterialApp(
-            home: AccessGuard(
-              construtoraId: 'c1',
-              obraId: 'obraX',
-              child: Text('admin area'),
-            ),
+  testWidgets('admin de construtora nao bypassa verificaao de obra inativa', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+          ),
+          obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
+              .overrideWith((ref) => Stream.value({'isActive': false})),
+        ],
+        child: const MaterialApp(
+          home: AccessGuard(
+            construtoraId: 'c1',
+            obraId: 'obraX',
+            child: Text('admin area'),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('admin area'), findsNothing);
-      expect(find.text('Acesso Negado'), findsOneWidget);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('admin area'), findsNothing);
+    expect(find.text('Acesso Negado'), findsOneWidget);
+  });
 
-  testWidgets(
-    'obra inativa preserva acesso de suporte para dev global',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
-            ),
-            obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
-                .overrideWith((ref) => Stream.value({'isActive': false})),
-          ],
-          child: const MaterialApp(
-            home: AccessGuard(
-              construtoraId: 'c1',
-              obraId: 'obraX',
-              child: Text('painel secreto'),
-            ),
+  testWidgets('obra inativa preserva acesso de suporte para dev global', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+          ),
+          obraDocProvider((construtoraId: 'c1', obraId: 'obraX'))
+              .overrideWith((ref) => Stream.value({'isActive': false})),
+        ],
+        child: const MaterialApp(
+          home: AccessGuard(
+            construtoraId: 'c1',
+            obraId: 'obraX',
+            child: Text('painel secreto'),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('painel secreto'), findsOneWidget);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('painel secreto'), findsOneWidget);
+  });
 
   testWidgets(
     'allowedModules como unico campo concede acesso via currentPermissionsProvider',
@@ -247,110 +241,105 @@ void main() {
     },
   );
 
-  testWidgets(
-    'admin de construtora com obra ativa recebe acesso',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
-            ),
-            currentPermissionsProvider(
-              (construtoraId: 'c1', obraId: 'obraA'),
-            ).overrideWith(
-              (ref) => Stream.value(
-                ObraMember(
-                  userId: 'u1',
-                  isActive: true,
-                  isAdmin: true,
-                  modules: ['diario', 'lotes', 'estoque'],
-                  joinedAt: DateTime(2025),
+  testWidgets('admin de construtora com obra ativa recebe acesso', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+          ),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraA'))
+              .overrideWith(
+                (ref) => Stream.value(
+                  ObraMember(
+                    userId: 'u1',
+                    isActive: true,
+                    isAdmin: true,
+                    modules: ['diario', 'lotes', 'estoque'],
+                    joinedAt: DateTime(2025),
+                  ),
                 ),
               ),
-            ),
-          ],
-          child: const MaterialApp(
-            home: AccessGuard(
-              construtoraId: 'c1',
-              obraId: 'obraA',
-              child: Text('painel admin'),
-            ),
+        ],
+        child: const MaterialApp(
+          home: AccessGuard(
+            construtoraId: 'c1',
+            obraId: 'obraA',
+            child: Text('painel admin'),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('painel admin'), findsOneWidget);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('painel admin'), findsOneWidget);
+  });
 
-  testWidgets(
-    'admin de construtora sem doc de obra recebe acesso (fallback)',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({'isActive': true, 'isOwner': true}),
-            ),
-            currentPermissionsProvider(
-              (construtoraId: 'c1', obraId: 'obraB'),
-            ).overrideWith(
-              (ref) => Stream.value(
-                ObraMember(
-                  userId: 'u1',
-                  isActive: true,
-                  isAdmin: true,
-                  modules: ['diario', 'lotes', 'estoque'],
-                  joinedAt: DateTime(2025),
+  testWidgets('admin de construtora sem doc de obra recebe acesso (fallback)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isOwner': true}),
+          ),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraB'))
+              .overrideWith(
+                (ref) => Stream.value(
+                  ObraMember(
+                    userId: 'u1',
+                    isActive: true,
+                    isAdmin: true,
+                    modules: ['diario', 'lotes', 'estoque'],
+                    joinedAt: DateTime(2025),
+                  ),
                 ),
               ),
-            ),
-          ],
-          child: const MaterialApp(
-            home: AccessGuard(
-              construtoraId: 'c1',
-              obraId: 'obraB',
-              child: Text('painel owner'),
-            ),
+        ],
+        child: const MaterialApp(
+          home: AccessGuard(
+            construtoraId: 'c1',
+            obraId: 'obraB',
+            child: Text('painel owner'),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('painel owner'), findsOneWidget);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('painel owner'), findsOneWidget);
+  });
 
-  testWidgets(
-    'membro central com modules libera modulo sem allowedModules',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({
-                'isActive': true,
-                'isAdmin': false,
-                'modules': ['diario'],
-              }),
-            ),
-          ],
-          child: const MaterialApp(
-            home: AccessGuard(
-              construtoraId: 'c1',
-              module: 'diario',
-              child: Text('central diario'),
-            ),
+  testWidgets('membro central com modules libera modulo sem allowedModules', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({
+              'isActive': true,
+              'isAdmin': false,
+              'modules': ['diario'],
+            }),
+          ),
+        ],
+        child: const MaterialApp(
+          home: AccessGuard(
+            construtoraId: 'c1',
+            module: 'diario',
+            child: Text('central diario'),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('central diario'), findsOneWidget);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('central diario'), findsOneWidget);
+  });
 
   testWidgets(
     'adminOnly+module lotes nega membro ativo nao-admin mesmo com o modulo',
@@ -383,35 +372,34 @@ void main() {
     },
   );
 
-  testWidgets(
-    'module lotes sem o modulo central nega membro ativo nao-admin',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({
-                'isActive': true,
-                'isAdmin': false,
-                'modules': ['diario'],
-              }),
-            ),
-          ],
-          child: const MaterialApp(
-            home: AccessGuard(
-              construtoraId: 'c1',
-              module: 'lotes',
-              child: Text('lotes'),
-            ),
+  testWidgets('module lotes sem o modulo central nega membro ativo nao-admin', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({
+              'isActive': true,
+              'isAdmin': false,
+              'modules': ['diario'],
+            }),
+          ),
+        ],
+        child: const MaterialApp(
+          home: AccessGuard(
+            construtoraId: 'c1',
+            module: 'lotes',
+            child: Text('lotes'),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('lotes'), findsNothing);
-      expect(find.text('Acesso Negado'), findsOneWidget);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('lotes'), findsNothing);
+    expect(find.text('Acesso Negado'), findsOneWidget);
+  });
 
   testWidgets(
     'module lotes com o modulo central permite membro ativo nao-admin',
@@ -442,29 +430,28 @@ void main() {
     },
   );
 
-  testWidgets(
-    'adminOnly+module lotes permite admin de construtora',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
-            ),
-          ],
-          child: const MaterialApp(
-            home: AccessGuard(
-              construtoraId: 'c1',
-              module: 'lotes',
-              adminOnly: true,
-              child: Text('novo lote'),
-            ),
+  testWidgets('adminOnly+module lotes permite admin de construtora', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+          ),
+        ],
+        child: const MaterialApp(
+          home: AccessGuard(
+            construtoraId: 'c1',
+            module: 'lotes',
+            adminOnly: true,
+            child: Text('novo lote'),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('novo lote'), findsOneWidget);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('novo lote'), findsOneWidget);
+  });
 }

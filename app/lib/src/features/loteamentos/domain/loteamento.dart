@@ -18,6 +18,7 @@ class Loteamento {
     required this.updatedAt,
   });
 
-  factory Loteamento.fromJson(Map<String, dynamic> json) => _$LoteamentoFromJson(json);
+  factory Loteamento.fromJson(Map<String, dynamic> json) =>
+      _$LoteamentoFromJson(json);
   Map<String, dynamic> toJson() => _$LoteamentoToJson(this);
 }

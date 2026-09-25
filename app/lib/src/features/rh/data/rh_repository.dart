@@ -11,11 +11,13 @@ final rhRepositoryProvider = Provider<RhRepository>((ref) {
 
 final funcionariosStreamProvider =
     StreamProvider.family<List<Funcionario>, String>((ref, construtoraId) {
-  return ref.watch(rhRepositoryProvider).watchFuncionarios(construtoraId);
-});
+      return ref.watch(rhRepositoryProvider).watchFuncionarios(construtoraId);
+    });
 
-final equipesStreamProvider =
-    StreamProvider.family<List<Equipe>, String>((ref, construtoraId) {
+final equipesStreamProvider = StreamProvider.family<List<Equipe>, String>((
+  ref,
+  construtoraId,
+) {
   return ref.watch(rhRepositoryProvider).watchEquipes(construtoraId);
 });
 
@@ -78,9 +80,9 @@ class RhRepository {
     await _funcionariosRef(funcionario.construtoraId)
         .doc(funcionario.id)
         .update({
-      ...funcionario.toJson(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+          ...funcionario.toJson(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
   }
 
   Future<void> setFuncionarioActive(

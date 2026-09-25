@@ -108,8 +108,7 @@ class FakeMembrosRepository implements MembrosRepository {
     String construtoraId, {
     bool? isOwner,
     String? displayName,
-  }) =>
-      Future.value(false);
+  }) => Future.value(false);
 
   @override
   Future<void> approveAccessRequest(String requestId, String password) async {}
@@ -120,8 +119,8 @@ class FakeMembrosRepository implements MembrosRepository {
 
   @override
   Stream<List<Map<String, dynamic>>> watchPendingRequests(
-          String construtoraId) =>
-      const Stream.empty();
+    String construtoraId,
+  ) => const Stream.empty();
 
   @override
   Stream<List<Map<String, dynamic>>> watchAllPendingRequests() =>
@@ -369,7 +368,10 @@ void main() {
 
     // Ativos abaixo com Cargo · N loteamentos.
     expect(find.text('Operário · 2 loteamentos'), findsOneWidget);
-    expect(find.text('Administrador · Nenhum loteamento vinculado'), findsOneWidget);
+    expect(
+      find.text('Administrador · Nenhum loteamento vinculado'),
+      findsOneWidget,
+    );
 
     // Ordem: pendente antes dos ativos.
     final pendenteY = tester.getTopLeft(find.text('Novo Membro')).dy;
@@ -499,104 +501,108 @@ void main() {
     expect(pendingBuilds, 2);
   });
 
-  testWidgets('8.1 loteamentoMembers loading mostra placeholder sem zero falso', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          membrosProvider('c-1').overrideWith(
-            (ref) => Stream.value([
-              Membro(
-                uid: 'u1',
-                email: 'op1@x.com',
-                isAdmin: false,
-                role: 'operario',
-              ),
-            ]),
-          ),
-          pendingRequestsProvider(
-            'c-1',
-          ).overrideWith((ref) => Stream.value(const <Map<String, dynamic>>[])),
-          obrasDaConstrutoraProvider('c-1')
-              .overrideWith((ref) => Stream.value([_obra('o1')])),
-          obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
-              .overrideWith((ref) => Stream<List<ObraMember>>.empty()),
-        ],
-        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Operário · …'), findsOneWidget);
-    expect(find.text('Nenhum loteamento vinculado'), findsNothing);
-  });
+  testWidgets(
+    '8.1 loteamentoMembers loading mostra placeholder sem zero falso',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            membrosProvider('c-1').overrideWith(
+              (ref) => Stream.value([
+                Membro(
+                  uid: 'u1',
+                  email: 'op1@x.com',
+                  isAdmin: false,
+                  role: 'operario',
+                ),
+              ]),
+            ),
+            pendingRequestsProvider('c-1').overrideWith(
+              (ref) => Stream.value(const <Map<String, dynamic>>[]),
+            ),
+            obrasDaConstrutoraProvider('c-1')
+                .overrideWith((ref) => Stream.value([_obra('o1')])),
+            obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+                .overrideWith((ref) => Stream<List<ObraMember>>.empty()),
+          ],
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Operário · …'), findsOneWidget);
+      expect(find.text('Nenhum loteamento vinculado'), findsNothing);
+    },
+  );
 
-  testWidgets('8.1 loteamentoMembers com erro mostra placeholder sem zero falso', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          membrosProvider('c-1').overrideWith(
-            (ref) => Stream.value([
-              Membro(
-                uid: 'u1',
-                email: 'op1@x.com',
-                isAdmin: false,
-                role: 'operario',
-              ),
-            ]),
-          ),
-          pendingRequestsProvider(
-            'c-1',
-          ).overrideWith((ref) => Stream.value(const <Map<String, dynamic>>[])),
-          obrasDaConstrutoraProvider('c-1')
-              .overrideWith((ref) => Stream.value([_obra('o1')])),
-          obraMembersProvider((
-            construtoraId: 'c-1',
-            obraId: 'o1',
-          )).overrideWithValue(
-            AsyncValue.error(Exception('obraMembers falhou'), StackTrace.empty),
-          ),
-        ],
-        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Operário · …'), findsOneWidget);
-    expect(find.text('Nenhum loteamento vinculado'), findsNothing);
-  });
+  testWidgets(
+    '8.1 loteamentoMembers com erro mostra placeholder sem zero falso',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            membrosProvider('c-1').overrideWith(
+              (ref) => Stream.value([
+                Membro(
+                  uid: 'u1',
+                  email: 'op1@x.com',
+                  isAdmin: false,
+                  role: 'operario',
+                ),
+              ]),
+            ),
+            pendingRequestsProvider('c-1').overrideWith(
+              (ref) => Stream.value(const <Map<String, dynamic>>[]),
+            ),
+            obrasDaConstrutoraProvider('c-1')
+                .overrideWith((ref) => Stream.value([_obra('o1')])),
+            obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+                .overrideWithValue(
+                  AsyncValue.error(
+                    Exception('obraMembers falhou'),
+                    StackTrace.empty,
+                  ),
+                ),
+          ],
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Operário · …'), findsOneWidget);
+      expect(find.text('Nenhum loteamento vinculado'), findsNothing);
+    },
+  );
 
-  testWidgets('8.1 loteamentosAtivas com erro mostra placeholder sem zero falso', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          membrosProvider('c-1').overrideWith(
-            (ref) => Stream.value([
-              Membro(
-                uid: 'u1',
-                email: 'op1@x.com',
-                isAdmin: false,
-                role: 'operario',
-              ),
-            ]),
-          ),
-          pendingRequestsProvider(
-            'c-1',
-          ).overrideWith((ref) => Stream.value(const <Map<String, dynamic>>[])),
-          obrasAtivasProvider('c-1').overrideWithValue(
-            AsyncValue.error(Exception('obras falhou'), StackTrace.empty),
-          ),
-        ],
-        child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Operário · …'), findsOneWidget);
-    expect(find.text('Nenhum loteamento vinculado'), findsNothing);
-  });
+  testWidgets(
+    '8.1 loteamentosAtivas com erro mostra placeholder sem zero falso',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            membrosProvider('c-1').overrideWith(
+              (ref) => Stream.value([
+                Membro(
+                  uid: 'u1',
+                  email: 'op1@x.com',
+                  isAdmin: false,
+                  role: 'operario',
+                ),
+              ]),
+            ),
+            pendingRequestsProvider('c-1').overrideWith(
+              (ref) => Stream.value(const <Map<String, dynamic>>[]),
+            ),
+            obrasAtivasProvider('c-1').overrideWithValue(
+              AsyncValue.error(Exception('obras falhou'), StackTrace.empty),
+            ),
+          ],
+          child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Operário · …'), findsOneWidget);
+      expect(find.text('Nenhum loteamento vinculado'), findsNothing);
+    },
+  );
 
   testWidgets('8.1 retry invalida obraMembers (contador incrementa)', (
     tester,
@@ -1325,7 +1331,10 @@ void main() {
 
       await tester.tap(find.text('Por loteamento'));
       await tester.pumpAndSettle();
-      expect(find.text('Não foi possível carregar os loteamentos.'), findsOneWidget);
+      expect(
+        find.text('Não foi possível carregar os loteamentos.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('8.2 Limpar busca restaura a lista', (tester) async {
@@ -1507,7 +1516,10 @@ void main() {
       await tester.pumpAndSettle();
       await abrirDetalhe(tester);
 
-      expect(find.text('Nenhum loteamento vinculado — Atribuir'), findsOneWidget);
+      expect(
+        find.text('Nenhum loteamento vinculado — Atribuir'),
+        findsOneWidget,
+      );
       expect(find.byType(ObraVinculoRow), findsNothing);
       expect(find.byType(ObraVinculoVazio), findsOneWidget);
       final ctaAcionavel = tester.widgetList<FilledButton>(
@@ -1685,7 +1697,10 @@ void main() {
       await tester.pumpAndSettle();
       await abrirDetalhe(tester);
 
-      expect(find.text('Não foi possível carregar os loteamentos.'), findsOneWidget);
+      expect(
+        find.text('Não foi possível carregar os loteamentos.'),
+        findsOneWidget,
+      );
       expect(find.text('Nenhum loteamento vinculado — Atribuir'), findsNothing);
       expect(find.text('Tentar novamente'), findsWidgets);
     });
@@ -1712,45 +1727,54 @@ void main() {
       await tester.pumpAndSettle();
       await abrirDetalhe(tester);
 
-      expect(find.text('Não foi possível carregar os loteamentos.'), findsOneWidget);
+      expect(
+        find.text('Não foi possível carregar os loteamentos.'),
+        findsOneWidget,
+      );
       expect(leituras, greaterThanOrEqualTo(1));
 
       await tester.tap(find.text('Tentar novamente').last);
       await tester.pumpAndSettle();
       expect(find.byType(ObraVinculoRow), findsOneWidget);
-      expect(find.text('Não foi possível carregar os loteamentos.'), findsNothing);
+      expect(
+        find.text('Não foi possível carregar os loteamentos.'),
+        findsNothing,
+      );
       expect(leituras, greaterThan(1));
     });
 
-    testWidgets('8.3 a11y anuncia nome, cargo, N loteamentos e status; Esc fecha', (
-      tester,
-    ) async {
-      final handle = tester.ensureSemantics();
-      try {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: base83(),
-            child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-          ),
-        );
-        await tester.pumpAndSettle();
-        await abrirDetalhe(tester);
+    testWidgets(
+      '8.3 a11y anuncia nome, cargo, N loteamentos e status; Esc fecha',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        try {
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: base83(),
+              child: const MaterialApp(
+                home: MembrosScreen(construtoraId: 'c-1'),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await abrirDetalhe(tester);
 
-        expect(find.byType(MemberDetalheSheet), findsOneWidget);
-        expect(
-          find.bySemanticsLabel(
-            RegExp(r'ana@obra\.com.*Operário.*1 loteamento.*Ativo'),
-          ),
-          findsWidgets,
-        );
+          expect(find.byType(MemberDetalheSheet), findsOneWidget);
+          expect(
+            find.bySemanticsLabel(
+              RegExp(r'ana@obra\.com.*Operário.*1 loteamento.*Ativo'),
+            ),
+            findsWidgets,
+          );
 
-        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-        await tester.pumpAndSettle();
-        expect(find.byType(MemberDetalheSheet), findsNothing);
-      } finally {
-        handle.dispose();
-      }
-    });
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          await tester.pumpAndSettle();
+          expect(find.byType(MemberDetalheSheet), findsNothing);
+        } finally {
+          handle.dispose();
+        }
+      },
+    );
 
     testWidgets('8.3 desktop abre Dialog 480px (breakpoint >=800)', (
       tester,
@@ -1837,7 +1861,10 @@ void main() {
       expect(rotuloCargoFlags(isOwner: false, isAdmin: false), 'Operário');
       expect(rotuloCargoFlags(isOwner: false, isAdmin: true), 'Administrador');
       expect(rotuloCargoFlags(isOwner: true, isAdmin: true), 'Proprietário');
-      expect(obrasVinculadasVazioLabel, 'Nenhum loteamento vinculado — Atribuir');
+      expect(
+        obrasVinculadasVazioLabel,
+        'Nenhum loteamento vinculado — Atribuir',
+      );
     });
 
     testWidgets('8.3 ativo tem onTap na linha (chevron visível)', (
@@ -1951,14 +1978,20 @@ void main() {
       await tester.pumpAndSettle();
       await abrirDetalhe(tester);
 
-      expect(find.text('Não foi possível carregar os loteamentos.'), findsOneWidget);
+      expect(
+        find.text('Não foi possível carregar os loteamentos.'),
+        findsOneWidget,
+      );
       expect(find.byType(ObraVinculoRow), findsNothing);
       expect(leituras, greaterThanOrEqualTo(1));
 
       await tester.tap(find.text('Tentar novamente').last);
       await tester.pumpAndSettle();
       expect(find.byType(ObraVinculoRow), findsOneWidget);
-      expect(find.text('Não foi possível carregar os loteamentos.'), findsNothing);
+      expect(
+        find.text('Não foi possível carregar os loteamentos.'),
+        findsNothing,
+      );
       expect(leituras, greaterThan(1));
     });
   });
@@ -2032,7 +2065,9 @@ void main() {
         await tester.tap(find.text('ana@obra.com'));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
+        await tester.tap(
+          find.widgetWithText(FilledButton, 'Atribuir ao loteamento'),
+        );
         await tester.pumpAndSettle();
 
         expect(find.byType(AtribuirObraDialog), findsOneWidget);
@@ -2052,9 +2087,7 @@ void main() {
         expect(confirmarBtnInicial.onPressed, isNull);
 
         expect(
-          find.text(
-            'Selecione um loteamento para ver o resumo da atribuição.',
-          ),
+          find.text('Selecione um loteamento para ver o resumo da atribuição.'),
           findsOneWidget,
         );
 
@@ -2109,7 +2142,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Atribuir ao loteamento'),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(AtribuirObraDialog.obraDropdownKey));
@@ -2167,7 +2202,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Atribuir ao loteamento'),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Nenhum loteamento ativo'), findsOneWidget);
@@ -2210,7 +2247,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Atribuir ao loteamento'),
+      );
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(find.text('Cancelar'));
@@ -2236,7 +2275,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Atribuir ao loteamento'),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(AtribuirObraDialog.obraDropdownKey));
@@ -2275,7 +2316,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Atribuir ao loteamento'),
+      );
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
@@ -2319,7 +2362,9 @@ void main() {
     Future<void> abrirDialogo(WidgetTester tester) async {
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Atribuir ao loteamento'),
+      );
       await tester.pumpAndSettle();
     }
 
@@ -3054,14 +3099,9 @@ void main() {
     // 10.3 TrocarCargoDialog — testes unitários de widget
     // -------------------------------------------------------------------------
     group('10.3 TrocarCargoDialog', () {
-      Widget buildCargo({
-        String cargoAtual = 'operario',
-        bool isDev = false,
-      }) {
+      Widget buildCargo({String cargoAtual = 'operario', bool isDev = false}) {
         return ProviderScope(
-          overrides: [
-            membrosRepositoryProvider.overrideWithValue(fakeCargo),
-          ],
+          overrides: [membrosRepositoryProvider.overrideWithValue(fakeCargo)],
           child: MaterialApp(
             home: Scaffold(
               body: Builder(
@@ -3213,27 +3253,21 @@ void main() {
           await tester.pumpAndSettle();
 
           expect(find.byType(TrocarCargoDialog), findsOneWidget);
-          expect(
-            find.textContaining('Você não tem permissão'),
-            findsOneWidget,
-          );
+          expect(find.textContaining('Você não tem permissão'), findsOneWidget);
         },
       );
 
-      testWidgets(
-        '10.3 cancelar: nenhuma chamada a setCargo',
-        (tester) async {
-          await tester.pumpWidget(buildCargo());
-          await tester.tap(find.text('abrir'));
-          await tester.pumpAndSettle();
+      testWidgets('10.3 cancelar: nenhuma chamada a setCargo', (tester) async {
+        await tester.pumpWidget(buildCargo());
+        await tester.tap(find.text('abrir'));
+        await tester.pumpAndSettle();
 
-          await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
-          await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
+        await tester.pumpAndSettle();
 
-          expect(fakeCargo.chamadas, isEmpty);
-          expect(find.byType(TrocarCargoDialog), findsNothing);
-        },
-      );
+        expect(fakeCargo.chamadas, isEmpty);
+        expect(find.byType(TrocarCargoDialog), findsNothing);
+      });
     });
 
     // -------------------------------------------------------------------------
@@ -3363,10 +3397,9 @@ void main() {
                   .overrideWith((ref) => Stream.value([_om('u1')])),
               memberDetalheProvider((construtoraId: 'c-1', uid: 'u1'))
                   .overrideWith(
-                (ref) => Future.value(
-                  _cm('u1', isAdmin: true, isActive: true),
-                ),
-              ),
+                    (ref) =>
+                        Future.value(_cm('u1', isAdmin: true, isActive: true)),
+                  ),
             ],
             child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
           ),
@@ -3427,7 +3460,8 @@ void main() {
         return [
           obraMembersRepositoryProvider.overrideWithValue(fakeObra103),
           membrosRepositoryProvider.overrideWithValue(fakeCargo),
-          membrosProvider('c-1').overrideWith((ref) => Stream.value(membros103)),
+          membrosProvider('c-1')
+              .overrideWith((ref) => Stream.value(membros103)),
           pendingRequestsProvider('c-1')
               .overrideWith((ref) => Stream.value(const [])),
           obrasDaConstrutoraProvider('c-1')
@@ -3436,8 +3470,7 @@ void main() {
             obraMembersProvider((construtoraId: 'c-1', obraId: obra.id))
                 .overrideWith((ref) => Stream.value([_om(uid)])),
           memberDetalheProvider((construtoraId: 'c-1', uid: uid))
-              .overrideWith(
-                  (ref) => Future.value(_cm(uid, isActive: true))),
+              .overrideWith((ref) => Future.value(_cm(uid, isActive: true))),
           trustedDevProvider.overrideWith((ref) => Stream.value(false)),
         ];
       }
@@ -3448,8 +3481,9 @@ void main() {
           await tester.pumpWidget(
             ProviderScope(
               overrides: base103(nObras: 2),
-              child:
-                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+              child: const MaterialApp(
+                home: MembrosScreen(construtoraId: 'c-1'),
+              ),
             ),
           );
           await tester.pumpAndSettle();
@@ -3468,33 +3502,31 @@ void main() {
         },
       );
 
-      testWidgets(
-        '10.3 Desativar: cancelar → nenhuma CF chamada',
-        (tester) async {
-          await tester.pumpWidget(
-            ProviderScope(
-              overrides: base103(),
-              child:
-                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-            ),
-          );
-          await tester.pumpAndSettle();
+      testWidgets('10.3 Desativar: cancelar → nenhuma CF chamada', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: base103(),
+            child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-          await tester.tap(find.text('ana@obra.com'));
-          await tester.pumpAndSettle();
+        await tester.tap(find.text('ana@obra.com'));
+        await tester.pumpAndSettle();
 
-          final desativarBtn = find.widgetWithText(OutlinedButton, 'Desativar');
-          await tester.ensureVisible(desativarBtn);
-          await tester.tap(desativarBtn);
-          await tester.pumpAndSettle();
+        final desativarBtn = find.widgetWithText(OutlinedButton, 'Desativar');
+        await tester.ensureVisible(desativarBtn);
+        await tester.tap(desativarBtn);
+        await tester.pumpAndSettle();
 
-          await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
-          await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
+        await tester.pumpAndSettle();
 
-          expect(fakeObra103.chamadas, isEmpty);
-          expect(fakeCargo.chamadas, isEmpty);
-        },
-      );
+        expect(fakeObra103.chamadas, isEmpty);
+        expect(fakeCargo.chamadas, isEmpty);
+      });
 
       testWidgets(
         '10.3 Desativar HAPPY_PATH: 1 loteamento → N+1 CFs + snackbar Membro desativado',
@@ -3502,8 +3534,9 @@ void main() {
           await tester.pumpWidget(
             ProviderScope(
               overrides: base103(nObras: 1),
-              child:
-                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+              child: const MaterialApp(
+                home: MembrosScreen(construtoraId: 'c-1'),
+              ),
             ),
           );
           await tester.pumpAndSettle();
@@ -3516,8 +3549,7 @@ void main() {
           await tester.tap(desativarBtn);
           await tester.pumpAndSettle();
 
-          await tester.tap(
-              find.widgetWithText(FilledButton, 'Desativar').last);
+          await tester.tap(find.widgetWithText(FilledButton, 'Desativar').last);
           await tester.pumpAndSettle();
 
           // 1× setMembership (setMembership para obra o1)
@@ -3537,8 +3569,9 @@ void main() {
           await tester.pumpWidget(
             ProviderScope(
               overrides: base103(nObras: 2),
-              child:
-                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+              child: const MaterialApp(
+                home: MembrosScreen(construtoraId: 'c-1'),
+              ),
             ),
           );
           await tester.pumpAndSettle();
@@ -3551,9 +3584,8 @@ void main() {
           await tester.tap(desativarBtn);
           await tester.pumpAndSettle();
 
-          await tester.tap(
-              find.widgetWithText(FilledButton, 'Desativar').last);
-          
+          await tester.tap(find.widgetWithText(FilledButton, 'Desativar').last);
+
           // Settle animations and async operations
           await tester.pumpAndSettle();
 
@@ -3575,8 +3607,9 @@ void main() {
           await tester.pumpWidget(
             ProviderScope(
               overrides: base103(nObras: 0),
-              child:
-                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+              child: const MaterialApp(
+                home: MembrosScreen(construtoraId: 'c-1'),
+              ),
             ),
           );
           await tester.pumpAndSettle();
@@ -3590,10 +3623,12 @@ void main() {
           await tester.pumpAndSettle();
 
           // Verifica que lista o texto "Nenhum loteamento vinculado"
-          expect(find.textContaining('Nenhum loteamento vinculado'), findsWidgets);
+          expect(
+            find.textContaining('Nenhum loteamento vinculado'),
+            findsWidgets,
+          );
 
-          await tester.tap(
-              find.widgetWithText(FilledButton, 'Desativar').last);
+          await tester.tap(find.widgetWithText(FilledButton, 'Desativar').last);
           await tester.pumpAndSettle();
 
           // Sem obras → nenhum setMembership de obra
@@ -3604,36 +3639,33 @@ void main() {
         },
       );
 
-      testWidgets(
-        '10.3 Desativar falha parcial: erro exibido via snackbar',
-        (tester) async {
-          fakeObra103.deveFalhar = true;
-          fakeObra103.mensagemErro = 'Falha simulada na obra';
-          await tester.pumpWidget(
-            ProviderScope(
-              overrides: base103(nObras: 1),
-              child:
-                  const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
-            ),
-          );
-          await tester.pumpAndSettle();
+      testWidgets('10.3 Desativar falha parcial: erro exibido via snackbar', (
+        tester,
+      ) async {
+        fakeObra103.deveFalhar = true;
+        fakeObra103.mensagemErro = 'Falha simulada na obra';
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: base103(nObras: 1),
+            child: const MaterialApp(home: MembrosScreen(construtoraId: 'c-1')),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-          await tester.tap(find.text('ana@obra.com'));
-          await tester.pumpAndSettle();
+        await tester.tap(find.text('ana@obra.com'));
+        await tester.pumpAndSettle();
 
-          final desativarBtn = find.widgetWithText(OutlinedButton, 'Desativar');
-          await tester.ensureVisible(desativarBtn);
-          await tester.tap(desativarBtn);
-          await tester.pumpAndSettle();
+        final desativarBtn = find.widgetWithText(OutlinedButton, 'Desativar');
+        await tester.ensureVisible(desativarBtn);
+        await tester.tap(desativarBtn);
+        await tester.pumpAndSettle();
 
-          await tester.tap(
-              find.widgetWithText(FilledButton, 'Desativar').last);
-          await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(FilledButton, 'Desativar').last);
+        await tester.pumpAndSettle();
 
-          // Erro exibido (falha parcial — setCargo ainda pode ser chamado)
-          expect(find.textContaining('Falha simulada na obra'), findsOneWidget);
-        },
-      );
+        // Erro exibido (falha parcial — setCargo ainda pode ser chamado)
+        expect(find.textContaining('Falha simulada na obra'), findsOneWidget);
+      });
 
       testWidgets(
         '10.3 a11y: UI do vínculo atende diretrizes (textScale 1.3, alvo >=48dp, fecha com Esc)',
@@ -3656,7 +3688,7 @@ void main() {
           await tester.pumpAndSettle();
 
           final handle = tester.ensureSemantics();
-          
+
           // Verifica se o alvo "Editar vínculo" no menu tem tamanho >= 48x48
           final menuFinder = find.byKey(const Key('overflow-o1'));
           expect(menuFinder, findsOneWidget);
@@ -3665,8 +3697,14 @@ void main() {
           expect(menuSize.height, greaterThanOrEqualTo(48.0));
 
           // Verifica se o botão "Desativar" existe e tem tamanho bom
-          final desativarFinder = find.widgetWithText(OutlinedButton, 'Desativar');
-          expect(tester.getSize(desativarFinder).height, greaterThanOrEqualTo(48.0));
+          final desativarFinder = find.widgetWithText(
+            OutlinedButton,
+            'Desativar',
+          );
+          expect(
+            tester.getSize(desativarFinder).height,
+            greaterThanOrEqualTo(48.0),
+          );
 
           // Testar navegação por Esc
           await tester.sendKeyEvent(LogicalKeyboardKey.escape);

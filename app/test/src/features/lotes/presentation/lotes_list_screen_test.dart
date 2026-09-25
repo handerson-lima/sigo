@@ -16,22 +16,23 @@ class FakeLoteRepository implements LoteRepository {
     String construtoraId,
     String loteamentoId,
     String quadraId,
-  ) =>
-      Stream.value(lotes);
+  ) => Stream.value(lotes);
 
   @override
   Future<void> createLote(Lote lote) async {}
-}
 
+  @override
+  Future<void> createLoteComEtapas(Lote lote) async {}
+}
 Lote makeLote(String id) => Lote(
-      id: id,
-      construtoraId: 'c1',
-      loteamentoId: 'l1',
-      quadraId: 'q1',
-      name: 'Lote $id',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-    );
+  id: id,
+  construtoraId: 'c1',
+  loteamentoId: 'l1',
+  quadraId: 'q1',
+  name: 'Lote $id',
+  createdAt: DateTime(2026, 1, 1),
+  updatedAt: DateTime(2026, 1, 1),
+);
 
 Widget buildTestWidget(Widget child) {
   final router = GoRouter(
@@ -54,11 +55,13 @@ void main() {
         overrides: [
           watchLotesProvider.overrideWith((ref, arg) => Stream.value([])),
         ],
-        child: buildTestWidget(const LotesListScreen(
-          construtoraId: 'c1',
-          loteamentoId: 'l1',
-          quadraId: 'q1',
-        )),
+        child: buildTestWidget(
+          const LotesListScreen(
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+            quadraId: 'q1',
+          ),
+        ),
       ),
     );
 
@@ -75,11 +78,13 @@ void main() {
             (ref, arg) => Stream.value([makeLote('lo1')]),
           ),
         ],
-        child: buildTestWidget(const LotesListScreen(
-          construtoraId: 'c1',
-          loteamentoId: 'l1',
-          quadraId: 'q1',
-        )),
+        child: buildTestWidget(
+          const LotesListScreen(
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+            quadraId: 'q1',
+          ),
+        ),
       ),
     );
 
@@ -102,8 +107,9 @@ void main() {
     );
   });
 
-  testWidgets('Renderiza mensagem de erro quando o stream falha',
-      (tester) async {
+  testWidgets('Renderiza mensagem de erro quando o stream falha', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -111,45 +117,42 @@ void main() {
             (ref, arg) => Stream.error(Exception('falha')),
           ),
         ],
-        child: buildTestWidget(const LotesListScreen(
-          construtoraId: 'c1',
-          loteamentoId: 'l1',
-          quadraId: 'q1',
-        )),
+        child: buildTestWidget(
+          const LotesListScreen(
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+            quadraId: 'q1',
+          ),
+        ),
       ),
     );
 
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Não foi possível carregar os lotes.'),
-      findsOneWidget,
-    );
+    expect(find.text('Não foi possível carregar os lotes.'), findsOneWidget);
     expect(find.text('Tentar novamente'), findsOneWidget);
   });
 
-  testWidgets('Botão Tentar novamente invalida o provider e recarrega',
-      (tester) async {
+  testWidgets('Botão Tentar novamente invalida o provider e recarrega', (
+    tester,
+  ) async {
     var stream = Stream<List<Lote>>.error(Exception('falha'));
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          watchLotesProvider.overrideWith((ref, arg) => stream),
-        ],
-        child: buildTestWidget(const LotesListScreen(
-          construtoraId: 'c1',
-          loteamentoId: 'l1',
-          quadraId: 'q1',
-        )),
+        overrides: [watchLotesProvider.overrideWith((ref, arg) => stream)],
+        child: buildTestWidget(
+          const LotesListScreen(
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+            quadraId: 'q1',
+          ),
+        ),
       ),
     );
 
     await tester.pumpAndSettle();
-    expect(
-      find.text('Não foi possível carregar os lotes.'),
-      findsOneWidget,
-    );
+    expect(find.text('Não foi possível carregar os lotes.'), findsOneWidget);
 
     stream = Stream.value([makeLote('lo1')]);
     await tester.tap(find.text('Tentar novamente'));
@@ -158,8 +161,9 @@ void main() {
     expect(find.text('Lote lo1'), findsOneWidget);
   });
 
-  testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)',
-      (tester) async {
+  testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)', (
+    tester,
+  ) async {
     final rebuild = ValueNotifier<int>(0);
     addTearDown(rebuild.dispose);
     var buildCount = 0;

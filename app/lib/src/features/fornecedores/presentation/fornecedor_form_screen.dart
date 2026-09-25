@@ -110,10 +110,8 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
     _inscricaoEstadualController.text = f.inscricaoEstadual ?? '';
     _inscricaoMunicipalController.text = f.inscricaoMunicipal ?? '';
     _nomeContatoController.text = f.nomeContato ?? '';
-    _telefoneController.text =
-        FornecedorValidator.formatarTelefone(f.telefone);
-    _whatsappController.text =
-        FornecedorValidator.formatarTelefone(f.whatsapp);
+    _telefoneController.text = FornecedorValidator.formatarTelefone(f.telefone);
+    _whatsappController.text = FornecedorValidator.formatarTelefone(f.whatsapp);
     _emailController.text = f.email ?? '';
     _observacoesController.text = f.observacoes ?? '';
 
@@ -144,14 +142,17 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Colors.orange,
-          content: Text('Por favor, corrija os erros no formulário antes de salvar.'),
+          content: Text(
+            'Por favor, corrija os erros no formulário antes de salvar.',
+          ),
         ),
       );
       return;
     }
 
-    final docSanitizado =
-        FornecedorValidator.apenasDigitos(_documentoController.text);
+    final docSanitizado = FornecedorValidator.apenasDigitos(
+      _documentoController.text,
+    );
     final isValido = FornecedorValidator.validarDocumento(
       docSanitizado,
       isPessoaJuridica: _tipoPessoa == TipoPessoa.juridica,
@@ -264,21 +265,17 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
 
     if (isEdicao && !_dadosCarregados) {
       final fornecedorAsync = ref.watch(
-        fornecedorDetailsFutureProvider(
-          (
-            construtoraId: widget.construtoraId,
-            fornecedorId: widget.fornecedorId!,
-          ),
-        ),
+        fornecedorDetailsFutureProvider((
+          construtoraId: widget.construtoraId,
+          fornecedorId: widget.fornecedorId!,
+        )),
       );
 
       return fornecedorAsync.when(
-        loading: () => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
-        error: (err, _) => Scaffold(
-          body: Center(child: Text('Erro ao carregar dados: $err')),
-        ),
+        loading: () =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        error: (err, _) =>
+            Scaffold(body: Center(child: Text('Erro ao carregar dados: $err'))),
         data: (f) {
           if (f != null) _preencherFormulario(f);
           return _buildScaffold(context, isEdicao);
@@ -335,7 +332,8 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                             : (set) {
                                 setState(() {
                                   _tipoPessoa = set.first;
-                                  _tipoChavePix = _tipoPessoa == TipoPessoa.juridica
+                                  _tipoChavePix =
+                                      _tipoPessoa == TipoPessoa.juridica
                                       ? 'cnpj'
                                       : 'cpf';
                                   _documentoController.clear();
@@ -349,7 +347,9 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                         controller: _documentoController,
                         decoration: InputDecoration(
                           labelText: isPJ ? 'CNPJ *' : 'CPF *',
-                          hintText: isPJ ? '00.000.000/0000-00' : '000.000.000-00',
+                          hintText: isPJ
+                              ? '00.000.000/0000-00'
+                              : '000.000.000-00',
                           border: const OutlineInputBorder(),
                           prefixIcon: const Icon(Icons.badge_outlined),
                           suffixIcon: _buildDocValidationIcon(),
@@ -357,22 +357,25 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                         keyboardType: TextInputType.number,
                         onChanged: (val) {
                           // Aplica formatação automática em tempo real
-                          final sanitizado =
-                              FornecedorValidator.apenasDigitos(val);
+                          final sanitizado = FornecedorValidator.apenasDigitos(
+                            val,
+                          );
                           final formatado =
                               FornecedorValidator.formatarDocumento(sanitizado);
                           if (formatado != val) {
                             _documentoController.value = TextEditingValue(
                               text: formatado,
                               selection: TextSelection.collapsed(
-                                  offset: formatado.length),
+                                offset: formatado.length,
+                              ),
                             );
                           }
                           setState(() {});
                         },
                         validator: (val) {
-                          final sanitizado =
-                              FornecedorValidator.apenasDigitos(val);
+                          final sanitizado = FornecedorValidator.apenasDigitos(
+                            val,
+                          );
                           if (sanitizado.isEmpty) {
                             return 'Informe o ${isPJ ? "CNPJ" : "CPF"}';
                           }
@@ -413,7 +416,9 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                       TextFormField(
                         controller: _razaoSocialController,
                         decoration: InputDecoration(
-                          labelText: isPJ ? 'Razão Social *' : 'Nome Completo *',
+                          labelText: isPJ
+                              ? 'Razão Social *'
+                              : 'Nome Completo *',
                           hintText: isPJ
                               ? 'Ex: Votorantim Cimentos S/A'
                               : 'Ex: José da Silva Pintor',
@@ -506,12 +511,15 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                               ),
                               keyboardType: TextInputType.phone,
                               onChanged: (v) {
-                                final f = FornecedorValidator.formatarTelefone(v);
+                                final f = FornecedorValidator.formatarTelefone(
+                                  v,
+                                );
                                 if (f != v) {
                                   _telefoneController.value = TextEditingValue(
                                     text: f,
                                     selection: TextSelection.collapsed(
-                                        offset: f.length),
+                                      offset: f.length,
+                                    ),
                                   );
                                 }
                               },
@@ -529,12 +537,15 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                               ),
                               keyboardType: TextInputType.phone,
                               onChanged: (v) {
-                                final f = FornecedorValidator.formatarTelefone(v);
+                                final f = FornecedorValidator.formatarTelefone(
+                                  v,
+                                );
                                 if (f != v) {
                                   _whatsappController.value = TextEditingValue(
                                     text: f,
                                     selection: TextSelection.collapsed(
-                                        offset: f.length),
+                                      offset: f.length,
+                                    ),
                                   );
                                 }
                               },
@@ -584,8 +595,9 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: _todasCategorias.map((c) {
-                          final selecionada =
-                              _categoriasSelecionadas.contains(c.key);
+                          final selecionada = _categoriasSelecionadas.contains(
+                            c.key,
+                          );
                           return FilterChip(
                             label: Text(c.label),
                             selected: selecionada,
@@ -636,7 +648,8 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                               _cepController.value = TextEditingValue(
                                 text: f,
                                 selection: TextSelection.collapsed(
-                                    offset: f.length),
+                                  offset: f.length,
+                                ),
                               );
                             }
                           },
@@ -759,14 +772,27 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                             border: OutlineInputBorder(),
                           ),
                           items: const [
-                            DropdownMenuItem(value: 'cnpj', child: Text('CNPJ')),
+                            DropdownMenuItem(
+                              value: 'cnpj',
+                              child: Text('CNPJ'),
+                            ),
                             DropdownMenuItem(value: 'cpf', child: Text('CPF')),
-                            DropdownMenuItem(value: 'email', child: Text('E-mail')),
-                            DropdownMenuItem(value: 'telefone', child: Text('Telefone')),
-                            DropdownMenuItem(value: 'aleatoria', child: Text('Aleatória')),
+                            DropdownMenuItem(
+                              value: 'email',
+                              child: Text('E-mail'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'telefone',
+                              child: Text('Telefone'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'aleatoria',
+                              child: Text('Aleatória'),
+                            ),
                           ],
                           onChanged: (val) {
-                            if (val != null) setState(() => _tipoChavePix = val);
+                            if (val != null)
+                              setState(() => _tipoChavePix = val);
                           },
                         ),
                       ),
@@ -842,8 +868,7 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                       TextFormField(
                         controller: _observacoesController,
                         decoration: const InputDecoration(
-                          hintText:
-                              'Condições de frete, prazos médios de entrega, políticas de desconto...',
+                          hintText: 'Condições de frete, prazos médios de entrega, políticas de desconto...',
                           border: OutlineInputBorder(),
                         ),
                         maxLines: 3,
@@ -867,7 +892,9 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 14),
+                        horizontal: 24,
+                        vertical: 14,
+                      ),
                     ),
                     onPressed: _salvando ? null : _submeter,
                     icon: _salvando
@@ -884,8 +911,8 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
                       _salvando
                           ? 'Salvando...'
                           : (isEdicao
-                              ? 'Atualizar Fornecedor'
-                              : 'Cadastrar Fornecedor'),
+                                ? 'Atualizar Fornecedor'
+                                : 'Cadastrar Fornecedor'),
                     ),
                   ),
                 ],
@@ -899,8 +926,9 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
   }
 
   Widget? _buildDocValidationIcon() {
-    final digitos =
-        FornecedorValidator.apenasDigitos(_documentoController.text);
+    final digitos = FornecedorValidator.apenasDigitos(
+      _documentoController.text,
+    );
     final esperado = _tipoPessoa == TipoPessoa.juridica ? 14 : 11;
 
     if (digitos.length < esperado) return null;

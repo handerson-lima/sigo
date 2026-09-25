@@ -59,11 +59,9 @@ class DiarioRepository {
       final id = const Uuid().v4();
       final path =
           'construtoras/${diario.construtoraId}/obras/${diario.obraId}/diarios/${diario.id}/$user/$id';
-      attachments.add(buildBlobAttachment(
-        bytes: bytes,
-        storagePath: path,
-        id: id,
-      ));
+      attachments.add(
+        buildBlobAttachment(bytes: bytes, storagePath: path, id: id),
+      );
     }
     await OperationQueue.instance.enqueue('finalizeDiario', {
       'construtoraId': diario.construtoraId,

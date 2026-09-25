@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../../core/contracts.dart';
 
 enum StatusDespesaAdm {
@@ -8,11 +9,11 @@ enum StatusDespesaAdm {
   cancelado;
 
   String get label => switch (this) {
-        StatusDespesaAdm.pendente => 'Pendente',
-        StatusDespesaAdm.pago => 'Pago',
-        StatusDespesaAdm.atrasado => 'Atrasado',
-        StatusDespesaAdm.cancelado => 'Cancelado',
-      };
+    StatusDespesaAdm.pendente => 'Pendente',
+    StatusDespesaAdm.pago => 'Pago',
+    StatusDespesaAdm.atrasado => 'Atrasado',
+    StatusDespesaAdm.cancelado => 'Cancelado',
+  };
 }
 
 enum MetodoPagamento {
@@ -24,13 +25,13 @@ enum MetodoPagamento {
   outro;
 
   String get label => switch (this) {
-        MetodoPagamento.pix => 'Pix',
-        MetodoPagamento.boleto => 'Boleto Bancário',
-        MetodoPagamento.transferencia => 'TED / DOC / Transferência',
-        MetodoPagamento.dinheiro => 'Dinheiro em Espécie',
-        MetodoPagamento.cartao => 'Cartão de Débito / Crédito',
-        MetodoPagamento.outro => 'Outro',
-      };
+    MetodoPagamento.pix => 'Pix',
+    MetodoPagamento.boleto => 'Boleto Bancário',
+    MetodoPagamento.transferencia => 'TED / DOC / Transferência',
+    MetodoPagamento.dinheiro => 'Dinheiro em Espécie',
+    MetodoPagamento.cartao => 'Cartão de Débito / Crédito',
+    MetodoPagamento.outro => 'Outro',
+  };
 }
 
 enum CategoriaDespesa {
@@ -43,14 +44,14 @@ enum CategoriaDespesa {
   outros;
 
   String get label => switch (this) {
-        CategoriaDespesa.utilidades => 'Utilidades (Água / Luz / Internet)',
-        CategoriaDespesa.locacao => 'Locação de Equipamentos',
-        CategoriaDespesa.servicosTerceiros => 'Serviços de Terceiros',
-        CategoriaDespesa.alimentacao => 'Alimentação de Equipe',
-        CategoriaDespesa.combustivel => 'Combustível / Gerador',
-        CategoriaDespesa.taxasLicencas => 'Taxas, Alvarás e Licenças',
-        CategoriaDespesa.outros => 'Outras Despesas Gerais',
-      };
+    CategoriaDespesa.utilidades => 'Utilidades (Água / Luz / Internet)',
+    CategoriaDespesa.locacao => 'Locação de Equipamentos',
+    CategoriaDespesa.servicosTerceiros => 'Serviços de Terceiros',
+    CategoriaDespesa.alimentacao => 'Alimentação de Equipe',
+    CategoriaDespesa.combustivel => 'Combustível / Gerador',
+    CategoriaDespesa.taxasLicencas => 'Taxas, Alvarás e Licenças',
+    CategoriaDespesa.outros => 'Outras Despesas Gerais',
+  };
 }
 
 class ParcelaDespesa {
@@ -110,12 +111,12 @@ class ParcelaDespesa {
     final valorCents = json['valorCents'] is int
         ? json['valorCents'] as int
         : (json['amountCents'] is int
-            ? json['amountCents'] as int
-            : decimalUnits(
-                (json['valor'] as num?)?.toDouble() ?? 0.0,
-                2,
-                round: true,
-              ));
+              ? json['amountCents'] as int
+              : decimalUnits(
+                  (json['valor'] as num?)?.toDouble() ?? 0.0,
+                  2,
+                  round: true,
+                ));
 
     final vencimentoRaw = json['dataVencimento'];
     final vencimento = vencimentoRaw != null
@@ -154,20 +155,20 @@ class ParcelaDespesa {
   }
 
   Map<String, dynamic> toJson() => {
-        'numero': numero,
-        'valorCents': valorCents,
-        'valor': valorCents / 100.0,
-        'dataVencimento': civilDate(dataVencimento),
-        'status': status.name,
-        'dataPagamento': dataPagamento == null
-            ? null
-            : Timestamp.fromDate(dataPagamento!),
-        'pagoPorUid': pagoPorUid,
-        'metodoPagamento': metodoPagamento?.name,
-        'comprovanteUrl': comprovanteUrl,
-        'comprovantePath': comprovantePath,
-        'idempotencyKey': idempotencyKey,
-      };
+    'numero': numero,
+    'valorCents': valorCents,
+    'valor': valorCents / 100.0,
+    'dataVencimento': civilDate(dataVencimento),
+    'status': status.name,
+    'dataPagamento': dataPagamento == null
+        ? null
+        : Timestamp.fromDate(dataPagamento!),
+    'pagoPorUid': pagoPorUid,
+    'metodoPagamento': metodoPagamento?.name,
+    'comprovanteUrl': comprovanteUrl,
+    'comprovantePath': comprovantePath,
+    'idempotencyKey': idempotencyKey,
+  };
 }
 
 class DespesaAdm {
@@ -236,8 +237,14 @@ class DespesaAdm {
       return false;
     }
     final today = DateTime.now();
-    final endOfDueDay =
-        DateTime(dataVencimento.year, dataVencimento.month, dataVencimento.day, 23, 59, 59);
+    final endOfDueDay = DateTime(
+      dataVencimento.year,
+      dataVencimento.month,
+      dataVencimento.day,
+      23,
+      59,
+      59,
+    );
     return today.isAfter(endOfDueDay);
   }
 
@@ -327,14 +334,14 @@ class DespesaAdm {
     final valorCents = json['valorTotalCents'] is int
         ? json['valorTotalCents'] as int
         : (json['amountCents'] is int
-            ? json['amountCents'] as int
-            : (json['valorEmCentavos'] is int
-                ? json['valorEmCentavos'] as int
-                : decimalUnits(
-                    (json['valor'] as num?)?.toDouble() ?? 0.0,
-                    2,
-                    round: true,
-                  )));
+              ? json['amountCents'] as int
+              : (json['valorEmCentavos'] is int
+                    ? json['valorEmCentavos'] as int
+                    : decimalUnits(
+                        (json['valor'] as num?)?.toDouble() ?? 0.0,
+                        2,
+                        round: true,
+                      )));
 
     final catStr = json['categoria'] as String?;
     final categoria = CategoriaDespesa.values.firstWhere(
@@ -351,7 +358,9 @@ class DespesaAdm {
     final emissaoRaw = json['dataEmissao'];
     final dataEmissao = emissaoRaw != null
         ? readDate(emissaoRaw)
-        : (json['createdAt'] != null ? readDate(json['createdAt']) : DateTime.now());
+        : (json['createdAt'] != null
+              ? readDate(json['createdAt'])
+              : DateTime.now());
 
     final vencimentoRaw = json['dataVencimento'];
     final dataVencimento = vencimentoRaw != null
@@ -370,23 +379,24 @@ class DespesaAdm {
         : null;
 
     final createdRaw = json['createdAt'];
-    final createdAt =
-        createdRaw != null ? readDate(createdRaw) : DateTime.now();
+    final createdAt = createdRaw != null
+        ? readDate(createdRaw)
+        : DateTime.now();
 
     final updatedRaw = json['updatedAt'];
-    final updatedAt =
-        updatedRaw != null ? readDate(updatedRaw) : createdAt;
+    final updatedAt = updatedRaw != null ? readDate(updatedRaw) : createdAt;
 
     final cancelamentoRaw = json['dataCancelamento'];
-    final dataCancelamento =
-        cancelamentoRaw != null ? readDate(cancelamentoRaw) : null;
+    final dataCancelamento = cancelamentoRaw != null
+        ? readDate(cancelamentoRaw)
+        : null;
 
     final rawParcelas = json['parcelas'];
     final parcelas = (rawParcelas is List)
         ? rawParcelas
-            .whereType<Map<String, dynamic>>()
-            .map((p) => ParcelaDespesa.fromJson(p))
-            .toList()
+              .whereType<Map<String, dynamic>>()
+              .map((p) => ParcelaDespesa.fromJson(p))
+              .toList()
         : <ParcelaDespesa>[];
 
     return DespesaAdm(
@@ -423,37 +433,37 @@ class DespesaAdm {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'construtoraId': construtoraId,
-        'obraId': obraId,
-        'descricao': descricao,
-        'categoria': categoria.name,
-        'fornecedorNome': fornecedorNome,
-        'fornecedorId': fornecedorId,
-        'loteId': loteId,
-        'valorTotalCents': valorTotalCents,
-        'valor': valorTotalCents / 100.0,
-        'status': status.name,
-        'dataEmissao': Timestamp.fromDate(dataEmissao),
-        'dataVencimento': civilDate(dataVencimento),
-        'dataPagamento': dataPagamento == null
-            ? null
-            : Timestamp.fromDate(dataPagamento!),
-        'pagoPorUid': pagoPorUid,
-        'metodoPagamento': metodoPagamento?.name,
-        'comprovanteUrl': comprovanteUrl,
-        'comprovantePath': comprovantePath,
-        'comprovanteNome': comprovanteNome,
-        'isParcelado': isParcelado,
-        'parcelas': parcelas.map((p) => p.toJson()).toList(),
-        'motivoCancelamento': motivoCancelamento,
-        'canceladoPorUid': canceladoPorUid,
-        'dataCancelamento': dataCancelamento == null
-            ? null
-            : Timestamp.fromDate(dataCancelamento!),
-        'responsavelId': responsavelId,
-        'createdAt': Timestamp.fromDate(createdAt),
-        'updatedAt': Timestamp.fromDate(updatedAt),
-        'schemaVersion': schemaVersion,
-      };
+    'id': id,
+    'construtoraId': construtoraId,
+    'obraId': obraId,
+    'descricao': descricao,
+    'categoria': categoria.name,
+    'fornecedorNome': fornecedorNome,
+    'fornecedorId': fornecedorId,
+    'loteId': loteId,
+    'valorTotalCents': valorTotalCents,
+    'valor': valorTotalCents / 100.0,
+    'status': status.name,
+    'dataEmissao': Timestamp.fromDate(dataEmissao),
+    'dataVencimento': civilDate(dataVencimento),
+    'dataPagamento': dataPagamento == null
+        ? null
+        : Timestamp.fromDate(dataPagamento!),
+    'pagoPorUid': pagoPorUid,
+    'metodoPagamento': metodoPagamento?.name,
+    'comprovanteUrl': comprovanteUrl,
+    'comprovantePath': comprovantePath,
+    'comprovanteNome': comprovanteNome,
+    'isParcelado': isParcelado,
+    'parcelas': parcelas.map((p) => p.toJson()).toList(),
+    'motivoCancelamento': motivoCancelamento,
+    'canceladoPorUid': canceladoPorUid,
+    'dataCancelamento': dataCancelamento == null
+        ? null
+        : Timestamp.fromDate(dataCancelamento!),
+    'responsavelId': responsavelId,
+    'createdAt': Timestamp.fromDate(createdAt),
+    'updatedAt': Timestamp.fromDate(updatedAt),
+    'schemaVersion': schemaVersion,
+  };
 }

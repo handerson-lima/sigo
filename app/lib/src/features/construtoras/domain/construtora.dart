@@ -1,4 +1,5 @@
 import '../../../core/contracts.dart';
+
 import 'package:json_annotation/json_annotation.dart';
 
 part 'construtora.g.dart';
@@ -22,11 +23,17 @@ class Construtora {
   factory Construtora.fromJson(Map<String, dynamic> json) {
     final copy = Map<String, dynamic>.from(json);
     copy['id'] = copy['id'] ?? '';
-    copy['name'] = copy['name'] ?? (copy['id'] != null && (copy['id'] as String).isNotEmpty ? copy['id'] : 'Sem nome');
+    copy['name'] =
+        copy['name'] ??
+        (copy['id'] != null && (copy['id'] as String).isNotEmpty
+            ? copy['id']
+            : 'Sem nome');
     copy['createdAt'] = copy['createdAt'] != null
         ? readDate(copy['createdAt']).toIso8601String()
         : DateTime.fromMillisecondsSinceEpoch(0).toIso8601String();
-    return _$ConstrutoraFromJson(compatibleDates(copy, ['createdAt', 'updatedAt']));
+    return _$ConstrutoraFromJson(
+      compatibleDates(copy, ['createdAt', 'updatedAt']),
+    );
   }
 
   Map<String, dynamic> toJson() => _$ConstrutoraToJson(this);

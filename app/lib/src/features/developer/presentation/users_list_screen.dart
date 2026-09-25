@@ -9,64 +9,68 @@ import '../../../common_widgets/sigo_layout.dart';
 import '../../authentication/domain/app_user.dart';
 import '../../construtoras/data/membros_repository.dart';
 
-final allConstrutorasMapProvider = StreamProvider.autoDispose<Map<String, String>>((ref) {
-  return FirebaseFirestore.instance
-      .collection('construtoras')
-      .snapshots()
-      .map((snap) {
-        final map = <String, String>{};
-        for (final doc in snap.docs) {
-          final data = doc.data();
-          map[doc.id] = data['name'] as String? ?? 'Sem Nome';
-        }
-        return map;
-      });
-});
+final allConstrutorasMapProvider =
+    StreamProvider.autoDispose<Map<String, String>>((ref) {
+      return FirebaseFirestore.instance
+          .collection('construtoras')
+          .snapshots()
+          .map((snap) {
+            final map = <String, String>{};
+            for (final doc in snap.docs) {
+              final data = doc.data();
+              map[doc.id] = data['name'] as String? ?? 'Sem Nome';
+            }
+            return map;
+          });
+    });
 
-final allUserMembershipsProvider = StreamProvider.autoDispose<Map<String, List<Map<String, dynamic>>>>((ref) {
-  return FirebaseFirestore.instance
-      .collectionGroup('construtora_members')
-      .snapshots()
-      .map((snap) {
-        final map = <String, List<Map<String, dynamic>>>{};
-        for (final doc in snap.docs) {
-          final data = doc.data();
-          if (data['isActive'] != true) continue;
-          final uid = (data['userId'] as String?) ?? doc.id;
-          final cId = (data['construtoraId'] as String?) ?? doc.reference.parent.parent?.id ?? '';
-          data['_cId'] = cId;
-          map.putIfAbsent(uid, () => []).add(data);
-        }
-        return map;
-      });
-});
+final allUserMembershipsProvider =
+    StreamProvider.autoDispose<Map<String, List<Map<String, dynamic>>>>((ref) {
+      return FirebaseFirestore.instance
+          .collectionGroup('construtora_members')
+          .snapshots()
+          .map((snap) {
+            final map = <String, List<Map<String, dynamic>>>{};
+            for (final doc in snap.docs) {
+              final data = doc.data();
+              if (data['isActive'] != true) continue;
+              final uid = (data['userId'] as String?) ?? doc.id;
+              final cId =
+                  (data['construtoraId'] as String?) ??
+                  doc.reference.parent.parent?.id ??
+                  '';
+              data['_cId'] = cId;
+              map.putIfAbsent(uid, () => []).add(data);
+            }
+            return map;
+          });
+    });
 
 final allUsersStreamProvider = StreamProvider.autoDispose<List<AppUser>>((ref) {
-  return FirebaseFirestore.instance
-      .collection('users')
-      .snapshots()
-      .map((snapshot) {
-        return snapshot.docs.map((doc) {
-          final data = Map<String, dynamic>.from(doc.data());
-          if (data['createdAt'] is Timestamp) {
-            data['createdAt'] = (data['createdAt'] as Timestamp)
-                .toDate()
-                .toIso8601String();
-          }
-          if (data['updatedAt'] is Timestamp) {
-            data['updatedAt'] = (data['updatedAt'] as Timestamp)
-                .toDate()
-                .toIso8601String();
-          }
-          return AppUser.fromJson(data);
-        }).toList();
-      });
+  return FirebaseFirestore.instance.collection('users').snapshots().map((
+    snapshot,
+  ) {
+    return snapshot.docs.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data());
+      if (data['createdAt'] is Timestamp) {
+        data['createdAt'] = (data['createdAt'] as Timestamp)
+            .toDate()
+            .toIso8601String();
+      }
+      if (data['updatedAt'] is Timestamp) {
+        data['updatedAt'] = (data['updatedAt'] as Timestamp)
+            .toDate()
+            .toIso8601String();
+      }
+      return AppUser.fromJson(data);
+    }).toList();
+  });
 });
 
 final allPendingRequestsProvider =
     StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
-  return ref.watch(membrosRepositoryProvider).watchAllPendingRequests();
-});
+      return ref.watch(membrosRepositoryProvider).watchAllPendingRequests();
+    });
 
 class UsersListScreen extends ConsumerStatefulWidget {
   const UsersListScreen({super.key});
@@ -111,9 +115,11 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
 
     for (final m in memberships) {
       final cId = m['_cId'] as String? ?? '';
-      final cName = construtorasMap[cId] ?? (cId.isNotEmpty ? cId : 'Construtora');
+      final cName =
+          construtorasMap[cId] ?? (cId.isNotEmpty ? cId : 'Construtora');
       final isOwner = m['isOwner'] == true || m['role'] == 'owner';
-      final isAdmin = !isOwner && (m['isAdmin'] == true || m['role'] == 'admin');
+      final isAdmin =
+          !isOwner && (m['isAdmin'] == true || m['role'] == 'admin');
 
       // Tag com Nome da Construtora
       list.add(
@@ -157,7 +163,11 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.stars_rounded, size: 13, color: Colors.amber.shade900),
+                Icon(
+                  Icons.stars_rounded,
+                  size: 13,
+                  color: Colors.amber.shade900,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   'PROPRIETÁRIO',
@@ -358,81 +368,119 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            Builder(builder: (context) {
-              final construtorasMap = ref.watch(allConstrutorasMapProvider).value ?? {};
-              return Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 300,
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Buscar por nome ou e-mail...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            Builder(
+              builder: (context) {
+                final construtorasMap =
+                    ref.watch(allConstrutorasMapProvider).value ?? {};
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 300,
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Buscar por nome ou e-mail...',
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        onChanged: (val) => setState(
+                          () => _searchQuery = val.trim().toLowerCase(),
+                        ),
                       ),
-                      onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
                     ),
-                  ),
-                  DropdownButtonHideUnderline(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButton<String>(
-                        value: _selectedConstrutoraId,
-                        hint: const Text('Construtora'),
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('Todas as construtoras')),
-                          ...construtorasMap.entries.map((e) => DropdownMenuItem(
+                    DropdownButtonHideUnderline(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButton<String>(
+                          value: _selectedConstrutoraId,
+                          hint: const Text('Construtora'),
+                          items: [
+                            const DropdownMenuItem(
+                              value: null,
+                              child: Text('Todas as construtoras'),
+                            ),
+                            ...construtorasMap.entries.map(
+                              (e) => DropdownMenuItem(
                                 value: e.key,
                                 child: Text(e.value),
-                              ))
-                        ],
-                        onChanged: (val) => setState(() => _selectedConstrutoraId = val),
+                              ),
+                            ),
+                          ],
+                          onChanged: (val) =>
+                              setState(() => _selectedConstrutoraId = val),
+                        ),
                       ),
                     ),
-                  ),
-                  DropdownButtonHideUnderline(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButton<String>(
-                        value: _selectedRole,
-                        hint: const Text('Tipo de Usuário'),
-                        items: const [
-                          DropdownMenuItem(value: null, child: Text('Todos os tipos')),
-                          DropdownMenuItem(value: 'dev', child: Text('Dev Global')),
-                          DropdownMenuItem(value: 'owner', child: Text('Proprietário')),
-                          DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                          DropdownMenuItem(value: 'member', child: Text('Membro comum')),
-                          DropdownMenuItem(value: 'none', child: Text('Sem vínculo')),
-                        ],
-                        onChanged: (val) => setState(() => _selectedRole = val),
+                    DropdownButtonHideUnderline(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButton<String>(
+                          value: _selectedRole,
+                          hint: const Text('Tipo de Usuário'),
+                          items: const [
+                            DropdownMenuItem(
+                              value: null,
+                              child: Text('Todos os tipos'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'dev',
+                              child: Text('Dev Global'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'owner',
+                              child: Text('Proprietário'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'admin',
+                              child: Text('Admin'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'member',
+                              child: Text('Membro comum'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'none',
+                              child: Text('Sem vínculo'),
+                            ),
+                          ],
+                          onChanged: (val) =>
+                              setState(() => _selectedRole = val),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              );
-            }),
+                  ],
+                );
+              },
+            ),
             const SizedBox(height: 16),
             Expanded(
               child: Builder(
                 builder: (context) {
-                  final construtorasMap2 = ref.watch(allConstrutorasMapProvider).value ?? {};
-                  final userMembershipsMap = ref.watch(allUserMembershipsProvider).value ?? {};
+                  final construtorasMap2 =
+                      ref.watch(allConstrutorasMapProvider).value ?? {};
+                  final userMembershipsMap =
+                      ref.watch(allUserMembershipsProvider).value ?? {};
                   final usersAsync = ref.watch(allUsersStreamProvider);
 
                   return usersAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (err, stack) => Center(child: Text('Erro: $err')),
                     data: (users) {
                       if (users.isEmpty) {
@@ -443,25 +491,56 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
 
                       var filteredUsers = users.where((u) {
                         if (_searchQuery.isNotEmpty) {
-                          final matchName = u.displayName.toLowerCase().contains(_searchQuery);
-                          final matchEmail = u.email.toLowerCase().contains(_searchQuery);
+                          final matchName = u.displayName
+                              .toLowerCase()
+                              .contains(_searchQuery);
+                          final matchEmail = u.email.toLowerCase().contains(
+                            _searchQuery,
+                          );
                           if (!matchName && !matchEmail) return false;
                         }
 
                         final memberships = userMembershipsMap[u.id] ?? [];
-                        
+
                         if (_selectedConstrutoraId != null) {
-                          if (u.globalRole != 'dev' && !memberships.any((m) => m['_cId'] == _selectedConstrutoraId)) {
+                          if (u.globalRole != 'dev' &&
+                              !memberships.any(
+                                (m) => m['_cId'] == _selectedConstrutoraId,
+                              )) {
                             return false;
                           }
                         }
 
                         if (_selectedRole != null) {
-                          if (_selectedRole == 'dev' && u.globalRole != 'dev') return false;
-                          if (_selectedRole == 'none' && memberships.isNotEmpty) return false;
-                          if (_selectedRole == 'owner' && !memberships.any((m) => m['isOwner'] == true || m['role'] == 'owner')) return false;
-                          if (_selectedRole == 'admin' && !memberships.any((m) => !(m['isOwner'] == true || m['role'] == 'owner') && (m['isAdmin'] == true || m['role'] == 'admin'))) return false;
-                          if (_selectedRole == 'member' && !memberships.any((m) => !(m['isOwner'] == true || m['role'] == 'owner') && !(m['isAdmin'] == true || m['role'] == 'admin'))) return false;
+                          if (_selectedRole == 'dev' && u.globalRole != 'dev')
+                            return false;
+                          if (_selectedRole == 'none' && memberships.isNotEmpty)
+                            return false;
+                          if (_selectedRole == 'owner' &&
+                              !memberships.any(
+                                (m) =>
+                                    m['isOwner'] == true ||
+                                    m['role'] == 'owner',
+                              ))
+                            return false;
+                          if (_selectedRole == 'admin' &&
+                              !memberships.any(
+                                (m) =>
+                                    !(m['isOwner'] == true ||
+                                        m['role'] == 'owner') &&
+                                    (m['isAdmin'] == true ||
+                                        m['role'] == 'admin'),
+                              ))
+                            return false;
+                          if (_selectedRole == 'member' &&
+                              !memberships.any(
+                                (m) =>
+                                    !(m['isOwner'] == true ||
+                                        m['role'] == 'owner') &&
+                                    !(m['isAdmin'] == true ||
+                                        m['role'] == 'admin'),
+                              ))
+                            return false;
                         }
 
                         return true;
@@ -469,7 +548,9 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
 
                       if (filteredUsers.isEmpty) {
                         return const Center(
-                          child: Text('Nenhum usuário corresponde aos filtros.'),
+                          child: Text(
+                            'Nenhum usuário corresponde aos filtros.',
+                          ),
                         );
                       }
 
@@ -478,7 +559,11 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                         itemBuilder: (context, index) {
                           final user = filteredUsers[index];
                           final memberships = userMembershipsMap[user.id] ?? [];
-                          final badges = _buildUserBadges(user, memberships, construtorasMap2);
+                          final badges = _buildUserBadges(
+                            user,
+                            memberships,
+                            construtorasMap2,
+                          );
 
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -552,7 +637,11 @@ class _PendingRequestsCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.notification_important_rounded, color: Colors.amber.shade900, size: 24),
+              Icon(
+                Icons.notification_important_rounded,
+                color: Colors.amber.shade900,
+                size: 24,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Solicitações de Acesso Pendentes (${requests.length})',
@@ -578,9 +667,11 @@ class _PendingRequestsCard extends ConsumerWidget {
             itemBuilder: (context, index) {
               final req = requests[index];
               final email = req['email'] as String? ?? '';
-              final displayName = req['displayName'] as String? ?? 'Sem nome informado';
+              final displayName =
+                  req['displayName'] as String? ?? 'Sem nome informado';
               final construtoraId = req['construtoraId'] as String? ?? '';
-              final construtoraNome = construtorasMap[construtoraId] ?? 'Construtora Desconhecida';
+              final construtoraNome =
+                  construtorasMap[construtoraId] ?? 'Construtora Desconhecida';
               final role = (req['role'] as String? ?? 'member').toUpperCase();
               final isOwner = req['isOwner'] == true;
               final reqId = req['id'] as String;
@@ -590,7 +681,11 @@ class _PendingRequestsCard extends ConsumerWidget {
                   CircleAvatar(
                     radius: 18,
                     backgroundColor: Colors.amber.shade200,
-                    child: Icon(Icons.person, color: Colors.amber.shade900, size: 20),
+                    child: Icon(
+                      Icons.person,
+                      color: Colors.amber.shade900,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -601,11 +696,17 @@ class _PendingRequestsCard extends ConsumerWidget {
                           children: [
                             Text(
                               displayName,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.amber.shade200,
                                 borderRadius: BorderRadius.circular(4),
@@ -623,7 +724,10 @@ class _PendingRequestsCard extends ConsumerWidget {
                         ),
                         Text(
                           '$email • $construtoraNome',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                          ),
                         ),
                       ],
                     ),
@@ -645,8 +749,14 @@ class _PendingRequestsCard extends ConsumerWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.teal.shade700,
                       foregroundColor: Colors.white,
-                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                   ),
                 ],
@@ -673,7 +783,8 @@ class _ApproveRequestDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_ApproveRequestDialog> createState() => _ApproveRequestDialogState();
+  ConsumerState<_ApproveRequestDialog> createState() =>
+      _ApproveRequestDialogState();
 }
 
 class _ApproveRequestDialogState extends ConsumerState<_ApproveRequestDialog> {
@@ -697,17 +808,18 @@ class _ApproveRequestDialogState extends ConsumerState<_ApproveRequestDialog> {
     final pass = _passCtrl.text.trim();
     if (pass.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('A senha deve ter pelo menos 6 caracteres')),
+        const SnackBar(
+          content: Text('A senha deve ter pelo menos 6 caracteres'),
+        ),
       );
       return;
     }
 
     setState(() => _loading = true);
     try {
-      await ref.read(membrosRepositoryProvider).approveAccessRequest(
-            widget.requestId,
-            pass,
-          );
+      await ref
+          .read(membrosRepositoryProvider)
+          .approveAccessRequest(widget.requestId, pass);
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -722,7 +834,10 @@ class _ApproveRequestDialogState extends ConsumerState<_ApproveRequestDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao aprovar: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Erro ao aprovar: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -787,7 +902,10 @@ class _ApproveRequestDialogState extends ConsumerState<_ApproveRequestDialog> {
               ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Text('Confirmar e Criar'),
         ),

@@ -124,21 +124,26 @@ class _TemplateFormDialogState extends ConsumerState<TemplateFormDialog> {
                       controller: descCtrl,
                       decoration: const InputDecoration(
                         labelText: 'Critério / Descrição Técnica',
-                        hintText: 'Ex.: Usar régua de nível e tolerância de 2mm',
+                        hintText:
+                            'Ex.: Usar régua de nível e tolerância de 2mm',
                       ),
                       maxLines: 2,
                     ),
                     const SizedBox(height: 12),
                     SwitchListTile(
                       title: const Text('Item Obrigatório'),
-                      subtitle: const Text('Exige resposta para concluir vistoria'),
+                      subtitle: const Text(
+                        'Exige resposta para concluir vistoria',
+                      ),
                       value: obrigatorio,
                       onChanged: (v) => setDlgState(() => obrigatorio = v),
                       contentPadding: EdgeInsets.zero,
                     ),
                     SwitchListTile(
                       title: const Text('Exigir Foto se Reprovado'),
-                      subtitle: const Text('Obriga evidência fotográfica em não-conformidade'),
+                      subtitle: const Text(
+                        'Obriga evidência fotográfica em não-conformidade',
+                      ),
                       value: requerFoto,
                       onChanged: (v) => setDlgState(() => requerFoto = v),
                       contentPadding: EdgeInsets.zero,
@@ -272,9 +277,8 @@ class _TemplateFormDialogState extends ConsumerState<TemplateFormDialog> {
                         existente != null
                             ? 'Editar Template (Criar v${existente.version + 1})'
                             : 'Novo Template de Validação',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
                     IconButton(
@@ -301,7 +305,10 @@ class _TemplateFormDialogState extends ConsumerState<TemplateFormDialog> {
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         isExpanded: true,
-                        initialValue: _disciplinasDisponiveis.any((d) => d['value'] == _disciplinaSelecionada)
+                        initialValue:
+                            _disciplinasDisponiveis.any(
+                              (d) => d['value'] == _disciplinaSelecionada,
+                            )
                             ? _disciplinaSelecionada
                             : 'geral',
                         decoration: const InputDecoration(
@@ -323,7 +330,9 @@ class _TemplateFormDialogState extends ConsumerState<TemplateFormDialog> {
                       const SizedBox(height: 16),
                       SwitchListTile(
                         title: const Text('Template Ativo'),
-                        subtitle: const Text('Templates inativos não aparecem para novas vistorias'),
+                        subtitle: const Text(
+                          'Templates inativos não aparecem para novas vistorias',
+                        ),
                         value: _ativo,
                         onChanged: (v) => setState(() => _ativo = v),
                         contentPadding: EdgeInsets.zero,
@@ -386,14 +395,16 @@ class _TemplateFormDialogState extends ConsumerState<TemplateFormDialog> {
                                 ),
                                 title: Text(
                                   item.titulo,
-                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   item.descricao.isNotEmpty
                                       ? item.descricao
                                       : (item.requerFotoSeReprovado
-                                          ? 'Exige foto em não-conformidade'
-                                          : 'Sem foto mandatória'),
+                                            ? 'Exige foto em não-conformidade'
+                                            : 'Sem foto mandatória'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -405,7 +416,11 @@ class _TemplateFormDialogState extends ConsumerState<TemplateFormDialog> {
                                       onPressed: () => _editarItem(index),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        size: 20,
+                                        color: Colors.red,
+                                      ),
                                       onPressed: () => _removerItem(index),
                                     ),
                                   ],
@@ -422,7 +437,9 @@ class _TemplateFormDialogState extends ConsumerState<TemplateFormDialog> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: _salvando ? null : () => Navigator.pop(context),
+                      onPressed: _salvando
+                          ? null
+                          : () => Navigator.pop(context),
                       child: const Text('Cancelar'),
                     ),
                     const SizedBox(width: 12),
@@ -436,7 +453,9 @@ class _TemplateFormDialogState extends ConsumerState<TemplateFormDialog> {
                             )
                           : const Icon(Icons.check),
                       label: Text(
-                        existente != null ? 'Salvar Nova Versão' : 'Criar Template',
+                        existente != null
+                            ? 'Salvar Nova Versão'
+                            : 'Criar Template',
                       ),
                     ),
                   ],

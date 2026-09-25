@@ -6,14 +6,14 @@ void main() {
   group('EtapaTipo', () {
     test('define exatamente as 5 etapas fixas na ordem do domínio', () {
       expect(EtapaTipo.values, hasLength(5));
-      expect(
-        EtapaTipo.values.map((t) => t.ordem).toList(),
-        [1, 2, 3, 4, 5],
-      );
-      expect(
-        EtapaTipo.values.map((t) => t.label).toList(),
-        ['Muro', 'Cinza/1ª', 'Cinza/2ª', 'Cinza/3ª', 'Branca/Acabamento'],
-      );
+      expect(EtapaTipo.values.map((t) => t.ordem).toList(), [1, 2, 3, 4, 5]);
+      expect(EtapaTipo.values.map((t) => t.label).toList(), [
+        'Muro',
+        'Cinza/1ª',
+        'Cinza/2ª',
+        'Cinza/3ª',
+        'Branca/Acabamento',
+      ]);
     });
   });
 
@@ -27,7 +27,7 @@ void main() {
         loteamentoId: 'lt1',
         quadraId: 'qd1',
         loteId: 'lo1',
-        newId: () => 'et${++counter}',
+        newId: (_) => 'et${++counter}',
         now: now,
       );
 
@@ -53,7 +53,13 @@ void main() {
         expect(etapa.updatedAt, now);
       }
 
-      expect(etapas.map((e) => e.id).toSet(), {'et1', 'et2', 'et3', 'et4', 'et5'});
+      expect(etapas.map((e) => e.id).toSet(), {
+        'et1',
+        'et2',
+        'et3',
+        'et4',
+        'et5',
+      });
     });
 
     test('ordens são estritamente crescentes', () {
@@ -63,7 +69,7 @@ void main() {
         loteamentoId: 'lt1',
         quadraId: 'qd1',
         loteId: 'lo1',
-        newId: () => 'et${++counter}',
+        newId: (_) => 'et${++counter}',
         now: DateTime(2026),
       );
 

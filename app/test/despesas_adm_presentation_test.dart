@@ -5,8 +5,9 @@ import 'package:app/src/features/despesas_adm/presentation/widgets/despesa_card.
 
 void main() {
   group('DespesaCard Widget Tests', () {
-    testWidgets('Renderiza despesa à vista pendente com valor e badges',
-        (tester) async {
+    testWidgets('Renderiza despesa à vista pendente com valor e badges', (
+      tester,
+    ) async {
       final despesa = DespesaAdm(
         id: 'd1',
         construtoraId: 'c1',
@@ -54,8 +55,9 @@ void main() {
       expect(cancelarClicado, isTrue);
     });
 
-    testWidgets('Renderiza despesa parcelada com progresso e lote associado',
-        (tester) async {
+    testWidgets('Renderiza despesa parcelada com progresso e lote associado', (
+      tester,
+    ) async {
       final parcelas = [
         ParcelaDespesa(
           numero: 1,
@@ -91,9 +93,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: DespesaCard(despesa: despesa),
-          ),
+          home: Scaffold(body: DespesaCard(despesa: despesa)),
         ),
       );
 
@@ -105,8 +105,9 @@ void main() {
       expect(find.textContaining('500,00'), findsAtLeastNWidgets(2));
     });
 
-    testWidgets('Despesa paga não exibe botões de liquidação/cancelamento',
-        (tester) async {
+    testWidgets('Despesa paga não exibe botões de liquidação/cancelamento', (
+      tester,
+    ) async {
       final despesa = DespesaAdm(
         id: 'd3',
         construtoraId: 'c1',
@@ -124,9 +125,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: DespesaCard(despesa: despesa),
-          ),
+          home: Scaffold(body: DespesaCard(despesa: despesa)),
         ),
       );
 

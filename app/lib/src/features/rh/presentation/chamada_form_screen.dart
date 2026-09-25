@@ -500,16 +500,13 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
       ),
       data: (allFuncionarios) {
         return equipesAsync.when(
-          loading: () => const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          ),
+          loading: () =>
+              const Scaffold(body: Center(child: CircularProgressIndicator())),
           error: (e, st) => Scaffold(
             body: Center(child: Text('Erro ao carregar equipes: $e')),
           ),
           data: (equipes) {
-            if (_initialized &&
-                _workers.isEmpty &&
-                _existingChamada == null) {
+            if (_initialized && _workers.isEmpty && _existingChamada == null) {
               _syncWorkersList(allFuncionarios, lotes);
             }
 

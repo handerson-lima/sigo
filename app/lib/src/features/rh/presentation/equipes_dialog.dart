@@ -46,9 +46,9 @@ class _EquipesDialogState extends ConsumerState<EquipesDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao cadastrar equipe: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao cadastrar equipe: $e')));
       }
     } finally {
       if (mounted) setState(() => _isCreating = false);
@@ -137,8 +137,9 @@ class _EquipesDialogState extends ConsumerState<EquipesDialog> {
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: CircleAvatar(
-                            backgroundColor:
-                                eq.isActive ? Colors.indigo.shade100 : Colors.grey.shade200,
+                            backgroundColor: eq.isActive
+                                ? Colors.indigo.shade100
+                                : Colors.grey.shade200,
                             child: Icon(
                               Icons.groups,
                               color: eq.isActive ? Colors.indigo : Colors.grey,
@@ -159,9 +160,7 @@ class _EquipesDialogState extends ConsumerState<EquipesDialog> {
                               : null,
                           trailing: IconButton(
                             icon: Icon(
-                              eq.isActive
-                                  ? Icons.toggle_on
-                                  : Icons.toggle_off,
+                              eq.isActive ? Icons.toggle_on : Icons.toggle_off,
                               color: eq.isActive ? Colors.green : Colors.grey,
                               size: 32,
                             ),

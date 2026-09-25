@@ -30,49 +30,49 @@ abstract class ConstrutoraPaths {
 
 /// Rotas do módulo de construtoras.
 List<RouteBase> get construtoraRoutes => [
+  GoRoute(
+    path: ConstrutoraPaths.list,
+    builder: (context, state) => const ConstrutorasListScreen(),
+  ),
+  GoRoute(
+    path: ConstrutoraPaths.detail,
+    redirect: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final path = state.uri.path.replaceAll(RegExp(r'/$'), '');
+      if (path == '/construtoras/$cId') {
+        return state.uri
+            .replace(path: '/construtoras/$cId/loteamentos')
+            .toString();
+      }
+      return null;
+    },
+    builder: (context, state) {
+      return const SizedBox.shrink();
+    },
+    routes: [
       GoRoute(
-        path: ConstrutoraPaths.list,
-        builder: (context, state) => const ConstrutorasListScreen(),
-      ),
-      GoRoute(
-        path: ConstrutoraPaths.detail,
-        redirect: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final path = state.uri.path.replaceAll(RegExp(r'/$'), '');
-          if (path == '/construtoras/$cId') {
-            return state.uri
-                .replace(path: '/construtoras/$cId/loteamentos')
-                .toString();
-          }
-          return null;
-        },
+        path: ConstrutoraPaths.membros,
         builder: (context, state) {
-          return const SizedBox.shrink();
+          final cId = state.pathParameters['cId']!;
+          return AccessGuard(
+            construtoraId: cId,
+            adminOnly: true,
+            child: MembrosScreen(construtoraId: cId),
+          );
         },
-        routes: [
-          GoRoute(
-            path: ConstrutoraPaths.membros,
-            builder: (context, state) {
-              final cId = state.pathParameters['cId']!;
-              return AccessGuard(
-                construtoraId: cId,
-                adminOnly: true,
-                child: MembrosScreen(construtoraId: cId),
-              );
-            },
-          ),
-          ...obraRoutes,
-          ...loteamentosRoutes,
-          ...almoxarifadoRoutes,
-          ...diarioRoutes,
-          ...rhRoutes,
-          ...epiRoutes,
-          ...financeiroRoutes,
-          ...validacaoRoutes,
-          ...fornecedoresRoutes,
-          ...comprasRoutes,
-          ...custos360Routes,
-          ...despesasAdmRoutes,
-        ],
       ),
-    ];
+      ...obraRoutes,
+      ...loteamentosRoutes,
+      ...almoxarifadoRoutes,
+      ...diarioRoutes,
+      ...rhRoutes,
+      ...epiRoutes,
+      ...financeiroRoutes,
+      ...validacaoRoutes,
+      ...fornecedoresRoutes,
+      ...comprasRoutes,
+      ...custos360Routes,
+      ...despesasAdmRoutes,
+    ],
+  ),
+];

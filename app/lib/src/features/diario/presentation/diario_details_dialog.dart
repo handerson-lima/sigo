@@ -32,9 +32,8 @@ class DiarioDetailsDialog extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'RDO — $formattedDate',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                      style: Theme.of(context).textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
                   IconButton(
@@ -70,8 +69,9 @@ class DiarioDetailsDialog extends ConsumerWidget {
                         children: diario.efetivo.map((e) {
                           return Chip(
                             label: Text('${e.role}: ${e.count}'),
-                            backgroundColor:
-                                Theme.of(context).colorScheme.surfaceContainerHighest,
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
                           );
                         }).toList(),
                       ),
@@ -87,7 +87,9 @@ class DiarioDetailsDialog extends ConsumerWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerLow,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerLow,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: Theme.of(context).colorScheme.outlineVariant,
@@ -122,11 +124,11 @@ class DiarioDetailsDialog extends ConsumerWidget {
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                          childAspectRatio: 1,
-                        ),
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: 1,
+                            ),
                         itemCount: diario.photoUrls.length,
                         itemBuilder: (context, index) {
                           final photoRef = diario.photoUrls[index];
@@ -151,10 +153,7 @@ class _PhotoThumbnailCard extends ConsumerWidget {
   final String photoRef;
   final int index;
 
-  const _PhotoThumbnailCard({
-    required this.photoRef,
-    required this.index,
-  });
+  const _PhotoThumbnailCard({required this.photoRef, required this.index});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -219,15 +218,15 @@ class _PhotoThumbnailCard extends ConsumerWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.memory(
-                  bytes,
-                  fit: BoxFit.cover,
-                ),
+                Image.memory(bytes, fit: BoxFit.cover),
                 Positioned(
                   bottom: 4,
                   right: 4,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(4),
@@ -267,10 +266,7 @@ class _PhotoThumbnailCard extends ConsumerWidget {
               maxScale: 4.0,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.memory(
-                  bytes,
-                  fit: BoxFit.contain,
-                ),
+                child: Image.memory(bytes, fit: BoxFit.contain),
               ),
             ),
             Positioned(

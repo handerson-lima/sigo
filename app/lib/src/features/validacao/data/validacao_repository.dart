@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,60 +16,68 @@ final validacaoRepositoryProvider = Provider<ValidacaoRepository>((ref) {
 });
 
 final templatesListStreamProvider =
-    StreamProvider.family<List<ValidacaoTemplate>, String>((ref, construtoraId) {
-  return ref.watch(validacaoRepositoryProvider).watchTemplates(construtoraId);
-});
+    StreamProvider.family<List<ValidacaoTemplate>, String>((
+      ref,
+      construtoraId,
+    ) {
+      return ref
+          .watch(validacaoRepositoryProvider)
+          .watchTemplates(construtoraId);
+    });
 
-final loteVistoriasStreamProvider = StreamProvider.family<
-    List<ValidacaoVistoria>,
-    ({String construtoraId, String obraId, String loteId})>((ref, arg) {
-  return ref
-      .watch(validacaoRepositoryProvider)
-      .watchVistoriasLote(arg.construtoraId, arg.obraId, arg.loteId);
-});
+final loteVistoriasStreamProvider =
+    StreamProvider.family<
+      List<ValidacaoVistoria>,
+      ({String construtoraId, String obraId, String loteId})
+    >((ref, arg) {
+      return ref
+          .watch(validacaoRepositoryProvider)
+          .watchVistoriasLote(arg.construtoraId, arg.obraId, arg.loteId);
+    });
 
-final vistoriaDetailsFutureProvider = FutureProvider.family<
-    ValidacaoVistoria?,
-    ({
-      String construtoraId,
-      String obraId,
-      String loteId,
-      String validacaoId
-    })>((ref, arg) {
-  return ref.watch(validacaoRepositoryProvider).getVistoria(
-        arg.construtoraId,
-        arg.obraId,
-        arg.loteId,
-        arg.validacaoId,
-      );
-});
+final vistoriaDetailsFutureProvider =
+    FutureProvider.family<
+      ValidacaoVistoria?,
+      ({String construtoraId, String obraId, String loteId, String validacaoId})
+    >((ref, arg) {
+      return ref
+          .watch(validacaoRepositoryProvider)
+          .getVistoria(
+            arg.construtoraId,
+            arg.obraId,
+            arg.loteId,
+            arg.validacaoId,
+          );
+    });
 
 class ValidacaoRepository {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
 
   ValidacaoRepository(this._firestore, [FirebaseStorage? storage])
-      : _storage = storage ?? FirebaseStorage.instance;
+    : _storage = storage ?? FirebaseStorage.instance;
 
   // Coleção corporativa de templates
   CollectionReference<Map<String, dynamic>> _templatesRef(
-          String construtoraId) =>
-      _firestore
-          .collection('construtoras')
-          .doc(construtoraId)
-          .collection('validacao_templates');
+    String construtoraId,
+  ) => _firestore
+      .collection('construtoras')
+      .doc(construtoraId)
+      .collection('validacao_templates');
 
   // Subcoleção de validações por lote
   CollectionReference<Map<String, dynamic>> _vistoriasRef(
-          String construtoraId, String obraId, String loteId) =>
-      _firestore
-          .collection('construtoras')
-          .doc(construtoraId)
-          .collection('obras')
-          .doc(obraId)
-          .collection('lotes')
-          .doc(loteId)
-          .collection('validacoes');
+    String construtoraId,
+    String obraId,
+    String loteId,
+  ) => _firestore
+      .collection('construtoras')
+      .doc(construtoraId)
+      .collection('obras')
+      .doc(obraId)
+      .collection('lotes')
+      .doc(loteId)
+      .collection('validacoes');
 
   // --- TEMPLATES ---
 
@@ -100,7 +109,9 @@ class ValidacaoRepository {
       final list = snapshot.docs
           .map((doc) => ValidacaoTemplate.fromMap(doc.data(), doc.id))
           .toList();
-      list.sort((a, b) => a.titulo.toLowerCase().compareTo(b.titulo.toLowerCase()));
+      list.sort(
+        (a, b) => a.titulo.toLowerCase().compareTo(b.titulo.toLowerCase()),
+      );
       return list;
     });
   }
@@ -115,10 +126,9 @@ class ValidacaoRepository {
   }
 
   Future<void> saveTemplate(ValidacaoTemplate template) async {
-    await _templatesRef(template.construtoraId).doc(template.id).set(
-          template.toMap(),
-          SetOptions(merge: true),
-        );
+    await _templatesRef(template.construtoraId)
+        .doc(template.id)
+        .set(template.toMap(), SetOptions(merge: true));
   }
 
   Future<void> toggleTemplateAtivo(
@@ -155,9 +165,9 @@ class ValidacaoRepository {
     String obraId,
     String loteId,
   ) {
-    return _vistoriasRef(construtoraId, obraId, loteId)
-        .snapshots()
-        .map((snapshot) {
+    return _vistoriasRef(construtoraId, obraId, loteId).snapshots().map((
+      snapshot,
+    ) {
       final list = snapshot.docs
           .map((doc) => ValidacaoVistoria.fromMap(doc.data(), doc.id))
           .toList();
@@ -172,8 +182,11 @@ class ValidacaoRepository {
     String loteId,
     String validacaoId,
   ) async {
-    final doc =
-        await _vistoriasRef(construtoraId, obraId, loteId).doc(validacaoId).get();
+    final doc = await _vistoriasRef(
+      construtoraId,
+      obraId,
+      loteId,
+    ).doc(validacaoId).get();
     if (!doc.exists || doc.data() == null) return null;
     return ValidacaoVistoria.fromMap(doc.data()!, doc.id);
   }
@@ -183,10 +196,7 @@ class ValidacaoRepository {
       vistoria.construtoraId,
       vistoria.obraId,
       vistoria.loteId,
-    ).doc(vistoria.id).set(
-          vistoria.toMap(),
-          SetOptions(merge: true),
-        );
+    ).doc(vistoria.id).set(vistoria.toMap(), SetOptions(merge: true));
   }
 
   Future<void> reabrirVistoria(

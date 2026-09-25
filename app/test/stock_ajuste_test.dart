@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,11 +8,7 @@ import 'package:app/src/features/almoxarifado/presentation/stock_history_screen.
 import 'package:app/src/sync/operation_queue.dart';
 
 Widget createTestWidget(Widget home) {
-  return ProviderScope(
-    child: MaterialApp(
-      home: home,
-    ),
-  );
+  return ProviderScope(child: MaterialApp(home: home));
 }
 
 void main() {
@@ -618,31 +615,34 @@ void main() {
       expect(delta, 10.5);
     });
 
-    testWidgets('Usuário comum sem canManage não visualiza botão "Ajustar quantidade"', (tester) async {
-      final material = mat.Material(
-        id: 'mat-1',
-        construtoraId: 'c1',
-        name: 'Cimento CP II',
-        unit: 'Saco',
-        currentQuantity: 50.0,
-        quantityUnits: 50000,
-      );
+    testWidgets(
+      'Usuário comum sem canManage não visualiza botão "Ajustar quantidade"',
+      (tester) async {
+        final material = mat.Material(
+          id: 'mat-1',
+          construtoraId: 'c1',
+          name: 'Cimento CP II',
+          unit: 'Saco',
+          currentQuantity: 50.0,
+          quantityUnits: 50000,
+        );
 
-      await tester.pumpWidget(
-        createTestWidget(
-          StockHistoryScreen(
-            c: 'c1',
-            material: material,
-            canManage: false,
-            mockMovements: const [],
-            queue: fakeQueue,
+        await tester.pumpWidget(
+          createTestWidget(
+            StockHistoryScreen(
+              c: 'c1',
+              material: material,
+              canManage: false,
+              mockMovements: const [],
+              queue: fakeQueue,
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Ajustar quantidade'), findsNothing);
-      expect(find.text('Conferir saldo inicial'), findsNothing);
-    });
+        expect(find.text('Ajustar quantidade'), findsNothing);
+        expect(find.text('Conferir saldo inicial'), findsNothing);
+      },
+    );
   });
 }

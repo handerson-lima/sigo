@@ -1,7 +1,9 @@
 import '../../authentication/data/user_repository.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import 'user_construtoras_provider.dart';
 import '../../../common_widgets/sigo_layout.dart';
 import '../../obras/presentation/current_permissions_provider.dart';
@@ -36,9 +38,7 @@ class ConstrutorasListScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    isDev
-                        ? 'Nenhuma construtora ativa encontrada.'
-                        : 'Você não pertence a nenhuma construtora.\nFale com o administrador.',
+                    isDev ? 'Nenhuma construtora ativa encontrada.' : 'Você não pertence a nenhuma construtora.\nFale com o administrador.',
                     textAlign: TextAlign.center,
                   ),
                   if (isDev) ...[
@@ -66,38 +66,51 @@ class ConstrutorasListScreen extends ConsumerWidget {
               final construtora = construtoras[index];
               return Consumer(
                 builder: (context, ref, child) {
-                  final cm = ref.watch(construtoraPermissionProvider(construtora.id)).value;
-                  final canViewLoteamentos = isDev || (cm?['isActive'] == true && normalizeRawModules(cm?['modules'], cm?['allowedModules']).contains('lotes'));
+                  final cm = ref
+                      .watch(construtoraPermissionProvider(construtora.id))
+                      .value;
+                  final canViewLoteamentos =
+                      isDev ||
+                      (cm?['isActive'] == true &&
+                          normalizeRawModules(
+                            cm?['modules'],
+                            cm?['allowedModules'],
+                          ).contains('lotes'));
 
                   return Card(
                     elevation: 4,
                     child: InkWell(
                       onTap: () {
                         if (canViewLoteamentos) {
-                          context.go('/construtoras/${construtora.id}/loteamentos');
+                          context.go(
+                            '/construtoras/${construtora.id}/loteamentos',
+                          );
                         } else {
                           context.go('/construtoras/${construtora.id}');
                         }
                       },
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          construtora.name,
-                          style: Theme.of(context).textTheme.titleLarge,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              construtora.name,
+                              style: Theme.of(context).textTheme.titleLarge,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const Spacer(),
+                            if (construtora.cnpj != null)
+                              Text(
+                                'CNPJ: ${construtora.cnpj}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
                         ),
-                        const Spacer(),
-                        if (construtora.cnpj != null)
-                          Text('CNPJ: ${construtora.cnpj}', style: Theme.of(context).textTheme.bodySmall),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              );
+                  );
                 },
               );
             },

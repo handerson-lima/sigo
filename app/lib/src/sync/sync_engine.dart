@@ -7,13 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'operation_queue.dart';
 
-enum SyncEngineStatus {
-  idle,
-  syncing,
-  offline,
-  paused,
-  error,
-}
+enum SyncEngineStatus { idle, syncing, offline, paused, error }
 
 class SyncEngine with WidgetsBindingObserver {
   static bool get isRunningTests {
@@ -31,9 +25,11 @@ class SyncEngine with WidgetsBindingObserver {
     this.periodicInterval = const Duration(seconds: 15),
     bool? autoStart,
     this.observeLifecycle = true,
-  })  : _queue = queue ?? OperationQueue.instance,
-        _connectivityStream = connectivityStream ?? Connectivity().onConnectivityChanged,
-        _checkConnectivity = checkConnectivity ?? Connectivity().checkConnectivity {
+  }) : _queue = queue ?? OperationQueue.instance,
+       _connectivityStream =
+           connectivityStream ?? Connectivity().onConnectivityChanged,
+       _checkConnectivity =
+           checkConnectivity ?? Connectivity().checkConnectivity {
     if (observeLifecycle) {
       WidgetsBinding.instance.addObserver(this);
     }
@@ -131,7 +127,10 @@ class SyncEngine with WidgetsBindingObserver {
     String? construtoraId,
     String? obraId,
   }) async {
-    if (_isDisposed || _isPaused || !_isOnline || status == SyncEngineStatus.syncing) {
+    if (_isDisposed ||
+        _isPaused ||
+        !_isOnline ||
+        status == SyncEngineStatus.syncing) {
       return;
     }
 

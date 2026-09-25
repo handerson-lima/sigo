@@ -7,11 +7,11 @@ enum StatusParcelaCompra {
   cancelado;
 
   String get label => switch (this) {
-        StatusParcelaCompra.pendente => 'Pendente',
-        StatusParcelaCompra.pago => 'Pago',
-        StatusParcelaCompra.atrasado => 'Atrasado',
-        StatusParcelaCompra.cancelado => 'Cancelado',
-      };
+    StatusParcelaCompra.pendente => 'Pendente',
+    StatusParcelaCompra.pago => 'Pago',
+    StatusParcelaCompra.atrasado => 'Atrasado',
+    StatusParcelaCompra.cancelado => 'Cancelado',
+  };
 }
 
 enum MetodoPagamentoCompra {
@@ -23,13 +23,13 @@ enum MetodoPagamentoCompra {
   outro;
 
   String get label => switch (this) {
-        MetodoPagamentoCompra.pix => 'Pix',
-        MetodoPagamentoCompra.boleto => 'Boleto Bancário',
-        MetodoPagamentoCompra.transferencia => 'TED / Transferência',
-        MetodoPagamentoCompra.cartao => 'Cartão de Débito / Crédito',
-        MetodoPagamentoCompra.dinheiro => 'Dinheiro em Espécie',
-        MetodoPagamentoCompra.outro => 'Outro',
-      };
+    MetodoPagamentoCompra.pix => 'Pix',
+    MetodoPagamentoCompra.boleto => 'Boleto Bancário',
+    MetodoPagamentoCompra.transferencia => 'TED / Transferência',
+    MetodoPagamentoCompra.cartao => 'Cartão de Débito / Crédito',
+    MetodoPagamentoCompra.dinheiro => 'Dinheiro em Espécie',
+    MetodoPagamentoCompra.outro => 'Outro',
+  };
 }
 
 class ParcelaCompra {
@@ -104,9 +104,9 @@ class ParcelaCompra {
     final vCents = json['valorCents'] is int
         ? json['valorCents'] as int
         : (json['valorCents'] as num?)?.toInt() ??
-            ((json['valor'] as num?) != null
-                ? ((json['valor'] as num) * 100).round()
-                : 0);
+              ((json['valor'] as num?) != null
+                  ? ((json['valor'] as num) * 100).round()
+                  : 0);
 
     final statusStr = json['status'] as String? ?? 'pendente';
     final status = StatusParcelaCompra.values.firstWhere(

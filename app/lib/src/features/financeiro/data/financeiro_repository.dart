@@ -15,7 +15,7 @@ class FinanceiroRepository {
   final OperationQueue _queue;
 
   FinanceiroRepository(this._firestore, {OperationQueue? queue})
-      : _queue = queue ?? OperationQueue.instance;
+    : _queue = queue ?? OperationQueue.instance;
 
   CollectionReference<Despesa> _despesasRef(String construtoraId) => _firestore
       .collection('construtoras')

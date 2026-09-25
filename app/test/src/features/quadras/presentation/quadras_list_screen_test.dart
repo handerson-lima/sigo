@@ -12,21 +12,23 @@ class FakeQuadraRepository implements QuadraRepository {
   FakeQuadraRepository(this.quadras);
 
   @override
-  Stream<List<Quadra>> watchQuadras(String construtoraId, String loteamentoId) =>
-      Stream.value(quadras);
+  Stream<List<Quadra>> watchQuadras(
+    String construtoraId,
+    String loteamentoId,
+  ) => Stream.value(quadras);
 
   @override
   Future<void> createQuadra(Quadra quadra) async {}
 }
 
 Quadra makeQuadra(String id) => Quadra(
-      id: id,
-      construtoraId: 'c1',
-      loteamentoId: 'l1',
-      name: 'Quadra $id',
-      createdAt: DateTime(2026, 1, 1),
-      updatedAt: DateTime(2026, 1, 1),
-    );
+  id: id,
+  construtoraId: 'c1',
+  loteamentoId: 'l1',
+  name: 'Quadra $id',
+  createdAt: DateTime(2026, 1, 1),
+  updatedAt: DateTime(2026, 1, 1),
+);
 
 Widget buildTestWidget(Widget child) {
   final router = GoRouter(
@@ -89,8 +91,9 @@ void main() {
     );
   });
 
-  testWidgets('Renderiza mensagem de erro quando o stream falha',
-      (tester) async {
+  testWidgets('Renderiza mensagem de erro quando o stream falha', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -106,22 +109,18 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Não foi possível carregar as quadras.'),
-      findsOneWidget,
-    );
+    expect(find.text('Não foi possível carregar as quadras.'), findsOneWidget);
     expect(find.text('Tentar novamente'), findsOneWidget);
   });
 
-  testWidgets('Botão Tentar novamente invalida o provider e recarrega',
-      (tester) async {
+  testWidgets('Botão Tentar novamente invalida o provider e recarrega', (
+    tester,
+  ) async {
     var stream = Stream<List<Quadra>>.error(Exception('falha'));
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          watchQuadrasProvider.overrideWith((ref, arg) => stream),
-        ],
+        overrides: [watchQuadrasProvider.overrideWith((ref, arg) => stream)],
         child: buildTestWidget(
           const QuadrasListScreen(construtoraId: 'c1', loteamentoId: 'l1'),
         ),
@@ -129,10 +128,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    expect(
-      find.text('Não foi possível carregar as quadras.'),
-      findsOneWidget,
-    );
+    expect(find.text('Não foi possível carregar as quadras.'), findsOneWidget);
 
     stream = Stream.value([makeQuadra('q1')]);
     await tester.tap(find.text('Tentar novamente'));
@@ -141,8 +137,9 @@ void main() {
     expect(find.text('Quadra q1'), findsOneWidget);
   });
 
-  testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)',
-      (tester) async {
+  testWidgets('Reconstruir a tela não reemite AsyncLoading (Records)', (
+    tester,
+  ) async {
     final rebuild = ValueNotifier<int>(0);
     addTearDown(rebuild.dispose);
     var buildCount = 0;
@@ -156,10 +153,7 @@ void main() {
             valueListenable: rebuild,
             builder: (context, _, _) {
               buildCount++;
-              return QuadrasListScreen(
-                construtoraId: 'c1',
-                loteamentoId: 'l1',
-              );
+              return QuadrasListScreen(construtoraId: 'c1', loteamentoId: 'l1');
             },
           ),
         ),

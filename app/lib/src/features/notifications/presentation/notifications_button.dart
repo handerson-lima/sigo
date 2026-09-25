@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../authentication/data/auth_repository.dart';
 import '../data/notifications_repository.dart';
 
@@ -35,7 +36,9 @@ class NotificationsButton extends ConsumerWidget {
         ),
         backgroundColor: Colors.redAccent,
         child: Icon(
-          unreadCount > 0 ? Icons.notifications_active : Icons.notifications_none,
+          unreadCount > 0
+              ? Icons.notifications_active
+              : Icons.notifications_none,
           color: unreadCount > 0 ? Colors.amber[900] : Colors.black54,
         ),
       ),
@@ -81,13 +84,15 @@ class _NotificationsPanel extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.notifications_rounded, color: Colors.amber),
+                      const Icon(
+                        Icons.notifications_rounded,
+                        color: Colors.amber,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Notificações',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -106,8 +111,11 @@ class _NotificationsPanel extends ConsumerWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.notifications_off_outlined,
-                                size: 48, color: Colors.grey.shade400),
+                            Icon(
+                              Icons.notifications_off_outlined,
+                              size: 48,
+                              color: Colors.grey.shade400,
+                            ),
                             const SizedBox(height: 12),
                             Text(
                               'Nenhuma notificação no momento.',
@@ -128,17 +136,23 @@ class _NotificationsPanel extends ConsumerWidget {
 
                         // Tenta extrair a senha provisória se houver
                         String? provisoryPass;
-                        final match = RegExp(r'Senha provisória:\s*([^\s\.]+)').firstMatch(notif.body);
+                        final match = RegExp(r'Senha provisória:\s*([^\s\.]+)')
+                            .firstMatch(notif.body);
                         if (match != null) {
                           provisoryPass = match.group(1);
                         }
 
                         return Container(
                           decoration: BoxDecoration(
-                            color: isUnread ? Colors.amber.shade50.withValues(alpha: 0.5) : Colors.transparent,
+                            color: isUnread
+                                ? Colors.amber.shade50.withValues(alpha: 0.5)
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 8,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -147,22 +161,29 @@ class _NotificationsPanel extends ConsumerWidget {
                                 children: [
                                   CircleAvatar(
                                     radius: 14,
-                                    backgroundColor: isUnread ? Colors.amber.shade200 : Colors.grey.shade200,
+                                    backgroundColor: isUnread
+                                        ? Colors.amber.shade200
+                                        : Colors.grey.shade200,
                                     child: Icon(
                                       Icons.person_add,
                                       size: 16,
-                                      color: isUnread ? Colors.amber.shade900 : Colors.grey.shade600,
+                                      color: isUnread
+                                          ? Colors.amber.shade900
+                                          : Colors.grey.shade600,
                                     ),
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           notif.title,
                                           style: TextStyle(
-                                            fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
+                                            fontWeight: isUnread
+                                                ? FontWeight.bold
+                                                : FontWeight.w600,
                                             fontSize: 14,
                                           ),
                                         ),
@@ -178,7 +199,11 @@ class _NotificationsPanel extends ConsumerWidget {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      size: 18,
+                                      color: Colors.grey,
+                                    ),
                                     tooltip: 'Remover',
                                     onPressed: () {
                                       ref
@@ -197,32 +222,61 @@ class _NotificationsPanel extends ConsumerWidget {
                                     children: [
                                       OutlinedButton.icon(
                                         onPressed: () {
-                                          Clipboard.setData(ClipboardData(text: provisoryPass!));
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          Clipboard.setData(
+                                            ClipboardData(text: provisoryPass!),
+                                          );
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             SnackBar(
-                                              content: Text('Senha provisória copiada: $provisoryPass'),
-                                              duration: const Duration(seconds: 2),
+                                              content: Text(
+                                                'Senha provisória copiada: $provisoryPass',
+                                              ),
+                                              duration: const Duration(
+                                                seconds: 2,
+                                              ),
                                             ),
                                           );
                                           if (isUnread) {
-                                            ref.read(notificationsRepositoryProvider).markAsRead(uid, notif.id);
+                                            ref
+                                                .read(
+                                                  notificationsRepositoryProvider,
+                                                )
+                                                .markAsRead(uid, notif.id);
                                           }
                                         },
                                         icon: const Icon(Icons.copy, size: 14),
-                                        label: Text('Copiar Senha: $provisoryPass'),
+                                        label: Text(
+                                          'Copiar Senha: $provisoryPass',
+                                        ),
                                         style: OutlinedButton.styleFrom(
                                           foregroundColor: Colors.teal.shade800,
-                                          side: BorderSide(color: Colors.teal.shade400),
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                          side: BorderSide(
+                                            color: Colors.teal.shade400,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          textStyle: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
                                       if (isUnread)
                                         TextButton(
                                           onPressed: () {
-                                            ref.read(notificationsRepositoryProvider).markAsRead(uid, notif.id);
+                                            ref
+                                                .read(
+                                                  notificationsRepositoryProvider,
+                                                )
+                                                .markAsRead(uid, notif.id);
                                           },
-                                          child: const Text('Marcar como lida', style: TextStyle(fontSize: 12)),
+                                          child: const Text(
+                                            'Marcar como lida',
+                                            style: TextStyle(fontSize: 12),
+                                          ),
                                         ),
                                     ],
                                   ),
@@ -234,7 +288,8 @@ class _NotificationsPanel extends ConsumerWidget {
                       },
                     );
                   },
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
                 ),
               ),

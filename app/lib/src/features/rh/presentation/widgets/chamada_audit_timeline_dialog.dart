@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../core/contracts.dart';
 import '../../domain/chamada_diaria.dart';
 
 class ChamadaAuditTimelineDialog extends StatelessWidget {
   final ChamadaDiaria chamada;
 
-  const ChamadaAuditTimelineDialog({
-    super.key,
-    required this.chamada,
-  });
+  const ChamadaAuditTimelineDialog({super.key, required this.chamada});
 
   @override
   Widget build(BuildContext context) {
@@ -56,8 +54,8 @@ class ChamadaAuditTimelineDialog extends StatelessWidget {
                       entry.totalCostCentsNovo - entry.totalCostCentsAnterior;
                   final diffFormatted =
                       'Δ ${diffCents >= 0 ? '+' : ''}${formatCents(diffCents)}';
-                  final dateStr =
-                      DateFormat('dd/MM/yyyy HH:mm').format(entry.timestamp);
+                  final dateStr = DateFormat('dd/MM/yyyy HH:mm')
+                      .format(entry.timestamp);
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,10 +107,7 @@ class ChamadaAuditTimelineDialog extends StatelessWidget {
                         spacing: 6,
                         runSpacing: 4,
                         children: [
-                          Text(
-                            'Impacto: ',
-                            style: theme.textTheme.bodySmall,
-                          ),
+                          Text('Impacto: ', style: theme.textTheme.bodySmall),
                           Text(
                             diffFormatted,
                             style: TextStyle(
@@ -121,8 +116,8 @@ class ChamadaAuditTimelineDialog extends StatelessWidget {
                               color: diffCents > 0
                                   ? Colors.orange.shade800
                                   : (diffCents < 0
-                                      ? Colors.green.shade800
-                                      : Colors.grey),
+                                        ? Colors.green.shade800
+                                        : Colors.grey),
                             ),
                           ),
                           Text(

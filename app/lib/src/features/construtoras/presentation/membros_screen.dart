@@ -130,17 +130,10 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
 
   Widget _buildAvisoPendentes(WidgetRef ref, String construtoraId) {
     return ListTile(
-      leading: Icon(
-        Icons.warning_amber_rounded,
-        color: Colors.orange.shade800,
-      ),
-      title: const Text(
-        'Não foi possível carregar as solicitações pendentes.',
-      ),
+      leading: Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800),
+      title: const Text('Não foi possível carregar as solicitações pendentes.'),
       trailing: TextButton(
-        onPressed: () => ref.invalidate(
-          pendingRequestsProvider(construtoraId),
-        ),
+        onPressed: () => ref.invalidate(pendingRequestsProvider(construtoraId)),
         child: const Text('Recarregar'),
       ),
     );
@@ -156,7 +149,7 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
     final contagemMeta = ref.watch(contagemObrasMetaProvider(construtoraId));
     final contagemCarregando =
         (obrasAtivasAsync.isLoading && !obrasAtivasAsync.hasValue) ||
-            contagemMeta.carregando;
+        contagemMeta.carregando;
     final contagemErro = contagemMeta.erro;
 
     final filtro = ref.watch(filtroMembrosProvider);
@@ -174,7 +167,8 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
           onPressed: () {
             showDialog(
               context: context,
-              builder: (context) => AddMembroDialog(construtoraId: construtoraId),
+              builder: (context) =>
+                  AddMembroDialog(construtoraId: construtoraId),
             );
           },
         ),
@@ -204,8 +198,9 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
               obraEfetiva = null;
             } else if (!obrasAtivasAsync.hasValue) {
               obraEfetiva = sel; // obras ainda carregando: não julgar
-            } else if ((obrasAtivasAsync.value ?? const <Obra>[])
-                .any((o) => o.id == sel)) {
+            } else if ((obrasAtivasAsync.value ?? const <Obra>[]).any(
+              (o) => o.id == sel,
+            )) {
               obraEfetiva = sel;
             } else {
               selecaoObraInvalida = true;
@@ -217,7 +212,8 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
               ref.read(obraSelecionadaProvider.notifier).limpar();
             });
           }
-          final semSelecaoDeObra = filtro == FiltroMembros.porObra &&
+          final semSelecaoDeObra =
+              filtro == FiltroMembros.porObra &&
               (obraEfetiva == null || obraEfetiva.isEmpty);
           final List<Map<String, dynamic>> pendentesFiltrados;
           final List<Membro> ativosFiltrados;
@@ -245,16 +241,18 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
 
           final vinculosSelecionados =
               filtro == FiltroMembros.porObra && obraEfetiva != null
-                  ? ref.watch(obraMembersProvider((
-                      construtoraId: construtoraId,
-                      obraId: obraEfetiva,
-                    )))
-                  : null;
+              ? ref.watch(
+                  obraMembersProvider((
+                    construtoraId: construtoraId,
+                    obraId: obraEfetiva,
+                  )),
+                )
+              : null;
           final erroVinculos = vinculosSelecionados?.hasError ?? false;
           final resultadoCarregando = filtro == FiltroMembros.porObra
               ? vinculosSelecionados != null &&
-                  vinculosSelecionados.isLoading &&
-                  !vinculosSelecionados.hasValue
+                    vinculosSelecionados.isLoading &&
+                    !vinculosSelecionados.hasValue
               : pendingAsync.isLoading && !pendingAsync.hasValue;
 
           if (totalFiltrado == 0 || erroVinculos) {
@@ -277,10 +275,12 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                         'Não foi possível carregar os membros deste loteamento.',
                       ),
                       trailing: TextButton(
-                        onPressed: () => ref.invalidate(obraMembersProvider((
-                          construtoraId: construtoraId,
-                          obraId: obraEfetiva!,
-                        ))),
+                        onPressed: () => ref.invalidate(
+                          obraMembersProvider((
+                            construtoraId: construtoraId,
+                            obraId: obraEfetiva!,
+                          )),
+                        ),
                         child: const Text('Recarregar'),
                       ),
                     )
@@ -306,8 +306,7 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
             onRefresh: () async => _invalidateTudo(ref),
             child: ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
-              itemCount:
-                  totalFiltrado + (mostrarBannerPendente ? 1 : 0) + 1,
+              itemCount: totalFiltrado + (mostrarBannerPendente ? 1 : 0) + 1,
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return _buildFiltroHeader(
@@ -328,17 +327,17 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                   final cargo = rotuloCargoPendente(role);
                   final displayRaw = req['displayName'];
                   final emailRaw = req['email'];
-                  final displayName =
-                      displayRaw is String ? displayRaw.trim() : '';
+                  final displayName = displayRaw is String
+                      ? displayRaw.trim()
+                      : '';
                   final email = emailRaw is String ? emailRaw.trim() : '';
                   final nome = displayName.isNotEmpty
                       ? displayName
                       : (email.isNotEmpty ? email : 'Solicitação pendente');
                   final basePendente = subtitlePendente(role);
-                  final subtitle =
-                      (email.isNotEmpty && email != nome)
-                          ? '$basePendente\n$email'
-                          : basePendente;
+                  final subtitle = (email.isNotEmpty && email != nome)
+                      ? '$basePendente\n$email'
+                      : basePendente;
                   final semantics = email.isNotEmpty && email != nome
                       ? '$nome, $email, $subtitle, pendente'
                       : '$nome, $subtitle, pendente';
@@ -367,8 +366,8 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                 final semantics = contagemCarregando
                     ? '$nome, $cargo, carregando loteamentos, ativo'
                     : (contagemErro && count == 0)
-                        ? '$nome, $cargo, erro ao carregar loteamentos, ativo'
-                        : '$nome, $cargo, ${textoContagemObras(count)}, ativo';
+                    ? '$nome, $cargo, erro ao carregar loteamentos, ativo'
+                    : '$nome, $cargo, ${textoContagemObras(count)}, ativo';
                 return MemberRow(
                   nome: nome,
                   subtitle: subtitle,
@@ -389,12 +388,11 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
         error: (err, stack) {
           final negado = _isAccessDenied(err);
           final offline = !negado && _isOfflineError(err);
-          final mensagem =
-              negado
-                  ? 'Acesso negado — fale com o administrador.'
-                  : offline
-                  ? 'Sem conexão — tente novamente'
-                  : 'Não foi possível carregar os membros. Tente novamente.';
+          final mensagem = negado
+              ? 'Acesso negado — fale com o administrador.'
+              : offline
+              ? 'Sem conexão — tente novamente'
+              : 'Não foi possível carregar os membros. Tente novamente.';
           return RefreshIndicator(
             onRefresh: () async => _invalidateTudo(ref),
             child: ListView(

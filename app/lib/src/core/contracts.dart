@@ -14,6 +14,7 @@ List<String> normalizeRawModules(dynamic modules, [dynamic fallback]) {
   final list = raw is List ? raw : <dynamic>[];
   return list.whereType<String>().map(normalizeModule).toList();
 }
+
 DateTime readDate(dynamic value) {
   if (value is Timestamp) return value.toDate();
   if (value is DateTime) return value;
@@ -73,7 +74,8 @@ int parseCurrencyToCents(dynamic value) {
   if (value == null) throw const FormatException('Valor monetário inválido');
   String text;
   if (value is num) {
-    if (!value.isFinite) throw const FormatException('Valor monetário inválido');
+    if (!value.isFinite)
+      throw const FormatException('Valor monetário inválido');
     text = value.toString();
   } else {
     text = value.toString().trim();

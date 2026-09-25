@@ -14,14 +14,14 @@ void main() {
     tempDir = Directory.systemTemp.createTempSync('sigo_isolation_test_');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (MethodCall methodCall) async {
-        if (methodCall.method == 'getApplicationDocumentsDirectory') {
-          return tempDir.path;
-        }
-        return null;
-      },
-    );
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (MethodCall methodCall) async {
+            if (methodCall.method == 'getApplicationDocumentsDirectory') {
+              return tempDir.path;
+            }
+            return null;
+          },
+        );
   });
 
   tearDown(() {
@@ -36,12 +36,16 @@ void main() {
       final js = queueJs.readAsStringSync();
 
       expect(
-        js.contains('!input.construtoraId || r.construtoraId===input.construtoraId || r.payload?.construtoraId===input.construtoraId'),
+        js.contains(
+          '!input.construtoraId || r.construtoraId===input.construtoraId || r.payload?.construtoraId===input.construtoraId',
+        ),
         isTrue,
         reason: 'queue.js deve suportar filtro por construtoraId',
       );
       expect(
-        js.contains('!input.obraId || r.obraId===input.obraId || r.payload?.obraId===input.obraId'),
+        js.contains(
+          '!input.obraId || r.obraId===input.obraId || r.payload?.obraId===input.obraId',
+        ),
         isTrue,
         reason: 'queue.js deve suportar filtro por obraId',
       );
@@ -52,106 +56,115 @@ void main() {
       );
     });
 
-    test('Operações são estritamente isoladas e filtráveis por obra e construtora', () async {
-      String? currentUser = 'alice';
-      final queue = OperationQueue(
-        sessionUid: () => currentUser,
-        store: queueStore,
-        upload: (a, b, u) async {},
-        execute: (action, payload) async {},
-        autoSync: false,
-      );
+    test(
+      'Operações são estritamente isoladas e filtráveis por obra e construtora',
+      () async {
+        String? currentUser = 'alice';
+        final queue = OperationQueue(
+          sessionUid: () => currentUser,
+          store: queueStore,
+          upload: (a, b, u) async {},
+          execute: (action, payload) async {},
+          autoSync: false,
+        );
 
-      // Enfileira operação na Obra A
-      await queue.enqueue('createDailyEntry', {
-        'operationId': 'op-obra-a-1',
-        'construtoraId': 'const-x',
-        'obraId': 'obra-alpha',
-        'content': 'Diário Alpha',
-      });
+        // Enfileira operação na Obra A
+        await queue.enqueue('createDailyEntry', {
+          'operationId': 'op-obra-a-1',
+          'construtoraId': 'const-x',
+          'obraId': 'obra-alpha',
+          'content': 'Diário Alpha',
+        });
 
-      // Enfileira operação na Obra B
-      await queue.enqueue('createDailyEntry', {
-        'operationId': 'op-obra-b-1',
-        'construtoraId': 'const-x',
-        'obraId': 'obra-beta',
-        'content': 'Diário Beta',
-      });
+        // Enfileira operação na Obra B
+        await queue.enqueue('createDailyEntry', {
+          'operationId': 'op-obra-b-1',
+          'construtoraId': 'const-x',
+          'obraId': 'obra-beta',
+          'content': 'Diário Beta',
+        });
 
-      // Enfileira operação em módulo central (sem obraId)
-      await queue.enqueue('createSupplier', {
-        'operationId': 'op-central-1',
-        'construtoraId': 'const-x',
-        'name': 'Fornecedor Central',
-      });
+        // Enfileira operação em módulo central (sem obraId)
+        await queue.enqueue('createSupplier', {
+          'operationId': 'op-central-1',
+          'construtoraId': 'const-x',
+          'name': 'Fornecedor Central',
+        });
 
-      // Listagem geral deve trazer todas as 3 operações
-      final all = await queue.list();
-      expect(all.length, 3);
+        // Listagem geral deve trazer todas as 3 operações
+        final all = await queue.list();
+        expect(all.length, 3);
 
-      // Listagem da Obra Alpha deve trazer apenas a operação de Alpha
-      final alphaList = await queue.list(obraId: 'obra-alpha');
-      expect(alphaList.length, 1);
-      expect(alphaList.first['payload']['obraId'], 'obra-alpha');
-      expect(alphaList.first['payload']['operationId'], 'op-obra-a-1');
+        // Listagem da Obra Alpha deve trazer apenas a operação de Alpha
+        final alphaList = await queue.list(obraId: 'obra-alpha');
+        expect(alphaList.length, 1);
+        expect(alphaList.first['payload']['obraId'], 'obra-alpha');
+        expect(alphaList.first['payload']['operationId'], 'op-obra-a-1');
 
-      // Listagem da Obra Beta deve trazer apenas a operação de Beta
-      final betaList = await queue.list(obraId: 'obra-beta');
-      expect(betaList.length, 1);
-      expect(betaList.first['payload']['obraId'], 'obra-beta');
-      expect(betaList.first['payload']['operationId'], 'op-obra-b-1');
+        // Listagem da Obra Beta deve trazer apenas a operação de Beta
+        final betaList = await queue.list(obraId: 'obra-beta');
+        expect(betaList.length, 1);
+        expect(betaList.first['payload']['obraId'], 'obra-beta');
+        expect(betaList.first['payload']['operationId'], 'op-obra-b-1');
 
-      // Listagem por ação específica
-      final supplierList = await queue.list(action: 'createSupplier');
-      expect(supplierList.length, 1);
-      expect(supplierList.first['payload']['name'], 'Fornecedor Central');
+        // Listagem por ação específica
+        final supplierList = await queue.list(action: 'createSupplier');
+        expect(supplierList.length, 1);
+        expect(supplierList.first['payload']['name'], 'Fornecedor Central');
 
-      // Contadores escopados por obra
-      expect(await queue.scopedPendingCount(obraId: 'obra-alpha'), 1);
-      expect(await queue.scopedPendingCount(obraId: 'obra-beta'), 1);
-      expect(await queue.scopedPendingCount(obraId: 'obra-gamma'), 0);
-    });
+        // Contadores escopados por obra
+        expect(await queue.scopedPendingCount(obraId: 'obra-alpha'), 1);
+        expect(await queue.scopedPendingCount(obraId: 'obra-beta'), 1);
+        expect(await queue.scopedPendingCount(obraId: 'obra-gamma'), 0);
+      },
+    );
 
-    test('Sincronização seletiva por obra processa apenas a partição alvo', () async {
-      String? currentUser = 'alice';
-      final executedActions = <Map<String, dynamic>>[];
+    test(
+      'Sincronização seletiva por obra processa apenas a partição alvo',
+      () async {
+        String? currentUser = 'alice';
+        final executedActions = <Map<String, dynamic>>[];
 
-      final queue = OperationQueue(
-        sessionUid: () => currentUser,
-        store: queueStore,
-        upload: (a, b, u) async {},
-        execute: (action, payload) async {
-          executedActions.add({'action': action, 'payload': payload});
-        },
-        autoSync: false,
-      );
+        final queue = OperationQueue(
+          sessionUid: () => currentUser,
+          store: queueStore,
+          upload: (a, b, u) async {},
+          execute: (action, payload) async {
+            executedActions.add({'action': action, 'payload': payload});
+          },
+          autoSync: false,
+        );
 
-      // Enfileira operação na Obra A
-      await queue.enqueue('createDailyEntry', {
-        'operationId': 'op-sync-a-1',
-        'construtoraId': 'const-x',
-        'obraId': 'obra-alpha',
-      });
+        // Enfileira operação na Obra A
+        await queue.enqueue('createDailyEntry', {
+          'operationId': 'op-sync-a-1',
+          'construtoraId': 'const-x',
+          'obraId': 'obra-alpha',
+        });
 
-      // Enfileira operação na Obra B
-      await queue.enqueue('createDailyEntry', {
-        'operationId': 'op-sync-b-1',
-        'construtoraId': 'const-x',
-        'obraId': 'obra-beta',
-      });
+        // Enfileira operação na Obra B
+        await queue.enqueue('createDailyEntry', {
+          'operationId': 'op-sync-b-1',
+          'construtoraId': 'const-x',
+          'obraId': 'obra-beta',
+        });
 
-      // Executa sincronização apenas para Obra Alpha
-      await queue.sync(obraId: 'obra-alpha');
+        // Executa sincronização apenas para Obra Alpha
+        await queue.sync(obraId: 'obra-alpha');
 
-      // Apenas Obra Alpha deve ter sido despachada para o backend
-      expect(executedActions.length, 1);
-      expect(executedActions.first['payload']['obraId'], 'obra-alpha');
+        // Apenas Obra Alpha deve ter sido despachada para o backend
+        expect(executedActions.length, 1);
+        expect(executedActions.first['payload']['obraId'], 'obra-alpha');
 
-      // Contadores pós-sync seletivo
-      expect(await queue.scopedSyncedCount(obraId: 'obra-alpha'), 1);
-      expect(await queue.scopedPendingCount(obraId: 'obra-alpha'), 0);
-      expect(await queue.scopedPendingCount(obraId: 'obra-beta'), 1); // Permanece pendente
-    });
+        // Contadores pós-sync seletivo
+        expect(await queue.scopedSyncedCount(obraId: 'obra-alpha'), 1);
+        expect(await queue.scopedPendingCount(obraId: 'obra-alpha'), 0);
+        expect(
+          await queue.scopedPendingCount(obraId: 'obra-beta'),
+          1,
+        ); // Permanece pendente
+      },
+    );
 
     test('Isolamento de falhas: rejeição de autorização em uma obra não bloqueia as demais', () async {
       String? currentUser = 'alice';

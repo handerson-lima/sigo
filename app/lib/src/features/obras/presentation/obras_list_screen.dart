@@ -14,7 +14,9 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../financeiro/presentation/financeiro_provider.dart';
 
 import '../../../common_widgets/sigo_layout.dart';
+
 import 'package:uuid/uuid.dart';
+
 import '../data/obra_repository.dart';
 import '../domain/obra.dart';
 
@@ -73,10 +75,13 @@ class ObrasListScreen extends ConsumerWidget {
     final despesasAsync = admin
         ? ref.watch(despesasConstrutoraProvider(construtoraId))
         : const AsyncData<List<Despesa>>([]);
-    final canViewLoteamentos = admin ||
+    final canViewLoteamentos =
+        admin ||
         cm?['isActive'] == true &&
-            normalizeRawModules(cm?['modules'], cm?['allowedModules'])
-                .contains('lotes');
+            normalizeRawModules(
+              cm?['modules'],
+              cm?['allowedModules'],
+            ).contains('lotes');
 
     return SigoLayout(
       title: 'Painel da Construtora',
@@ -400,8 +405,9 @@ class _AddObraDialogState extends ConsumerState<_AddObraDialog> {
                     hintText: 'Ex: Residencial Flores',
                   ),
                   autofocus: true,
-                  validator: (val) =>
-                      val == null || val.trim().isEmpty ? 'Campo obrigatório' : null,
+                  validator: (val) => val == null || val.trim().isEmpty
+                      ? 'Campo obrigatório'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

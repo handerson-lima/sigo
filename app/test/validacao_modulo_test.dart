@@ -78,41 +78,47 @@ void main() {
       expect(tplV1.version, 1); // Preservação da versão original
     });
 
-    test('Serialização toMap e fromMap do ValidacaoTemplate preserva integridade', () {
-      final now = DateTime(2026, 9, 18, 8, 30);
-      final template = ValidacaoTemplate(
-        id: 'tpl_eletrica_01',
-        construtoraId: 'c1',
-        titulo: 'Checklist Elétrico',
-        disciplina: 'eletrica',
-        version: 3,
-        ativo: true,
-        createdAt: now,
-        updatedAt: now,
-        itens: const [
-          ChecklistTemplateItem(
-            id: 'el_1',
-            titulo: 'Passagem de fiação nos conduítes',
-            descricao: 'Sem emendas internas',
-            obrigatorio: true,
-            requerFotoSeReprovado: true,
-          ),
-        ],
-      );
+    test(
+      'Serialização toMap e fromMap do ValidacaoTemplate preserva integridade',
+      () {
+        final now = DateTime(2026, 9, 18, 8, 30);
+        final template = ValidacaoTemplate(
+          id: 'tpl_eletrica_01',
+          construtoraId: 'c1',
+          titulo: 'Checklist Elétrico',
+          disciplina: 'eletrica',
+          version: 3,
+          ativo: true,
+          createdAt: now,
+          updatedAt: now,
+          itens: const [
+            ChecklistTemplateItem(
+              id: 'el_1',
+              titulo: 'Passagem de fiação nos conduítes',
+              descricao: 'Sem emendas internas',
+              obrigatorio: true,
+              requerFotoSeReprovado: true,
+            ),
+          ],
+        );
 
-      final map = template.toMap();
-      expect(map['id'], 'tpl_eletrica_01');
-      expect(map['disciplina'], 'eletrica');
-      expect(map['version'], 3);
-      expect(map['itens'], isA<List>());
+        final map = template.toMap();
+        expect(map['id'], 'tpl_eletrica_01');
+        expect(map['disciplina'], 'eletrica');
+        expect(map['version'], 3);
+        expect(map['itens'], isA<List>());
 
-      final reconstructed = ValidacaoTemplate.fromMap(map, 'tpl_eletrica_01');
-      expect(reconstructed.id, 'tpl_eletrica_01');
-      expect(reconstructed.titulo, 'Checklist Elétrico');
-      expect(reconstructed.disciplinaFormatada, 'Instalações Elétricas');
-      expect(reconstructed.version, 3);
-      expect(reconstructed.itens.first.titulo, 'Passagem de fiação nos conduítes');
-    });
+        final reconstructed = ValidacaoTemplate.fromMap(map, 'tpl_eletrica_01');
+        expect(reconstructed.id, 'tpl_eletrica_01');
+        expect(reconstructed.titulo, 'Checklist Elétrico');
+        expect(reconstructed.disciplinaFormatada, 'Instalações Elétricas');
+        expect(reconstructed.version, 3);
+        expect(
+          reconstructed.itens.first.titulo,
+          'Passagem de fiação nos conduítes',
+        );
+      },
+    );
   });
 
   group('ValidacaoVistoria Domain Tests', () {
@@ -187,8 +193,14 @@ void main() {
 
       final erros = vistoriaSemFoto.validarParaConclusao();
       expect(erros.length, 2);
-      expect(erros.any((e) => e.contains('exige descrição de observação')), isTrue);
-      expect(erros.any((e) => e.contains('exige pelo menos 1 foto de evidência')), isTrue);
+      expect(
+        erros.any((e) => e.contains('exige descrição de observação')),
+        isTrue,
+      );
+      expect(
+        erros.any((e) => e.contains('exige pelo menos 1 foto de evidência')),
+        isTrue,
+      );
     });
 
     test('Finalização como REPROVADO quando item Não Conforme possui observação e foto anexada', () {
@@ -212,9 +224,7 @@ void main() {
             titulo: 'Desforma de pilares',
             status: ItemConformidadeStatus.nao_conforme,
             observacao: 'Fissura estrutural identificada na base do pilar P4.',
-            fotos: [
-              'https://storage.googleapis.com/sigo/foto_pilar_01.jpg',
-            ],
+            fotos: ['https://storage.googleapis.com/sigo/foto_pilar_01.jpg'],
             obrigatorio: true,
             requerFotoSeReprovado: true,
           ),
@@ -225,7 +235,10 @@ void main() {
 
       expect(vistoriaComEvidencia.validarParaConclusao(), isEmpty);
       expect(vistoriaComEvidencia.hasNaoConforme, isTrue);
-      expect(vistoriaComEvidencia.calcularStatusFinal(), ValidacaoStatus.reprovado);
+      expect(
+        vistoriaComEvidencia.calcularStatusFinal(),
+        ValidacaoStatus.reprovado,
+      );
     });
 
     test('Transição para REABERTO ao solicitar reavaliação de lote após retrabalho', () {
@@ -298,8 +311,10 @@ void main() {
       expect(reconstructed.templateVersion, 2);
       expect(reconstructed.status, ValidacaoStatus.aprovado);
       expect(reconstructed.itensRespondidos.length, 1);
-      expect(reconstructed.itensRespondidos.first.fotos.first,
-          'https://storage.googleapis.com/sigo/foto_parede.jpg');
+      expect(
+        reconstructed.itensRespondidos.first.fotos.first,
+        'https://storage.googleapis.com/sigo/foto_parede.jpg',
+      );
     });
   });
 }

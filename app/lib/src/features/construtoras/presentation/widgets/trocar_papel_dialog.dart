@@ -103,8 +103,9 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
         .where((e) => e.value)
         .map((e) => _moduleSummaryLabels[e.key] ?? e.key)
         .toList();
-    final modulosTexto =
-        selecionados.isEmpty ? 'nenhum módulo' : selecionados.join(', ');
+    final modulosTexto = selecionados.isEmpty
+        ? 'nenhum módulo'
+        : selecionados.join(', ');
     final obraNome = widget.obraNome.trim().isNotEmpty
         ? widget.obraNome
         : 'Loteamento ${widget.obraId}';
@@ -125,7 +126,9 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
         .toList();
 
     try {
-      await ref.read(obraMembersRepositoryProvider).setMembership(
+      await ref
+          .read(obraMembersRepositoryProvider)
+          .setMembership(
             construtoraId: widget.construtoraId,
             obraId: widget.obraId,
             userId: widget.userId,
@@ -137,9 +140,10 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
       // Invalidar providers para refletir a mudança
       ref.invalidate(membrosProvider(widget.construtoraId));
       ref.invalidate(
-        obraMembersProvider(
-          (construtoraId: widget.construtoraId, obraId: widget.obraId),
-        ),
+        obraMembersProvider((
+          construtoraId: widget.construtoraId,
+          obraId: widget.obraId,
+        )),
       );
 
       if (mounted) {
@@ -220,8 +224,10 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
                 initialValue: _selectedRole,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
                 items: _roleLabels.entries
                     .map(
@@ -277,8 +283,9 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: theme.colorScheme.outlineVariant),
                 ),

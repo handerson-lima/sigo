@@ -54,7 +54,9 @@ void main() {
         findsOneWidget,
       );
     });
-    testWidgets('card navega para Loteamentos se possuir módulo', (tester) async {
+    testWidgets('card navega para Loteamentos se possuir módulo', (
+      tester,
+    ) async {
       String? lastPushed;
       final router = GoRouter(
         initialLocation: '/',

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../data/equipe_repository.dart';
+
 import 'package:intl/intl.dart';
+
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 import '../../../common_widgets/sigo_empty_state.dart';
 import '../../../common_widgets/sigo_error_state.dart';
@@ -62,8 +65,8 @@ class EquipesListScreen extends ConsumerWidget {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    final dateStr =
-                        DateFormat('dd/MM/yyyy HH:mm').format(item.createdAt);
+                    final dateStr = DateFormat('dd/MM/yyyy HH:mm')
+                        .format(item.createdAt);
                     return ListTile(
                       title: Text(item.name),
                       subtitle: Text('Criado em: $dateStr'),

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'geolocation_platform.dart';
@@ -20,10 +21,10 @@ class GeoLocationResult {
   });
 
   const GeoLocationResult.unavailable([this.errorMessage])
-      : latitude = null,
-        longitude = null,
-        accuracy = null,
-        isAvailable = false;
+    : latitude = null,
+      longitude = null,
+      accuracy = null,
+      isAvailable = false;
 
   /// Retorna string formatada para gravação no carimbo da foto.
   String formatCoordinates() {
@@ -61,9 +62,7 @@ class DefaultGeolocationService implements GeolocationService {
     try {
       final locator = locatorOverride;
       if (locator != null) {
-        return await Future.microtask(
-          () => locator(timeout: timeout),
-        ).timeout(
+        return await Future.microtask(() => locator(timeout: timeout)).timeout(
           timeout,
           onTimeout: () => const GeoLocationResult.unavailable(
             'GPS: Tempo esgotado / Indisponível',
@@ -71,14 +70,13 @@ class DefaultGeolocationService implements GeolocationService {
         );
       }
 
-      return await Future.microtask(
-        () => getPlatformCurrentPosition(timeout),
-      ).timeout(
-        timeout,
-        onTimeout: () => const GeoLocationResult.unavailable(
-          'GPS: Tempo esgotado / Indisponível',
-        ),
-      );
+      return await Future.microtask(() => getPlatformCurrentPosition(timeout))
+          .timeout(
+            timeout,
+            onTimeout: () => const GeoLocationResult.unavailable(
+              'GPS: Tempo esgotado / Indisponível',
+            ),
+          );
     } on TimeoutException {
       return const GeoLocationResult.unavailable(
         'GPS: Tempo esgotado / Indisponível',

@@ -35,8 +35,9 @@ class OperationQueue {
     store: queueStore,
     upload: _firebaseUpload,
     execute: (action, payload) async {
-      final res =
-          await FirebaseFunctions.instance.httpsCallable(action).call(payload);
+      final res = await FirebaseFunctions.instance
+          .httpsCallable(action)
+          .call(payload);
       return res.data;
     },
   );
@@ -147,32 +148,49 @@ class OperationQueue {
     }
   }
 
-  Future<int> get pendingCount async =>
-      (await list()).where((e) => e['state'] == 'pending' || e['state'] == 'syncing').length;
+  Future<int> get pendingCount async => (await list())
+      .where((e) => e['state'] == 'pending' || e['state'] == 'syncing')
+      .length;
 
-  Future<int> get failedCount async =>
-      (await list()).where((e) => e['state'] == 'failed' || e['state'] == 'authorization_rejected' || e['state'] == 'conflict').length;
+  Future<int> get failedCount async => (await list())
+      .where(
+        (e) =>
+            e['state'] == 'failed' ||
+            e['state'] == 'authorization_rejected' ||
+            e['state'] == 'conflict',
+      )
+      .length;
 
   Future<int> get syncedCount async =>
       (await list()).where((e) => e['state'] == 'synced').length;
 
-  Future<int> scopedPendingCount({String? construtoraId, String? obraId}) async =>
-      (await list(construtoraId: construtoraId, obraId: obraId))
-          .where((e) => e['state'] == 'pending' || e['state'] == 'syncing')
-          .length;
+  Future<int> scopedPendingCount({
+    String? construtoraId,
+    String? obraId,
+  }) async => (await list(
+    construtoraId: construtoraId,
+    obraId: obraId,
+  )).where((e) => e['state'] == 'pending' || e['state'] == 'syncing').length;
 
-  Future<int> scopedFailedCount({String? construtoraId, String? obraId}) async =>
-      (await list(construtoraId: construtoraId, obraId: obraId))
-          .where((e) =>
-              e['state'] == 'failed' ||
-              e['state'] == 'authorization_rejected' ||
-              e['state'] == 'conflict')
-          .length;
+  Future<int> scopedFailedCount({
+    String? construtoraId,
+    String? obraId,
+  }) async => (await list(construtoraId: construtoraId, obraId: obraId))
+      .where(
+        (e) =>
+            e['state'] == 'failed' ||
+            e['state'] == 'authorization_rejected' ||
+            e['state'] == 'conflict',
+      )
+      .length;
 
-  Future<int> scopedSyncedCount({String? construtoraId, String? obraId}) async =>
-      (await list(construtoraId: construtoraId, obraId: obraId))
-          .where((e) => e['state'] == 'synced')
-          .length;
+  Future<int> scopedSyncedCount({
+    String? construtoraId,
+    String? obraId,
+  }) async => (await list(
+    construtoraId: construtoraId,
+    obraId: obraId,
+  )).where((e) => e['state'] == 'synced').length;
 
   Future<void> enqueue(
     String action,
@@ -276,10 +294,7 @@ class OperationQueue {
           state = 'failed';
           final errStr = e.toString().toLowerCase();
           if (e is FirebaseException) {
-            if ([
-              'permission-denied',
-              'unauthorized',
-            ].contains(e.code)) {
+            if (['permission-denied', 'unauthorized'].contains(e.code)) {
               state = 'authorization_rejected';
             } else if ([
               'already-exists',

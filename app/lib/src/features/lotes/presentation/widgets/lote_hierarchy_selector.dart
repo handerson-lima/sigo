@@ -65,9 +65,7 @@ class LoteHierarchySelector extends ConsumerWidget {
             ),
             decoration: const InputDecoration(labelText: 'Loteamento'),
             items: loteamentos
-                .map(
-                  (l) => DropdownMenuItem(value: l.id, child: Text(l.name)),
-                )
+                .map((l) => DropdownMenuItem(value: l.id, child: Text(l.name)))
                 .toList(),
             onChanged: enabled ? onLoteamentoChanged : null,
           ),
@@ -143,13 +141,12 @@ class LoteHierarchySelector extends ConsumerWidget {
                   items: [
                     const DropdownMenuItem<String>(
                       value: null,
-                      child: Text('Nenhum lote específico (Geral do Loteamento)'),
+                      child: Text(
+                        'Nenhum lote específico (Geral do Loteamento)',
+                      ),
                     ),
                     ...lotes.map(
-                      (l) => DropdownMenuItem(
-                        value: l.id,
-                        child: Text(l.name),
-                      ),
+                      (l) => DropdownMenuItem(value: l.id, child: Text(l.name)),
                     ),
                   ],
                   validator: loteValidator,

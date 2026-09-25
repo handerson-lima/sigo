@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/contracts.dart';
 
 class RetificacaoChamadaDialog extends StatefulWidget {
@@ -101,7 +102,9 @@ class _RetificacaoChamadaDialogState extends State<RetificacaoChamadaDialog> {
                             fontWeight: FontWeight.bold,
                             color: diffCents > 0
                                 ? Colors.orange.shade800
-                                : (diffCents < 0 ? Colors.green.shade800 : Colors.grey),
+                                : (diffCents < 0
+                                      ? Colors.green.shade800
+                                      : Colors.grey),
                           ),
                         ),
                       ],
@@ -130,7 +133,11 @@ class _RetificacaoChamadaDialogState extends State<RetificacaoChamadaDialog> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.info_outline, size: 16, color: theme.colorScheme.error),
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: theme.colorScheme.error,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(

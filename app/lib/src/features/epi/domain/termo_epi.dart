@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 
@@ -9,9 +10,11 @@ class TermoEpi {
   final String funcionarioId;
   final String funcionarioNome;
   final String funcionarioCpf;
-  final List<Map<String, dynamic>> itens; // [{epiNome, caNumero, quantidade, dataEntrega}]
+  final List<Map<String, dynamic>>
+  itens; // [{epiNome, caNumero, quantidade, dataEntrega}]
   final String textoLegal;
-  final String tipoConfirmacao; // assinatura_canvas, pin_seguranca, foto_comprovante
+  final String
+  tipoConfirmacao; // assinatura_canvas, pin_seguranca, foto_comprovante
   final String? assinaturaStoragePath;
   final String hashSha256;
   final DateTime dataAssinatura;
@@ -35,14 +38,15 @@ class TermoEpi {
     required this.responsavelUid,
     this.schemaVersion = 1,
     this.createdAt,
-  })  : textoLegal = textoLegal ?? termoPadraoNr6,
-        hashSha256 = hashSha256 ??
-            gerarHash(
-              funcionarioCpf: funcionarioCpf,
-              dataAssinatura: dataAssinatura,
-              itens: itens,
-              texto: textoLegal ?? termoPadraoNr6,
-            );
+  }) : textoLegal = textoLegal ?? termoPadraoNr6,
+       hashSha256 =
+           hashSha256 ??
+           gerarHash(
+             funcionarioCpf: funcionarioCpf,
+             dataAssinatura: dataAssinatura,
+             itens: itens,
+             texto: textoLegal ?? termoPadraoNr6,
+           );
 
   static const String termoPadraoNr6 =
       'Declaro para os devidos fins que recebi da empresa os Equipamentos de Proteção Individual (EPIs) '
@@ -77,19 +81,23 @@ class TermoEpi {
       'itens': itens,
       'textoLegal': textoLegal,
       'tipoConfirmacao': tipoConfirmacao,
-      if (assinaturaStoragePath != null) 'assinaturaStoragePath': assinaturaStoragePath,
+      if (assinaturaStoragePath != null)
+        'assinaturaStoragePath': assinaturaStoragePath,
       'hashSha256': hashSha256,
       'dataAssinatura': dataAssinatura.toIso8601String(),
       'responsavelUid': responsavelUid,
       'schemaVersion': schemaVersion,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'createdAt': createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
     };
   }
 
   factory TermoEpi.fromMap(Map<String, dynamic> map, String docId) {
     DateTime parseDate(dynamic val) {
       if (val is Timestamp) return val.toDate();
-      if (val is String && val.isNotEmpty) return DateTime.tryParse(val) ?? DateTime.now();
+      if (val is String && val.isNotEmpty)
+        return DateTime.tryParse(val) ?? DateTime.now();
       return DateTime.now();
     }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/contracts.dart';
 import '../../domain/custo_mao_de_obra.dart';
 
@@ -125,7 +126,9 @@ class ResumoCustosChamadaDialog extends StatelessWidget {
                   return Card(
                     elevation: 0,
                     margin: const EdgeInsets.only(bottom: 6),
-                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    color: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.5,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),

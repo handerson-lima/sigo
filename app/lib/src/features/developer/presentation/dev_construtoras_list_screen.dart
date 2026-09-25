@@ -9,7 +9,8 @@ class DevConstrutorasListScreen extends StatefulWidget {
   const DevConstrutorasListScreen({super.key});
 
   @override
-  State<DevConstrutorasListScreen> createState() => _DevConstrutorasListScreenState();
+  State<DevConstrutorasListScreen> createState() =>
+      _DevConstrutorasListScreenState();
 }
 
 class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
@@ -38,9 +39,8 @@ class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
               children: [
                 Text(
                   'Construtoras Cadastradas',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.headlineMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
@@ -65,7 +65,8 @@ class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+                    onChanged: (value) =>
+                        setState(() => _searchQuery = value.toLowerCase()),
                     decoration: const InputDecoration(
                       labelText: 'Buscar por Nome ou CNPJ',
                       prefixIcon: Icon(Icons.search),
@@ -92,7 +93,9 @@ class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
             const SizedBox(height: 32),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('construtoras').snapshots(),
+                stream: FirebaseFirestore.instance
+                    .collection('construtoras')
+                    .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -106,7 +109,9 @@ class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
 
                   if (docs.isEmpty) {
                     return const Center(
-                      child: Text('Nenhuma construtora encontrada no banco de dados.'),
+                      child: Text(
+                        'Nenhuma construtora encontrada no banco de dados.',
+                      ),
                     );
                   }
 
@@ -123,7 +128,8 @@ class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
 
                     // Filtro de busca (nome ou cnpj)
                     if (_searchQuery.isNotEmpty) {
-                      if (!name.contains(_searchQuery) && !cnpj.contains(_searchQuery)) {
+                      if (!name.contains(_searchQuery) &&
+                          !cnpj.contains(_searchQuery)) {
                         return false;
                       }
                     }
@@ -133,7 +139,9 @@ class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
 
                   if (filteredDocs.isEmpty) {
                     return const Center(
-                      child: Text('Nenhuma construtora corresponde aos filtros.'),
+                      child: Text(
+                        'Nenhuma construtora corresponde aos filtros.',
+                      ),
                     );
                   }
 
@@ -141,25 +149,43 @@ class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
                     itemCount: filteredDocs.length,
                     itemBuilder: (context, index) {
                       final doc = filteredDocs[index];
-                      final data = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
-                      data['id'] = (data['id'] as String?)?.isNotEmpty == true ? data['id'] : doc.id;
-                      data['name'] = (data['name'] as String?)?.isNotEmpty == true ? data['name'] : doc.id;
-                      
+                      final data = Map<String, dynamic>.from(
+                        doc.data() as Map<String, dynamic>,
+                      );
+                      data['id'] = (data['id'] as String?)?.isNotEmpty == true
+                          ? data['id']
+                          : doc.id;
+                      data['name'] =
+                          (data['name'] as String?)?.isNotEmpty == true
+                          ? data['name']
+                          : doc.id;
+
                       if (data['createdAt'] is Timestamp) {
-                        data['createdAt'] = (data['createdAt'] as Timestamp).toDate().toIso8601String();
+                        data['createdAt'] = (data['createdAt'] as Timestamp)
+                            .toDate()
+                            .toIso8601String();
                       }
                       if (data['updatedAt'] is Timestamp) {
-                        data['updatedAt'] = (data['updatedAt'] as Timestamp).toDate().toIso8601String();
+                        data['updatedAt'] = (data['updatedAt'] as Timestamp)
+                            .toDate()
+                            .toIso8601String();
                       }
-                      
+
                       final construtora = Construtora.fromJson(data);
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 16),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: construtora.isActive ? Colors.orange.shade100 : Colors.grey.shade200,
-                            child: Icon(Icons.business, color: construtora.isActive ? Colors.orange : Colors.grey),
+                            backgroundColor: construtora.isActive
+                                ? Colors.orange.shade100
+                                : Colors.grey.shade200,
+                            child: Icon(
+                              Icons.business,
+                              color: construtora.isActive
+                                  ? Colors.orange
+                                  : Colors.grey,
+                            ),
                           ),
                           title: Row(
                             children: [
@@ -167,33 +193,47 @@ class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
                                 construtora.name,
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: construtora.isActive ? null : Colors.grey,
-                                  decoration: construtora.isActive ? null : TextDecoration.lineThrough,
+                                  color: construtora.isActive
+                                      ? null
+                                      : Colors.grey,
+                                  decoration: construtora.isActive
+                                      ? null
+                                      : TextDecoration.lineThrough,
                                 ),
                               ),
                               const SizedBox(width: 8),
                               if (construtora.isActive)
                                 const Chip(
-                                  label: Text('Ativa', style: TextStyle(fontSize: 10)),
+                                  label: Text(
+                                    'Ativa',
+                                    style: TextStyle(fontSize: 10),
+                                  ),
                                   backgroundColor: Colors.green,
                                   labelStyle: TextStyle(color: Colors.white),
                                   visualDensity: VisualDensity.compact,
                                 )
                               else
                                 const Chip(
-                                  label: Text('Inativa', style: TextStyle(fontSize: 10)),
+                                  label: Text(
+                                    'Inativa',
+                                    style: TextStyle(fontSize: 10),
+                                  ),
                                   backgroundColor: Colors.red,
                                   labelStyle: TextStyle(color: Colors.white),
                                   visualDensity: VisualDensity.compact,
                                 ),
                             ],
                           ),
-                          subtitle: Text('ID: ${construtora.id} | CNPJ: ${construtora.cnpj ?? 'N/A'}'),
+                          subtitle: Text(
+                            'ID: ${construtora.id} | CNPJ: ${construtora.cnpj ?? 'N/A'}',
+                          ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () {
                             showDialog(
                               context: context,
-                              builder: (ctx) => _EditConstrutoraDialog(construtora: construtora),
+                              builder: (ctx) => _EditConstrutoraDialog(
+                                construtora: construtora,
+                              ),
                             );
                           },
                         ),
@@ -230,7 +270,9 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
     setState(() => _isSaving = true);
 
     try {
-      final docRef = FirebaseFirestore.instance.collection('construtoras').doc();
+      final docRef = FirebaseFirestore.instance
+          .collection('construtoras')
+          .doc();
       final data = {
         'id': docRef.id,
         'name': name,
@@ -243,17 +285,21 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
 
       final ownerEmail = _ownerEmailController.text.trim();
       if (ownerEmail.isNotEmpty) {
-        await FirebaseFunctions.instance.httpsCallable('setConstrutoraRole').call({
-          'email': ownerEmail,
-          'construtoraId': docRef.id,
-          'role': 'owner',
-          'isOwner': true,
-        });
+        await FirebaseFunctions.instance
+            .httpsCallable('setConstrutoraRole')
+            .call({
+              'email': ownerEmail,
+              'construtoraId': docRef.id,
+              'role': 'owner',
+              'isOwner': true,
+            });
       }
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -278,7 +324,9 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
           children: [
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Nome da Construtora'),
+              decoration: const InputDecoration(
+                labelText: 'Nome da Construtora',
+              ),
               autofocus: true,
             ),
             const SizedBox(height: 16),
@@ -306,7 +354,11 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
         ElevatedButton(
           onPressed: _isSaving ? null : _save,
           child: _isSaving
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Salvar'),
         ),
       ],
@@ -332,7 +384,9 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.construtora.name);
-    _cnpjController = TextEditingController(text: widget.construtora.cnpj ?? '');
+    _cnpjController = TextEditingController(
+      text: widget.construtora.cnpj ?? '',
+    );
     _isActive = widget.construtora.isActive;
   }
 
@@ -343,7 +397,9 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
     setState(() => _isSaving = true);
 
     try {
-      final docRef = FirebaseFirestore.instance.collection('construtoras').doc(widget.construtora.id);
+      final docRef = FirebaseFirestore.instance
+          .collection('construtoras')
+          .doc(widget.construtora.id);
       await docRef.update({
         'name': name,
         'cnpj': _cnpjController.text.trim(),
@@ -354,11 +410,19 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_isActive ? 'Construtora ativada com sucesso.' : 'Construtora inativada com sucesso.')),
+          SnackBar(
+            content: Text(
+              _isActive
+                  ? 'Construtora ativada com sucesso.'
+                  : 'Construtora inativada com sucesso.',
+            ),
+          ),
         );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -382,7 +446,9 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
           children: [
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Nome da Construtora'),
+              decoration: const InputDecoration(
+                labelText: 'Nome da Construtora',
+              ),
               autofocus: true,
             ),
             const SizedBox(height: 16),
@@ -393,7 +459,9 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
             const SizedBox(height: 16),
             SwitchListTile(
               title: const Text('Construtora Ativa'),
-              subtitle: const Text('Desativar suspende o acesso globalmente no app.'),
+              subtitle: const Text(
+                'Desativar suspende o acesso globalmente no app.',
+              ),
               value: _isActive,
               onChanged: (val) {
                 setState(() => _isActive = val);
@@ -410,7 +478,11 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
         ElevatedButton(
           onPressed: _isSaving ? null : _save,
           child: _isSaving
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Salvar'),
         ),
       ],

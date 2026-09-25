@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,27 +21,25 @@ final comprasRepositoryProvider = Provider<ComprasRepository>((ref) {
   );
 });
 
-final comprasObraStreamProvider = StreamProvider.family<
-    List<CompraNf>,
-    ({String construtoraId, String obraId})>((ref, arg) {
-  return ref
-      .watch(comprasRepositoryProvider)
-      .watchComprasObra(arg.construtoraId, arg.obraId);
-});
+final comprasObraStreamProvider =
+    StreamProvider.family<
+      List<CompraNf>,
+      ({String construtoraId, String obraId})
+    >((ref, arg) {
+      return ref
+          .watch(comprasRepositoryProvider)
+          .watchComprasObra(arg.construtoraId, arg.obraId);
+    });
 
-final compraDetailsFutureProvider = FutureProvider.family<
-    CompraNf?,
-    ({
-      String construtoraId,
-      String obraId,
-      String compraId,
-    })>((ref, arg) {
-  return ref.watch(comprasRepositoryProvider).getCompra(
-        arg.construtoraId,
-        arg.obraId,
-        arg.compraId,
-      );
-});
+final compraDetailsFutureProvider =
+    FutureProvider.family<
+      CompraNf?,
+      ({String construtoraId, String obraId, String compraId})
+    >((ref, arg) {
+      return ref
+          .watch(comprasRepositoryProvider)
+          .getCompra(arg.construtoraId, arg.obraId, arg.compraId);
+    });
 
 class ComprasRepository {
   final FirebaseFirestore _firestore;
@@ -66,21 +65,22 @@ class ComprasRepository {
   }
 
   /// Observa todas as compras da obra com cache offline
-  Stream<List<CompraNf>> watchComprasObra(
-    String construtoraId,
-    String obraId,
-  ) {
-    final query = _comprasRef(construtoraId, obraId)
-        .orderBy('dataEmissao', descending: true);
+  Stream<List<CompraNf>> watchComprasObra(String construtoraId, String obraId) {
+    final query = _comprasRef(
+      construtoraId,
+      obraId,
+    ).orderBy('dataEmissao', descending: true);
 
     return cachedList<CompraNf>(
       'compras/$construtoraId/$obraId',
       query
           .snapshots(includeMetadataChanges: true)
           .where((s) => !s.metadata.isFromCache)
-          .map((snapshot) => snapshot.docs
-              .map((doc) => CompraNf.fromJson(doc.data()))
-              .toList()),
+          .map(
+            (snapshot) => snapshot.docs
+                .map((doc) => CompraNf.fromJson(doc.data()))
+                .toList(),
+          ),
       (c) => c.toJson(),
       (item) => CompraNf.fromJson(Map<String, dynamic>.from(item)),
     );
@@ -100,7 +100,9 @@ class ComprasRepository {
   /// Salva uma nova compra no banco garantindo a invariante matemática
   Future<void> createCompra(CompraNf compra) async {
     if (compra.totalCompraCents <= 0) {
-      throw StateError('O valor total da compra deve ser estritamente positivo.');
+      throw StateError(
+        'O valor total da compra deve ser estritamente positivo.',
+      );
     }
 
     if (compra.parcelas.isEmpty) {
@@ -112,22 +114,26 @@ class ComprasRepository {
       parcelas: compra.parcelas,
     );
     if (!isValid) {
-      final soma =
-          ParcelamentoComprasMath.calcularSomaParcelas(compra.parcelas);
+      final soma = ParcelamentoComprasMath.calcularSomaParcelas(
+        compra.parcelas,
+      );
       throw StateError(
         'Invariante algébrica violada: soma das parcelas ($soma) != total ($compra.totalCompraCents)',
       );
     }
 
-    await _comprasRef(compra.construtoraId, compra.obraId)
-        .doc(compra.id)
-        .set(compra.toJson());
+    await _comprasRef(
+      compra.construtoraId,
+      compra.obraId,
+    ).doc(compra.id).set(compra.toJson());
   }
 
   /// Atualiza uma compra existente
   Future<void> updateCompra(CompraNf compra) async {
-    final docRef =
-        _comprasRef(compra.construtoraId, compra.obraId).doc(compra.id);
+    final docRef = _comprasRef(
+      compra.construtoraId,
+      compra.obraId,
+    ).doc(compra.id);
     final snapshot = await docRef.get();
     if (snapshot.exists) {
       final current = CompraNf.fromJson(snapshot.data()!);
@@ -137,9 +143,7 @@ class ComprasRepository {
         );
       }
       if (current.status == StatusCompra.cancelado) {
-        throw StateError(
-          'Não é permitido alterar uma compra cancelada.',
-        );
+        throw StateError('Não é permitido alterar uma compra cancelada.');
       }
     }
 
@@ -182,7 +186,8 @@ class ComprasRepository {
     }
 
     final dtPgto = dataPagamento ?? DateTime.now();
-    final opId = operationId ??
+    final opId =
+        operationId ??
         'pay-compra-$compraId-$numeroParcela-${DateTime.now().millisecondsSinceEpoch}';
 
     final parcelasAtualizadas = compra.parcelas.map((p) {
@@ -202,10 +207,12 @@ class ComprasRepository {
     }).toList();
 
     // Determina o novo status da compra
-    final todasPagas = parcelasAtualizadas
-        .every((p) => p.status == StatusParcelaCompra.pago);
-    final algumaPaga = parcelasAtualizadas
-        .any((p) => p.status == StatusParcelaCompra.pago);
+    final todasPagas = parcelasAtualizadas.every(
+      (p) => p.status == StatusParcelaCompra.pago,
+    );
+    final algumaPaga = parcelasAtualizadas.any(
+      (p) => p.status == StatusParcelaCompra.pago,
+    );
 
     final novoStatus = todasPagas
         ? StatusCompra.pago
@@ -262,11 +269,11 @@ class ComprasRepository {
             evidence: compra.anexoNfUrl,
             nfNumber: compra.numeroNf,
             fornecedor: compra.fornecedorNome,
-            valorItensCentavos:
-                (qtdRecebidaAgora * item.valorUnitarioCents).round(),
+            valorItensCentavos: (qtdRecebidaAgora * item.valorUnitarioCents)
+                .round(),
             custoUnitarioCentavos: item.valorUnitarioCents,
-            custoTotalCentavos:
-                (qtdRecebidaAgora * item.valorUnitarioCents).round(),
+            custoTotalCentavos: (qtdRecebidaAgora * item.valorUnitarioCents)
+                .round(),
           );
           await _almoxarifadoRepository.registrarMovimentacao(
             construtoraId,
@@ -275,25 +282,23 @@ class ComprasRepository {
         }
 
         final novaQtdRecebida = item.quantidadeRecebida + qtdRecebidaAgora;
-        itensAtualizados.add(item.copyWith(
-          quantidadeRecebida: novaQtdRecebida,
-        ));
+        itensAtualizados.add(
+          item.copyWith(quantidadeRecebida: novaQtdRecebida),
+        );
       } else {
         itensAtualizados.add(item);
       }
     }
 
     // Calcula status de recebimento
-    final tudoRecebido =
-        itensAtualizados.every((i) => i.isTotalmenteRecebido);
-    final algoRecebido =
-        itensAtualizados.any((i) => i.quantidadeRecebida > 0);
+    final tudoRecebido = itensAtualizados.every((i) => i.isTotalmenteRecebido);
+    final algoRecebido = itensAtualizados.any((i) => i.quantidadeRecebida > 0);
 
     final statusRec = tudoRecebido
         ? StatusRecebimentoCompra.recebido
         : (algoRecebido
-            ? StatusRecebimentoCompra.parcial
-            : StatusRecebimentoCompra.pendente);
+              ? StatusRecebimentoCompra.parcial
+              : StatusRecebimentoCompra.pendente);
 
     final atualizada = compra.copyWith(
       itens: itensAtualizados,
@@ -329,8 +334,9 @@ class ComprasRepository {
     final compra = CompraNf.fromJson(snapshot.data()!);
 
     // Regra de Integridade: Não pode cancelar se houver parcelas pagas
-    final possuiParcelaPaga = compra.parcelas
-        .any((p) => p.status == StatusParcelaCompra.pago);
+    final possuiParcelaPaga = compra.parcelas.any(
+      (p) => p.status == StatusParcelaCompra.pago,
+    );
     if (possuiParcelaPaga) {
       throw StateError(
         'Não é possível cancelar uma compra com parcelas já pagas. Estorne os pagamentos primeiro.',

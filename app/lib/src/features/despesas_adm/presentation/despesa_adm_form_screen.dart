@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -67,15 +68,13 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
   Future<void> _loadExistingDespesa() async {
     setState(() => _isLoading = true);
     try {
-      final despesa = await ref.read(despesasAdmRepositoryProvider).getDespesa(
-            widget.construtoraId,
-            widget.obraId,
-            widget.despesaId!,
-          );
+      final despesa = await ref
+          .read(despesasAdmRepositoryProvider)
+          .getDespesa(widget.construtoraId, widget.obraId, widget.despesaId!);
       if (despesa != null && mounted) {
         _descricaoController.text = despesa.descricao;
-        _valorController.text =
-            (despesa.valorTotalCents / 100.0).toStringAsFixed(2);
+        _valorController.text = (despesa.valorTotalCents / 100.0)
+            .toStringAsFixed(2);
         _fornecedorController.text = despesa.fornecedorNome ?? '';
         _fornecedorId = despesa.fornecedorId;
         _categoria = despesa.categoria;
@@ -84,8 +83,9 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
         _dataVencimento = despesa.dataVencimento;
         _isParcelado = despesa.isParcelado;
         _parcelas = List.from(despesa.parcelas);
-        _numeroParcelas =
-            despesa.parcelas.isNotEmpty ? despesa.parcelas.length : 2;
+        _numeroParcelas = despesa.parcelas.isNotEmpty
+            ? despesa.parcelas.length
+            : 2;
       }
     } catch (e) {
       _errorMessage = 'Erro ao carregar despesa: $e';
@@ -117,7 +117,9 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
     if (totalCents <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Informe um valor total válido antes de gerar as parcelas.'),
+          content: Text(
+            'Informe um valor total válido antes de gerar as parcelas.',
+          ),
         ),
       );
       return;
@@ -151,9 +153,9 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao anexar arquivo: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao anexar arquivo: $e')));
       }
     }
   }
@@ -163,14 +165,18 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
 
     final totalCents = _parseValorTotalCents();
     if (totalCents <= 0) {
-      setState(() => _errorMessage = 'O valor da despesa deve ser maior que zero.');
+      setState(
+        () => _errorMessage = 'O valor da despesa deve ser maior que zero.',
+      );
       return;
     }
 
     if (_isParcelado) {
       if (_parcelas.isEmpty) {
-        setState(() => _errorMessage =
-            'Gere ou defina as parcelas antes de salvar a despesa.');
+        setState(
+          () => _errorMessage =
+              'Gere ou defina as parcelas antes de salvar a despesa.',
+        );
         return;
       }
 
@@ -182,8 +188,10 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
       if (!invarianteValida) {
         final soma = ParcelamentoMath.calcularSomaParcelas(_parcelas);
         final diff = (totalCents - soma).abs();
-        setState(() => _errorMessage =
-            'A soma das parcelas (R\$ ${(soma / 100).toStringAsFixed(2)}) difere do total (R\$ ${(totalCents / 100).toStringAsFixed(2)}) por R\$ ${(diff / 100).toStringAsFixed(2)}.');
+        setState(
+          () => _errorMessage =
+              'A soma das parcelas (R\$ ${(soma / 100).toStringAsFixed(2)}) difere do total (R\$ ${(totalCents / 100).toStringAsFixed(2)}) por R\$ ${(diff / 100).toStringAsFixed(2)}.',
+        );
         return;
       }
     }
@@ -279,7 +287,8 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
       title: widget.despesaId != null
           ? 'Editar Despesa'
           : 'Nova Despesa / Conta a Pagar',
-      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/despesas',
+      activeRoute:
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/despesas',
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -299,8 +308,10 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.error_outline,
-                                color: Colors.red.shade700),
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red.shade700,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -340,10 +351,7 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                         border: OutlineInputBorder(),
                       ),
                       items: CategoriaDespesa.values.map((c) {
-                        return DropdownMenuItem(
-                          value: c,
-                          child: Text(c.label),
-                        );
+                        return DropdownMenuItem(value: c, child: Text(c.label));
                       }).toList(),
                       onChanged: (v) {
                         if (v != null) setState(() => _categoria = v);
@@ -372,8 +380,7 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                       loteId: _selectedLoteId,
                       enabled: !_isLoading,
                       loteLabel: 'Apropriação por Lote (Opcional)',
-                      loteHelperText:
-                          'Selecione se for custo direto do lote ou deixe vazio para rateio geral',
+                      loteHelperText: 'Selecione se for custo direto do lote ou deixe vazio para rateio geral',
                       onLoteamentoChanged: (val) {
                         setState(() {
                           _loteamentoId = val;
@@ -396,8 +403,9 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                     // Valor total
                     TextFormField(
                       controller: _valorController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Valor Total (R\$) *',
                         hintText: 'Ex.: 1250,50',
@@ -430,7 +438,9 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                                 context: context,
                                 initialDate: _dataEmissao,
                                 firstDate: DateTime(2020),
-                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 365),
+                                ),
                               );
                               if (picked != null) {
                                 setState(() => _dataEmissao = picked);
@@ -453,7 +463,9 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                                 context: context,
                                 initialDate: _dataVencimento,
                                 firstDate: DateTime(2020),
-                                lastDate: DateTime.now().add(const Duration(days: 1825)),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 1825),
+                                ),
                               );
                               if (picked != null) {
                                 setState(() {
@@ -515,10 +527,12 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                                   DropdownButton<int>(
                                     value: _numeroParcelas,
                                     items: List.generate(35, (i) => i + 2)
-                                        .map((n) => DropdownMenuItem(
-                                              value: n,
-                                              child: Text('${n}x parcelas'),
-                                            ))
+                                        .map(
+                                          (n) => DropdownMenuItem(
+                                            value: n,
+                                            child: Text('${n}x parcelas'),
+                                          ),
+                                        )
                                         .toList(),
                                     onChanged: (n) {
                                       if (n != null) {
@@ -567,8 +581,10 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                                       child: TextFormField(
                                         initialValue: (p.valorCents / 100.0)
                                             .toStringAsFixed(2),
-                                        keyboardType: const TextInputType
-                                            .numberWithOptions(decimal: true),
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
                                         textAlign: TextAlign.end,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
@@ -593,8 +609,9 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                                                       100)
                                                   .round();
                                           setState(() {
-                                            _parcelas[idx] =
-                                                p.copyWith(valorCents: cents);
+                                            _parcelas[idx] = p.copyWith(
+                                              valorCents: cents,
+                                            );
                                           });
                                         },
                                       ),
@@ -653,8 +670,10 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                     // Anexo de Comprovante / PDF
                     const Text(
                       'Documento Comprobatório / Boleto (PDF ou Imagem):',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     OutlinedButton.icon(

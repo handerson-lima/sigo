@@ -40,35 +40,38 @@ void main() {
       expect(apontamento.isValidAllocation, isTrue);
     });
 
-    test('Trabalhador Presente com soma divergente de 100% viola invariante', () {
-      final apontamento80 = ApontamentoTrabalhador(
-        workerId: 'w-1',
-        workerName: 'João da Silva',
-        workerRole: 'Pedreiro',
-        status: PresencaStatus.presente,
-        allocations: const [
-          AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 80),
-        ],
-      );
+    test(
+      'Trabalhador Presente com soma divergente de 100% viola invariante',
+      () {
+        final apontamento80 = ApontamentoTrabalhador(
+          workerId: 'w-1',
+          workerName: 'João da Silva',
+          workerRole: 'Pedreiro',
+          status: PresencaStatus.presente,
+          allocations: const [
+            AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 80),
+          ],
+        );
 
-      expect(apontamento80.totalPercentage, equals(80));
-      expect(apontamento80.isValidAllocation, isFalse);
-      expect(apontamento80.validationError, contains('100%'));
+        expect(apontamento80.totalPercentage, equals(80));
+        expect(apontamento80.isValidAllocation, isFalse);
+        expect(apontamento80.validationError, contains('100%'));
 
-      final apontamento120 = ApontamentoTrabalhador(
-        workerId: 'w-1',
-        workerName: 'João da Silva',
-        workerRole: 'Pedreiro',
-        status: PresencaStatus.presente,
-        allocations: const [
-          AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 70),
-          AlocacaoLote(lotId: 'lote-2', lotName: 'Casa 02', percentage: 50),
-        ],
-      );
+        final apontamento120 = ApontamentoTrabalhador(
+          workerId: 'w-1',
+          workerName: 'João da Silva',
+          workerRole: 'Pedreiro',
+          status: PresencaStatus.presente,
+          allocations: const [
+            AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 70),
+            AlocacaoLote(lotId: 'lote-2', lotName: 'Casa 02', percentage: 50),
+          ],
+        );
 
-      expect(apontamento120.totalPercentage, equals(120));
-      expect(apontamento120.isValidAllocation, isFalse);
-    });
+        expect(apontamento120.totalPercentage, equals(120));
+        expect(apontamento120.isValidAllocation, isFalse);
+      },
+    );
 
     test('Trabalhador em Meio-Período exige soma de exatamente 50%', () {
       final validoMeio = ApontamentoTrabalhador(
@@ -99,31 +102,34 @@ void main() {
       expect(invalidoMeio.validationError, contains('50%'));
     });
 
-    test('Trabalhador Ausente (Falta) exige 0% de apropriação e lista vazia', () {
-      final validoFalta = ApontamentoTrabalhador(
-        workerId: 'w-3',
-        workerName: 'Carlos Lima',
-        workerRole: 'Ajudante',
-        status: PresencaStatus.falta,
-        allocations: const [],
-      );
+    test(
+      'Trabalhador Ausente (Falta) exige 0% de apropriação e lista vazia',
+      () {
+        final validoFalta = ApontamentoTrabalhador(
+          workerId: 'w-3',
+          workerName: 'Carlos Lima',
+          workerRole: 'Ajudante',
+          status: PresencaStatus.falta,
+          allocations: const [],
+        );
 
-      expect(validoFalta.totalPercentage, equals(0));
-      expect(validoFalta.isValidAllocation, isTrue);
+        expect(validoFalta.totalPercentage, equals(0));
+        expect(validoFalta.isValidAllocation, isTrue);
 
-      final invalidoFalta = ApontamentoTrabalhador(
-        workerId: 'w-3',
-        workerName: 'Carlos Lima',
-        workerRole: 'Ajudante',
-        status: PresencaStatus.falta,
-        allocations: const [
-          AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 50),
-        ],
-      );
+        final invalidoFalta = ApontamentoTrabalhador(
+          workerId: 'w-3',
+          workerName: 'Carlos Lima',
+          workerRole: 'Ajudante',
+          status: PresencaStatus.falta,
+          allocations: const [
+            AlocacaoLote(lotId: 'lote-1', lotName: 'Casa 01', percentage: 50),
+          ],
+        );
 
-      expect(invalidoFalta.isValidAllocation, isFalse);
-      expect(invalidoFalta.validationError, contains('ausente'));
-    });
+        expect(invalidoFalta.isValidAllocation, isFalse);
+        expect(invalidoFalta.validationError, contains('ausente'));
+      },
+    );
 
     test('ChamadaDiaria valida todos os trabalhadores e contadores do dia', () {
       final chamada = ChamadaDiaria(
@@ -170,65 +176,78 @@ void main() {
       expect(chamada.isValid, isTrue);
     });
 
-    test('Serialização e desserialização de ChamadaDiaria preserva estrutura', () {
-      final original = ChamadaDiaria(
-        id: 'ch-99',
-        construtoraId: 'c-10',
-        obraId: 'o-20',
-        date: '2026-09-17',
-        teamId: 'team-alpha',
-        teamName: 'Equipe Alvenaria',
-        createdByUid: 'user-77',
-        defaultLotId: 'lot-5',
-        status: 'confirmada',
-        createdAt: DateTime(2026, 9, 17, 7, 30),
-        updatedAt: DateTime(2026, 9, 17, 7, 30),
-        workers: const [
-          ApontamentoTrabalhador(
-            workerId: 'w-100',
-            workerName: 'Pedro Alvenaria',
-            workerRole: 'Encarregado',
-            status: PresencaStatus.presente,
-            allocations: [
-              AlocacaoLote(lotId: 'lot-5', lotName: 'Casa 05', percentage: 100),
-            ],
-          ),
-        ],
-      );
+    test(
+      'Serialização e desserialização de ChamadaDiaria preserva estrutura',
+      () {
+        final original = ChamadaDiaria(
+          id: 'ch-99',
+          construtoraId: 'c-10',
+          obraId: 'o-20',
+          date: '2026-09-17',
+          teamId: 'team-alpha',
+          teamName: 'Equipe Alvenaria',
+          createdByUid: 'user-77',
+          defaultLotId: 'lot-5',
+          status: 'confirmada',
+          createdAt: DateTime(2026, 9, 17, 7, 30),
+          updatedAt: DateTime(2026, 9, 17, 7, 30),
+          workers: const [
+            ApontamentoTrabalhador(
+              workerId: 'w-100',
+              workerName: 'Pedro Alvenaria',
+              workerRole: 'Encarregado',
+              status: PresencaStatus.presente,
+              allocations: [
+                AlocacaoLote(
+                  lotId: 'lot-5',
+                  lotName: 'Casa 05',
+                  percentage: 100,
+                ),
+              ],
+            ),
+          ],
+        );
 
-      final map = original.toMap();
-      expect(map['date'], equals('2026-09-17'));
-      expect(map['teamName'], equals('Equipe Alvenaria'));
+        final map = original.toMap();
+        expect(map['date'], equals('2026-09-17'));
+        expect(map['teamName'], equals('Equipe Alvenaria'));
 
-      final restored = ChamadaDiaria.fromMap(map, id: 'ch-99');
-      expect(restored.id, equals('ch-99'));
-      expect(restored.workers.length, equals(1));
-      expect(restored.workers.first.workerName, equals('Pedro Alvenaria'));
-      expect(restored.workers.first.allocations.first.percentage, equals(100));
-    });
+        final restored = ChamadaDiaria.fromMap(map, id: 'ch-99');
+        expect(restored.id, equals('ch-99'));
+        expect(restored.workers.length, equals(1));
+        expect(restored.workers.first.workerName, equals('Pedro Alvenaria'));
+        expect(
+          restored.workers.first.allocations.first.percentage,
+          equals(100),
+        );
+      },
+    );
   });
 
   group('Story 4.2 — Memorização do Lote Atual', () {
-    test('LotePersistidoService salva e recupera preferência de lote por equipe', () async {
-      final service = LotePersistidoService();
+    test(
+      'LotePersistidoService salva e recupera preferência de lote por equipe',
+      () async {
+        final service = LotePersistidoService();
 
-      expect(
-        await service.getDefaultLot(obraId: 'obra-1', teamId: 'equipe-1'),
-        isNull,
-      );
+        expect(
+          await service.getDefaultLot(obraId: 'obra-1', teamId: 'equipe-1'),
+          isNull,
+        );
 
-      await service.saveDefaultLot(
-        obraId: 'obra-1',
-        teamId: 'equipe-1',
-        lotId: 'lote-42',
-      );
+        await service.saveDefaultLot(
+          obraId: 'obra-1',
+          teamId: 'equipe-1',
+          lotId: 'lote-42',
+        );
 
-      final lotId = await service.getDefaultLot(
-        obraId: 'obra-1',
-        teamId: 'equipe-1',
-      );
-      expect(lotId, equals('lote-42'));
-    });
+        final lotId = await service.getDefaultLot(
+          obraId: 'obra-1',
+          teamId: 'equipe-1',
+        );
+        expect(lotId, equals('lote-42'));
+      },
+    );
   });
 
   group('Story 4.2 — Widgets e Experiência do Encarregado', () {
@@ -253,100 +272,110 @@ void main() {
       ),
     ];
 
-    testWidgets('ApontamentoWorkerCard alterna presença para Falta e Meio-Período', (tester) async {
-      ApontamentoTrabalhador current = ApontamentoTrabalhador(
-        workerId: 'w-1',
-        workerName: 'Antônio da Silva',
-        workerRole: 'Armador',
-        status: PresencaStatus.presente,
-        allocations: const [
-          AlocacaoLote(lotId: 'l-1', lotName: 'Casa 10', percentage: 100),
-        ],
-      );
+    testWidgets(
+      'ApontamentoWorkerCard alterna presença para Falta e Meio-Período',
+      (tester) async {
+        ApontamentoTrabalhador current = ApontamentoTrabalhador(
+          workerId: 'w-1',
+          workerName: 'Antônio da Silva',
+          workerRole: 'Armador',
+          status: PresencaStatus.presente,
+          allocations: const [
+            AlocacaoLote(lotId: 'l-1', lotName: 'Casa 10', percentage: 100),
+          ],
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: StatefulBuilder(
-              builder: (context, setState) {
-                return ApontamentoWorkerCard(
-                  apontamento: current,
-                  availableLotes: mockLotes,
-                  onChanged: (updated) {
-                    setState(() {
-                      current = updated;
-                    });
-                  },
-                );
-              },
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('Antônio da Silva'), findsOneWidget);
-      expect(find.text('Armador'), findsOneWidget);
-      expect(find.text('Casa 10 (100%)'), findsOneWidget);
-
-      // Clica em 'Falta'
-      await tester.tap(find.text('Falta'));
-      await tester.pumpAndSettle();
-
-      expect(current.status, equals(PresencaStatus.falta));
-      expect(current.allocations, isEmpty);
-      expect(find.text('Casa 10 (100%)'), findsNothing);
-
-      // Clica em '1/2 Período'
-      await tester.tap(find.text('1/2 Período'));
-      await tester.pumpAndSettle();
-
-      expect(current.status, equals(PresencaStatus.meioPeriodo));
-      expect(current.allocations.first.percentage, equals(50));
-      expect(find.text('Casa 10 (50%)'), findsOneWidget);
-    });
-
-    testWidgets('RateioLotesSheet valida equilíbrio e bloqueia confirmação divergente', (tester) async {
-      List<AlocacaoLote> savedAllocations = [];
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => ElevatedButton(
-                onPressed: () {
-                  RateioLotesSheet.show(
-                    context: context,
-                    workerName: 'Roberto Alves',
-                    status: PresencaStatus.presente,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (context, setState) {
+                  return ApontamentoWorkerCard(
+                    apontamento: current,
                     availableLotes: mockLotes,
-                    initialAllocations: const [
-                      AlocacaoLote(lotId: 'l-1', lotName: 'Casa 10', percentage: 100),
-                    ],
-                    onSave: (allocs) {
-                      savedAllocations = allocs;
+                    onChanged: (updated) {
+                      setState(() {
+                        current = updated;
+                      });
                     },
                   );
                 },
-                child: const Text('Abrir Rateio'),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.tap(find.text('Abrir Rateio'));
-      await tester.pumpAndSettle();
+        expect(find.text('Antônio da Silva'), findsOneWidget);
+        expect(find.text('Armador'), findsOneWidget);
+        expect(find.text('Casa 10 (100%)'), findsOneWidget);
 
-      expect(find.text('Rateio de Lotes: Roberto Alves'), findsOneWidget);
-      expect(find.text('Alocação equilibrada (100%)'), findsOneWidget);
-      expect(find.text('Confirmar Rateio'), findsOneWidget);
+        // Clica em 'Falta'
+        await tester.tap(find.text('Falta'));
+        await tester.pumpAndSettle();
 
-      // Botão confirmar deve estar habilitado inicialmente
-      await tester.tap(find.text('Confirmar Rateio'));
-      await tester.pumpAndSettle();
+        expect(current.status, equals(PresencaStatus.falta));
+        expect(current.allocations, isEmpty);
+        expect(find.text('Casa 10 (100%)'), findsNothing);
 
-      expect(savedAllocations.length, equals(1));
-      expect(savedAllocations.first.percentage, equals(100));
-    });
+        // Clica em '1/2 Período'
+        await tester.tap(find.text('1/2 Período'));
+        await tester.pumpAndSettle();
+
+        expect(current.status, equals(PresencaStatus.meioPeriodo));
+        expect(current.allocations.first.percentage, equals(50));
+        expect(find.text('Casa 10 (50%)'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'RateioLotesSheet valida equilíbrio e bloqueia confirmação divergente',
+      (tester) async {
+        List<AlocacaoLote> savedAllocations = [];
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () {
+                    RateioLotesSheet.show(
+                      context: context,
+                      workerName: 'Roberto Alves',
+                      status: PresencaStatus.presente,
+                      availableLotes: mockLotes,
+                      initialAllocations: const [
+                        AlocacaoLote(
+                          lotId: 'l-1',
+                          lotName: 'Casa 10',
+                          percentage: 100,
+                        ),
+                      ],
+                      onSave: (allocs) {
+                        savedAllocations = allocs;
+                      },
+                    );
+                  },
+                  child: const Text('Abrir Rateio'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Abrir Rateio'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Rateio de Lotes: Roberto Alves'), findsOneWidget);
+        expect(find.text('Alocação equilibrada (100%)'), findsOneWidget);
+        expect(find.text('Confirmar Rateio'), findsOneWidget);
+
+        // Botão confirmar deve estar habilitado inicialmente
+        await tester.tap(find.text('Confirmar Rateio'));
+        await tester.pumpAndSettle();
+
+        expect(savedAllocations.length, equals(1));
+        expect(savedAllocations.first.percentage, equals(100));
+      },
+    );
   });
 }

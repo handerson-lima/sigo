@@ -33,8 +33,9 @@ class _TemplatesListScreenState extends ConsumerState<TemplatesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final templatesAsync =
-        ref.watch(templatesListStreamProvider(widget.construtoraId));
+    final templatesAsync = ref.watch(
+      templatesListStreamProvider(widget.construtoraId),
+    );
 
     return SigoLayout(
       title: 'Templates de Validação & Qualidade',
@@ -58,8 +59,10 @@ class _TemplatesListScreenState extends ConsumerState<TemplatesListScreen> {
                     hintText: 'Pesquisar templates...',
                     prefixIcon: Icon(Icons.search),
                     border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                   onChanged: (val) => setState(() => _termoBusca = val),
                 ),
@@ -73,19 +76,45 @@ class _TemplatesListScreenState extends ConsumerState<TemplatesListScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Disciplina',
                     border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'todas', child: Text('Todas as Disciplinas')),
-                    DropdownMenuItem(value: 'alvenaria', child: Text('Alvenaria')),
-                    DropdownMenuItem(value: 'estrutura', child: Text('Estrutura')),
-                    DropdownMenuItem(value: 'fundacao', child: Text('Fundação')),
-                    DropdownMenuItem(value: 'eletrica', child: Text('Elétrica')),
-                    DropdownMenuItem(value: 'hidraulica', child: Text('Hidráulica')),
+                    DropdownMenuItem(
+                      value: 'todas',
+                      child: Text('Todas as Disciplinas'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'alvenaria',
+                      child: Text('Alvenaria'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'estrutura',
+                      child: Text('Estrutura'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'fundacao',
+                      child: Text('Fundação'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'eletrica',
+                      child: Text('Elétrica'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'hidraulica',
+                      child: Text('Hidráulica'),
+                    ),
                     DropdownMenuItem(value: 'pintura', child: Text('Pintura')),
-                    DropdownMenuItem(value: 'acabamento', child: Text('Acabamento')),
-                    DropdownMenuItem(value: 'cobertura', child: Text('Cobertura')),
+                    DropdownMenuItem(
+                      value: 'acabamento',
+                      child: Text('Acabamento'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'cobertura',
+                      child: Text('Cobertura'),
+                    ),
                     DropdownMenuItem(value: 'geral', child: Text('Geral')),
                   ],
                   onChanged: (v) {
@@ -99,16 +128,22 @@ class _TemplatesListScreenState extends ConsumerState<TemplatesListScreen> {
           Expanded(
             child: templatesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Erro ao carregar templates: $err')),
+              error: (err, _) =>
+                  Center(child: Text('Erro ao carregar templates: $err')),
               data: (templates) {
                 var filtrados = templates.where((t) {
-                  final matchesBusca = _termoBusca.isEmpty ||
-                      t.titulo.toLowerCase().contains(_termoBusca.toLowerCase()) ||
-                      t.disciplinaFormatada
-                          .toLowerCase()
-                          .contains(_termoBusca.toLowerCase());
-                  final matchesDisc = _filtroDisciplina == 'todas' ||
-                      t.disciplina.toLowerCase() == _filtroDisciplina.toLowerCase();
+                  final matchesBusca =
+                      _termoBusca.isEmpty ||
+                      t.titulo.toLowerCase().contains(
+                        _termoBusca.toLowerCase(),
+                      ) ||
+                      t.disciplinaFormatada.toLowerCase().contains(
+                        _termoBusca.toLowerCase(),
+                      );
+                  final matchesDisc =
+                      _filtroDisciplina == 'todas' ||
+                      t.disciplina.toLowerCase() ==
+                          _filtroDisciplina.toLowerCase();
                   return matchesBusca && matchesDisc;
                 }).toList();
 
@@ -117,13 +152,20 @@ class _TemplatesListScreenState extends ConsumerState<TemplatesListScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.assignment_outlined, size: 64, color: Colors.grey[400]),
+                        Icon(
+                          Icons.assignment_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           templates.isEmpty
                               ? 'Nenhum template corporativo cadastrado ainda.'
                               : 'Nenhum template corresponde aos filtros selecionados.',
-                          style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[700],
+                          ),
                         ),
                         if (templates.isEmpty) ...[
                           const SizedBox(height: 16),
@@ -185,11 +227,17 @@ class _TemplatesListScreenState extends ConsumerState<TemplatesListScreen> {
                                       const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 2),
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.blue[50],
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: Colors.blue[200]!),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.blue[200]!,
+                                          ),
                                         ),
                                         child: Text(
                                           'v${tpl.version}',
@@ -203,12 +251,16 @@ class _TemplatesListScreenState extends ConsumerState<TemplatesListScreen> {
                                       const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 2),
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: tpl.ativo
                                               ? Colors.green[50]
                                               : Colors.grey[100],
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
                                           border: Border.all(
                                             color: tpl.ativo
                                                 ? Colors.green[300]!
@@ -247,9 +299,7 @@ class _TemplatesListScreenState extends ConsumerState<TemplatesListScreen> {
                             IconButton(
                               tooltip: tpl.ativo ? 'Desativar' : 'Reativar',
                               icon: Icon(
-                                tpl.ativo
-                                    ? Icons.toggle_on
-                                    : Icons.toggle_off,
+                                tpl.ativo ? Icons.toggle_on : Icons.toggle_off,
                                 color: tpl.ativo ? Colors.green : Colors.grey,
                                 size: 28,
                               ),

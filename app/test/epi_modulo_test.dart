@@ -213,7 +213,7 @@ void main() {
         funcionarioNome: 'Antônio Ferreira',
         funcionarioCpf: '222.333.444-55',
         itens: [
-          {'epiNome': 'Protetor Auditivo', 'caNumero': '1111', 'quantidade': 2}
+          {'epiNome': 'Protetor Auditivo', 'caNumero': '1111', 'quantidade': 2},
         ],
         tipoConfirmacao: 'assinatura_canvas',
         assinaturaStoragePath: 'construtoras/c1/obras/o1/epis/func-2/ass.png',

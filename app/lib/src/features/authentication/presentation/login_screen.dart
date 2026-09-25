@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'login_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -23,10 +24,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      ref.read(loginControllerProvider.notifier).signIn(
-            _emailController.text.trim(),
-            _passwordController.text,
-          );
+      ref
+          .read(loginControllerProvider.notifier)
+          .signIn(_emailController.text.trim(), _passwordController.text);
     }
   }
 
@@ -34,16 +34,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(loginControllerProvider);
 
-    ref.listen<AsyncValue<void>>(
-      loginControllerProvider,
-      (_, state) {
-        if (state.hasError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.error.toString())),
-          );
-        }
-      },
-    );
+    ref.listen<AsyncValue<void>>(loginControllerProvider, (_, state) {
+      if (state.hasError) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(state.error.toString())));
+      }
+    });
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -101,10 +97,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     'Acesse sua conta para continuar',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.grey[500],
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
                   ),
                   const SizedBox(height: 32),
                   TextFormField(
@@ -115,7 +108,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
                     keyboardType: TextInputType.emailAddress,
-                    validator: (value) => value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Campo obrigatório'
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -126,7 +121,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       prefixIcon: Icon(Icons.lock_outline),
                     ),
                     obscureText: true,
-                    validator: (value) => value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                    validator: (value) => value == null || value.isEmpty
+                        ? 'Campo obrigatório'
+                        : null,
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -155,7 +152,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'ou entrar com',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                       const Expanded(child: Divider()),
@@ -164,7 +164,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 24),
                   OutlinedButton.icon(
                     onPressed: null, // Desabilitado
-                    icon: const Icon(Icons.language, size: 24), // Google genérico
+                    icon: const Icon(
+                      Icons.language,
+                      size: 24,
+                    ), // Google genérico
                     label: const Text('Google'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),

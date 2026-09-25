@@ -16,31 +16,28 @@ abstract class EpiPaths {
 
 /// Rotas do módulo de EPIs.
 List<RouteBase> get epiRoutes => [
-      GoRoute(
-        path: EpiPaths.catalogo,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            module: 'epi',
-            child: CatalogoEpisScreen(construtoraId: cId),
-          );
-        },
-      ),
-      GoRoute(
-        path: EpiPaths.entrega,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'epi',
-            child: EntregaEpiScreen(
-              construtoraId: cId,
-              obraId: oId,
-            ),
-          );
-        },
-      ),
-    ];
+  GoRoute(
+    path: EpiPaths.catalogo,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        module: 'epi',
+        child: CatalogoEpisScreen(construtoraId: cId),
+      );
+    },
+  ),
+  GoRoute(
+    path: EpiPaths.entrega,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'epi',
+        child: EntregaEpiScreen(construtoraId: cId, obraId: oId),
+      );
+    },
+  ),
+];

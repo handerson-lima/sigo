@@ -17,23 +17,23 @@ abstract class DevPaths {
 
 /// Rotas do módulo de desenvolvedor.
 List<RouteBase> get devRoutes => [
-      GoRoute(
-        path: DevPaths.panel,
-        builder: (context, state) => const DevPanelScreen(),
-      ),
-      GoRoute(
-        path: DevPaths.users,
-        builder: (context, state) => const UsersListScreen(),
-      ),
-      GoRoute(
-        path: DevPaths.userDetails,
-        builder: (context, state) {
-          final uid = state.pathParameters['uid']!;
-          return UserDetailsScreen(userId: uid);
-        },
-      ),
-      GoRoute(
-        path: DevPaths.construtoras,
-        builder: (context, state) => const DevConstrutorasListScreen(),
-      ),
-    ];
+  GoRoute(
+    path: DevPaths.panel,
+    builder: (context, state) => const DevPanelScreen(),
+  ),
+  GoRoute(
+    path: DevPaths.users,
+    builder: (context, state) => const UsersListScreen(),
+  ),
+  GoRoute(
+    path: DevPaths.userDetails,
+    builder: (context, state) {
+      final uid = state.pathParameters['uid']!;
+      return UserDetailsScreen(userId: uid);
+    },
+  ),
+  GoRoute(
+    path: DevPaths.construtoras,
+    builder: (context, state) => const DevConstrutorasListScreen(),
+  ),
+];

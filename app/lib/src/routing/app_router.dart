@@ -48,8 +48,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/';
       }
 
-      if (state.uri.path == '/construtora' || state.uri.path.startsWith('/construtora/')) {
-        final newUri = state.uri.replace(path: state.uri.path.replaceFirst(RegExp(r'^/construtora'), '/construtoras'));
+      if (state.uri.path == '/construtora' ||
+          state.uri.path.startsWith('/construtora/')) {
+        final newUri = state.uri.replace(
+          path: state.uri.path.replaceFirst(
+            RegExp(r'^/construtora'),
+            '/construtoras',
+          ),
+        );
         return newUri.toString();
       }
 

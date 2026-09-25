@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,11 +8,7 @@ import 'package:app/src/features/almoxarifado/presentation/stock_history_screen.
 import 'package:app/src/sync/operation_queue.dart';
 
 Widget createTestWidget(Widget home) {
-  return ProviderScope(
-    child: MaterialApp(
-      home: home,
-    ),
-  );
+  return ProviderScope(child: MaterialApp(home: home));
 }
 
 void main() {
@@ -91,9 +88,15 @@ void main() {
         // Verifica diálogo de estorno
         expect(find.text('Estornar movimentação'), findsOneWidget);
         expect(find.text('Movimentação original:'), findsOneWidget);
-        expect(find.textContaining('Tipo: Saída · Quantidade: 10 Saco'), findsOneWidget);
+        expect(
+          find.textContaining('Tipo: Saída · Quantidade: 10 Saco'),
+          findsOneWidget,
+        );
         expect(find.text('Saldo atual: 20 Saco'), findsOneWidget);
-        expect(find.text('Saldo previsto pós-estorno: 30 Saco'), findsOneWidget);
+        expect(
+          find.text('Saldo previsto pós-estorno: 30 Saco'),
+          findsOneWidget,
+        );
 
         // Preenche motivo e evidência
         final reasonField = find.widgetWithText(
@@ -167,15 +170,24 @@ void main() {
         await tester.tap(find.widgetWithText(TextButton, 'Estornar'));
         await tester.pumpAndSettle();
 
-        expect(find.textContaining('Tipo: Entrada · Quantidade: 15 Saco'), findsOneWidget);
+        expect(
+          find.textContaining('Tipo: Entrada · Quantidade: 15 Saco'),
+          findsOneWidget,
+        );
         expect(find.text('Saldo atual: 35 Saco'), findsOneWidget);
-        expect(find.text('Saldo previsto pós-estorno: 20 Saco'), findsOneWidget);
+        expect(
+          find.text('Saldo previsto pós-estorno: 20 Saco'),
+          findsOneWidget,
+        );
 
         final reasonField = find.widgetWithText(
           TextFormField,
           'Motivo da correção',
         );
-        await tester.enterText(reasonField, 'NF duplicada lançada incorretamente');
+        await tester.enterText(
+          reasonField,
+          'NF duplicada lançada incorretamente',
+        );
 
         final evidenceField = find.widgetWithText(
           TextFormField,
@@ -234,8 +246,14 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Saldo atual: 10 Saco'), findsOneWidget);
-        expect(find.text('Saldo previsto pós-estorno: -40 Saco'), findsOneWidget);
-        expect(find.textContaining('Saldo insuficiente para estornar esta entrada'), findsOneWidget);
+        expect(
+          find.text('Saldo previsto pós-estorno: -40 Saco'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('Saldo insuficiente para estornar esta entrada'),
+          findsOneWidget,
+        );
 
         // Botão Registrar deve estar desabilitado
         final registrarBtn = find.widgetWithText(FilledButton, 'Registrar');
@@ -289,8 +307,14 @@ void main() {
         await tester.tap(find.widgetWithText(FilledButton, 'Registrar'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Descreva o motivo (mínimo 5 caracteres)'), findsOneWidget);
-        expect(find.text('Informe a referência da evidência ou documento'), findsOneWidget);
+        expect(
+          find.text('Descreva o motivo (mínimo 5 caracteres)'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Informe a referência da evidência ou documento'),
+          findsOneWidget,
+        );
         expect(enqueuedPayloads, isEmpty);
       },
     );
@@ -374,8 +398,14 @@ void main() {
 
         expect(find.text('[Estorno Auditado]'), findsOneWidget);
         expect(find.text('+10 Saco'), findsOneWidget);
-        expect(find.textContaining('Ref: mov-saida-original-01'), findsOneWidget);
-        expect(find.textContaining('Motivo: Estorno de saída indevida'), findsOneWidget);
+        expect(
+          find.textContaining('Ref: mov-saida-original-01'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('Motivo: Estorno de saída indevida'),
+          findsOneWidget,
+        );
         expect(find.textContaining('Evidência: Laudo-01'), findsOneWidget);
       },
     );
@@ -401,7 +431,8 @@ void main() {
         for (final row in queueItems) {
           final d = row['payload'] as Map<String, dynamic>;
           if (d['type'] == 'estorno') {
-            final rev = num.tryParse(d['reversalDelta']?.toString() ?? '')?.toDouble();
+            final rev = num.tryParse(d['reversalDelta']?.toString() ?? '')
+                ?.toDouble();
             if (rev != null) delta += rev;
           }
         }

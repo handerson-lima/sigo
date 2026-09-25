@@ -35,8 +35,14 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
   final List<Map<String, String>> _categorias = [
     {'value': 'cabeca', 'label': 'Proteção da Cabeça (Capacetes, Carneiras)'},
     {'value': 'ocular', 'label': 'Proteção dos Olhos/Face (Óculos, Viseiras)'},
-    {'value': 'auditiva', 'label': 'Proteção Auditiva (Protetores, Abafadores)'},
-    {'value': 'respiratoria', 'label': 'Proteção Respiratória (Máscaras, Respiradores)'},
+    {
+      'value': 'auditiva',
+      'label': 'Proteção Auditiva (Protetores, Abafadores)',
+    },
+    {
+      'value': 'respiratoria',
+      'label': 'Proteção Respiratória (Máscaras, Respiradores)',
+    },
     {'value': 'maos_bracos', 'label': 'Membros Superiores (Luvas, Mangotes)'},
     {'value': 'pes_pernas', 'label': 'Membros Inferiores (Botinas, Perneiras)'},
     {'value': 'altura', 'label': 'Proteção contra Quedas (Cintos, Talabartes)'},
@@ -50,12 +56,15 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
     _nomeController = TextEditingController(text: item?.nome ?? '');
     _fabricanteController = TextEditingController(text: item?.fabricante ?? '');
     _caNumeroController = TextEditingController(text: item?.caNumero ?? '');
-    _vidaUtilController = TextEditingController(text: item != null ? item.vidaUtilDias.toString() : '180');
+    _vidaUtilController = TextEditingController(
+      text: item != null ? item.vidaUtilDias.toString() : '180',
+    );
     _descricaoController = TextEditingController(text: item?.descricao ?? '');
 
     _categoria = item?.categoria ?? 'cabeca';
     _unidade = item?.unidade ?? 'un';
-    _caValidade = item?.caValidade ?? DateTime.now().add(const Duration(days: 365));
+    _caValidade =
+        item?.caValidade ?? DateTime.now().add(const Duration(days: 365));
   }
 
   @override
@@ -104,7 +113,9 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
         caValidade: _caValidade,
         vidaUtilDias: int.tryParse(_vidaUtilController.text.trim()) ?? 180,
         unidade: _unidade,
-        descricao: _descricaoController.text.trim().isEmpty ? null : _descricaoController.text.trim(),
+        descricao: _descricaoController.text.trim().isEmpty
+            ? null
+            : _descricaoController.text.trim(),
         isActive: widget.initialItem?.isActive ?? true,
       );
 
@@ -115,7 +126,10 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao salvar EPI: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Erro ao salvar EPI: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -144,7 +158,9 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
                     labelText: 'Nome do EPI *',
                     hintText: 'Ex: Capacete de Segurança Aba Frontal',
                   ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Nome é obrigatório' : null,
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Nome é obrigatório'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -157,7 +173,9 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
                           labelText: 'Fabricante *',
                           hintText: 'Ex: MSA, 3M, Danny',
                         ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Fabricante é obrigatório' : null,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Fabricante é obrigatório'
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -167,9 +185,18 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
                         initialValue: _unidade,
                         decoration: const InputDecoration(labelText: 'Unidade'),
                         items: const [
-                          DropdownMenuItem(value: 'un', child: Text('Unidade (un)')),
-                          DropdownMenuItem(value: 'par', child: Text('Par (par)')),
-                          DropdownMenuItem(value: 'kit', child: Text('Kit (kit)')),
+                          DropdownMenuItem(
+                            value: 'un',
+                            child: Text('Unidade (un)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'par',
+                            child: Text('Par (par)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'kit',
+                            child: Text('Kit (kit)'),
+                          ),
                         ],
                         onChanged: (val) {
                           if (val != null) setState(() => _unidade = val);
@@ -181,9 +208,16 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: _categoria,
-                  decoration: const InputDecoration(labelText: 'Categoria de Proteção *'),
+                  decoration: const InputDecoration(
+                    labelText: 'Categoria de Proteção *',
+                  ),
                   items: _categorias
-                      .map((cat) => DropdownMenuItem(value: cat['value'], child: Text(cat['label']!)))
+                      .map(
+                        (cat) => DropdownMenuItem(
+                          value: cat['value'],
+                          child: Text(cat['label']!),
+                        ),
+                      )
                       .toList(),
                   onChanged: (val) {
                     if (val != null) setState(() => _categoria = val);
@@ -199,7 +233,9 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
                           labelText: 'Número do C.A. *',
                           hintText: 'Ex: 12345',
                         ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Número de C.A. obrigatório' : null,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Número de C.A. obrigatório'
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -235,12 +271,19 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.warning_amber, color: Colors.amber.shade900, size: 20),
+                          Icon(
+                            Icons.warning_amber,
+                            color: Colors.amber.shade900,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Atenção: Este C.A. está expirado! Itens com C.A. vencido exigirão autorização especial na entrega.',
-                              style: TextStyle(color: Colors.amber.shade900, fontSize: 12),
+                              style: TextStyle(
+                                color: Colors.amber.shade900,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ],
@@ -254,7 +297,8 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
                   decoration: const InputDecoration(
                     labelText: 'Vida Útil Estimada (dias)',
                     hintText: 'Ex: 180',
-                    helperText: 'Periodicidade sugerida para substituição preventiva',
+                    helperText:
+                        'Periodicidade sugerida para substituição preventiva',
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return null;
@@ -269,7 +313,8 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
                   maxLines: 2,
                   decoration: const InputDecoration(
                     labelText: 'Descrição / Observações',
-                    hintText: 'Instruções de conservação, detalhes técnicos, etc.',
+                    hintText:
+                        'Instruções de conservação, detalhes técnicos, etc.',
                   ),
                 ),
               ],
@@ -285,7 +330,11 @@ class _EpiFormDialogState extends ConsumerState<EpiFormDialog> {
         ElevatedButton(
           onPressed: _isLoading ? null : _salvar,
           child: _isLoading
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : Text(isEditing ? 'Salvar Alterações' : 'Cadastrar EPI'),
         ),
       ],

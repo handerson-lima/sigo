@@ -65,16 +65,8 @@ class MemberRow extends StatelessWidget {
           backgroundColor: avatarBg,
           child: Icon(avatarIcon, color: avatarIconColor),
         ),
-        title: Text(
-          nome,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          subtitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: Text(nome, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
         trailing: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 220),
           child: Row(

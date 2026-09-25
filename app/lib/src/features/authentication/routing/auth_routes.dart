@@ -9,8 +9,8 @@ abstract class AuthPaths {
 
 /// Rotas do módulo de autenticação.
 List<RouteBase> get authRoutes => [
-      GoRoute(
-        path: AuthPaths.login,
-        builder: (context, state) => const LoginScreen(),
-      ),
-    ];
+  GoRoute(
+    path: AuthPaths.login,
+    builder: (context, state) => const LoginScreen(),
+  ),
+];

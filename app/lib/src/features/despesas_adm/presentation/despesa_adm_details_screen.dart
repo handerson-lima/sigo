@@ -42,11 +42,13 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
     );
 
     if (result == true && context.mounted) {
-      ref.invalidate(despesaDetailsFutureProvider((
-        construtoraId: construtoraId,
-        obraId: obraId,
-        despesaId: despesaId,
-      )));
+      ref.invalidate(
+        despesaDetailsFutureProvider((
+          construtoraId: construtoraId,
+          obraId: obraId,
+          despesaId: despesaId,
+        )),
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Colors.green,
@@ -61,15 +63,18 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
     final currency = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
     final dateFormat = DateFormat('dd/MM/yyyy');
 
-    final despesaAsync = ref.watch(despesaDetailsFutureProvider((
-      construtoraId: construtoraId,
-      obraId: obraId,
-      despesaId: despesaId,
-    )));
+    final despesaAsync = ref.watch(
+      despesaDetailsFutureProvider((
+        construtoraId: construtoraId,
+        obraId: obraId,
+        despesaId: despesaId,
+      )),
+    );
 
     return SigoLayout(
       title: 'Detalhes da Despesa',
-      activeRoute: '/construtoras/$construtoraId/obra/$obraId/despesas/$despesaId',
+      activeRoute:
+          '/construtoras/$construtoraId/obra/$obraId/despesas/$despesaId',
       actions: [
         despesaAsync.maybeWhen(
           data: (despesa) {
@@ -148,8 +153,8 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
                               backgroundColor: isPaga
                                   ? Colors.green.shade100
                                   : isCancelada
-                                      ? Colors.grey.shade200
-                                      : Colors.orange.shade100,
+                                  ? Colors.grey.shade200
+                                  : Colors.orange.shade100,
                             ),
                           ],
                         ),
@@ -198,20 +203,25 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Data de Emissão:',
-                                    style: TextStyle(fontSize: 12)),
+                                const Text(
+                                  'Data de Emissão:',
+                                  style: TextStyle(fontSize: 12),
+                                ),
                                 Text(
                                   dateFormat.format(despesa.dataEmissao),
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                const Text('Vencimento:',
-                                    style: TextStyle(fontSize: 12)),
+                                const Text(
+                                  'Vencimento:',
+                                  style: TextStyle(fontSize: 12),
+                                ),
                                 Text(
                                   dateFormat.format(despesa.dataVencimento),
                                   style: TextStyle(
@@ -245,8 +255,10 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Total do Título',
-                                  style: TextStyle(fontSize: 12)),
+                              const Text(
+                                'Total do Título',
+                                style: TextStyle(fontSize: 12),
+                              ),
                               const SizedBox(height: 4),
                               Text(
                                 currency.format(despesa.valorTotal),
@@ -262,8 +274,10 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Total Pago',
-                                  style: TextStyle(fontSize: 12)),
+                              const Text(
+                                'Total Pago',
+                                style: TextStyle(fontSize: 12),
+                              ),
                               const SizedBox(height: 4),
                               Text(
                                 currency.format(despesa.valorPagoCents / 100.0),
@@ -280,11 +294,15 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Saldo Devedor',
-                                  style: TextStyle(fontSize: 12)),
+                              const Text(
+                                'Saldo Devedor',
+                                style: TextStyle(fontSize: 12),
+                              ),
                               const SizedBox(height: 4),
                               Text(
-                                currency.format(despesa.saldoDevedorCents / 100.0),
+                                currency.format(
+                                  despesa.saldoDevedorCents / 100.0,
+                                ),
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -344,12 +362,17 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
                       side: BorderSide(color: Colors.blue.shade200),
                     ),
                     child: ListTile(
-                      leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                      leading: const Icon(
+                        Icons.picture_as_pdf,
+                        color: Colors.red,
+                      ),
                       title: Text(
                         despesa.comprovanteNome ?? 'Documento Comprobatório',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: const Text('Toque para visualizar no navegador'),
+                      subtitle: const Text(
+                        'Toque para visualizar no navegador',
+                      ),
                       trailing: const Icon(Icons.open_in_new),
                       onTap: () {
                         // Link direto

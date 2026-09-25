@@ -28,10 +28,7 @@ Future<String> queueStore(String action, String input) async {
     }
     if (action == 'setSchemaVersion') {
       final metaFile = File('${dir.path}/schema_version.json');
-      final data = {
-        'schema': 'sigo-operations',
-        ...args,
-      };
+      final data = {'schema': 'sigo-operations', ...args};
       await metaFile.writeAsString(jsonEncode(data), flush: true);
       return jsonEncode(data);
     }
@@ -39,12 +36,15 @@ Future<String> queueStore(String action, String input) async {
       final cache = Directory('${dir.path}/read-cache');
       await cache.create(recursive: true);
       File? getFile() => args['key'] != null
-          ? File('${cache.path}/${sha256.convert(utf8.encode(args['key'] as String))}.json')
+          ? File(
+              '${cache.path}/${sha256.convert(utf8.encode(args['key'] as String))}.json',
+            )
           : null;
       if (action == 'cacheGet') {
         final file = getFile();
         if (file == null || !await file.exists()) return 'null';
-        final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        final data =
+            jsonDecode(await file.readAsString()) as Map<String, dynamic>;
         return data['uid'] == args['uid'] ? jsonEncode(data['value']) : 'null';
       }
       if (action == 'cachePut') {
@@ -57,9 +57,11 @@ Future<String> queueStore(String action, String input) async {
         final prefix = args['prefix'] as String?;
         await for (final entry in cache.list()) {
           if (entry is File) {
-            final data = jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
+            final data =
+                jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
             if (data['uid'] == args['uid']) {
-              if (prefix == null || (data['key'] as String? ?? '').contains(prefix)) {
+              if (prefix == null ||
+                  (data['key'] as String? ?? '').contains(prefix)) {
                 await entry.delete();
               }
             }
@@ -75,13 +77,16 @@ Future<String> queueStore(String action, String input) async {
       final actionFilter = args['action'] as String?;
       await for (final file in dir.list()) {
         if (file is File && file.path.endsWith('.json')) {
-          final row = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+          final row =
+              jsonDecode(await file.readAsString()) as Map<String, dynamic>;
           if (row['uid'] == args['uid']) {
             final payload = row['payload'] as Map<String, dynamic>?;
-            final itemConstrutora = row['construtoraId'] ?? payload?['construtoraId'];
+            final itemConstrutora =
+                row['construtoraId'] ?? payload?['construtoraId'];
             final itemObra = row['obraId'] ?? payload?['obraId'];
             final itemAction = row['action'];
-            if (construtoraId != null && itemConstrutora != construtoraId) continue;
+            if (construtoraId != null && itemConstrutora != construtoraId)
+              continue;
             if (obraId != null && itemObra != obraId) continue;
             if (actionFilter != null && itemAction != actionFilter) continue;
             all.add(row);

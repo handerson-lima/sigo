@@ -8,15 +8,12 @@ import '../presentation/chamada_form_screen.dart';
 
 /// Constantes de path para RH.
 abstract class RhPaths {
-  
   static const funcionarios = 'rh/funcionarios';
   static const novoFuncionario = 'rh/funcionarios/novo';
-  static const editarFuncionario =
-      'rh/funcionarios/:fId/editar';
+  static const editarFuncionario = 'rh/funcionarios/:fId/editar';
   static const chamadas = 'obra/:oId/rh/chamadas';
   static const novaChamada = 'obra/:oId/rh/chamadas/nova';
-  static const editarChamada =
-      'obra/:oId/rh/chamadas/:chId';
+  static const editarChamada = 'obra/:oId/rh/chamadas/:chId';
 
   static String rhFor(String cId) => '/construtoras/$cId/rh';
   static String funcionariosFor(String cId) =>
@@ -35,86 +32,82 @@ abstract class RhPaths {
 
 /// Rotas do módulo de RH (funcionários + chamadas).
 List<RouteBase> get rhRoutes => [
-
-      GoRoute(
-        path: RhPaths.funcionarios,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            module: 'rh',
-            child: FuncionariosListScreen(construtoraId: cId),
-          );
-        },
-      ),
-      GoRoute(
-        path: RhPaths.novoFuncionario,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            module: 'rh',
-            child: FuncionarioFormScreen(construtoraId: cId),
-          );
-        },
-      ),
-      GoRoute(
-        path: RhPaths.editarFuncionario,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final fId = state.pathParameters['fId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            module: 'rh',
-            child: FuncionarioFormScreen(
-              construtoraId: cId,
-              funcionarioId: fId,
-            ),
-          );
-        },
-      ),
-      GoRoute(
-        path: RhPaths.chamadas,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'rh',
-            child: ChamadasListScreen(construtoraId: cId, obraId: oId),
-          );
-        },
-      ),
-      GoRoute(
-        path: RhPaths.novaChamada,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'rh',
-            child: ChamadaFormScreen(construtoraId: cId, obraId: oId),
-          );
-        },
-      ),
-      GoRoute(
-        path: RhPaths.editarChamada,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          final chId = state.pathParameters['chId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'rh',
-            child: ChamadaFormScreen(
-              construtoraId: cId,
-              obraId: oId,
-              chamadaId: chId,
-            ),
-          );
-        },
-      ),
-    ];
+  GoRoute(
+    path: RhPaths.funcionarios,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        module: 'rh',
+        child: FuncionariosListScreen(construtoraId: cId),
+      );
+    },
+  ),
+  GoRoute(
+    path: RhPaths.novoFuncionario,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        module: 'rh',
+        child: FuncionarioFormScreen(construtoraId: cId),
+      );
+    },
+  ),
+  GoRoute(
+    path: RhPaths.editarFuncionario,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final fId = state.pathParameters['fId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        module: 'rh',
+        child: FuncionarioFormScreen(construtoraId: cId, funcionarioId: fId),
+      );
+    },
+  ),
+  GoRoute(
+    path: RhPaths.chamadas,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'rh',
+        child: ChamadasListScreen(construtoraId: cId, obraId: oId),
+      );
+    },
+  ),
+  GoRoute(
+    path: RhPaths.novaChamada,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'rh',
+        child: ChamadaFormScreen(construtoraId: cId, obraId: oId),
+      );
+    },
+  ),
+  GoRoute(
+    path: RhPaths.editarChamada,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      final chId = state.pathParameters['chId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'rh',
+        child: ChamadaFormScreen(
+          construtoraId: cId,
+          obraId: oId,
+          chamadaId: chId,
+        ),
+      );
+    },
+  ),
+];

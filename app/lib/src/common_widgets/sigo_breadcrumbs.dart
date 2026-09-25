@@ -18,18 +18,20 @@ class SigoBreadcrumbs extends StatelessWidget {
     final pathSegments = uri.pathSegments;
 
     final List<BreadcrumbSegment> segments = [
-      if (pathSegments.isNotEmpty && pathSegments[0] == 'construtoras') 
+      if (pathSegments.isNotEmpty && pathSegments[0] == 'construtoras')
         BreadcrumbSegment(label: 'Minhas Construtoras', url: '/'),
     ];
     String currentUrl = '';
 
     for (int i = 0; i < pathSegments.length; i++) {
       currentUrl += '/${pathSegments[i]}';
-      
+
       if (pathSegments[i] == 'construtoras') {
         if (i + 1 < pathSegments.length) {
           final cid = pathSegments[i + 1];
-          segments.add(BreadcrumbSegment(label: 'Construtora', url: '/construtoras/$cid'));
+          segments.add(
+            BreadcrumbSegment(label: 'Construtora', url: '/construtoras/$cid'),
+          );
         }
       } else if (pathSegments[i] == 'obra') {
         if (i + 1 < pathSegments.length) {
@@ -62,7 +64,7 @@ class SigoBreadcrumbs extends StatelessWidget {
           segments.add(BreadcrumbSegment(label: 'Etapas'));
         }
       } else if (pathSegments[i] == 'equipes') {
-         if (i + 1 < pathSegments.length) {
+        if (i + 1 < pathSegments.length) {
           segments.add(BreadcrumbSegment(label: 'Equipe', url: currentUrl));
         } else {
           segments.add(BreadcrumbSegment(label: 'Equipes'));
@@ -72,7 +74,10 @@ class SigoBreadcrumbs extends StatelessWidget {
 
     if (segments.isNotEmpty) {
       final last = segments.last;
-      segments[segments.length - 1] = BreadcrumbSegment(label: last.label, url: null);
+      segments[segments.length - 1] = BreadcrumbSegment(
+        label: last.label,
+        url: null,
+      );
     }
 
     return Padding(
@@ -102,14 +107,24 @@ class SigoBreadcrumbs extends StatelessWidget {
                     child: Text(
                       segment.label,
                       style: TextStyle(
-                        color: isLast ? theme.textTheme.bodyLarge?.color : (segment.url != null ? theme.primaryColor : theme.disabledColor),
-                        fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
+                        color: isLast
+                            ? theme.textTheme.bodyLarge?.color
+                            : (segment.url != null
+                                  ? theme.primaryColor
+                                  : theme.disabledColor),
+                        fontWeight: isLast
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
                 ),
               ),
-              if (!isLast) const Padding(padding: EdgeInsets.symmetric(horizontal: 4.0), child: Text('/')),
+              if (!isLast)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.0),
+                  child: Text('/'),
+                ),
             ],
           );
         }).toList(),

@@ -131,35 +131,38 @@ void main() {
       );
     });
 
-    test('Detecção de discrepância quando usuário altera parcelas manualmente', () {
-      final parcelasOriginais = ParcelamentoMath.gerarParcelas(
-        totalCents: 10000,
-        numeroParcelas: 2,
-        primeiroVencimento: DateTime(2026, 1, 1),
-      );
-
-      // Usuário altera parcela 1 para 4999 centavos
-      final parcelasAlteradas = [
-        parcelasOriginais[0].copyWith(valorCents: 4999),
-        parcelasOriginais[1], // 5000 centavos
-      ];
-
-      expect(
-        ParcelamentoMath.validarInvarianteParcelas(
+    test(
+      'Detecção de discrepância quando usuário altera parcelas manualmente',
+      () {
+        final parcelasOriginais = ParcelamentoMath.gerarParcelas(
           totalCents: 10000,
-          parcelas: parcelasAlteradas,
-        ),
-        isFalse,
-      );
-      // Faltou 1 centavo (10000 - 9999 = 1)
-      expect(
-        ParcelamentoMath.calcularDiscrepanciaCents(
-          totalCents: 10000,
-          parcelas: parcelasAlteradas,
-        ),
-        1,
-      );
-    });
+          numeroParcelas: 2,
+          primeiroVencimento: DateTime(2026, 1, 1),
+        );
+
+        // Usuário altera parcela 1 para 4999 centavos
+        final parcelasAlteradas = [
+          parcelasOriginais[0].copyWith(valorCents: 4999),
+          parcelasOriginais[1], // 5000 centavos
+        ];
+
+        expect(
+          ParcelamentoMath.validarInvarianteParcelas(
+            totalCents: 10000,
+            parcelas: parcelasAlteradas,
+          ),
+          isFalse,
+        );
+        // Faltou 1 centavo (10000 - 9999 = 1)
+        expect(
+          ParcelamentoMath.calcularDiscrepanciaCents(
+            totalCents: 10000,
+            parcelas: parcelasAlteradas,
+          ),
+          1,
+        );
+      },
+    );
   });
 
   group('DespesaAdm Entity & Lifecycle Tests', () {
@@ -254,7 +257,9 @@ void main() {
 
       expect(despesaVencida.isVencida, isTrue);
 
-      final despesaPaga = despesaVencida.copyWith(status: StatusDespesaAdm.pago);
+      final despesaPaga = despesaVencida.copyWith(
+        status: StatusDespesaAdm.pago,
+      );
       expect(despesaPaga.isVencida, isFalse);
     });
   });

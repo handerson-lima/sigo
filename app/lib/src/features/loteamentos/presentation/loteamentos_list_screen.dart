@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../data/loteamento_repository.dart';
 import '../../obras/presentation/current_permissions_provider.dart';
 import '../../authentication/data/user_repository.dart';
@@ -8,16 +9,15 @@ import '../../../common_widgets/sigo_breadcrumbs.dart';
 import '../../../common_widgets/sigo_empty_state.dart';
 import '../../../common_widgets/sigo_error_state.dart';
 import '../../../common_widgets/sigo_layout.dart';
+
 import 'package:uuid/uuid.dart';
+
 import '../domain/loteamento.dart';
 
 class LoteamentosListScreen extends ConsumerWidget {
   final String construtoraId;
 
-  const LoteamentosListScreen({
-    super.key,
-    required this.construtoraId,
-  });
+  const LoteamentosListScreen({super.key, required this.construtoraId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -112,7 +112,8 @@ class _AddLoteamentoDialog extends ConsumerStatefulWidget {
   const _AddLoteamentoDialog({required this.construtoraId});
 
   @override
-  ConsumerState<_AddLoteamentoDialog> createState() => _AddLoteamentoDialogState();
+  ConsumerState<_AddLoteamentoDialog> createState() =>
+      _AddLoteamentoDialogState();
 }
 
 class _AddLoteamentoDialogState extends ConsumerState<_AddLoteamentoDialog> {
@@ -131,7 +132,8 @@ class _AddLoteamentoDialogState extends ConsumerState<_AddLoteamentoDialog> {
             labelText: 'Nome do Loteamento',
             border: OutlineInputBorder(),
           ),
-          validator: (v) => v == null || v.trim().isEmpty ? 'Nome é obrigatório' : null,
+          validator: (v) =>
+              v == null || v.trim().isEmpty ? 'Nome é obrigatório' : null,
           onSaved: (v) => _name = v!,
         ),
       ),
@@ -161,15 +163,16 @@ class _AddLoteamentoDialogState extends ConsumerState<_AddLoteamentoDialog> {
                     if (context.mounted) Navigator.of(context).pop();
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Erro: $e')),
-                      );
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text('Erro: $e')));
                     }
                   } finally {
                     if (mounted) setState(() => _isLoading = false);
                   }
                 },
-          child: _isLoading ? const CircularProgressIndicator() : const Text('Criar'),
+          child: _isLoading
+              ? const CircularProgressIndicator()
+              : const Text('Criar'),
         ),
       ],
     );

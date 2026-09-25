@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'sigo_sidebar.dart';
 import 'sigo_top_bar.dart';
 
@@ -62,14 +63,8 @@ class SigoLayout extends StatelessWidget {
             actions: actions,
             activeRoute: activeRoute,
           ),
-          drawer: SigoSidebar(
-            activeRoute: activeRoute,
-            isCollapsed: false,
-          ),
-          body: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: child,
-          ),
+          drawer: SigoSidebar(activeRoute: activeRoute, isCollapsed: false),
+          body: Padding(padding: const EdgeInsets.all(16.0), child: child),
         );
       },
     );

@@ -32,9 +32,10 @@ class FornecedorAutocompleteField extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fornecedoresAsync = ref.watch(
-      fornecedoresStreamProvider(
-        (construtoraId: construtoraId, apenasAtivos: apenasAtivos),
-      ),
+      fornecedoresStreamProvider((
+        construtoraId: construtoraId,
+        apenasAtivos: apenasAtivos,
+      )),
     );
 
     return fornecedoresAsync.when(
@@ -84,34 +85,37 @@ class FornecedorAutocompleteField extends ConsumerWidget {
           onSelected: onSelected,
           fieldViewBuilder:
               (context, textEditingController, focusNode, onFieldSubmitted) {
-            return TextFormField(
-              controller: textEditingController,
-              focusNode: focusNode,
-              decoration: InputDecoration(
-                labelText: required ? '$labelText *' : labelText,
-                hintText: hintText,
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.business),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
-                  tooltip: 'Cadastrar Novo Fornecedor',
-                  onPressed: () {
-                    context.push(
-                      '/construtoras/$construtoraId/fornecedores/novo',
-                    );
-                  },
-                ),
-              ),
-              validator: required
-                  ? (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Selecione ou informe o fornecedor.';
-                      }
-                      return null;
-                    }
-                  : null,
-            );
-          },
+                return TextFormField(
+                  controller: textEditingController,
+                  focusNode: focusNode,
+                  decoration: InputDecoration(
+                    labelText: required ? '$labelText *' : labelText,
+                    hintText: hintText,
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.business),
+                    suffixIcon: IconButton(
+                      icon: const Icon(
+                        Icons.add_circle_outline,
+                        color: Colors.blue,
+                      ),
+                      tooltip: 'Cadastrar Novo Fornecedor',
+                      onPressed: () {
+                        context.push(
+                          '/construtoras/$construtoraId/fornecedores/novo',
+                        );
+                      },
+                    ),
+                  ),
+                  validator: required
+                      ? (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Selecione ou informe o fornecedor.';
+                          }
+                          return null;
+                        }
+                      : null,
+                );
+              },
           optionsViewBuilder: (context, onAutoCompleteSelect, options) {
             return Align(
               alignment: Alignment.topLeft,
@@ -147,9 +151,14 @@ class FornecedorAutocompleteField extends ConsumerWidget {
                           '${f.isPessoaJuridica ? "CNPJ" : "CPF"}: ${f.documentoFormatado}',
                           style: const TextStyle(fontSize: 12),
                         ),
-                        trailing: f.dadosBancarios?.chavePix != null &&
+                        trailing:
+                            f.dadosBancarios?.chavePix != null &&
                                 f.dadosBancarios!.chavePix!.isNotEmpty
-                            ? const Icon(Icons.pix, size: 14, color: Colors.teal)
+                            ? const Icon(
+                                Icons.pix,
+                                size: 14,
+                                color: Colors.teal,
+                              )
                             : null,
                         onTap: () {
                           onAutoCompleteSelect(f);

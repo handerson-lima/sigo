@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -76,12 +77,19 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
 
       for (int i = 0; i < _signaturePoints.length - 1; i++) {
         if (_signaturePoints[i] != null && _signaturePoints[i + 1] != null) {
-          canvas.drawLine(_signaturePoints[i]!, _signaturePoints[i + 1]!, paint);
+          canvas.drawLine(
+            _signaturePoints[i]!,
+            _signaturePoints[i + 1]!,
+            paint,
+          );
         }
       }
 
       final picture = recorder.endRecording();
-      final img = await picture.toImage(size.width.toInt(), size.height.toInt());
+      final img = await picture.toImage(
+        size.width.toInt(),
+        size.height.toInt(),
+      );
       final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
       return byteData?.buffer.asUint8List();
     } catch (_) {
@@ -93,13 +101,19 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedFuncionario == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione um colaborador'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Selecione um colaborador'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
     if (_selectedEpi == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione um EPI do catálogo'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Selecione um EPI do catálogo'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -107,7 +121,9 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
     if (_isCaExpirado && _justificativaCaController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('O C.A. deste EPI está vencido. É obrigatório registrar justificativa formal.'),
+          content: Text(
+            'O C.A. deste EPI está vencido. É obrigatório registrar justificativa formal.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -138,7 +154,9 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
         epiId: _selectedEpi!.id,
         epiNome: _selectedEpi!.nome,
         caNumero: _selectedEpi!.caNumero,
-        tipoEvento: _motivo.startsWith('Substituição') ? 'substituicao' : 'entrega',
+        tipoEvento: _motivo.startsWith('Substituição')
+            ? 'substituicao'
+            : 'entrega',
         quantidade: _quantidade,
         motivo: _isCaExpirado
             ? '$_motivo [C.A. Vencido Justificado: ${_justificativaCaController.text.trim()}]'
@@ -149,7 +167,9 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
         termoId: termoId,
         status: 'ativo',
         dataTrocaPrevista: dataTrocaPrevista,
-        observacoes: _obsController.text.trim().isEmpty ? null : _obsController.text.trim(),
+        observacoes: _obsController.text.trim().isEmpty
+            ? null
+            : _obsController.text.trim(),
       );
 
       final itensTermo = [
@@ -158,7 +178,7 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
           'caNumero': _selectedEpi!.caNumero,
           'quantidade': _quantidade,
           'dataEntrega': dataAgora.toIso8601String().split('T').first,
-        }
+        },
       ];
 
       final termo = TermoEpi(
@@ -169,7 +189,9 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
         funcionarioNome: _selectedFuncionario!.name,
         funcionarioCpf: _selectedFuncionario!.cpf,
         itens: itensTermo,
-        tipoConfirmacao: _signaturePoints.isNotEmpty ? 'assinatura_canvas' : 'confirmacao_presencial',
+        tipoConfirmacao: _signaturePoints.isNotEmpty
+            ? 'assinatura_canvas'
+            : 'confirmacao_presencial',
         dataAssinatura: dataAgora,
         responsavelUid: responsavelUid,
       );
@@ -188,7 +210,9 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('EPI entregue e Termo de Responsabilidade gerado com sucesso!'),
+            content: Text(
+              'EPI entregue e Termo de Responsabilidade gerado com sucesso!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -197,7 +221,10 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao registrar entrega: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Erro ao registrar entrega: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -207,12 +234,17 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final funcionariosAsync = ref.watch(funcionariosStreamProvider(widget.construtoraId));
-    final episAsync = ref.watch(catalogoEpisStreamProvider(widget.construtoraId));
+    final funcionariosAsync = ref.watch(
+      funcionariosStreamProvider(widget.construtoraId),
+    );
+    final episAsync = ref.watch(
+      catalogoEpisStreamProvider(widget.construtoraId),
+    );
 
     return SigoLayout(
       title: 'Entrega de EPI',
-      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/epis/entrega',
+      activeRoute:
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/epis/entrega',
       child: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -228,15 +260,23 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                     children: [
                       const Text(
                         '1. Colaborador Destinatário',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       funcionariosAsync.when(
                         data: (funcionarios) {
-                          final ativos = funcionarios.where((f) => f.isActive).toList();
+                          final ativos = funcionarios
+                              .where((f) => f.isActive)
+                              .toList();
 
-                          if (_selectedFuncionario == null && widget.preselectedFuncionarioId != null) {
-                            final match = ativos.where((f) => f.id == widget.preselectedFuncionarioId);
+                          if (_selectedFuncionario == null &&
+                              widget.preselectedFuncionarioId != null) {
+                            final match = ativos.where(
+                              (f) => f.id == widget.preselectedFuncionarioId,
+                            );
                             if (match.isNotEmpty) {
                               _selectedFuncionario = match.first;
                             }
@@ -249,17 +289,24 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                               border: OutlineInputBorder(),
                             ),
                             items: ativos
-                                .map((f) => DropdownMenuItem(
-                                      value: f,
-                                      child: Text('${f.name} (CPF: ${f.cpf}) • ${f.role}'),
-                                    ))
+                                .map(
+                                  (f) => DropdownMenuItem(
+                                    value: f,
+                                    child: Text(
+                                      '${f.name} (CPF: ${f.cpf}) • ${f.role}',
+                                    ),
+                                  ),
+                                )
                                 .toList(),
-                            onChanged: (val) => setState(() => _selectedFuncionario = val),
-                            validator: (v) => v == null ? 'Colaborador obrigatório' : null,
+                            onChanged: (val) =>
+                                setState(() => _selectedFuncionario = val),
+                            validator: (v) =>
+                                v == null ? 'Colaborador obrigatório' : null,
                           );
                         },
                         loading: () => const LinearProgressIndicator(),
-                        error: (err, _) => Text('Erro ao carregar colaboradores: $err'),
+                        error: (err, _) =>
+                            Text('Erro ao carregar colaboradores: $err'),
                       ),
                     ],
                   ),
@@ -275,7 +322,10 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                     children: [
                       const Text(
                         '2. Equipamento (EPI) e Quantidade',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       episAsync.when(
@@ -288,42 +338,71 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                               border: OutlineInputBorder(),
                             ),
                             items: ativos
-                                .map((e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Text('${e.nome} • C.A.: ${e.caNumero} (${e.categoriaFormatada})'),
-                                    ))
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(
+                                      '${e.nome} • C.A.: ${e.caNumero} (${e.categoriaFormatada})',
+                                    ),
+                                  ),
+                                )
                                 .toList(),
-                            onChanged: (val) => setState(() => _selectedEpi = val),
-                            validator: (v) => v == null ? 'EPI obrigatório' : null,
+                            onChanged: (val) =>
+                                setState(() => _selectedEpi = val),
+                            validator: (v) =>
+                                v == null ? 'EPI obrigatório' : null,
                           );
                         },
                         loading: () => const LinearProgressIndicator(),
-                        error: (err, _) => Text('Erro ao carregar catálogo: $err'),
+                        error: (err, _) =>
+                            Text('Erro ao carregar catálogo: $err'),
                       ),
                       if (_selectedEpi != null) ...[
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            Text('Fabricante: ${_selectedEpi!.fabricante} • C.A.: ${_selectedEpi!.caNumero}'),
+                            Text(
+                              'Fabricante: ${_selectedEpi!.fabricante} • C.A.: ${_selectedEpi!.caNumero}',
+                            ),
                             const SizedBox(width: 8),
                             _isCaExpirado
                                 ? Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.red.shade100,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(color: Colors.red),
                                     ),
-                                    child: const Text('C.A. EXPIRADO', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    child: const Text(
+                                      'C.A. EXPIRADO',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   )
                                 : Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.green.shade100,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(color: Colors.green),
                                     ),
-                                    child: const Text('C.A. VÁLIDO', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    child: const Text(
+                                      'C.A. VÁLIDO',
+                                      style: TextStyle(
+                                        color: Colors.green,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                           ],
                         ),
@@ -342,9 +421,18 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.error_outline, color: Colors.red.shade800),
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red.shade800,
+                                  ),
                                   const SizedBox(width: 8),
-                                  const Text('Atenção: Validade de C.A. Expirada', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                                  const Text(
+                                    'Atenção: Validade de C.A. Expirada',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red,
+                                    ),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 6),
@@ -362,7 +450,8 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                                   isDense: true,
                                 ),
                                 validator: (v) {
-                                  if (_isCaExpirado && (v == null || v.trim().isEmpty)) {
+                                  if (_isCaExpirado &&
+                                      (v == null || v.trim().isEmpty)) {
                                     return 'Justificativa obrigatória para C.A. vencido';
                                   }
                                   return null;
@@ -378,9 +467,16 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               initialValue: _motivo,
-                              decoration: const InputDecoration(labelText: 'Motivo da Entrega *'),
+                              decoration: const InputDecoration(
+                                labelText: 'Motivo da Entrega *',
+                              ),
                               items: _motivosPadrao
-                                  .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                                  .map(
+                                    (m) => DropdownMenuItem(
+                                      value: m,
+                                      child: Text(m),
+                                    ),
+                                  )
                                   .toList(),
                               onChanged: (val) {
                                 if (val != null) setState(() => _motivo = val);
@@ -393,13 +489,16 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                             child: TextFormField(
                               initialValue: '1',
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(labelText: 'Quantidade *'),
+                              decoration: const InputDecoration(
+                                labelText: 'Quantidade *',
+                              ),
                               validator: (v) {
                                 final n = int.tryParse(v ?? '');
                                 if (n == null || n <= 0) return 'Qtd inválida';
                                 return null;
                               },
-                              onChanged: (v) => _quantidade = int.tryParse(v) ?? 1,
+                              onChanged: (v) =>
+                                  _quantidade = int.tryParse(v) ?? 1,
                             ),
                           ),
                         ],
@@ -426,7 +525,10 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                     children: [
                       const Text(
                         '3. Termo de Responsabilidade (NR-6 / CLT)',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -438,7 +540,11 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                         ),
                         child: const Text(
                           TermoEpi.termoPadraoNr6,
-                          style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.black87),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -471,7 +577,8 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                           child: GestureDetector(
                             onPanUpdate: (details) {
                               setState(() {
-                                final renderBox = context.findRenderObject() as RenderBox?;
+                                final renderBox =
+                                    context.findRenderObject() as RenderBox?;
                                 if (renderBox != null) {
                                   _signaturePoints.add(details.localPosition);
                                 }
@@ -503,11 +610,23 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
                 ),
                 onPressed: _isLoading ? null : _concluirEntrega,
                 icon: _isLoading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : const Icon(Icons.check),
                 label: Text(
-                  _isLoading ? 'Registrando...' : 'Confirmar Entrega e Assinatura do Termo',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  _isLoading
+                      ? 'Registrando...'
+                      : 'Confirmar Entrega e Assinatura do Termo',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],

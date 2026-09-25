@@ -41,11 +41,7 @@ class SigoModuleCard extends StatelessWidget {
                 color: Colors.amber[100]?.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 30,
-                color: Colors.amber[900],
-              ),
+              child: Icon(icon, size: 30, color: Colors.amber[900]),
             ),
             const SizedBox(height: 12),
             Flexible(

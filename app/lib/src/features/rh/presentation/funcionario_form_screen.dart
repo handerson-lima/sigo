@@ -126,8 +126,12 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final isEditing = widget.initialFuncionario != null || widget.funcionarioId != null;
-      final id = widget.initialFuncionario?.id ?? widget.funcionarioId ?? const Uuid().v4();
+      final isEditing =
+          widget.initialFuncionario != null || widget.funcionarioId != null;
+      final id =
+          widget.initialFuncionario?.id ??
+          widget.funcionarioId ??
+          const Uuid().v4();
 
       final funcionario = Funcionario(
         id: id,
@@ -181,10 +185,13 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.initialFuncionario != null || widget.funcionarioId != null;
+    final isEditing =
+        widget.initialFuncionario != null || widget.funcionarioId != null;
 
     if (!_isInitialized && widget.funcionarioId != null) {
-      final listAsync = ref.watch(funcionariosStreamProvider(widget.construtoraId));
+      final listAsync = ref.watch(
+        funcionariosStreamProvider(widget.construtoraId),
+      );
       return SigoLayout(
         title: isEditing ? 'Editar Colaborador' : 'Novo Colaborador',
         activeRoute: '/construtoras/${widget.construtoraId}/rh/funcionarios',
@@ -316,8 +323,9 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
                             loading: () => const LinearProgressIndicator(),
                             error: (_, _) => const SizedBox.shrink(),
                             data: (equipes) {
-                              final activeEquipes =
-                                  equipes.where((e) => e.isActive).toList();
+                              final activeEquipes = equipes
+                                  .where((e) => e.isActive)
+                                  .toList();
                               return DropdownButtonFormField<String?>(
                                 key: const Key('funcionario_team_select'),
                                 isExpanded: true,
@@ -339,7 +347,8 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
                                     ),
                                   ),
                                 ],
-                                onChanged: (val) => setState(() => _teamId = val),
+                                onChanged: (val) =>
+                                    setState(() => _teamId = val),
                               );
                             },
                           ),
@@ -370,7 +379,9 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
                             children: [
                               Expanded(
                                 child: DropdownButtonFormField<String>(
-                                  key: const Key('funcionario_employment_select'),
+                                  key: const Key(
+                                    'funcionario_employment_select',
+                                  ),
                                   isExpanded: true,
                                   initialValue: _employmentType,
                                   decoration: const InputDecoration(
@@ -441,9 +452,10 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
                                 child: TextFormField(
                                   key: const Key('funcionario_salary_input'),
                                   controller: _baseSalaryController,
-                                  keyboardType: const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
                                   decoration: InputDecoration(
                                     labelText: _salaryBasis == 'diaria'
                                         ? 'Valor da Diária (R\$) *'
@@ -466,11 +478,14 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: TextFormField(
-                                  key: const Key('funcionario_additional_input'),
-                                  controller: _additionalCostsController,
-                                  keyboardType: const TextInputType.numberWithOptions(
-                                    decimal: true,
+                                  key: const Key(
+                                    'funcionario_additional_input',
                                   ),
+                                  controller: _additionalCostsController,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
                                   decoration: const InputDecoration(
                                     labelText: 'Encargos / Benefícios (R\$)',
                                     hintText: '0.00',
@@ -516,7 +531,9 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
                                       const SizedBox(height: 4),
                                       Text(
                                         '${formatCents(dailyRateCents)} / dia',
-                                        key: const Key('daily_rate_preview_text'),
+                                        key: const Key(
+                                          'daily_rate_preview_text',
+                                        ),
                                         style: const TextStyle(
                                           fontSize: 20,
                                           fontWeight: FontWeight.bold,

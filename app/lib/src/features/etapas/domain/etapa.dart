@@ -2,13 +2,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'etapa.g.dart';
 
-enum EtapaTipo {
-  muro,
-  cinza1,
-  cinza2,
-  cinza3,
-  branca,
-}
+enum EtapaTipo { muro, cinza1, cinza2, cinza3, branca }
 
 extension EtapaTipoLabel on EtapaTipo {
   String get label => switch (this) {

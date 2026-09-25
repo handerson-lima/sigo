@@ -34,62 +34,65 @@ void main() {
       ),
     ];
 
-    testWidgets('FornecedorAutocompleteField exibe e seleciona fornecedor corretamente',
-        (tester) async {
-      Fornecedor? selecionado;
+    testWidgets(
+      'FornecedorAutocompleteField exibe e seleciona fornecedor corretamente',
+      (tester) async {
+        Fornecedor? selecionado;
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            fornecedoresStreamProvider.overrideWith((ref, arg) {
-              return Stream.value(fornecedoresMock);
-            }),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: Padding(
-                padding: const EdgeInsets.all(16),
-                child: FornecedorAutocompleteField(
-                  construtoraId: 'c1',
-                  onSelected: (f) {
-                    selecionado = f;
-                  },
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              fornecedoresStreamProvider.overrideWith((ref, arg) {
+                return Stream.value(fornecedoresMock);
+              }),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FornecedorAutocompleteField(
+                    construtoraId: 'c1',
+                    onSelected: (f) {
+                      selecionado = f;
+                    },
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // Verifica se o campo foi renderizado
-      expect(find.byType(TextFormField), findsOneWidget);
-      expect(find.text('Fornecedor / Prestador de Serviço'), findsOneWidget);
+        // Verifica se o campo foi renderizado
+        expect(find.byType(TextFormField), findsOneWidget);
+        expect(find.text('Fornecedor / Prestador de Serviço'), findsOneWidget);
 
-      // Clica no campo para abrir o autocomplete
-      await tester.tap(find.byType(TextFormField));
-      await tester.pumpAndSettle();
+        // Clica no campo para abrir o autocomplete
+        await tester.tap(find.byType(TextFormField));
+        await tester.pumpAndSettle();
 
-      // Digita 'Vot'
-      await tester.enterText(find.byType(TextFormField), 'Vot');
-      await tester.pumpAndSettle();
+        // Digita 'Vot'
+        await tester.enterText(find.byType(TextFormField), 'Vot');
+        await tester.pumpAndSettle();
 
-      // Deve encontrar a opção no dropdown
-      expect(find.text('Votorantim'), findsOneWidget);
+        // Deve encontrar a opção no dropdown
+        expect(find.text('Votorantim'), findsOneWidget);
 
-      // Clica na opção
-      await tester.tap(find.text('Votorantim'));
-      await tester.pumpAndSettle();
+        // Clica na opção
+        await tester.tap(find.text('Votorantim'));
+        await tester.pumpAndSettle();
 
-      // Confirma que o callback foi acionado
-      expect(selecionado, isNotNull);
-      expect(selecionado!.id, 'f1');
-      expect(selecionado!.razaoSocial, 'Votorantim Cimentos S/A');
-    });
+        // Confirma que o callback foi acionado
+        expect(selecionado, isNotNull);
+        expect(selecionado!.id, 'f1');
+        expect(selecionado!.razaoSocial, 'Votorantim Cimentos S/A');
+      },
+    );
 
-    testWidgets('FornecedorAutocompleteField busca por CPF de pessoa física',
-        (tester) async {
+    testWidgets('FornecedorAutocompleteField busca por CPF de pessoa física', (
+      tester,
+    ) async {
       Fornecedor? selecionado;
 
       await tester.pumpWidget(

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../../core/contracts.dart';
 
 class Funcionario {
@@ -34,12 +35,13 @@ class Funcionario {
     this.schemaVersion = 1,
     this.createdAt,
     this.updatedAt,
-  }) : totalDailyRateCents = totalDailyRateCents ??
-            calculateDailyRate(
-              salaryBasis: salaryBasis,
-              baseSalaryCents: baseSalaryCents,
-              additionalCostsCents: additionalCostsCents,
-            );
+  }) : totalDailyRateCents =
+           totalDailyRateCents ??
+           calculateDailyRate(
+             salaryBasis: salaryBasis,
+             baseSalaryCents: baseSalaryCents,
+             additionalCostsCents: additionalCostsCents,
+           );
 
   static int calculateDailyRate({
     required String salaryBasis,
@@ -136,7 +138,8 @@ class Funcionario {
       salaryBasis: nextBasis,
       baseSalaryCents: nextBase,
       additionalCostsCents: nextAdd,
-      totalDailyRateCents: totalDailyRateCents ??
+      totalDailyRateCents:
+          totalDailyRateCents ??
           calculateDailyRate(
             salaryBasis: nextBasis,
             baseSalaryCents: nextBase,
@@ -158,19 +161,22 @@ class Funcionario {
       return null;
     }
 
-    final base = (json['baseSalaryCents'] as num?)?.toInt() ??
+    final base =
+        (json['baseSalaryCents'] as num?)?.toInt() ??
         ((json['baseSalary'] as num?) != null
             ? ((json['baseSalary'] as num) * 100).round()
             : 0);
 
-    final additional = (json['additionalCostsCents'] as num?)?.toInt() ??
+    final additional =
+        (json['additionalCostsCents'] as num?)?.toInt() ??
         ((json['additionalCosts'] as num?) != null
             ? ((json['additionalCosts'] as num) * 100).round()
             : 0);
 
     final basis = (json['salaryBasis'] as String?) ?? 'mensal';
 
-    final daily = (json['totalDailyRateCents'] as num?)?.toInt() ??
+    final daily =
+        (json['totalDailyRateCents'] as num?)?.toInt() ??
         ((json['totalDailyRate'] as num?) != null
             ? ((json['totalDailyRate'] as num) * 100).round()
             : calculateDailyRate(

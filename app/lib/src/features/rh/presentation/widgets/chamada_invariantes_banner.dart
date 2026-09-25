@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 class ChamadaInvariantesBanner extends StatelessWidget {
   final List<String> erros;
 
-  const ChamadaInvariantesBanner({
-    super.key,
-    required this.erros,
-  });
+  const ChamadaInvariantesBanner({super.key, required this.erros});
 
   @override
   Widget build(BuildContext context) {
@@ -16,14 +13,8 @@ class ChamadaInvariantesBanner extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 8,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: theme.colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(8),

@@ -64,8 +64,7 @@ class AccessGuard extends ConsumerWidget {
     );
     if (adminOnly ||
         module == 'financeiro' ||
-        module != null &&
-            !centralModules.contains(normalizeModule(module!))) {
+        module != null && !centralModules.contains(normalizeModule(module!))) {
       return const AccessDeniedScreen();
     }
     return child;

@@ -16,25 +16,17 @@ class RoleChip extends StatelessWidget {
 
   const RoleChip({super.key, required this.papel, required this.label});
 
-  factory RoleChip.proprietario() => const RoleChip(
-        papel: PapelChip.proprietario,
-        label: 'Proprietário',
-      );
+  factory RoleChip.proprietario() =>
+      const RoleChip(papel: PapelChip.proprietario, label: 'Proprietário');
 
-  factory RoleChip.administrador() => const RoleChip(
-        papel: PapelChip.administrador,
-        label: 'Administrador',
-      );
+  factory RoleChip.administrador() =>
+      const RoleChip(papel: PapelChip.administrador, label: 'Administrador');
 
-  factory RoleChip.operario() => const RoleChip(
-        papel: PapelChip.operario,
-        label: 'Operário',
-      );
+  factory RoleChip.operario() =>
+      const RoleChip(papel: PapelChip.operario, label: 'Operário');
 
-  factory RoleChip.pendente(String cargo) => RoleChip(
-        papel: PapelChip.pendente,
-        label: 'Pendente · $cargo',
-      );
+  factory RoleChip.pendente(String cargo) =>
+      RoleChip(papel: PapelChip.pendente, label: 'Pendente · $cargo');
 
   /// Mapeia [Membro] (isOwner/isAdmin) para o chip da construtora.
   static PapelChip papelDe(bool isOwner, bool isAdmin) {

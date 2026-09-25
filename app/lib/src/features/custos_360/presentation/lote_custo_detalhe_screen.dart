@@ -23,8 +23,7 @@ class LoteCustoDetalheScreen extends ConsumerStatefulWidget {
       _LoteCustoDetalheScreenState();
 }
 
-class _LoteCustoDetalheScreenState
-    extends ConsumerState<LoteCustoDetalheScreen>
+class _LoteCustoDetalheScreenState extends ConsumerState<LoteCustoDetalheScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -52,7 +51,9 @@ class _LoteCustoDetalheScreenState
   }
 
   void _abrirDialogoEditarOrcamento(
-      BuildContext context, CustoLoteConsolidado? loteCusto) {
+    BuildContext context,
+    CustoLoteConsolidado? loteCusto,
+  ) {
     final controller = TextEditingController(
       text: loteCusto != null && loteCusto.orcamentoPrevistoCents > 0
           ? (loteCusto.orcamentoPrevistoCents / 100.0).toStringAsFixed(2)
@@ -67,11 +68,15 @@ class _LoteCustoDetalheScreenState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Informe o teto orçamentário previsto para ${loteCusto?.loteNome ?? "o lote"}:'),
+            Text(
+              'Informe o teto orçamentário previsto para ${loteCusto?.loteNome ?? "o lote"}:',
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               autofocus: true,
               decoration: const InputDecoration(
                 prefixText: 'R\$ ',
@@ -106,13 +111,16 @@ class _LoteCustoDetalheScreenState
               if (context.mounted) {
                 if (sucesso) {
                   ref.invalidate(
-                    resumoCustosObraStreamProvider(
-                      (construtoraId: widget.construtoraId, obraId: widget.obraId),
-                    ),
+                    resumoCustosObraStreamProvider((
+                      construtoraId: widget.construtoraId,
+                      obraId: widget.obraId,
+                    )),
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Orçamento previsto atualizado com sucesso!'),
+                      content: Text(
+                        'Orçamento previsto atualizado com sucesso!',
+                      ),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -136,30 +144,27 @@ class _LoteCustoDetalheScreenState
   @override
   Widget build(BuildContext context) {
     final loteCusto = ref.watch(
-      loteCustoConsolidadoProvider(
-        (
-          construtoraId: widget.construtoraId,
-          obraId: widget.obraId,
-          loteId: widget.loteId,
-        ),
-      ),
+      loteCustoConsolidadoProvider((
+        construtoraId: widget.construtoraId,
+        obraId: widget.obraId,
+        loteId: widget.loteId,
+      )),
     );
 
     final extratoAsync = ref.watch(
-      extratoLoteFutureProvider(
-        (
-          construtoraId: widget.construtoraId,
-          obraId: widget.obraId,
-          loteId: widget.loteId,
-        ),
-      ),
+      extratoLoteFutureProvider((
+        construtoraId: widget.construtoraId,
+        obraId: widget.obraId,
+        loteId: widget.loteId,
+      )),
     );
 
     final titulo = loteCusto?.loteNome ?? 'Detalhe de Custos do Lote';
 
     return SigoLayout(
       title: titulo,
-      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/custos-360',
+      activeRoute:
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/custos-360',
       actions: [
         IconButton(
           icon: const Icon(Icons.edit_calendar_outlined),
@@ -171,13 +176,11 @@ class _LoteCustoDetalheScreenState
           tooltip: 'Atualizar Extrato',
           onPressed: () {
             ref.invalidate(
-              extratoLoteFutureProvider(
-                (
-                  construtoraId: widget.construtoraId,
-                  obraId: widget.obraId,
-                  loteId: widget.loteId,
-                ),
-              ),
+              extratoLoteFutureProvider((
+                construtoraId: widget.construtoraId,
+                obraId: widget.obraId,
+                loteId: widget.loteId,
+              )),
             );
           },
         ),
@@ -250,7 +253,8 @@ class _LoteCustoDetalheScreenState
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 TextButton.icon(
-                  onPressed: () => _abrirDialogoEditarOrcamento(context, loteCusto),
+                  onPressed: () =>
+                      _abrirDialogoEditarOrcamento(context, loteCusto),
                   icon: const Icon(Icons.tune, size: 16),
                   label: const Text('Ajustar Meta'),
                 ),
@@ -289,12 +293,9 @@ class _LoteCustoDetalheScreenState
                     ],
                   );
                 },
-                loading: () => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-                error: (e, _) => Center(
-                  child: Text('Erro ao carregar extrato do lote: $e'),
-                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) =>
+                    Center(child: Text('Erro ao carregar extrato do lote: $e')),
               ),
             ),
           ],
@@ -340,8 +341,10 @@ class _LoteCustoDetalheScreenState
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: corBadge.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
@@ -374,22 +377,34 @@ class _LoteCustoDetalheScreenState
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Meta Orçamentária',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600)),
+                    Text(
+                      'Meta Orçamentária',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(_formatarMoeda(lote.orcamentoPrevistoCents),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
+                    Text(
+                      _formatarMoeda(lote.orcamentoPrevistoCents),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      lote.temDesvioPositivo ? 'Desvio Acima' : 'Saldo Restante',
+                      lote.temDesvioPositivo
+                          ? 'Desvio Acima'
+                          : 'Saldo Restante',
                       style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600),
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -463,10 +478,19 @@ class _LoteCustoDetalheScreenState
       itemBuilder: (context, index) {
         final item = filtrados[index];
         final (cor, icone) = switch (item.cubo) {
-          CuboCusto.material => (Colors.orange.shade700, Icons.inventory_2_outlined),
+          CuboCusto.material => (
+            Colors.orange.shade700,
+            Icons.inventory_2_outlined,
+          ),
           CuboCusto.maoDeObra => (Colors.blue.shade700, Icons.groups_outlined),
-          CuboCusto.despesaDireta => (Colors.purple.shade700, Icons.receipt_long_outlined),
-          CuboCusto.rateioIndireto => (Colors.teal.shade700, Icons.pie_chart_outline_rounded),
+          CuboCusto.despesaDireta => (
+            Colors.purple.shade700,
+            Icons.receipt_long_outlined,
+          ),
+          CuboCusto.rateioIndireto => (
+            Colors.teal.shade700,
+            Icons.pie_chart_outline_rounded,
+          ),
         };
 
         return ListTile(
@@ -487,7 +511,9 @@ class _LoteCustoDetalheScreenState
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
-              color: item.valorCents < 0 ? Colors.green.shade700 : Colors.black87,
+              color: item.valorCents < 0
+                  ? Colors.green.shade700
+                  : Colors.black87,
             ),
           ),
         );

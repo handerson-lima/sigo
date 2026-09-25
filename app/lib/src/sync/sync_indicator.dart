@@ -6,7 +6,9 @@ import 'operation_queue.dart';
 import 'sync_engine.dart';
 
 /// Provider reativo da lista completa de itens da fila de operações do dispositivo.
-final syncQueueStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+final syncQueueStreamProvider = StreamProvider<List<Map<String, dynamic>>>((
+  ref,
+) {
   try {
     if (WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
       return Stream.fromFuture(OperationQueue.instance.list());
@@ -36,9 +38,11 @@ class SyncSummary {
   bool get isSyncing => engineStatus == SyncEngineStatus.syncing;
 
   bool get hasAlert => alertCount > 0;
-  bool get hasFailed => failedCount > 0 || engineStatus == SyncEngineStatus.error;
+  bool get hasFailed =>
+      failedCount > 0 || engineStatus == SyncEngineStatus.error;
   bool get isOffline => !isOnline || engineStatus == SyncEngineStatus.offline;
-  bool get isSynced => isOnline && !isSyncing && !hasAlert && !hasFailed && pendingCount == 0;
+  bool get isSynced =>
+      isOnline && !isSyncing && !hasAlert && !hasFailed && pendingCount == 0;
 }
 
 /// Provider computado que agrega o estado do SyncEngine e a fila local.
@@ -77,11 +81,7 @@ class SyncIndicator extends ConsumerStatefulWidget {
   final String? construtoraId;
   final String? obraId;
 
-  const SyncIndicator({
-    super.key,
-    this.construtoraId,
-    this.obraId,
-  });
+  const SyncIndicator({super.key, this.construtoraId, this.obraId});
 
   @override
   ConsumerState<SyncIndicator> createState() => _SyncIndicatorState();
@@ -143,10 +143,16 @@ class _SyncIndicatorState extends ConsumerState<SyncIndicator>
       tooltip = 'Falha na sincronização';
       badgeCount = summary.failedCount > 0 ? summary.failedCount : null;
     } else if (summary.isOffline) {
-      iconColor = summary.pendingCount > 0 ? Colors.amber.shade900 : Colors.grey.shade600;
-      bgColor = summary.pendingCount > 0 ? Colors.amber.shade50 : Colors.grey.shade100;
+      iconColor = summary.pendingCount > 0
+          ? Colors.amber.shade900
+          : Colors.grey.shade600;
+      bgColor = summary.pendingCount > 0
+          ? Colors.amber.shade50
+          : Colors.grey.shade100;
       iconData = Icons.cloud_off;
-      label = summary.pendingCount > 0 ? 'Offline (${summary.pendingCount})' : 'Offline';
+      label = summary.pendingCount > 0
+          ? 'Offline (${summary.pendingCount})'
+          : 'Offline';
       tooltip = summary.pendingCount > 0
           ? 'Offline: ${summary.pendingCount} registro(s) salvo(s) neste dispositivo'
           : 'Modo offline';
@@ -219,7 +225,10 @@ class _SyncIndicatorState extends ConsumerState<SyncIndicator>
                 const SizedBox(width: 6),
                 Container(
                   key: const Key('sync-indicator-badge'),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: iconColor,
                     borderRadius: BorderRadius.circular(10),
@@ -264,14 +273,12 @@ Future<void> showSyncStatusDialog({
 
           if (summary.hasAlert) {
             statusTitle = 'Revisão Necessária';
-            statusDescription =
-                'Existem registros locais que requerem revisão administrativa ou tiveram permissão recusada. Os dados permanecem preservados no seu dispositivo.';
+            statusDescription = 'Existem registros locais que requerem revisão administrativa ou tiveram permissão recusada. Os dados permanecem preservados no seu dispositivo.';
             statusColor = Colors.red.shade700;
             statusIcon = Icons.warning_amber_rounded;
           } else if (summary.hasFailed) {
             statusTitle = 'Falha no Envio';
-            statusDescription =
-                'Ocorreu uma falha na tentativa de envio dos dados. Verifique sua conexão e tente novamente.';
+            statusDescription = 'Ocorreu uma falha na tentativa de envio dos dados. Verifique sua conexão e tente novamente.';
             statusColor = Colors.deepOrange.shade700;
             statusIcon = Icons.sync_problem;
           } else if (summary.isOffline) {
@@ -279,25 +286,27 @@ Future<void> showSyncStatusDialog({
             statusDescription = summary.pendingCount > 0
                 ? 'Você está desconectado. Há ${summary.pendingCount} operação(ões) salva(s) localmente neste dispositivo e prontas para envio automático assim que a conexão retornar.'
                 : 'Você está desconectado. As alterações feitas serão armazenadas com segurança no dispositivo.';
-            statusColor = summary.pendingCount > 0 ? Colors.amber.shade900 : Colors.grey.shade700;
+            statusColor = summary.pendingCount > 0
+                ? Colors.amber.shade900
+                : Colors.grey.shade700;
             statusIcon = Icons.cloud_off;
           } else if (summary.isSyncing) {
             statusTitle = 'Sincronizando';
-            statusDescription =
-                'Transmitindo registros locais para o servidor em segundo plano...';
+            statusDescription = 'Transmitindo registros locais para o servidor em segundo plano...';
             statusColor = Colors.blue.shade700;
             statusIcon = Icons.sync;
           } else {
             statusTitle = 'Tudo Sincronizado';
-            statusDescription =
-                'Sua conexão está ativa e todos os registros deste dispositivo estão sincronizados com a nuvem.';
+            statusDescription = 'Sua conexão está ativa e todos os registros deste dispositivo estão sincronizados com a nuvem.';
             statusColor = Colors.teal.shade700;
             statusIcon = Icons.cloud_done;
           }
 
           return AlertDialog(
             key: const Key('sync-status-dialog'),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: Row(
               children: [
                 Icon(statusIcon, color: statusColor, size: 28),
@@ -329,7 +338,9 @@ Future<void> showSyncStatusDialog({
                   _buildStatusRow(
                     label: 'Conexão',
                     value: summary.isOnline ? 'Online' : 'Offline',
-                    valueColor: summary.isOnline ? Colors.teal.shade700 : Colors.grey.shade700,
+                    valueColor: summary.isOnline
+                        ? Colors.teal.shade700
+                        : Colors.grey.shade700,
                   ),
                   _buildStatusRow(
                     label: 'Operações locais pendentes',
@@ -347,11 +358,15 @@ Future<void> showSyncStatusDialog({
                       value: '${summary.alertCount}',
                       valueColor: Colors.red.shade700,
                     ),
-                  if (summary.lastError != null && summary.lastError!.isNotEmpty) ...[
+                  if (summary.lastError != null &&
+                      summary.lastError!.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(
                       'Último aviso: ${summary.lastError}',
-                      style: TextStyle(fontSize: 12, color: Colors.red.shade600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red.shade600,
+                      ),
                     ),
                   ],
                 ],
@@ -366,7 +381,9 @@ Future<void> showSyncStatusDialog({
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
                     if (obraId != null && obraId.isNotEmpty) {
-                      context.go('/construtoras/$construtoraId/obra/$obraId/diarios/sync');
+                      context.go(
+                        '/construtoras/$construtoraId/obra/$obraId/diarios/sync',
+                      );
                     } else {
                       context.go('/construtoras/$construtoraId/sync');
                     }

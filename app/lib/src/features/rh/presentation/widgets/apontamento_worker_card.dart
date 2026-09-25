@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/contracts.dart';
 import '../../../lotes/domain/lote.dart';
 import '../../domain/chamada_diaria.dart';
@@ -37,9 +38,11 @@ class ApontamentoWorkerCard extends StatelessWidget {
       newAllocations = [];
     } else {
       // Se estava em falta ou sem alocação, usa o lote padrão ou o primeiro lote disponível
-      final targetLotId = defaultLotId ??
+      final targetLotId =
+          defaultLotId ??
           (availableLotes.isNotEmpty ? availableLotes.first.id : null);
-      final targetLot = availableLotes.where((l) => l.id == targetLotId).firstOrNull ??
+      final targetLot =
+          availableLotes.where((l) => l.id == targetLotId).firstOrNull ??
           (availableLotes.isNotEmpty ? availableLotes.first : null);
 
       final percentage = newStatus == PresencaStatus.meioPeriodo ? 50 : 100;
@@ -56,10 +59,7 @@ class ApontamentoWorkerCard extends StatelessWidget {
     }
 
     onChanged(
-      apontamento.copyWith(
-        status: newStatus,
-        allocations: newAllocations,
-      ),
+      apontamento.copyWith(status: newStatus, allocations: newAllocations),
     );
   }
 
@@ -101,9 +101,7 @@ class ApontamentoWorkerCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: hasError
-              ? Colors.red
-              : statusColor.withValues(alpha: 0.3),
+          color: hasError ? Colors.red : statusColor.withValues(alpha: 0.3),
           width: hasError ? 2.0 : 1.0,
         ),
       ),
@@ -244,7 +242,9 @@ class ApontamentoWorkerCard extends StatelessWidget {
                           ? [
                               Chip(
                                 label: const Text('Nenhum lote'),
-                                backgroundColor: Colors.red.withValues(alpha: 0.1),
+                                backgroundColor: Colors.red.withValues(
+                                  alpha: 0.1,
+                                ),
                                 labelStyle: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.red,
@@ -254,12 +254,16 @@ class ApontamentoWorkerCard extends StatelessWidget {
                             ]
                           : apontamento.allocations.map((alloc) {
                               return Chip(
-                                avatar: const Icon(Icons.home_work_outlined, size: 14),
+                                avatar: const Icon(
+                                  Icons.home_work_outlined,
+                                  size: 14,
+                                ),
                                 label: Text(
                                   '${alloc.lotName.isEmpty ? "Lote" : alloc.lotName} (${alloc.percentage}%)',
                                 ),
                                 visualDensity: VisualDensity.compact,
-                                backgroundColor: colorScheme.surfaceContainerHighest,
+                                backgroundColor:
+                                    colorScheme.surfaceContainerHighest,
                                 labelStyle: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -273,7 +277,10 @@ class ApontamentoWorkerCard extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.tune, size: 16),
-                    label: const Text('Lotes / Rateio', style: TextStyle(fontSize: 12)),
+                    label: const Text(
+                      'Lotes / Rateio',
+                      style: TextStyle(fontSize: 12),
+                    ),
                     onPressed: () => _openRateioSheet(context),
                   ),
                 ],

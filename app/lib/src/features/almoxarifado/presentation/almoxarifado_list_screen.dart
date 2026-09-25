@@ -94,7 +94,10 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
                 ),
                 leading: CircleAvatar(
                   backgroundColor: Colors.amber.shade100,
-                  child: Icon(Icons.inventory_2_outlined, color: Colors.amber.shade900),
+                  child: Icon(
+                    Icons.inventory_2_outlined,
+                    color: Colors.amber.shade900,
+                  ),
                 ),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(

@@ -56,9 +56,8 @@ class _ComprasListScreenState extends ConsumerState<ComprasListScreen> {
       ),
       child: comprasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Text('Erro ao carregar compras: $err'),
-        ),
+        error: (err, stack) =>
+            Center(child: Text('Erro ao carregar compras: $err')),
         data: (compras) {
           // Métricas Consolidadas
           final totalCompradoCents = compras
@@ -85,7 +84,8 @@ class _ComprasListScreenState extends ConsumerState<ComprasListScreen> {
             return switch (_filtroSelecionado) {
               FiltroCompra.todas => true,
               FiltroCompra.abertas =>
-                c.status == StatusCompra.aberto || c.status == StatusCompra.parcial,
+                c.status == StatusCompra.aberto ||
+                    c.status == StatusCompra.parcial,
               FiltroCompra.pagas => c.status == StatusCompra.pago,
               FiltroCompra.recebidas =>
                 c.statusRecebimento == StatusRecebimentoCompra.recebido,
@@ -278,7 +278,10 @@ class _ComprasListScreenState extends ConsumerState<ComprasListScreen> {
                     Expanded(
                       child: Row(
                         children: [
-                          const Icon(Icons.receipt_long, color: Colors.blueGrey),
+                          const Icon(
+                            Icons.receipt_long,
+                            color: Colors.blueGrey,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -312,10 +315,7 @@ class _ComprasListScreenState extends ConsumerState<ComprasListScreen> {
                       '${compra.itens.length} ite${compra.itens.length > 1 ? "ns" : "m"} | ${compra.parcelas.length} parcela${compra.parcelas.length > 1 ? "s" : ""}',
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
-                    _buildBadge(
-                      compra.statusRecebimento.label,
-                      recColor,
-                    ),
+                    _buildBadge(compra.statusRecebimento.label, recColor),
                   ],
                 ),
                 const Divider(height: 16),
@@ -327,12 +327,18 @@ class _ComprasListScreenState extends ConsumerState<ComprasListScreen> {
                       children: [
                         Text(
                           'Emissão: ${compra.dataEmissao.day.toString().padLeft(2, '0')}/${compra.dataEmissao.month.toString().padLeft(2, '0')}/${compra.dataEmissao.year}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
                         ),
                         if (compra.dataRecebimento != null)
                           Text(
                             'Recebido: ${compra.dataRecebimento!.day.toString().padLeft(2, '0')}/${compra.dataRecebimento!.month.toString().padLeft(2, '0')}/${compra.dataRecebimento!.year}',
-                            style: TextStyle(fontSize: 12, color: Colors.green[700]),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.green[700],
+                            ),
                           ),
                       ],
                     ),

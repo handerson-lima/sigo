@@ -110,10 +110,15 @@ class TestLoteRepository implements LoteRepository {
   ];
   late final stream = Stream.value(lotes).asBroadcastStream();
   @override
-  Stream<List<Lote>> watchLotes(String construtoraId, String loteamentoId, String quadraId) {
+  Stream<List<Lote>> watchLotes(
+    String construtoraId,
+    String loteamentoId,
+    String quadraId,
+  ) {
     calls.add((construtoraId, loteamentoId, quadraId));
     return stream;
   }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -147,8 +152,10 @@ class TestQuadraRepository implements QuadraRepository {
     ),
   ];
   @override
-  Stream<List<Quadra>> watchQuadras(String construtoraId, String loteamentoId) =>
-      Stream.value(quadras);
+  Stream<List<Quadra>> watchQuadras(
+    String construtoraId,
+    String loteamentoId,
+  ) => Stream.value(quadras);
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

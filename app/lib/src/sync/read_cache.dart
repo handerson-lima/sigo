@@ -36,10 +36,7 @@ Future<void> clearReadCacheScope(String uid, String scopePrefix) async {
   await jsonDecode(
     await queueStore(
       'cacheClear',
-      jsonEncode({
-        'uid': uid,
-        'prefix': scopePrefix,
-      }),
+      jsonEncode({'uid': uid, 'prefix': scopePrefix}),
     ),
   );
 }

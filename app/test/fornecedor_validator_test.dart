@@ -37,7 +37,10 @@ void main() {
       // Casos matematicamente válidos
       expect(FornecedorValidator.validarCnpj('11222333000181'), isTrue);
       expect(FornecedorValidator.validarCnpj('11.222.333/0001-81'), isTrue);
-      expect(FornecedorValidator.validarCnpj('00000000000191'), isTrue); // Banco do Brasil
+      expect(
+        FornecedorValidator.validarCnpj('00000000000191'),
+        isTrue,
+      ); // Banco do Brasil
       expect(FornecedorValidator.validarCnpj('00.000.000/0001-91'), isTrue);
     });
 
@@ -62,19 +65,37 @@ void main() {
 
   group('FornecedorValidator - Formatação e Sanitização', () {
     test('apenasDigitos remove caracteres especiais', () {
-      expect(FornecedorValidator.apenasDigitos('12.345.678/0001-90'), '12345678000190');
-      expect(FornecedorValidator.apenasDigitos('(11) 98765-4321'), '11987654321');
+      expect(
+        FornecedorValidator.apenasDigitos('12.345.678/0001-90'),
+        '12345678000190',
+      );
+      expect(
+        FornecedorValidator.apenasDigitos('(11) 98765-4321'),
+        '11987654321',
+      );
       expect(FornecedorValidator.apenasDigitos(null), '');
     });
 
     test('formatarDocumento aplica máscara correta para CPF e CNPJ', () {
-      expect(FornecedorValidator.formatarDocumento('52998224725'), '529.982.247-25');
-      expect(FornecedorValidator.formatarDocumento('11222333000181'), '11.222.333/0001-81');
+      expect(
+        FornecedorValidator.formatarDocumento('52998224725'),
+        '529.982.247-25',
+      );
+      expect(
+        FornecedorValidator.formatarDocumento('11222333000181'),
+        '11.222.333/0001-81',
+      );
     });
 
     test('formatarTelefone aplica máscara correta', () {
-      expect(FornecedorValidator.formatarTelefone('1140041234'), '(11) 4004-1234');
-      expect(FornecedorValidator.formatarTelefone('11987654321'), '(11) 98765-4321');
+      expect(
+        FornecedorValidator.formatarTelefone('1140041234'),
+        '(11) 4004-1234',
+      );
+      expect(
+        FornecedorValidator.formatarTelefone('11987654321'),
+        '(11) 98765-4321',
+      );
     });
 
     test('formatarCep aplica máscara correta', () {

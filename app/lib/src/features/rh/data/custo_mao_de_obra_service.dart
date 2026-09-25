@@ -117,7 +117,8 @@ class CustoMaoDeObraService {
     final snapshots = <WorkerCostSnapshot>[];
 
     for (final apontamento in apontamentos) {
-      final funcionario = funcMap[apontamento.workerId] ??
+      final funcionario =
+          funcMap[apontamento.workerId] ??
           Funcionario(
             id: apontamento.workerId,
             construtoraId: '',
@@ -138,8 +139,10 @@ class CustoMaoDeObraService {
       );
     }
 
-    final totalDayCostCents =
-        snapshots.fold<int>(0, (sum, s) => sum + s.effectiveCostCents);
+    final totalDayCostCents = snapshots.fold<int>(
+      0,
+      (sum, s) => sum + s.effectiveCostCents,
+    );
 
     final lotDataMap = <String, _LotAccumulator>{};
     for (final snapshot in snapshots) {
@@ -153,17 +156,18 @@ class CustoMaoDeObraService {
       }
     }
 
-    final lotCostSummaries = lotDataMap.values
-        .map(
-          (acc) => LotCostSummary(
-            lotId: acc.lotId,
-            lotName: acc.lotName,
-            totalCostCents: acc.totalCostCents,
-            workerCount: acc.workerIds.length,
-          ),
-        )
-        .toList()
-      ..sort((a, b) => a.lotName.compareTo(b.lotName));
+    final lotCostSummaries =
+        lotDataMap.values
+            .map(
+              (acc) => LotCostSummary(
+                lotId: acc.lotId,
+                lotName: acc.lotName,
+                totalCostCents: acc.totalCostCents,
+                workerCount: acc.workerIds.length,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => a.lotName.compareTo(b.lotName));
 
     return ChamadaCostsResult(
       totalDayCostCents: totalDayCostCents,
@@ -179,8 +183,5 @@ class _LotAccumulator {
   int totalCostCents = 0;
   final Set<String> workerIds = {};
 
-  _LotAccumulator({
-    required this.lotId,
-    required this.lotName,
-  });
+  _LotAccumulator({required this.lotId, required this.lotName});
 }

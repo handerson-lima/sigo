@@ -59,11 +59,17 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(tipo == 'devolucao' ? 'Registrar Devolução' : 'Registrar Baixa / Descarte'),
+        title: Text(
+          tipo == 'devolucao'
+              ? 'Registrar Devolução'
+              : 'Registrar Baixa / Descarte',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Confirmar ${tipo == 'devolucao' ? 'a devolução' : 'a baixa'} de: ${evento.epiNome} (C.A.: ${evento.caNumero})?'),
+            Text(
+              'Confirmar ${tipo == 'devolucao' ? 'a devolução' : 'a baixa'} de: ${evento.epiNome} (C.A.: ${evento.caNumero})?',
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: motivoController,
@@ -76,18 +82,25 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             onPressed: () async {
               final user = ref.read(authRepositoryProvider).currentUser;
-              await ref.read(epiRepositoryProvider).registrarDevolucaoOuBaixa(
+              await ref
+                  .read(epiRepositoryProvider)
+                  .registrarDevolucaoOuBaixa(
                     construtoraId: widget.construtoraId,
                     obraId: obraIdAtiva,
                     eventoOriginalId: evento.id,
                     tipoEvento: tipo,
                     responsavelUid: user?.uid ?? 'sistema',
                     responsavelNome: user?.displayName ?? 'Responsável',
-                    motivo: motivoController.text.trim().isEmpty ? null : motivoController.text.trim(),
+                    motivo: motivoController.text.trim().isEmpty
+                        ? null
+                        : motivoController.text.trim(),
                   );
               if (ctx.mounted) Navigator.of(ctx).pop();
             },
@@ -100,7 +113,9 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
 
   @override
   Widget build(BuildContext context) {
-    final obrasAsync = ref.watch(construtoraObrasProvider(widget.construtoraId));
+    final obrasAsync = ref.watch(
+      construtoraObrasProvider(widget.construtoraId),
+    );
     final obras = obrasAsync.asData?.value ?? <Obra>[];
 
     String effectiveObraId = _selectedObraId ?? '';
@@ -111,13 +126,16 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
     if (effectiveObraId.isEmpty) {
       return obrasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Erro ao carregar loteamentos: $err')),
+        error: (err, _) =>
+            Center(child: Text('Erro ao carregar loteamentos: $err')),
         data: (list) {
           if (list.isEmpty) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24.0),
-                child: Text('Nenhum loteamento cadastrado para consultar entregas de EPI.'),
+                child: Text(
+                  'Nenhum loteamento cadastrado para consultar entregas de EPI.',
+                ),
               ),
             );
           }
@@ -127,15 +145,19 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
     }
 
     final eventsAsync = ref.watch(
-      epiEventsFuncionarioStreamProvider(
-        (construtoraId: widget.construtoraId, obraId: effectiveObraId, funcionarioId: widget.funcionarioId),
-      ),
+      epiEventsFuncionarioStreamProvider((
+        construtoraId: widget.construtoraId,
+        obraId: effectiveObraId,
+        funcionarioId: widget.funcionarioId,
+      )),
     );
 
     final termosAsync = ref.watch(
-      termosFuncionarioStreamProvider(
-        (construtoraId: widget.construtoraId, obraId: effectiveObraId, funcionarioId: widget.funcionarioId),
-      ),
+      termosFuncionarioStreamProvider((
+        construtoraId: widget.construtoraId,
+        obraId: effectiveObraId,
+        funcionarioId: widget.funcionarioId,
+      )),
     );
 
     return SingleChildScrollView(
@@ -143,7 +165,8 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (obras.length > 1 && (widget.obraId == null || widget.obraId!.isEmpty)) ...[
+          if (obras.length > 1 &&
+              (widget.obraId == null || widget.obraId!.isEmpty)) ...[
             DropdownButtonFormField<String>(
               initialValue: effectiveObraId,
               decoration: const InputDecoration(
@@ -152,7 +175,11 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: obras.map((o) => DropdownMenuItem(value: o.id, child: Text(o.name))).toList(),
+              items: obras
+                  .map(
+                    (o) => DropdownMenuItem(value: o.id, child: Text(o.name)),
+                  )
+                  .toList(),
               onChanged: (val) {
                 if (val != null) {
                   setState(() => _selectedObraId = val);
@@ -166,7 +193,10 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
             children: [
               Text(
                 'EPIs de ${widget.funcionarioNome}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.add_moderator),
@@ -191,7 +221,9 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
                   child: const Padding(
                     padding: EdgeInsets.all(24.0),
                     child: Center(
-                      child: Text('Nenhum EPI ativo registrado para este colaborador no momento.'),
+                      child: Text(
+                        'Nenhum EPI ativo registrado para este colaborador no momento.',
+                      ),
                     ),
                   ),
                 );
@@ -213,10 +245,14 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: ev.isTrocaVencida ? Colors.red.shade100 : Colors.green.shade100,
+                        backgroundColor: ev.isTrocaVencida
+                            ? Colors.red.shade100
+                            : Colors.green.shade100,
                         child: Icon(
                           Icons.security,
-                          color: ev.isTrocaVencida ? Colors.red.shade900 : Colors.green.shade900,
+                          color: ev.isTrocaVencida
+                              ? Colors.red.shade900
+                              : Colors.green.shade900,
                         ),
                       ),
                       title: Row(
@@ -224,18 +260,30 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
                           Expanded(
                             child: Text(
                               '${ev.epiNome} (Qtd: ${ev.quantidade})',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           if (ev.isTrocaVencida)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.red.shade100,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: Colors.red),
                               ),
-                              child: const Text('SUBSTITUIÇÃO VENCIDA', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+                              child: const Text(
+                                'SUBSTITUIÇÃO VENCIDA',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                         ],
                       ),
@@ -246,14 +294,30 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
                       trailing: PopupMenuButton<String>(
                         onSelected: (val) {
                           if (val == 'devolver') {
-                            _confirmarBaixaOuDevolucao(context, effectiveObraId, ev, 'devolucao');
+                            _confirmarBaixaOuDevolucao(
+                              context,
+                              effectiveObraId,
+                              ev,
+                              'devolucao',
+                            );
                           } else if (val == 'baixa') {
-                            _confirmarBaixaOuDevolucao(context, effectiveObraId, ev, 'baixa_descarte');
+                            _confirmarBaixaOuDevolucao(
+                              context,
+                              effectiveObraId,
+                              ev,
+                              'baixa_descarte',
+                            );
                           }
                         },
                         itemBuilder: (_) => [
-                          const PopupMenuItem(value: 'devolver', child: Text('Registrar Devolução')),
-                          const PopupMenuItem(value: 'baixa', child: Text('Registrar Descarte/Baixa')),
+                          const PopupMenuItem(
+                            value: 'devolver',
+                            child: Text('Registrar Devolução'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'baixa',
+                            child: Text('Registrar Descarte/Baixa'),
+                          ),
                         ],
                       ),
                     ),
@@ -296,15 +360,24 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
                     elevation: 1,
                     margin: const EdgeInsets.only(bottom: 6),
                     child: ListTile(
-                      leading: const Icon(Icons.assignment_turned_in, color: Colors.blue),
+                      leading: const Icon(
+                        Icons.assignment_turned_in,
+                        color: Colors.blue,
+                      ),
                       title: Text('Termo assinado em $dataStr'),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Itens: ${termo.itens.map((it) => "${it['epiNome']} (CA ${it['caNumero']})").join(", ")}'),
+                          Text(
+                            'Itens: ${termo.itens.map((it) => "${it['epiNome']} (CA ${it['caNumero']})").join(", ")}',
+                          ),
                           Text(
                             'Hash SHA-256: ${termo.hashSha256.substring(0, 16)}...',
-                            style: TextStyle(fontFamily: 'monospace', fontSize: 10, color: Colors.grey.shade700),
+                            style: TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 10,
+                              color: Colors.grey.shade700,
+                            ),
                           ),
                         ],
                       ),
@@ -315,25 +388,58 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
                           showDialog(
                             context: context,
                             builder: (_) => AlertDialog(
-                              title: Text('Termo de Responsabilidade - $dataStr'),
+                              title: Text(
+                                'Termo de Responsabilidade - $dataStr',
+                              ),
                               content: SingleChildScrollView(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Colaborador: ${termo.funcionarioNome} (CPF: ${termo.funcionarioCpf})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    Text(
+                                      'Colaborador: ${termo.funcionarioNome} (CPF: ${termo.funcionarioCpf})',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                     const SizedBox(height: 8),
-                                    const Text('Itens Entregues:', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ...termo.itens.map((it) => Text('• ${it['epiNome']} - C.A. ${it['caNumero']} (Qtd: ${it['quantidade']})')),
+                                    const Text(
+                                      'Itens Entregues:',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    ...termo.itens.map(
+                                      (it) => Text(
+                                        '• ${it['epiNome']} - C.A. ${it['caNumero']} (Qtd: ${it['quantidade']})',
+                                      ),
+                                    ),
                                     const SizedBox(height: 12),
-                                    const Text('Texto Legal (NR-6 / CLT):', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    Text(termo.textoLegal, style: const TextStyle(fontSize: 12)),
+                                    const Text(
+                                      'Texto Legal (NR-6 / CLT):',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      termo.textoLegal,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
                                     const SizedBox(height: 12),
-                                    Text('Hash SHA-256 Completo:\n${termo.hashSha256}', style: const TextStyle(fontFamily: 'monospace', fontSize: 10)),
+                                    Text(
+                                      'Hash SHA-256 Completo:\n${termo.hashSha256}',
+                                      style: const TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontSize: 10,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                               actions: [
-                                TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar')),
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('Fechar'),
+                                ),
                               ],
                             ),
                           );

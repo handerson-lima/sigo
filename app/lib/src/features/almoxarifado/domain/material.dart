@@ -1,4 +1,5 @@
 import '../../../core/contracts.dart';
+
 import 'package:json_annotation/json_annotation.dart';
 
 part 'material.g.dart';

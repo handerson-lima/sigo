@@ -46,7 +46,8 @@ class EpiEvent {
   });
 
   bool get isEntrega => tipoEvento == 'entrega' || tipoEvento == 'substituicao';
-  bool get isDevolvidoOuBaixado => tipoEvento == 'devolucao' || tipoEvento == 'baixa_descarte';
+  bool get isDevolvidoOuBaixado =>
+      tipoEvento == 'devolucao' || tipoEvento == 'baixa_descarte';
   bool get isTrocaVencida {
     if (dataTrocaPrevista == null || status != 'ativo') return false;
     final now = DateTime.now();
@@ -87,17 +88,24 @@ class EpiEvent {
       'responsavelNome': responsavelNome,
       if (termoId != null) 'termoId': termoId,
       'status': status,
-      if (dataTrocaPrevista != null) 'dataTrocaPrevista': dataTrocaPrevista!.toIso8601String().split('T').first,
+      if (dataTrocaPrevista != null)
+        'dataTrocaPrevista': dataTrocaPrevista!
+            .toIso8601String()
+            .split('T')
+            .first,
       if (observacoes != null) 'observacoes': observacoes,
       'schemaVersion': schemaVersion,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'createdAt': createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
     };
   }
 
   factory EpiEvent.fromMap(Map<String, dynamic> map, String docId) {
     DateTime parseDate(dynamic val, [DateTime? fallback]) {
       if (val is Timestamp) return val.toDate();
-      if (val is String && val.isNotEmpty) return DateTime.tryParse(val) ?? (fallback ?? DateTime.now());
+      if (val is String && val.isNotEmpty)
+        return DateTime.tryParse(val) ?? (fallback ?? DateTime.now());
       return fallback ?? DateTime.now();
     }
 

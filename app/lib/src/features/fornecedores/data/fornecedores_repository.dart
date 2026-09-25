@@ -9,22 +9,25 @@ final fornecedoresRepositoryProvider = Provider<FornecedoresRepository>((ref) {
   return FornecedoresRepository(FirebaseFirestore.instance);
 });
 
-final fornecedoresStreamProvider = StreamProvider.family<
-    List<Fornecedor>,
-    ({String construtoraId, bool apenasAtivos})>((ref, arg) {
-  return ref
-      .watch(fornecedoresRepositoryProvider)
-      .watchFornecedores(arg.construtoraId, apenasAtivos: arg.apenasAtivos);
-});
+final fornecedoresStreamProvider =
+    StreamProvider.family<
+      List<Fornecedor>,
+      ({String construtoraId, bool apenasAtivos})
+    >((ref, arg) {
+      return ref
+          .watch(fornecedoresRepositoryProvider)
+          .watchFornecedores(arg.construtoraId, apenasAtivos: arg.apenasAtivos);
+    });
 
-final fornecedorDetailsFutureProvider = FutureProvider.family<
-    Fornecedor?,
-    ({String construtoraId, String fornecedorId})>((ref, arg) {
-  return ref.watch(fornecedoresRepositoryProvider).getFornecedorById(
-        arg.construtoraId,
-        arg.fornecedorId,
-      );
-});
+final fornecedorDetailsFutureProvider =
+    FutureProvider.family<
+      Fornecedor?,
+      ({String construtoraId, String fornecedorId})
+    >((ref, arg) {
+      return ref
+          .watch(fornecedoresRepositoryProvider)
+          .getFornecedorById(arg.construtoraId, arg.fornecedorId);
+    });
 
 class DocumentoDuplicadoException implements Exception {
   final String message;
@@ -48,7 +51,8 @@ class FornecedoresRepository {
   FornecedoresRepository(this._firestore);
 
   CollectionReference<Map<String, dynamic>> _fornecedoresRef(
-      String construtoraId) {
+    String construtoraId,
+  ) {
     return _firestore
         .collection('construtoras')
         .doc(construtoraId)
@@ -75,9 +79,11 @@ class FornecedoresRepository {
       query
           .snapshots(includeMetadataChanges: true)
           .where((s) => !s.metadata.isFromCache)
-          .map((snapshot) => snapshot.docs
-              .map((doc) => Fornecedor.fromJson(doc.data()))
-              .toList()),
+          .map(
+            (snapshot) => snapshot.docs
+                .map((doc) => Fornecedor.fromJson(doc.data()))
+                .toList(),
+          ),
       (f) => f.toJson(),
       (item) => Fornecedor.fromJson(Map<String, dynamic>.from(item)),
     );
@@ -111,7 +117,9 @@ class FornecedoresRepository {
 
   /// Salva ou atualiza um fornecedor com validação fiscal e checagem de duplicidade
   Future<void> salvarFornecedor(Fornecedor fornecedor) async {
-    final docSanitizado = FornecedorValidator.apenasDigitos(fornecedor.documento);
+    final docSanitizado = FornecedorValidator.apenasDigitos(
+      fornecedor.documento,
+    );
 
     // Validação de documento oficial
     final isValido = FornecedorValidator.validarDocumento(
@@ -122,7 +130,8 @@ class FornecedoresRepository {
     if (!isValido) {
       final tipo = fornecedor.isPessoaJuridica ? 'CNPJ' : 'CPF';
       throw DocumentoInvalidoException(
-          '$tipo informado é inválido de acordo com o cálculo oficial.');
+        '$tipo informado é inválido de acordo com o cálculo oficial.',
+      );
     }
 
     // Validação de unicidade na mesma construtora
@@ -134,7 +143,8 @@ class FornecedoresRepository {
       if (doc.id != fornecedor.id) {
         final outroNome = doc.data()['razaoSocial'] ?? 'Outro fornecedor';
         throw DocumentoDuplicadoException(
-            'Já existe um fornecedor cadastrado com este documento: $outroNome');
+          'Já existe um fornecedor cadastrado com este documento: $outroNome',
+        );
       }
     }
 
@@ -158,7 +168,9 @@ class FornecedoresRepository {
     String? atualizadoPorUid,
   }) async {
     await _fornecedoresRef(construtoraId).doc(fornecedorId).update({
-      'status': ativo ? StatusFornecedor.ativo.name : StatusFornecedor.inativo.name,
+      'status': ativo
+          ? StatusFornecedor.ativo.name
+          : StatusFornecedor.inativo.name,
       'updatedAt': DateTime.now().toIso8601String(),
       'atualizadoPorUid': ?atualizadoPorUid,
     });

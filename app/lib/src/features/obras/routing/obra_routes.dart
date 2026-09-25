@@ -13,16 +13,16 @@ abstract class ObraPaths {
 
 /// Rotas do módulo de obras.
 List<RouteBase> get obraRoutes => [
-      GoRoute(
-        path: ObraPaths.dashboard,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            child: ObraDashboardScreen(construtoraId: cId, obraId: oId),
-          );
-        },
-      ),
-    ];
+  GoRoute(
+    path: ObraPaths.dashboard,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        child: ObraDashboardScreen(construtoraId: cId, obraId: oId),
+      );
+    },
+  ),
+];

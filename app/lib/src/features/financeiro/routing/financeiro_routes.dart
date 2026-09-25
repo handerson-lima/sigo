@@ -15,28 +15,28 @@ abstract class FinanceiroPaths {
 
 /// Rotas do módulo financeiro.
 List<RouteBase> get financeiroRoutes => [
-      GoRoute(
-        path: FinanceiroPaths.list,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            module: 'financeiro',
-            adminOnly: true,
-            child: FinanceiroListScreen(construtoraId: cId),
-          );
-        },
-      ),
-      GoRoute(
-        path: FinanceiroPaths.novo,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            module: 'financeiro',
-            adminOnly: true,
-            child: AddDespesaScreen(construtoraId: cId),
-          );
-        },
-      ),
-    ];
+  GoRoute(
+    path: FinanceiroPaths.list,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        module: 'financeiro',
+        adminOnly: true,
+        child: FinanceiroListScreen(construtoraId: cId),
+      );
+    },
+  ),
+  GoRoute(
+    path: FinanceiroPaths.novo,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        module: 'financeiro',
+        adminOnly: true,
+        child: AddDespesaScreen(construtoraId: cId),
+      );
+    },
+  ),
+];

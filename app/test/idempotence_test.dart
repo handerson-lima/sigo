@@ -24,9 +24,13 @@ void main() {
           if (memoryStore.containsKey(key)) {
             final existing = memoryStore[key];
             // Se o payload ou anexos forem diferentes, simula erro de integridade do storage
-            if (jsonEncode(existing['payload']) != jsonEncode(data['payload']) ||
-                jsonEncode(existing['attachments']) != jsonEncode(data['attachments'])) {
-              throw StateError('Identificador já utilizado por outra operação.');
+            if (jsonEncode(existing['payload']) !=
+                    jsonEncode(data['payload']) ||
+                jsonEncode(existing['attachments']) !=
+                    jsonEncode(data['attachments'])) {
+              throw StateError(
+                'Identificador já utilizado por outra operação.',
+              );
             }
             return jsonEncode(existing);
           }
@@ -62,9 +66,7 @@ void main() {
       fakeUpload = (attachment, bytes, uid) async {};
     });
 
-    test(
-        'Reenvio de comando após perda de ACK de rede recebe resultado estável e conclui como synced',
-        () async {
+    test('Reenvio de comando após perda de ACK de rede recebe resultado estável e conclui como synced', () async {
       int serverExecutionCount = 0;
       final stableResult = {
         'movementId': 'hash-mov-001',
@@ -119,9 +121,7 @@ void main() {
       expect(executedCalls[1]['payload']['operationId'], 'op-mov-001');
     });
 
-    test(
-        'Divergência de payload para o mesmo operationId é rejeitada como already-exists e transiciona para conflict',
-        () async {
+    test('Divergência de payload para o mesmo operationId é rejeitada como already-exists e transiciona para conflict', () async {
       final queue = OperationQueue(
         sessionUid: () => 'user-operador',
         store: fakeStore,
@@ -154,9 +154,7 @@ void main() {
       expect(await queue.failedCount, 1);
     });
 
-    test(
-        'Enfileiramento duplicado com mesmo payload e operationId preserva a operação única sem corromper a fila',
-        () async {
+    test('Enfileiramento duplicado com mesmo payload e operationId preserva a operação única sem corromper a fila', () async {
       final queue = OperationQueue(
         sessionUid: () => 'user-1',
         store: fakeStore,
@@ -186,9 +184,7 @@ void main() {
       expect(list.length, 1);
     });
 
-    test(
-        'Enfileiramento com mesmo operationId mas payload divergente lança StateError de conflito local',
-        () async {
+    test('Enfileiramento com mesmo operationId mas payload divergente lança StateError de conflito local', () async {
       final queue = OperationQueue(
         sessionUid: () => 'user-1',
         store: fakeStore,
@@ -216,17 +212,17 @@ void main() {
           'type': 'entrada',
           'quantity': '999.0', // diverge!
         }),
-        throwsA(isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('Identificador já utilizado por outra operação'),
-        )),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Identificador já utilizado por outra operação'),
+          ),
+        ),
       );
     });
 
-    test(
-        'FinanceiroRepository.marcarComoPago gera operationId determinístico pay-despesaId prevenindo duplicidades',
-        () async {
+    test('FinanceiroRepository.marcarComoPago gera operationId determinístico pay-despesaId prevenindo duplicidades', () async {
       final fakeFirestore = FakeFirebaseFirestore();
 
       // Configura OperationQueue isolado com fakeStore
@@ -261,9 +257,7 @@ void main() {
       expect(syncedItems.first['state'], 'synced');
     });
 
-    test(
-        'Reenvio de finalização de diário já confirmado retorna status synced original sem duplicar',
-        () async {
+    test('Reenvio de finalização de diário já confirmado retorna status synced original sem duplicar', () async {
       final expectedResult = {'diarioId': 'diario-100', 'status': 'synced'};
       final queue = OperationQueue(
         sessionUid: () => 'user-resp',

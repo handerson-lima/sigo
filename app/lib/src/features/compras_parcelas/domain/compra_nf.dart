@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'item_compra.dart';
 import 'parcela_compra.dart';
 
@@ -9,11 +10,11 @@ enum StatusCompra {
   cancelado;
 
   String get label => switch (this) {
-        StatusCompra.aberto => 'Aberto',
-        StatusCompra.parcial => 'Parcialmente Pago',
-        StatusCompra.pago => 'Pago',
-        StatusCompra.cancelado => 'Cancelado',
-      };
+    StatusCompra.aberto => 'Aberto',
+    StatusCompra.parcial => 'Parcialmente Pago',
+    StatusCompra.pago => 'Pago',
+    StatusCompra.cancelado => 'Cancelado',
+  };
 }
 
 enum StatusRecebimentoCompra {
@@ -22,10 +23,10 @@ enum StatusRecebimentoCompra {
   recebido;
 
   String get label => switch (this) {
-        StatusRecebimentoCompra.pendente => 'Recebimento Pendente',
-        StatusRecebimentoCompra.parcial => 'Recebido Parcial',
-        StatusRecebimentoCompra.recebido => 'Totalmente Recebido',
-      };
+    StatusRecebimentoCompra.pendente => 'Recebimento Pendente',
+    StatusRecebimentoCompra.parcial => 'Recebido Parcial',
+    StatusRecebimentoCompra.recebido => 'Totalmente Recebido',
+  };
 }
 
 class CompraNf {
@@ -130,11 +131,15 @@ class CompraNf {
     }
     final hoje = DateTime.now();
     final inicioHoje = DateTime(hoje.year, hoje.month, hoje.day);
-    return parcelas.any((p) =>
-        p.status == StatusParcelaCompra.pendente &&
-        DateTime(p.dataVencimento.year, p.dataVencimento.month,
-                p.dataVencimento.day)
-            .isBefore(inicioHoje));
+    return parcelas.any(
+      (p) =>
+          p.status == StatusParcelaCompra.pendente &&
+          DateTime(
+            p.dataVencimento.year,
+            p.dataVencimento.month,
+            p.dataVencimento.day,
+          ).isBefore(inicioHoje),
+    );
   }
 
   int get quantidadeItens => itens.length;
@@ -223,32 +228,32 @@ class CompraNf {
     final vItensCents = json['valorItensCents'] is int
         ? json['valorItensCents'] as int
         : ((json['valorItens'] as num?) != null
-            ? ((json['valorItens'] as num) * 100).round()
-            : 0);
+              ? ((json['valorItens'] as num) * 100).round()
+              : 0);
 
     final freteC = json['freteCents'] is int
         ? json['freteCents'] as int
         : ((json['frete'] as num?) != null
-            ? ((json['frete'] as num) * 100).round()
-            : 0);
+              ? ((json['frete'] as num) * 100).round()
+              : 0);
 
     final despAcessC = json['despesasAcessoriasCents'] is int
         ? json['despesasAcessoriasCents'] as int
         : ((json['despesasAcessorias'] as num?) != null
-            ? ((json['despesasAcessorias'] as num) * 100).round()
-            : 0);
+              ? ((json['despesasAcessorias'] as num) * 100).round()
+              : 0);
 
     final descC = json['descontoCents'] is int
         ? json['descontoCents'] as int
         : ((json['desconto'] as num?) != null
-            ? ((json['desconto'] as num) * 100).round()
-            : 0);
+              ? ((json['desconto'] as num) * 100).round()
+              : 0);
 
     final totCents = json['totalCompraCents'] is int
         ? json['totalCompraCents'] as int
         : ((json['totalCompra'] as num?) != null
-            ? ((json['totalCompra'] as num) * 100).round()
-            : (vItensCents + freteC + despAcessC - descC));
+              ? ((json['totalCompra'] as num) * 100).round()
+              : (vItensCents + freteC + despAcessC - descC));
 
     final statusStr = json['status'] as String? ?? 'aberto';
     final status = StatusCompra.values.firstWhere(

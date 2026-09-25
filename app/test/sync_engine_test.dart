@@ -38,7 +38,8 @@ void main() {
   late _FakeQueue fakeQueue;
 
   setUp(() {
-    connectivityController = StreamController<List<ConnectivityResult>>.broadcast();
+    connectivityController =
+        StreamController<List<ConnectivityResult>>.broadcast();
     fakeQueue = _FakeQueue(
       sessionUid: () => 'alice',
       store: (action, input) async => 'null',
@@ -52,63 +53,72 @@ void main() {
   });
 
   group('Story 2.8 — Sync Engine', () {
-    test('Inicializa com status idle quando conectividade inicial é online', () async {
-      final engine = SyncEngine(
-        queue: fakeQueue,
-        connectivityStream: connectivityController.stream,
-        checkConnectivity: () async => [ConnectivityResult.wifi],
-        periodicInterval: const Duration(seconds: 10),
-        autoStart: true,
-        observeLifecycle: false,
-      );
+    test(
+      'Inicializa com status idle quando conectividade inicial é online',
+      () async {
+        final engine = SyncEngine(
+          queue: fakeQueue,
+          connectivityStream: connectivityController.stream,
+          checkConnectivity: () async => [ConnectivityResult.wifi],
+          periodicInterval: const Duration(seconds: 10),
+          autoStart: true,
+          observeLifecycle: false,
+        );
 
-      // Aguarda checagem inicial
-      await Future<void>.delayed(Duration.zero);
+        // Aguarda checagem inicial
+        await Future<void>.delayed(Duration.zero);
 
-      expect(engine.isOnline, isTrue);
-      expect(engine.status, SyncEngineStatus.idle);
-      engine.dispose();
-    });
+        expect(engine.isOnline, isTrue);
+        expect(engine.status, SyncEngineStatus.idle);
+        engine.dispose();
+      },
+    );
 
-    test('Inicializa com status offline quando conectividade inicial é none', () async {
-      final engine = SyncEngine(
-        queue: fakeQueue,
-        connectivityStream: connectivityController.stream,
-        checkConnectivity: () async => [ConnectivityResult.none],
-        periodicInterval: const Duration(seconds: 10),
-        autoStart: true,
-        observeLifecycle: false,
-      );
+    test(
+      'Inicializa com status offline quando conectividade inicial é none',
+      () async {
+        final engine = SyncEngine(
+          queue: fakeQueue,
+          connectivityStream: connectivityController.stream,
+          checkConnectivity: () async => [ConnectivityResult.none],
+          periodicInterval: const Duration(seconds: 10),
+          autoStart: true,
+          observeLifecycle: false,
+        );
 
-      await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(engine.isOnline, isFalse);
-      expect(engine.status, SyncEngineStatus.offline);
-      engine.dispose();
-    });
+        expect(engine.isOnline, isFalse);
+        expect(engine.status, SyncEngineStatus.offline);
+        engine.dispose();
+      },
+    );
 
-    test('Transição de offline para online engatilha syncNow imediatamente', () async {
-      final engine = SyncEngine(
-        queue: fakeQueue,
-        connectivityStream: connectivityController.stream,
-        checkConnectivity: () async => [ConnectivityResult.none],
-        periodicInterval: const Duration(seconds: 10),
-        autoStart: true,
-        observeLifecycle: false,
-      );
+    test(
+      'Transição de offline para online engatilha syncNow imediatamente',
+      () async {
+        final engine = SyncEngine(
+          queue: fakeQueue,
+          connectivityStream: connectivityController.stream,
+          checkConnectivity: () async => [ConnectivityResult.none],
+          periodicInterval: const Duration(seconds: 10),
+          autoStart: true,
+          observeLifecycle: false,
+        );
 
-      await Future<void>.delayed(Duration.zero);
-      expect(engine.status, SyncEngineStatus.offline);
-      expect(fakeQueue.syncCallCount, 0);
+        await Future<void>.delayed(Duration.zero);
+        expect(engine.status, SyncEngineStatus.offline);
+        expect(fakeQueue.syncCallCount, 0);
 
-      // Conexão restabelecida
-      connectivityController.add([ConnectivityResult.wifi]);
-      await Future<void>.delayed(Duration.zero);
+        // Conexão restabelecida
+        connectivityController.add([ConnectivityResult.wifi]);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(engine.isOnline, isTrue);
-      expect(fakeQueue.syncCallCount, 1);
-      engine.dispose();
-    });
+        expect(engine.isOnline, isTrue);
+        expect(fakeQueue.syncCallCount, 1);
+        engine.dispose();
+      },
+    );
 
     test('Quando offline, chamadas a syncNow são suspensas', () async {
       final engine = SyncEngine(
@@ -129,25 +139,28 @@ void main() {
       engine.dispose();
     });
 
-    test('AppLifecycleState.resumed engatilha sincronização imediata se online', () async {
-      final engine = SyncEngine(
-        queue: fakeQueue,
-        connectivityStream: connectivityController.stream,
-        checkConnectivity: () async => [ConnectivityResult.wifi],
-        periodicInterval: const Duration(seconds: 10),
-        autoStart: true,
-        observeLifecycle: false,
-      );
+    test(
+      'AppLifecycleState.resumed engatilha sincronização imediata se online',
+      () async {
+        final engine = SyncEngine(
+          queue: fakeQueue,
+          connectivityStream: connectivityController.stream,
+          checkConnectivity: () async => [ConnectivityResult.wifi],
+          periodicInterval: const Duration(seconds: 10),
+          autoStart: true,
+          observeLifecycle: false,
+        );
 
-      await Future<void>.delayed(Duration.zero);
-      fakeQueue.syncCallCount = 0; // zera contagem da inicialização
+        await Future<void>.delayed(Duration.zero);
+        fakeQueue.syncCallCount = 0; // zera contagem da inicialização
 
-      engine.didChangeAppLifecycleState(AppLifecycleState.resumed);
-      await Future<void>.delayed(Duration.zero);
+        engine.didChangeAppLifecycleState(AppLifecycleState.resumed);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(fakeQueue.syncCallCount, 1);
-      engine.dispose();
-    });
+        expect(fakeQueue.syncCallCount, 1);
+        engine.dispose();
+      },
+    );
 
     test('pause() suspende o motor e resume() retoma e dispara sync', () async {
       final engine = SyncEngine(
@@ -203,13 +216,16 @@ void main() {
       engine.dispose();
     });
 
-    test('Provedores Riverpod instanciam syncEngineProvider e syncStatusProvider', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+    test(
+      'Provedores Riverpod instanciam syncEngineProvider e syncStatusProvider',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
 
-      final engine = container.read(syncEngineProvider);
-      expect(engine, isNotNull);
-      expect(engine.statusListenable, isNotNull);
-    });
+        final engine = container.read(syncEngineProvider);
+        expect(engine, isNotNull);
+        expect(engine.statusListenable, isNotNull);
+      },
+    );
   });
 }

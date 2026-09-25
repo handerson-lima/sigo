@@ -27,10 +27,8 @@ class AtribuirObraDialog extends ConsumerStatefulWidget {
   }) {
     return showDialog<void>(
       context: context,
-      builder: (context) => AtribuirObraDialog(
-        construtoraId: construtoraId,
-        membro: membro,
-      ),
+      builder: (context) =>
+          AtribuirObraDialog(construtoraId: construtoraId, membro: membro),
     );
   }
 
@@ -87,15 +85,18 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
         createdAt: DateTime.now(),
       ),
     );
-    final obraNome = obra.name.trim().isNotEmpty ? obra.name : 'Loteamento ${obra.id}';
+    final obraNome = obra.name.trim().isNotEmpty
+        ? obra.name
+        : 'Loteamento ${obra.id}';
 
     final selecionados = _modules.entries
         .where((e) => e.value)
         .map((e) => _moduleSummaryLabels[e.key] ?? e.key)
         .toList();
 
-    final modulosTexto =
-        selecionados.isEmpty ? 'nenhum módulo' : selecionados.join(', ');
+    final modulosTexto = selecionados.isEmpty
+        ? 'nenhum módulo'
+        : selecionados.join(', ');
 
     return '$_identificadorMembro será $_rotuloPapel em $obraNome com acesso a $modulosTexto';
   }
@@ -114,7 +115,9 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
         .toList();
 
     try {
-      await ref.read(obraMembersRepositoryProvider).setMembership(
+      await ref
+          .read(obraMembersRepositoryProvider)
+          .setMembership(
             construtoraId: widget.construtoraId,
             obraId: _selectedObraId!,
             userId: widget.membro.uid,
@@ -138,9 +141,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Atribuído a $obraNome como $_rotuloPapel.'),
-          ),
+          SnackBar(content: Text('Atribuído a $obraNome como $_rotuloPapel.')),
         );
       }
     } catch (e) {
@@ -163,9 +164,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
     final idsJaVinculados = obrasVinculadas.map((e) => e.obra.id).toSet();
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 480,
@@ -210,16 +209,16 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
               final obraSelecionadaObj = _selectedObraId == null
                   ? null
                   : todasObrasAtivas.cast<Obra?>().firstWhere(
-                        (o) => o?.id == _selectedObraId,
-                        orElse: () => null,
-                      );
+                      (o) => o?.id == _selectedObraId,
+                      orElse: () => null,
+                    );
 
               final obraSelecionadaNome =
                   (obraSelecionadaObj?.name.trim().isNotEmpty == true)
-                      ? obraSelecionadaObj!.name
-                      : (_selectedObraId != null
-                            ? 'Loteamento $_selectedObraId'
-                            : 'Loteamento');
+                  ? obraSelecionadaObj!.name
+                  : (_selectedObraId != null
+                        ? 'Loteamento $_selectedObraId'
+                        : 'Loteamento');
               final temObras = obrasDisponiveis.isNotEmpty;
 
               return Column(
@@ -262,8 +261,10 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                     InputDecorator(
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                       child: Text(
                         'Nenhum loteamento ativo',
@@ -274,13 +275,15 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                     )
                   else
                     DropdownButtonFormField<String>(
-                isExpanded: true,
+                      isExpanded: true,
                       key: AtribuirObraDialog.obraDropdownKey,
                       initialValue: _selectedObraId,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         hintText: 'Selecione o loteamento',
                       ),
                       items: obrasDisponiveis.map((obra) {
@@ -289,10 +292,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                             : 'Loteamento ${obra.id}';
                         return DropdownMenuItem<String>(
                           value: obra.id,
-                          child: Text(
-                            label,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          child: Text(label, overflow: TextOverflow.ellipsis),
                         );
                       }).toList(),
                       onChanged: _isSubmitting
@@ -317,8 +317,10 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                     isExpanded: true,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                     items: _roleLabels.entries
                         .map(
@@ -417,7 +419,8 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                         child: const Text('Cancelar'),
                       ),
                       FilledButton(
-                        onPressed: (_selectedObraId != null &&
+                        onPressed:
+                            (_selectedObraId != null &&
                                 temObras &&
                                 !_isSubmitting)
                             ? () => _confirmar(obraSelecionadaNome)

@@ -10,8 +10,7 @@ abstract class ComprasPaths {
   static const list = 'obra/:oId/compras';
   static const nova = 'obra/:oId/compras/nova';
   static const detalhes = 'obra/:oId/compras/:compraId';
-  static const editar =
-      'obra/:oId/compras/:compraId/editar';
+  static const editar = 'obra/:oId/compras/:compraId/editar';
 
   static String listFor(String cId, String oId) =>
       '/construtoras/$cId/obra/$oId/compras';
@@ -25,72 +24,66 @@ abstract class ComprasPaths {
 
 /// Rotas do módulo de compras e parcelas.
 List<RouteBase> get comprasRoutes => [
-      GoRoute(
-        path: ComprasPaths.list,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'compras',
-            child: ComprasListScreen(
-              construtoraId: cId,
-              obraId: oId,
-            ),
-          );
-        },
-      ),
-      GoRoute(
-        path: ComprasPaths.nova,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'compras',
-            child: CompraFormScreen(
-              construtoraId: cId,
-              obraId: oId,
-            ),
-          );
-        },
-      ),
-      GoRoute(
-        path: ComprasPaths.detalhes,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          final compraId = state.pathParameters['compraId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'compras',
-            child: CompraDetalhesScreen(
-              construtoraId: cId,
-              obraId: oId,
-              compraId: compraId,
-            ),
-          );
-        },
-      ),
-      GoRoute(
-        path: ComprasPaths.editar,
-        builder: (context, state) {
-          final cId = state.pathParameters['cId']!;
-          final oId = state.pathParameters['oId']!;
-          final compraId = state.pathParameters['compraId']!;
-          return AccessGuard(
-            construtoraId: cId,
-            obraId: oId,
-            module: 'compras',
-            child: CompraFormScreen(
-              construtoraId: cId,
-              obraId: oId,
-              compraId: compraId,
-            ),
-          );
-        },
-      ),
-    ];
+  GoRoute(
+    path: ComprasPaths.list,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'compras',
+        child: ComprasListScreen(construtoraId: cId, obraId: oId),
+      );
+    },
+  ),
+  GoRoute(
+    path: ComprasPaths.nova,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'compras',
+        child: CompraFormScreen(construtoraId: cId, obraId: oId),
+      );
+    },
+  ),
+  GoRoute(
+    path: ComprasPaths.detalhes,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      final compraId = state.pathParameters['compraId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'compras',
+        child: CompraDetalhesScreen(
+          construtoraId: cId,
+          obraId: oId,
+          compraId: compraId,
+        ),
+      );
+    },
+  ),
+  GoRoute(
+    path: ComprasPaths.editar,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      final oId = state.pathParameters['oId']!;
+      final compraId = state.pathParameters['compraId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        obraId: oId,
+        module: 'compras',
+        child: CompraFormScreen(
+          construtoraId: cId,
+          obraId: oId,
+          compraId: compraId,
+        ),
+      );
+    },
+  ),
+];

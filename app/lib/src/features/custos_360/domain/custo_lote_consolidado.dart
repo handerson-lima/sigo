@@ -7,11 +7,11 @@ enum CuboCusto {
   rateioIndireto;
 
   String get label => switch (this) {
-        CuboCusto.material => 'Materiais',
-        CuboCusto.maoDeObra => 'Mão de Obra',
-        CuboCusto.despesaDireta => 'Despesas Diretas',
-        CuboCusto.rateioIndireto => 'Rateio Indireto',
-      };
+    CuboCusto.material => 'Materiais',
+    CuboCusto.maoDeObra => 'Mão de Obra',
+    CuboCusto.despesaDireta => 'Despesas Diretas',
+    CuboCusto.rateioIndireto => 'Rateio Indireto',
+  };
 }
 
 class ExtratoItemCusto {
@@ -36,14 +36,14 @@ class ExtratoItemCusto {
   double get valor => valorCents / 100.0;
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'cubo': cubo.name,
-        'descricao': descricao,
-        'data': data.toIso8601String(),
-        'valorCents': valorCents,
-        'documentoReferencia': documentoReferencia,
-        'responsavelNome': responsavelNome,
-      };
+    'id': id,
+    'cubo': cubo.name,
+    'descricao': descricao,
+    'data': data.toIso8601String(),
+    'valorCents': valorCents,
+    'documentoReferencia': documentoReferencia,
+    'responsavelNome': responsavelNome,
+  };
 
   factory ExtratoItemCusto.fromMap(Map<String, dynamic> map) {
     final cuboName = map['cubo'] as String?;
@@ -104,28 +104,31 @@ class CustoLoteConsolidado {
     int? varianciaCents,
     double? percentualConsumido,
     DateTime? ultimaAtualizacao,
-  })  : totalCustoLoteCents = totalCustoLoteCents ??
-            (materiaisCents +
-                maoDeObraCents +
-                despesasDiretasCents +
-                rateioIndiretoCents),
-        varianciaCents = varianciaCents ??
-            ((totalCustoLoteCents ??
-                    (materiaisCents +
-                        maoDeObraCents +
-                        despesasDiretasCents +
-                        rateioIndiretoCents)) -
-                orcamentoPrevistoCents),
-        percentualConsumido = percentualConsumido ??
-            (orcamentoPrevistoCents > 0
-                ? (totalCustoLoteCents ??
-                        (materiaisCents +
-                            maoDeObraCents +
-                            despesasDiretasCents +
-                            rateioIndiretoCents)) /
-                    orcamentoPrevistoCents.toDouble()
-                : 0.0),
-        ultimaAtualizacao = ultimaAtualizacao ?? DateTime.now();
+  }) : totalCustoLoteCents =
+           totalCustoLoteCents ??
+           (materiaisCents +
+               maoDeObraCents +
+               despesasDiretasCents +
+               rateioIndiretoCents),
+       varianciaCents =
+           varianciaCents ??
+           ((totalCustoLoteCents ??
+                   (materiaisCents +
+                       maoDeObraCents +
+                       despesasDiretasCents +
+                       rateioIndiretoCents)) -
+               orcamentoPrevistoCents),
+       percentualConsumido =
+           percentualConsumido ??
+           (orcamentoPrevistoCents > 0
+               ? (totalCustoLoteCents ??
+                         (materiaisCents +
+                             maoDeObraCents +
+                             despesasDiretasCents +
+                             rateioIndiretoCents)) /
+                     orcamentoPrevistoCents.toDouble()
+               : 0.0),
+       ultimaAtualizacao = ultimaAtualizacao ?? DateTime.now();
 
   double get totalCustoLote => totalCustoLoteCents / 100.0;
   double get materiais => materiaisCents / 100.0;
@@ -136,7 +139,9 @@ class CustoLoteConsolidado {
   double get variancia => varianciaCents / 100.0;
 
   bool get temDesvioPositivo => varianciaCents > 0;
-  bool get estourado => orcamentoPrevistoCents > 0 && totalCustoLoteCents > orcamentoPrevistoCents;
+  bool get estourado =>
+      orcamentoPrevistoCents > 0 &&
+      totalCustoLoteCents > orcamentoPrevistoCents;
   bool get emAlerta =>
       orcamentoPrevistoCents > 0 &&
       percentualConsumido >= 0.85 &&
@@ -166,25 +171,26 @@ class CustoLoteConsolidado {
   }
 
   Map<String, dynamic> toMap() => {
-        'loteId': loteId,
-        'loteNome': loteNome,
-        'materiaisCents': materiaisCents,
-        'maoDeObraCents': maoDeObraCents,
-        'despesasDiretasCents': despesasDiretasCents,
-        'rateioIndiretoCents': rateioIndiretoCents,
-        'totalCustoLoteCents': totalCustoLoteCents,
-        'orcamentoPrevistoCents': orcamentoPrevistoCents,
-        'varianciaCents': varianciaCents,
-        'percentualConsumido': percentualConsumido,
-        'ultimaAtualizacao': ultimaAtualizacao.toIso8601String(),
-      };
+    'loteId': loteId,
+    'loteNome': loteNome,
+    'materiaisCents': materiaisCents,
+    'maoDeObraCents': maoDeObraCents,
+    'despesasDiretasCents': despesasDiretasCents,
+    'rateioIndiretoCents': rateioIndiretoCents,
+    'totalCustoLoteCents': totalCustoLoteCents,
+    'orcamentoPrevistoCents': orcamentoPrevistoCents,
+    'varianciaCents': varianciaCents,
+    'percentualConsumido': percentualConsumido,
+    'ultimaAtualizacao': ultimaAtualizacao.toIso8601String(),
+  };
 
   factory CustoLoteConsolidado.fromMap(Map<String, dynamic> map) {
     final mat = (map['materiaisCents'] as num?)?.toInt() ?? 0;
     final mo = (map['maoDeObraCents'] as num?)?.toInt() ?? 0;
     final dd = (map['despesasDiretasCents'] as num?)?.toInt() ?? 0;
     final ri = (map['rateioIndiretoCents'] as num?)?.toInt() ?? 0;
-    final total = (map['totalCustoLoteCents'] as num?)?.toInt() ?? (mat + mo + dd + ri);
+    final total =
+        (map['totalCustoLoteCents'] as num?)?.toInt() ?? (mat + mo + dd + ri);
     final orcamento = (map['orcamentoPrevistoCents'] as num?)?.toInt() ?? 0;
 
     final dataRaw = map['ultimaAtualizacao'];
@@ -199,8 +205,10 @@ class CustoLoteConsolidado {
       rateioIndiretoCents: ri,
       totalCustoLoteCents: total,
       orcamentoPrevistoCents: orcamento,
-      varianciaCents: (map['varianciaCents'] as num?)?.toInt() ?? (total - orcamento),
-      percentualConsumido: (map['percentualConsumido'] as num?)?.toDouble() ??
+      varianciaCents:
+          (map['varianciaCents'] as num?)?.toInt() ?? (total - orcamento),
+      percentualConsumido:
+          (map['percentualConsumido'] as num?)?.toDouble() ??
           (orcamento > 0 ? total / orcamento.toDouble() : 0.0),
       ultimaAtualizacao: data,
     );
@@ -259,22 +267,24 @@ class ResumoCustosObra {
       : 0.0;
 
   Map<String, dynamic> toMap() => {
-        'obraId': obraId,
-        'totalGeralCents': totalGeralCents,
-        'totalMateriaisCents': totalMateriaisCents,
-        'totalMaoDeObraCents': totalMaoDeObraCents,
-        'totalDespesasDiretasCents': totalDespesasDiretasCents,
-        'totalDespesasIndiretasCents': totalDespesasIndiretasCents,
-        'orcamentoTotalPrevistoCents': orcamentoTotalPrevistoCents,
-        'lotesCustos': lotesCustos.map((l) => l.toMap()).toList(),
-        'apuradoEm': apuradoEm.toIso8601String(),
-      };
+    'obraId': obraId,
+    'totalGeralCents': totalGeralCents,
+    'totalMateriaisCents': totalMateriaisCents,
+    'totalMaoDeObraCents': totalMaoDeObraCents,
+    'totalDespesasDiretasCents': totalDespesasDiretasCents,
+    'totalDespesasIndiretasCents': totalDespesasIndiretasCents,
+    'orcamentoTotalPrevistoCents': orcamentoTotalPrevistoCents,
+    'lotesCustos': lotesCustos.map((l) => l.toMap()).toList(),
+    'apuradoEm': apuradoEm.toIso8601String(),
+  };
 
   factory ResumoCustosObra.fromMap(Map<String, dynamic> map) {
     final lotesRaw = map['lotesCustos'] as List<dynamic>? ?? [];
     final lotesCustos = lotesRaw
-        .map((e) => CustoLoteConsolidado.fromMap(
-            Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) =>
+              CustoLoteConsolidado.fromMap(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
 
     final dataRaw = map['apuradoEm'];

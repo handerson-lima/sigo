@@ -48,8 +48,10 @@ void main() {
       expect(fornecedor.isPessoaJuridica, isTrue);
       expect(fornecedor.nomeExibicao, 'Votorantim');
       expect(fornecedor.documentoFormatado, '11.222.333/0001-81');
-      expect(fornecedor.endereco?.formatado,
-          'Av. Paulista, 1000 - Bela Vista - São Paulo/SP - CEP: 01310-100');
+      expect(
+        fornecedor.endereco?.formatado,
+        'Av. Paulista, 1000 - Bela Vista - São Paulo/SP - CEP: 01310-100',
+      );
 
       final json = fornecedor.toJson();
       expect(json['id'], 'forn-1');

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -218,7 +219,10 @@ void main() {
       final json = f.toJson();
       expect(json['id'], equals('f-ser-1'));
       expect(json['baseSalaryCents'], equals(450000));
-      expect(json['totalDailyRateCents'], equals(16666)); // (450000 + 50000) ~/ 30
+      expect(
+        json['totalDailyRateCents'],
+        equals(16666),
+      ); // (450000 + 50000) ~/ 30
       expect(json['teamId'], equals('eq-1'));
 
       final fromJson = Funcionario.fromJson(json);
@@ -242,8 +246,9 @@ void main() {
       expect(eqFrom.leaderName, equals('Manoel Pintor'));
     });
 
-    testWidgets('Listagem de colaboradores renderiza cards, badges e filtros',
-        (tester) async {
+    testWidgets('Listagem de colaboradores renderiza cards, badges e filtros', (
+      tester,
+    ) async {
       fakeRepo.funcionarios.addAll([
         Funcionario(
           id: 'f1',
@@ -316,109 +321,114 @@ void main() {
       expect(find.text('Bruno Lima'), findsNothing);
     });
 
-    testWidgets('Formulário de Funcionário valida campos e calcula preview em tempo real',
-        (tester) async {
-      tester.view.physicalSize = const Size(1200, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+    testWidgets(
+      'Formulário de Funcionário valida campos e calcula preview em tempo real',
+      (tester) async {
+        tester.view.physicalSize = const Size(1200, 1200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            rhRepositoryProvider.overrideWithValue(fakeRepo),
-            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-            authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
-          ],
-          child: const MaterialApp(
-            home: FuncionarioFormScreen(construtoraId: 'c1'),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              rhRepositoryProvider.overrideWithValue(fakeRepo),
+              trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+              authStateChangesProvider.overrideWith(
+                (ref) => Stream.value(null),
+              ),
+            ],
+            child: const MaterialApp(
+              home: FuncionarioFormScreen(construtoraId: 'c1'),
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      final saveBtn = find.byKey(const Key('btn_save_funcionario'));
-      await tester.ensureVisible(saveBtn);
-      await tester.tap(saveBtn);
-      await tester.pumpAndSettle();
+        final saveBtn = find.byKey(const Key('btn_save_funcionario'));
+        await tester.ensureVisible(saveBtn);
+        await tester.tap(saveBtn);
+        await tester.pumpAndSettle();
 
-      expect(find.text('Nome é obrigatório'), findsOneWidget);
-      expect(find.text('CPF é obrigatório'), findsOneWidget);
-      expect(find.text('Cargo é obrigatório'), findsOneWidget);
+        expect(find.text('Nome é obrigatório'), findsOneWidget);
+        expect(find.text('CPF é obrigatório'), findsOneWidget);
+        expect(find.text('Cargo é obrigatório'), findsOneWidget);
 
-      // Preencher nome com espaços vazios
-      await tester.enterText(
-        find.byKey(const Key('funcionario_name_input')),
-        '   ',
-      );
-      await tester.ensureVisible(saveBtn);
-      await tester.tap(saveBtn);
-      await tester.pumpAndSettle();
-      expect(find.text('Nome é obrigatório'), findsOneWidget);
+        // Preencher nome com espaços vazios
+        await tester.enterText(
+          find.byKey(const Key('funcionario_name_input')),
+          '   ',
+        );
+        await tester.ensureVisible(saveBtn);
+        await tester.tap(saveBtn);
+        await tester.pumpAndSettle();
+        expect(find.text('Nome é obrigatório'), findsOneWidget);
 
-      // Preencher nome válido e cargo válido
-      await tester.enterText(
-        find.byKey(const Key('funcionario_name_input')),
-        'Marcos Vinicius',
-      );
-      await tester.enterText(
-        find.byKey(const Key('funcionario_role_input')),
-        'Eletricista',
-      );
+        // Preencher nome válido e cargo válido
+        await tester.enterText(
+          find.byKey(const Key('funcionario_name_input')),
+          'Marcos Vinicius',
+        );
+        await tester.enterText(
+          find.byKey(const Key('funcionario_role_input')),
+          'Eletricista',
+        );
 
-      // Preencher CPF inválido
-      await tester.enterText(
-        find.byKey(const Key('funcionario_cpf_input')),
-        '111.111.111-11',
-      );
-      await tester.ensureVisible(saveBtn);
-      await tester.tap(saveBtn);
-      await tester.pumpAndSettle();
-      expect(find.text('CPF inválido'), findsOneWidget);
+        // Preencher CPF inválido
+        await tester.enterText(
+          find.byKey(const Key('funcionario_cpf_input')),
+          '111.111.111-11',
+        );
+        await tester.ensureVisible(saveBtn);
+        await tester.tap(saveBtn);
+        await tester.pumpAndSettle();
+        expect(find.text('CPF inválido'), findsOneWidget);
 
-      // Corrigir para CPF válido
-      await tester.enterText(
-        find.byKey(const Key('funcionario_cpf_input')),
-        validCpfFormatted,
-      );
-      await tester.pumpAndSettle();
+        // Corrigir para CPF válido
+        await tester.enterText(
+          find.byKey(const Key('funcionario_cpf_input')),
+          validCpfFormatted,
+        );
+        await tester.pumpAndSettle();
 
-      // Preencher Salário Base de R$ 3.000,00 e adicionais R$ 600,00
-      await tester.enterText(
-        find.byKey(const Key('funcionario_salary_input')),
-        '3000.00',
-      );
-      await tester.enterText(
-        find.byKey(const Key('funcionario_additional_input')),
-        '600.00',
-      );
-      await tester.pumpAndSettle();
+        // Preencher Salário Base de R$ 3.000,00 e adicionais R$ 600,00
+        await tester.enterText(
+          find.byKey(const Key('funcionario_salary_input')),
+          '3000.00',
+        );
+        await tester.enterText(
+          find.byKey(const Key('funcionario_additional_input')),
+          '600.00',
+        );
+        await tester.pumpAndSettle();
 
-      // Preview dinâmico deve calcular (3000 + 600) / 30 = R$ 120,00 / dia
-      expect(find.text('R\$ 120,00 / dia'), findsOneWidget);
+        // Preview dinâmico deve calcular (3000 + 600) / 30 = R$ 120,00 / dia
+        expect(find.text('R\$ 120,00 / dia'), findsOneWidget);
 
-      // Salvar funcionário
-      await tester.ensureVisible(saveBtn);
-      await tester.tap(saveBtn);
-      await tester.pumpAndSettle();
+        // Salvar funcionário
+        await tester.ensureVisible(saveBtn);
+        await tester.tap(saveBtn);
+        await tester.pumpAndSettle();
 
-      // Verificar persistência no fakeRepo
-      expect(fakeRepo.funcionarios.length, equals(1));
-      final saved = fakeRepo.funcionarios.first;
-      expect(saved.name, equals('Marcos Vinicius'));
-      expect(saved.cleanCpf, equals(validCpf1));
-      expect(saved.role, equals('Eletricista'));
-      expect(saved.baseSalaryCents, equals(300000));
-      expect(saved.additionalCostsCents, equals(60000));
-      expect(saved.totalDailyRateCents, equals(12000));
-      expect(saved.isActive, isTrue);
-    });
+        // Verificar persistência no fakeRepo
+        expect(fakeRepo.funcionarios.length, equals(1));
+        final saved = fakeRepo.funcionarios.first;
+        expect(saved.name, equals('Marcos Vinicius'));
+        expect(saved.cleanCpf, equals(validCpf1));
+        expect(saved.role, equals('Eletricista'));
+        expect(saved.baseSalaryCents, equals(300000));
+        expect(saved.additionalCostsCents, equals(60000));
+        expect(saved.totalDailyRateCents, equals(12000));
+        expect(saved.isActive, isTrue);
+      },
+    );
 
-    testWidgets('Inativação lógica (soft delete) altera isActive para false',
-        (tester) async {
+    testWidgets('Inativação lógica (soft delete) altera isActive para false', (
+      tester,
+    ) async {
       fakeRepo.funcionarios.add(
         Funcionario(
           id: 'f-ativo-1',
@@ -465,17 +475,14 @@ void main() {
       expect(fakeRepo.funcionarios.first.isActive, isFalse);
     });
 
-    testWidgets('EquipesDialog permite criar e inativar equipes',
-        (tester) async {
+    testWidgets('EquipesDialog permite criar e inativar equipes', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            rhRepositoryProvider.overrideWithValue(fakeRepo),
-          ],
+          overrides: [rhRepositoryProvider.overrideWithValue(fakeRepo)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: EquipesDialog(construtoraId: 'c1'),
-            ),
+            home: Scaffold(body: EquipesDialog(construtoraId: 'c1')),
           ),
         ),
       );

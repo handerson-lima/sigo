@@ -9,7 +9,9 @@ enum TipoPessoa {
     return TipoPessoa.juridica;
   }
 
-  String get label => this == TipoPessoa.juridica ? 'Pessoa Jurídica (PJ)' : 'Pessoa Física (PF)';
+  String get label => this == TipoPessoa.juridica
+      ? 'Pessoa Jurídica (PJ)'
+      : 'Pessoa Física (PF)';
 }
 
 enum StatusFornecedor {
@@ -42,14 +44,14 @@ class EnderecoFornecedor {
   });
 
   Map<String, dynamic> toJson() => {
-        if (cep != null) 'cep': cep,
-        if (logradouro != null) 'logradouro': logradouro,
-        if (numero != null) 'numero': numero,
-        if (complemento != null) 'complemento': complemento,
-        if (bairro != null) 'bairro': bairro,
-        if (cidade != null) 'cidade': cidade,
-        if (uf != null) 'uf': uf,
-      };
+    if (cep != null) 'cep': cep,
+    if (logradouro != null) 'logradouro': logradouro,
+    if (numero != null) 'numero': numero,
+    if (complemento != null) 'complemento': complemento,
+    if (bairro != null) 'bairro': bairro,
+    if (cidade != null) 'cidade': cidade,
+    if (uf != null) 'uf': uf,
+  };
 
   factory EnderecoFornecedor.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const EnderecoFornecedor();
@@ -67,13 +69,16 @@ class EnderecoFornecedor {
   String get formatado {
     final partes = <String>[];
     if (logradouro != null && logradouro!.isNotEmpty) {
-      partes.add(logradouro! + (numero != null && numero!.isNotEmpty ? ', $numero' : ''));
+      partes.add(
+        logradouro! + (numero != null && numero!.isNotEmpty ? ', $numero' : ''),
+      );
     }
     if (bairro != null && bairro!.isNotEmpty) partes.add(bairro!);
     if (cidade != null && cidade!.isNotEmpty) {
       partes.add(cidade! + (uf != null && uf!.isNotEmpty ? '/$uf' : ''));
     }
-    if (cep != null && cep!.isNotEmpty) partes.add('CEP: ${FornecedorValidator.formatarCep(cep)}');
+    if (cep != null && cep!.isNotEmpty)
+      partes.add('CEP: ${FornecedorValidator.formatarCep(cep)}');
     return partes.join(' - ');
   }
 }
@@ -98,14 +103,14 @@ class DadosBancariosFornecedor {
   });
 
   Map<String, dynamic> toJson() => {
-        if (chavePix != null) 'chavePix': chavePix,
-        if (tipoChavePix != null) 'tipoChavePix': tipoChavePix,
-        if (banco != null) 'banco': banco,
-        if (codigoBanco != null) 'codigoBanco': codigoBanco,
-        if (agencia != null) 'agencia': agencia,
-        if (contaCorrente != null) 'contaCorrente': contaCorrente,
-        if (favorecido != null) 'favorecido': favorecido,
-      };
+    if (chavePix != null) 'chavePix': chavePix,
+    if (tipoChavePix != null) 'tipoChavePix': tipoChavePix,
+    if (banco != null) 'banco': banco,
+    if (codigoBanco != null) 'codigoBanco': codigoBanco,
+    if (agencia != null) 'agencia': agencia,
+    if (contaCorrente != null) 'contaCorrente': contaCorrente,
+    if (favorecido != null) 'favorecido': favorecido,
+  };
 
   factory DadosBancariosFornecedor.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const DadosBancariosFornecedor();
@@ -180,7 +185,8 @@ class Fornecedor {
   }
 
   /// Retorna o documento formatado com pontuação (CNPJ ou CPF).
-  String get documentoFormatado => FornecedorValidator.formatarDocumento(documento);
+  String get documentoFormatado =>
+      FornecedorValidator.formatarDocumento(documento);
 
   Fornecedor copyWith({
     String? id,
@@ -274,7 +280,9 @@ class Fornecedor {
       id: json['id'] as String? ?? '',
       construtoraId: json['construtoraId'] as String? ?? '',
       tipoPessoa: TipoPessoa.fromString(json['tipoPessoa'] as String?),
-      documento: FornecedorValidator.apenasDigitos(json['documento'] as String?),
+      documento: FornecedorValidator.apenasDigitos(
+        json['documento'] as String?,
+      ),
       razaoSocial: json['razaoSocial'] as String? ?? '',
       nomeFantasia: json['nomeFantasia'] as String?,
       inscricaoEstadual: json['inscricaoEstadual'] as String?,
@@ -284,15 +292,19 @@ class Fornecedor {
       whatsapp: json['whatsapp'] as String?,
       nomeContato: json['nomeContato'] as String?,
       endereco: json['endereco'] is Map<String, dynamic>
-          ? EnderecoFornecedor.fromJson(json['endereco'] as Map<String, dynamic>)
+          ? EnderecoFornecedor.fromJson(
+              json['endereco'] as Map<String, dynamic>,
+            )
           : null,
-      categorias: (json['categorias'] as List<dynamic>?)
+      categorias:
+          (json['categorias'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const [],
       dadosBancarios: json['dadosBancarios'] is Map<String, dynamic>
           ? DadosBancariosFornecedor.fromJson(
-              json['dadosBancarios'] as Map<String, dynamic>)
+              json['dadosBancarios'] as Map<String, dynamic>,
+            )
           : null,
       observacoes: json['observacoes'] as String?,
       status: StatusFornecedor.fromString(json['status'] as String?),

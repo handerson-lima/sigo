@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,36 +15,32 @@ final despesasAdmRepositoryProvider = Provider<DespesasAdmRepository>((ref) {
   );
 });
 
-final despesasObraStreamProvider = StreamProvider.family<
-    List<DespesaAdm>,
-    ({String construtoraId, String obraId})>((ref, arg) {
-  return ref
-      .watch(despesasAdmRepositoryProvider)
-      .watchDespesasObra(arg.construtoraId, arg.obraId);
-});
+final despesasObraStreamProvider =
+    StreamProvider.family<
+      List<DespesaAdm>,
+      ({String construtoraId, String obraId})
+    >((ref, arg) {
+      return ref
+          .watch(despesasAdmRepositoryProvider)
+          .watchDespesasObra(arg.construtoraId, arg.obraId);
+    });
 
-final despesaDetailsFutureProvider = FutureProvider.family<
-    DespesaAdm?,
-    ({
-      String construtoraId,
-      String obraId,
-      String despesaId,
-    })>((ref, arg) {
-  return ref.watch(despesasAdmRepositoryProvider).getDespesa(
-        arg.construtoraId,
-        arg.obraId,
-        arg.despesaId,
-      );
-});
+final despesaDetailsFutureProvider =
+    FutureProvider.family<
+      DespesaAdm?,
+      ({String construtoraId, String obraId, String despesaId})
+    >((ref, arg) {
+      return ref
+          .watch(despesasAdmRepositoryProvider)
+          .getDespesa(arg.construtoraId, arg.obraId, arg.despesaId);
+    });
 
 class DespesasAdmRepository {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
 
-  DespesasAdmRepository(
-    this._firestore, [
-    FirebaseStorage? storage,
-  ])  : _storage = storage ?? FirebaseStorage.instance;
+  DespesasAdmRepository(this._firestore, [FirebaseStorage? storage])
+    : _storage = storage ?? FirebaseStorage.instance;
 
   CollectionReference<Map<String, dynamic>> _despesasRef(
     String construtoraId,
@@ -62,17 +59,21 @@ class DespesasAdmRepository {
     String construtoraId,
     String obraId,
   ) {
-    final query = _despesasRef(construtoraId, obraId)
-        .orderBy('dataVencimento', descending: false);
+    final query = _despesasRef(
+      construtoraId,
+      obraId,
+    ).orderBy('dataVencimento', descending: false);
 
     return cachedList<DespesaAdm>(
       'despesas_adm/$construtoraId/$obraId',
       query
           .snapshots(includeMetadataChanges: true)
           .where((s) => !s.metadata.isFromCache)
-          .map((snapshot) => snapshot.docs
-              .map((doc) => DespesaAdm.fromJson(doc.data()))
-              .toList()),
+          .map(
+            (snapshot) => snapshot.docs
+                .map((doc) => DespesaAdm.fromJson(doc.data()))
+                .toList(),
+          ),
       (d) => d.toJson(),
       (item) => DespesaAdm.fromJson(Map<String, dynamic>.from(item)),
     );
@@ -84,8 +85,7 @@ class DespesasAdmRepository {
     String obraId,
     String despesaId,
   ) async {
-    final doc =
-        await _despesasRef(construtoraId, obraId).doc(despesaId).get();
+    final doc = await _despesasRef(construtoraId, obraId).doc(despesaId).get();
     if (!doc.exists || doc.data() == null) return null;
     return DespesaAdm.fromJson(doc.data()!);
   }
@@ -105,15 +105,18 @@ class DespesasAdmRepository {
       }
     }
 
-    await _despesasRef(despesa.construtoraId, despesa.obraId)
-        .doc(despesa.id)
-        .set(despesa.toJson());
+    await _despesasRef(
+      despesa.construtoraId,
+      despesa.obraId,
+    ).doc(despesa.id).set(despesa.toJson());
   }
 
   /// Atualiza os dados de uma despesa em aberto
   Future<void> updateDespesa(DespesaAdm despesa) async {
-    final docRef = _despesasRef(despesa.construtoraId, despesa.obraId)
-        .doc(despesa.id);
+    final docRef = _despesasRef(
+      despesa.construtoraId,
+      despesa.obraId,
+    ).doc(despesa.id);
 
     final snapshot = await docRef.get();
     if (snapshot.exists) {
@@ -150,7 +153,8 @@ class DespesasAdmRepository {
     String? comprovantePath,
     String? operationId,
   }) async {
-    final opId = operationId ??
+    final opId =
+        operationId ??
         'pay-adm-$despesaId-${DateTime.now().millisecondsSinceEpoch}';
 
     final docRef = _despesasRef(construtoraId, obraId).doc(despesaId);
@@ -223,7 +227,8 @@ class DespesasAdmRepository {
     }
 
     final dtPgto = dataPagamento ?? DateTime.now();
-    final opId = operationId ??
+    final opId =
+        operationId ??
         'pay-parcela-$despesaId-$numeroParcela-${DateTime.now().millisecondsSinceEpoch}';
 
     final parcelasAtualizadas = despesa.parcelas.map((p) {
@@ -242,8 +247,9 @@ class DespesasAdmRepository {
     }).toList();
 
     // Se todas as parcelas estiverem pagas, o título todo passa a ser 'pago'
-    final todasPagas = parcelasAtualizadas
-        .every((p) => p.status == StatusDespesaAdm.pago);
+    final todasPagas = parcelasAtualizadas.every(
+      (p) => p.status == StatusDespesaAdm.pago,
+    );
 
     final atualizada = despesa.copyWith(
       status: todasPagas ? StatusDespesaAdm.pago : StatusDespesaAdm.pendente,
@@ -315,7 +321,9 @@ class DespesasAdmRepository {
       throw ArgumentError('Arquivo vazio.');
     }
     if (bytes.lengthInBytes > 10 * 1024 * 1024) {
-      throw ArgumentError('O arquivo excede o limite máximo permitido de 10 MB.');
+      throw ArgumentError(
+        'O arquivo excede o limite máximo permitido de 10 MB.',
+      );
     }
 
     final allowedTypes = [
@@ -328,8 +336,10 @@ class DespesasAdmRepository {
       throw ArgumentError('Formato de arquivo não permitido: $contentType');
     }
 
-    final cleanFileName =
-        nomeArquivo.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    final cleanFileName = nomeArquivo.replaceAll(
+      RegExp(r'[^a-zA-Z0-9._-]'),
+      '_',
+    );
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final storagePath =
         'construtoras/$construtoraId/obras/$obraId/despesas_adm/$despesaId/${timestamp}_$cleanFileName';
@@ -349,10 +359,6 @@ class DespesasAdmRepository {
 
     final downloadUrl = await uploadTask.ref.getDownloadURL();
 
-    return (
-      url: downloadUrl,
-      path: storagePath,
-      nome: cleanFileName,
-    );
+    return (url: downloadUrl, path: storagePath, nome: cleanFileName);
   }
 }

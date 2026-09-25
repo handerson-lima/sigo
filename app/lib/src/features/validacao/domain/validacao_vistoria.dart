@@ -184,8 +184,7 @@ class ValidacaoVistoria {
   bool get isReprovado => status == ValidacaoStatus.reprovado;
   bool get isReaberto => status == ValidacaoStatus.reaberto;
 
-  bool get hasNaoConforme =>
-      itensRespondidos.any((i) => i.isNaoConforme);
+  bool get hasNaoConforme => itensRespondidos.any((i) => i.isNaoConforme);
 
   int get totalItens => itensRespondidos.length;
   int get totalConformes => itensRespondidos.where((i) => i.isConforme).length;
@@ -273,9 +272,10 @@ class ValidacaoVistoria {
 
     final rawItens = map['itensRespondidos'] as List<dynamic>? ?? [];
     final parsedItens = rawItens
-        .map((item) => ItemRespondido.fromMap(
-              Map<String, dynamic>.from(item as Map),
-            ))
+        .map(
+          (item) =>
+              ItemRespondido.fromMap(Map<String, dynamic>.from(item as Map)),
+        )
         .toList();
 
     return ValidacaoVistoria(

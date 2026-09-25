@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../domain/quadra.dart';
 
 final quadraRepositoryProvider = Provider<QuadraRepository>((ref) {
@@ -11,13 +12,12 @@ class QuadraRepository {
 
   QuadraRepository(this._firestore);
 
-  CollectionReference<Quadra> _quadrasRef() =>
-      _firestore
-          .collection('quadras')
-          .withConverter<Quadra>(
-            fromFirestore: (snapshot, _) => Quadra.fromJson(snapshot.data()!),
-            toFirestore: (quadra, _) => quadra.toJson(),
-          );
+  CollectionReference<Quadra> _quadrasRef() => _firestore
+      .collection('quadras')
+      .withConverter<Quadra>(
+        fromFirestore: (snapshot, _) => Quadra.fromJson(snapshot.data()!),
+        toFirestore: (quadra, _) => quadra.toJson(),
+      );
 
   Stream<List<Quadra>> watchQuadras(String construtoraId, String loteamentoId) {
     return _quadrasRef()
@@ -35,8 +35,10 @@ class QuadraRepository {
 
 typedef QuadraParams = ({String construtoraId, String loteamentoId});
 
-final watchQuadrasProvider =
-    StreamProvider.family<List<Quadra>, QuadraParams>((ref, params) {
+final watchQuadrasProvider = StreamProvider.family<List<Quadra>, QuadraParams>((
+  ref,
+  params,
+) {
   final repo = ref.watch(quadraRepositoryProvider);
   return repo.watchQuadras(params.construtoraId, params.loteamentoId);
 });

@@ -31,9 +31,10 @@ class Visao360CustosScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final resumoAsync = ref.watch(
-      resumoCustosObraStreamProvider(
-        (construtoraId: construtoraId, obraId: obraId),
-      ),
+      resumoCustosObraStreamProvider((
+        construtoraId: construtoraId,
+        obraId: obraId,
+      )),
     );
 
     return SigoLayout(
@@ -44,9 +45,10 @@ class Visao360CustosScreen extends ConsumerWidget {
           icon: const Icon(Icons.refresh),
           tooltip: 'Recalcular Projeções',
           onPressed: () => ref.refresh(
-            resumoCustosObraStreamProvider(
-              (construtoraId: construtoraId, obraId: obraId),
-            ),
+            resumoCustosObraStreamProvider((
+              construtoraId: construtoraId,
+              obraId: obraId,
+            )),
           ),
         ),
       ],
@@ -57,9 +59,10 @@ class Visao360CustosScreen extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(
-                resumoCustosObraStreamProvider(
-                  (construtoraId: construtoraId, obraId: obraId),
-                ),
+                resumoCustosObraStreamProvider((
+                  construtoraId: construtoraId,
+                  obraId: obraId,
+                )),
               );
             },
             child: SingleChildScrollView(
@@ -144,8 +147,11 @@ class Visao360CustosScreen extends ConsumerWidget {
                         child: Center(
                           child: Column(
                             children: [
-                              Icon(Icons.layers_clear_outlined,
-                                  size: 48, color: Colors.grey.shade400),
+                              Icon(
+                                Icons.layers_clear_outlined,
+                                size: 48,
+                                color: Colors.grey.shade400,
+                              ),
                               const SizedBox(height: 8),
                               const Text(
                                 'Nenhum lote cadastrado neste loteamento.',
@@ -155,7 +161,9 @@ class Visao360CustosScreen extends ConsumerWidget {
                               Text(
                                 'Cadastre lotes no módulo de Loteamentos/Lotes para apurar os 4 cubos.',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey.shade600),
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
                               ),
                             ],
                           ),
@@ -170,7 +178,11 @@ class Visao360CustosScreen extends ConsumerWidget {
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
                         final loteCusto = resumo.lotesCustos[index];
-                        return _buildCardLote(context, loteCusto, totalGeralCents);
+                        return _buildCardLote(
+                          context,
+                          loteCusto,
+                          totalGeralCents,
+                        );
                       },
                     ),
                   const SizedBox(height: 40),
@@ -197,14 +209,17 @@ class Visao360CustosScreen extends ConsumerWidget {
               children: [
                 const Icon(Icons.error_outline, color: Colors.red, size: 48),
                 const SizedBox(height: 12),
-                Text('Erro ao carregar Visão 360: $err',
-                    textAlign: TextAlign.center),
+                Text(
+                  'Erro ao carregar Visão 360: $err',
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: () => ref.refresh(
-                    resumoCustosObraStreamProvider(
-                      (construtoraId: construtoraId, obraId: obraId),
-                    ),
+                    resumoCustosObraStreamProvider((
+                      construtoraId: construtoraId,
+                      obraId: obraId,
+                    )),
                   ),
                   icon: const Icon(Icons.refresh),
                   label: const Text('Tentar Novamente'),
@@ -231,7 +246,8 @@ class Visao360CustosScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
             colors: [
-              Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
+              Theme.of(context).colorScheme.primaryContainer
+                  .withValues(alpha: 0.4),
               Colors.white,
             ],
             begin: Alignment.topLeft,
@@ -272,25 +288,42 @@ class Visao360CustosScreen extends ConsumerWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Orçamento Previsto',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    Text(
+                      'Orçamento Previsto',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(_formatarMoeda(orcamentoTotal),
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    Text(
+                      _formatarMoeda(orcamentoTotal),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('Variação Orçamentária',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    Text(
+                      'Variação Orçamentária',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       _formatarMoeda(variancia.abs()),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        color: desvioPositivo ? Colors.red.shade700 : Colors.green.shade700,
+                        color: desvioPositivo
+                            ? Colors.red.shade700
+                            : Colors.green.shade700,
                       ),
                     ),
                   ],
@@ -303,7 +336,10 @@ class Visao360CustosScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBarraDistribuicao(BuildContext context, ResumoCustosObra resumo) {
+  Widget _buildBarraDistribuicao(
+    BuildContext context,
+    ResumoCustosObra resumo,
+  ) {
     final total = resumo.totalGeralCents.toDouble();
     final pMat = resumo.totalMateriaisCents / total;
     final pMo = resumo.totalMaoDeObraCents / total;
@@ -407,7 +443,9 @@ class Visao360CustosScreen extends ConsumerWidget {
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: corBadge.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
@@ -434,7 +472,9 @@ class Visao360CustosScreen extends ConsumerWidget {
                       Text(
                         'Total Realizado',
                         style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade600),
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                       Text(
                         _formatarMoeda(lote.totalCustoLoteCents),
@@ -451,7 +491,9 @@ class Visao360CustosScreen extends ConsumerWidget {
                       Text(
                         'Participação no Loteamento',
                         style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade600),
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                       Text(
                         '${percObra.toStringAsFixed(1)}%',
@@ -481,7 +523,9 @@ class Visao360CustosScreen extends ConsumerWidget {
                     Text(
                       'Meta: ${_formatarMoeda(lote.orcamentoPrevistoCents)}',
                       style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade600),
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                     Text(
                       '${(lote.percentualConsumido * 100).toStringAsFixed(1)}% consumido',
@@ -500,15 +544,35 @@ class Visao360CustosScreen extends ConsumerWidget {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _miniCuboIndicator('Mat', lote.materiaisCents, Colors.orange.shade700),
+                    _miniCuboIndicator(
+                      'Mat',
+                      lote.materiaisCents,
+                      Colors.orange.shade700,
+                    ),
                     const SizedBox(width: 8),
-                    _miniCuboIndicator('M.O.', lote.maoDeObraCents, Colors.blue.shade700),
+                    _miniCuboIndicator(
+                      'M.O.',
+                      lote.maoDeObraCents,
+                      Colors.blue.shade700,
+                    ),
                     const SizedBox(width: 8),
-                    _miniCuboIndicator('Dir', lote.despesasDiretasCents, Colors.purple.shade700),
+                    _miniCuboIndicator(
+                      'Dir',
+                      lote.despesasDiretasCents,
+                      Colors.purple.shade700,
+                    ),
                     const SizedBox(width: 8),
-                    _miniCuboIndicator('Ind', lote.rateioIndiretoCents, Colors.teal.shade700),
+                    _miniCuboIndicator(
+                      'Ind',
+                      lote.rateioIndiretoCents,
+                      Colors.teal.shade700,
+                    ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: Colors.grey,
+                      size: 18,
+                    ),
                   ],
                 ),
               ),

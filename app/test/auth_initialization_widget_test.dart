@@ -21,7 +21,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(TextFormField), findsNWidgets(2));
       expect(find.text('SIGO'), findsOneWidget);
-      expect(find.text('Sistema Inteligente de Gestão de Obras'), findsOneWidget);
+      expect(
+        find.text('Sistema Inteligente de Gestão de Obras'),
+        findsOneWidget,
+      );
       expect(find.byType(Image), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

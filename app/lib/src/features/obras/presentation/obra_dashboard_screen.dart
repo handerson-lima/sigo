@@ -29,46 +29,56 @@ class ObraDashboardScreen extends ConsumerWidget {
       )),
     );
     final activeMember = permissionsAsync.asData?.value;
-    final centralMember =
-        ref.watch(construtoraPermissionProvider(construtoraId)).value;
-    final centralAdmin = centralMember?['isActive'] == true &&
+    final centralMember = ref
+        .watch(construtoraPermissionProvider(construtoraId))
+        .value;
+    final centralAdmin =
+        centralMember?['isActive'] == true &&
         (centralMember?['isAdmin'] == true ||
             centralMember?['isOwner'] == true);
-    final canCentralLotes = centralAdmin ||
+    final canCentralLotes =
+        centralAdmin ||
         centralMember?['isActive'] == true &&
             normalizeRawModules(
               centralMember?['modules'],
               centralMember?['allowedModules'],
             ).contains('lotes');
-    final canRh = activeMember != null &&
+    final canRh =
+        activeMember != null &&
         activeMember.isActive &&
         (activeMember.isAdmin ||
             activeMember.modules.map(normalizeModule).contains('rh'));
-    final canEstoque = activeMember != null &&
+    final canEstoque =
+        activeMember != null &&
         activeMember.isActive &&
         (activeMember.isAdmin ||
             activeMember.modules.map(normalizeModule).contains('estoque'));
-    final canFinanceiro = activeMember != null &&
-        activeMember.isActive &&
-        activeMember.isAdmin;
-    final canAdm = activeMember != null &&
+    final canFinanceiro =
+        activeMember != null && activeMember.isActive && activeMember.isAdmin;
+    final canAdm =
+        activeMember != null &&
         activeMember.isActive &&
         (activeMember.isAdmin ||
             activeMember.modules.map(normalizeModule).contains('adm') ||
             activeMember.modules.map(normalizeModule).contains('financeiro'));
-    final canCompras = activeMember != null &&
+    final canCompras =
+        activeMember != null &&
         activeMember.isActive &&
         (activeMember.isAdmin ||
             activeMember.modules.map(normalizeModule).contains('compras') ||
-            activeMember.modules.map(normalizeModule).contains('almoxarifado') ||
+            activeMember.modules
+                .map(normalizeModule)
+                .contains('almoxarifado') ||
             activeMember.modules.map(normalizeModule).contains('adm') ||
             activeMember.modules.map(normalizeModule).contains('financeiro'));
-    final canEpi = activeMember != null &&
+    final canEpi =
+        activeMember != null &&
         activeMember.isActive &&
         (activeMember.isAdmin ||
             activeMember.modules.map(normalizeModule).contains('epi') ||
             activeMember.modules.map(normalizeModule).contains('rh'));
-    final canValidacao = activeMember != null &&
+    final canValidacao =
+        activeMember != null &&
         activeMember.isActive &&
         (activeMember.isAdmin ||
             activeMember.modules.map(normalizeModule).contains('validacao') ||
@@ -124,7 +134,11 @@ class ObraDashboardScreen extends ConsumerWidget {
                 // Categoria 1: Canteiro & Produção
                 Row(
                   children: [
-                    Icon(Icons.construction, size: 20, color: Colors.blueGrey[700]),
+                    Icon(
+                      Icons.construction,
+                      size: 20,
+                      color: Colors.blueGrey[700],
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Canteiro & Produção',
@@ -172,7 +186,11 @@ class ObraDashboardScreen extends ConsumerWidget {
                 // Categoria 2: Pessoas & Segurança
                 Row(
                   children: [
-                    Icon(Icons.health_and_safety_outlined, size: 20, color: Colors.blueGrey[700]),
+                    Icon(
+                      Icons.health_and_safety_outlined,
+                      size: 20,
+                      color: Colors.blueGrey[700],
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Pessoas & Segurança',
@@ -211,7 +229,11 @@ class ObraDashboardScreen extends ConsumerWidget {
                 // Categoria 3: Gestão & Suprimentos
                 Row(
                   children: [
-                    Icon(Icons.account_balance, size: 20, color: Colors.blueGrey[700]),
+                    Icon(
+                      Icons.account_balance,
+                      size: 20,
+                      color: Colors.blueGrey[700],
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Gestão & Suprimentos',

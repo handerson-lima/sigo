@@ -19,7 +19,10 @@ class DespesaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+    final currencyFormat = NumberFormat.currency(
+      locale: 'pt_BR',
+      symbol: 'R\$',
+    );
     final dateFormat = DateFormat('dd/MM/yyyy');
 
     final isPendente = despesa.status == StatusDespesaAdm.pendente;
@@ -30,26 +33,26 @@ class DespesaCard extends StatelessWidget {
     final Color statusColor = isPaga
         ? Colors.green.shade700
         : isCancelada
-            ? Colors.grey.shade600
-            : isAtrasada
-                ? Colors.red.shade700
-                : Colors.orange.shade800;
+        ? Colors.grey.shade600
+        : isAtrasada
+        ? Colors.red.shade700
+        : Colors.orange.shade800;
 
     final Color statusBg = isPaga
         ? Colors.green.shade50
         : isCancelada
-            ? Colors.grey.shade100
-            : isAtrasada
-                ? Colors.red.shade50
-                : Colors.orange.shade50;
+        ? Colors.grey.shade100
+        : isAtrasada
+        ? Colors.red.shade50
+        : Colors.orange.shade50;
 
     final String statusLabel = isCancelada
         ? 'Cancelado'
         : isPaga
-            ? 'Pago'
-            : isAtrasada
-                ? 'Atrasado'
-                : 'Pendente';
+        ? 'Pago'
+        : isAtrasada
+        ? 'Atrasado'
+        : 'Pendente';
 
     return Card(
       elevation: 1,
@@ -97,7 +100,8 @@ class DespesaCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (despesa.loteId != null && despesa.loteId!.isNotEmpty)
+                        if (despesa.loteId != null &&
+                            despesa.loteId!.isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -111,8 +115,11 @@ class DespesaCard extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.home_work_outlined,
-                                    size: 12, color: Colors.indigo.shade700),
+                                Icon(
+                                  Icons.home_work_outlined,
+                                  size: 12,
+                                  color: Colors.indigo.shade700,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Lote: ${despesa.loteId}',
@@ -221,8 +228,11 @@ class DespesaCard extends StatelessWidget {
                   despesa.fornecedorNome!.isNotEmpty) ...[
                 Row(
                   children: [
-                    Icon(Icons.business_outlined,
-                        size: 14, color: Colors.grey.shade600),
+                    Icon(
+                      Icons.business_outlined,
+                      size: 14,
+                      color: Colors.grey.shade600,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -244,17 +254,25 @@ class DespesaCard extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    isAtrasada ? Icons.warning_amber_rounded : Icons.calendar_today_outlined,
+                    isAtrasada
+                        ? Icons.warning_amber_rounded
+                        : Icons.calendar_today_outlined,
                     size: 14,
-                    color: isAtrasada ? Colors.red.shade700 : Colors.grey.shade600,
+                    color: isAtrasada
+                        ? Colors.red.shade700
+                        : Colors.grey.shade600,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'Vencimento: ${dateFormat.format(despesa.dataVencimento)}',
                     style: TextStyle(
                       fontSize: 12,
-                      color: isAtrasada ? Colors.red.shade800 : Colors.grey.shade700,
-                      fontWeight: isAtrasada ? FontWeight.bold : FontWeight.normal,
+                      color: isAtrasada
+                          ? Colors.red.shade800
+                          : Colors.grey.shade700,
+                      fontWeight: isAtrasada
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                   const Spacer(),
@@ -262,8 +280,11 @@ class DespesaCard extends StatelessWidget {
                       despesa.comprovanteUrl!.isNotEmpty)
                     Row(
                       children: [
-                        Icon(Icons.attach_file,
-                            size: 14, color: Colors.blue.shade700),
+                        Icon(
+                          Icons.attach_file,
+                          size: 14,
+                          color: Colors.blue.shade700,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           'Anexo',
@@ -288,7 +309,9 @@ class DespesaCard extends StatelessWidget {
                         ? (despesa.valorPagoCents / despesa.valorTotalCents)
                         : 0,
                     backgroundColor: Colors.grey.shade200,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade600),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Colors.green.shade600,
+                    ),
                     minHeight: 6,
                   ),
                 ),
@@ -298,7 +321,10 @@ class DespesaCard extends StatelessWidget {
                   children: [
                     Text(
                       'Pago: ${currencyFormat.format(despesa.valorPagoCents / 100.0)}',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                     Text(
                       'Saldo: ${currencyFormat.format(despesa.saldoDevedorCents / 100.0)}',

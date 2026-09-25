@@ -25,8 +25,7 @@ void main() {
         watchLoteamentosProvider.overrideWith((ref, arg) => loteamentos),
         if (quadras != null)
           watchQuadrasProvider.overrideWith((ref, arg) => quadras),
-        if (lotes != null)
-          watchLotesProvider.overrideWith((ref, arg) => lotes),
+        if (lotes != null) watchLotesProvider.overrideWith((ref, arg) => lotes),
       ],
       child: MaterialApp(
         home: Scaffold(
@@ -69,8 +68,9 @@ void main() {
     expect(find.text('Tentar novamente'), findsOneWidget);
   });
 
-  testWidgets('exibe o seletor vazio quando o stream resolve sem dados',
-      (tester) async {
+  testWidgets('exibe o seletor vazio quando o stream resolve sem dados', (
+    tester,
+  ) async {
     await tester.pumpWidget(build(loteamentos: Stream.value(const [])));
     await tester.pump();
     await tester.pump();
@@ -79,8 +79,9 @@ void main() {
     expect(find.byType(SigoErrorState), findsNothing);
   });
 
-  testWidgets('exibe erro de lotes quando o stream de lotes falha',
-      (tester) async {
+  testWidgets('exibe erro de lotes quando o stream de lotes falha', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       build(
         loteamentos: Stream.value(const []),
@@ -92,9 +93,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Não foi possível carregar os lotes.'),
-      findsOneWidget,
-    );
+    expect(find.text('Não foi possível carregar os lotes.'), findsOneWidget);
   });
 }
