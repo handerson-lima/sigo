@@ -70,6 +70,8 @@ before(async () => {
     { id: 'stock_user', email: 'stock@construtora.test', globalRole: 'user' },
     { id: 'diary_user', email: 'diary@construtora.test', globalRole: 'user' },
     { id: 'inactive_user', email: 'inactive@construtora.test', globalRole: 'user' },
+    { id: 'inactive_const_user', email: 'inactive.const@construtora.test', globalRole: 'user' },
+    { id: 'legacy_user', email: 'legacy@construtora.test', globalRole: 'user' },
     { id: 'outsider_user', email: 'outsider@other.test', globalRole: 'user' }
   ];
 
@@ -88,6 +90,9 @@ before(async () => {
   // 2. Construtoras A e B
   batch.set(db.doc('construtoras/const_a'), { id: 'const_a', name: 'Construtora A' });
   batch.set(db.doc('construtoras/const_b'), { id: 'const_b', name: 'Construtora B' });
+  // Construtora inativa (12.2) e construtora legada sem campo isActive
+  batch.set(db.doc('construtoras/const_inativa'), { id: 'const_inativa', name: 'Construtora Inativa', isActive: false });
+  batch.set(db.doc('construtoras/const_legacy'), { id: 'const_legacy', name: 'Construtora Legada' });
 
   // 3. Obras
   batch.set(db.doc('construtoras/const_a/obras/obra_1'), {
@@ -99,6 +104,11 @@ before(async () => {
     id: 'obra_2',
     construtoraId: 'const_b',
     name: 'Obra 2'
+  });
+  batch.set(db.doc('construtoras/const_inativa/obras/obra_inativa'), {
+    id: 'obra_inativa',
+    construtoraId: 'const_inativa',
+    name: 'Obra da Inativa'
   });
 
   // 4. Membros da Construtora A
@@ -138,6 +148,22 @@ before(async () => {
     modules: ['rh', 'estoque']
   });
 
+  // 12.2 Membros de construtora inativa / legada (sem isActive)
+  batch.set(db.doc('construtoras/const_inativa/construtora_members/inactive_const_user'), {
+    userId: 'inactive_const_user',
+    isActive: true,
+    isAdmin: false,
+    isOwner: false,
+    modules: ['estoque']
+  });
+  batch.set(db.doc('construtoras/const_legacy/construtora_members/legacy_user'), {
+    userId: 'legacy_user',
+    isActive: true,
+    isAdmin: false,
+    isOwner: false,
+    modules: []
+  });
+
   // Membro de Obra
   batch.set(db.doc('construtoras/const_a/obras/obra_1/members/diary_user'), {
     userId: 'diary_user',
@@ -154,6 +180,17 @@ before(async () => {
     unit: 'sc',
     currentQuantity: 50,
     quantityUnits: 50000,
+    quantityScale: 1000,
+    schemaVersion: 2
+  });
+
+  batch.set(db.doc('construtoras/const_inativa/materiais/mat_inativa'), {
+    id: 'mat_inativa',
+    construtoraId: 'const_inativa',
+    name: 'Material Inativo',
+    unit: 'un',
+    currentQuantity: 0,
+    quantityUnits: 0,
     quantityScale: 1000,
     schemaVersion: 2
   });
@@ -259,6 +296,24 @@ test('2.3 Membresias de construtora são protegidas contra escrita direta do cli
     isAdmin: true
   }));
   await assertFails(deleteDoc(doc(adminFs, 'construtoras/const_a/construtora_members/stock_user')));
+});
+
+test('2.4 Membro ativo de construtora inativa não lê a construtora nem dados dela', async () => {
+  const fs = testEnv.authenticatedContext('inactive_const_user').firestore();
+  await assertFails(getDoc(doc(fs, 'construtoras/const_inativa')));
+  await assertFails(getDoc(doc(fs, 'construtoras/const_inativa/obras/obra_inativa')));
+  await assertFails(getDoc(doc(fs, 'construtoras/const_inativa/materiais/mat_inativa')));
+});
+
+test('2.5 Construtora sem campo isActive é tratada como ativa (legado)', async () => {
+  const fs = testEnv.authenticatedContext('legacy_user').firestore();
+  await assertSucceeds(getDoc(doc(fs, 'construtoras/const_legacy')));
+});
+
+test('2.6 Dev continua lendo construtora inativa', async () => {
+  const devFs = testEnv.authenticatedContext('dev_user').firestore();
+  await assertSucceeds(getDoc(doc(devFs, 'construtoras/const_inativa')));
+  await assertSucceeds(getDoc(doc(devFs, 'construtoras/const_inativa/obras/obra_inativa')));
 });
 
 // ==========================================

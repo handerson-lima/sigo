@@ -2,10 +2,24 @@ import '../../../sync/read_cache.dart';
 import '../../../core/contracts.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/construtora.dart';
 import '../domain/construtora_member.dart';
+
+/// Descarta construtoras sem doc (leitura negada) e com `isActive == false`.
+///
+/// `null` representa um doc-pai inacessível (ex.: `permission-denied` das
+/// Security Rules para construtora inativa) e equivale a sem acesso.
+@visibleForTesting
+List<Construtora> filtrarConstrutorasAtivas(List<Construtora?> construtoras) =>
+    construtoras.whereType<Construtora>().where((c) => c.isActive).toList();
+
+/// `permission-denied` equivale a sem acesso (construtora inativa/inexistente).
+@visibleForTesting
+bool construtoraInacessivel(Object error) =>
+    error is FirebaseException && error.code == 'permission-denied';
 
 final construtoraRepositoryProvider = Provider<ConstrutoraRepository>((ref) {
   return ConstrutoraRepository(FirebaseFirestore.instance);
@@ -59,9 +73,12 @@ class ConstrutoraRepository {
     'construtoras/$userId/$dev',
     () => _loadgetUserConstrutoras(userId, dev: dev),
     (items) => items.map((e) => e.toJson()).toList(),
-    (data) => (data as List)
-        .map((e) => Construtora.fromJson(Map<String, dynamic>.from(e)))
-        .toList(),
+    (data) {
+      final items = (data as List)
+          .map((e) => Construtora.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      return dev ? items : filtrarConstrutorasAtivas(items);
+    },
   );
 
   Future<List<Construtora>> _loadgetUserConstrutoras(
@@ -89,29 +106,37 @@ class ConstrutoraRepository {
     final construtoraFutures = querySnapshot.docs.map((doc) async {
       // doc.reference é construtoras/{cId}/construtora_members/{uId}
       // o pai do pai é construtoras/{cId}
-      final construtoraDoc = await doc.reference.parent.parent!
-          .withConverter<Construtora>(
-            fromFirestore: (snapshot, _) {
-              final data = snapshot.data()!;
-              if (data['createdAt'] is Timestamp) {
-                data['createdAt'] = (data['createdAt'] as Timestamp)
-                    .toDate()
-                    .toIso8601String();
-              }
-              if (data['updatedAt'] is Timestamp) {
-                data['updatedAt'] = (data['updatedAt'] as Timestamp)
-                    .toDate()
-                    .toIso8601String();
-              }
-              return Construtora.fromJson(data);
-            },
-            toFirestore: (construtora, _) => construtora.toJson(),
-          )
-          .get(const GetOptions(source: Source.server));
-      return construtoraDoc.data();
+      final parent = doc.reference.parent.parent;
+      if (parent == null) return null;
+      try {
+        final construtoraDoc = await parent
+            .withConverter<Construtora>(
+              fromFirestore: (snapshot, _) {
+                final data = snapshot.data()!;
+                if (data['createdAt'] is Timestamp) {
+                  data['createdAt'] = (data['createdAt'] as Timestamp)
+                      .toDate()
+                      .toIso8601String();
+                }
+                if (data['updatedAt'] is Timestamp) {
+                  data['updatedAt'] = (data['updatedAt'] as Timestamp)
+                      .toDate()
+                      .toIso8601String();
+                }
+                return Construtora.fromJson(data);
+              },
+              toFirestore: (construtora, _) => construtora.toJson(),
+            )
+            .get(const GetOptions(source: Source.server));
+        return construtoraDoc.data();
+      } on FirebaseException catch (e) {
+        // Construtora inativa é barrada pelas Security Rules: sem acesso.
+        if (construtoraInacessivel(e)) return null;
+        rethrow;
+      }
     }).toList();
 
     final results = await Future.wait(construtoraFutures);
-    return results.whereType<Construtora>().toList(); // Filtra nulls
+    return filtrarConstrutorasAtivas(results);
   }
 }

@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-24-2026 22:03
+last_updated: 09-24-2026 22:35
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -56,7 +56,7 @@ development_status:
 
   epic-12: in-progress
   12-1-adicionar-controle-de-ativação-de-construtora-no-painel-dev: review
-  12-2-ocultar-construtoras-inativas-na-listagem-do-usuário: backlog
+  12-2-ocultar-construtoras-inativas-na-listagem-do-usuário: review
   epic-12-retrospective: optional
 legacy_scope_mapping:
   "1-4-subcolecao-members": "construtoras/{cId}/obras/{oId}/members/{uid}"

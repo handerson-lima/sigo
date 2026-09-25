@@ -5,7 +5,8 @@ service cloud.firestore {
    function dev() { return signed() && exists(/databases/$(database)/documents/dev_roles/$(request.auth.uid)) && get(/databases/$(database)/documents/dev_roles/$(request.auth.uid)).data.get('isActive', false) == true; }
    function cmExists(c) { return signed() && exists(/databases/$(database)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)); }
    function cm(c) { return get(/databases/$(database)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)).data; }
-   function member(c) { return dev() || (cmExists(c) && cm(c).get('isActive', false) == true); }
+   function activeConstrutora(c) { return get(/databases/$(database)/documents/construtoras/$(c)).data.get('isActive', true) == true; }
+   function member(c) { return dev() || (cmExists(c) && cm(c).get('isActive', false) == true && activeConstrutora(c)); }
    function admin(c) { return dev() || (member(c) && (cm(c).get('isAdmin', false) == true || cm(c).get('isOwner', false) == true || cm(c).get('role', '') == 'admin' || cm(c).get('role', '') == 'owner')); }
    function omExists(c,o) { return signed() && exists(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)); }
    function om(c,o) { return get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)).data; }

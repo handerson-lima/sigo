@@ -207,3 +207,17 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-3-corrige-navegacao-hierarquia.md`
   summary: Criar telas/ações de criação para Loteamento e Quadra (e Setor/Equipe) na hierarquia; hoje só Lote tem `AddLoteScreen` roteada.
   evidence: `LoteamentoRepository.createLoteamento` e `QuadraRepository.createQuadra` existem, mas nenhum formulário/rota os usa; as listagens novas ficam sem CTA de criação nesses níveis (spec-11-3 só entregou vazio + CTA de Lote por não haver formulário).
+
+## Deferred from: code review of spec-12-2-ocultar-construtoras-inativas-na-listagem (2026-09-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
+  summary: Regras wildcard `/{path=**}/construtora_members/{uid}`, `/{path=**}/members/{uid}` e `/{path=**}/movimentacoes/{id}` (`firestore.rules:214-216`) continuam legíveis sem exigir construtora ativa.
+  evidence: pré-existente e não introduzido pela 12.2 (`movimentacoes` é liberado a qualquer usuário autenticado); o bloqueio global da 12.2 cobre as regras derivadas de `member(c)`, não esses wildcards. Revisar se algum deve ser gated por construtora ativa.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
+  summary: `npm run test:rules` (security-rules.test.cjs) não é executado no caminho normal de verificação/CI.
+  evidence: `functions/package.json:15` define o script, mas nenhum job de CI o invoca (CI roda só `npm test`); regressões de autorização não geram sinal automático. A verificação da 12.2 é manual.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
+  summary: Acesso por rota direta a uma construtora inativa exibe estado de erro em vez de "Acesso Negado".
+  evidence: `AccessGuard` decide o acesso apenas pelo doc de vínculo (`app/lib/src/common_widgets/access_guard.dart:30-37`), que segue legível com a construtora inativa; `getConstrutoraObras` então falha com `permission-denied` e a tela mostra `Erro: ...`. Dados não são expostos (negação server-side); só o UX de rota direta/stale é afetado.
