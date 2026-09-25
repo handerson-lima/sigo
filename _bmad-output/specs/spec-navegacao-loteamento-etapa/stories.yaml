@@ -1,0 +1,33 @@
+- id: "1"
+  title: Atualizar esquema de dados raiz no Firestore (Loteamentos a Equipes)
+  description: >-
+    Refatorar ou criar as top-level collections para Loteamentos, Quadras, Lotes,
+    Etapas e Equipes com suas chaves estrangeiras baseadas no AD-1 da arquitetura.
+  spec_checkpoint: false
+  invoke_dev_with: >-
+    Lembre-se de deletar ou isolar os dados antigos e scripts de Obras/Setores em ambiente de dev. Não construa subcollections.
+
+- id: "2"
+  title: Rotas Declarativas e Drill-down Inicial (Construtora -> Loteamento -> Quadra)
+  description: >-
+    Implementar o GoRouter refletindo o fluxo hierárquico até Quadra, e
+    renomear "Obras" para "Loteamentos" na interface principal do app.
+  spec_checkpoint: false
+  invoke_dev_with: ""
+
+- id: "3"
+  title: Ramificação Específica de Etapas por Lote
+  description: >-
+    Implementar a navegação de Quadra -> Lote -> Etapas específicas (Muro, Cinza/1ª, Cinza/2ª, etc)
+    garantindo que a hierarquia definida em hierarquia-etapas.md seja refletida.
+  spec_checkpoint: true
+  invoke_dev_with: >-
+    Esta interface requer atenção especial, pois os Lotes exibem múltiplas Etapas paralelas/sequenciais predefinidas.
+
+- id: "4"
+  title: Navegação Final: Alocação de Equipe na Etapa
+  description: >-
+    Concluir o roteamento até o nível de Equipe dentro de uma Etapa específica
+    completando o ciclo estrito definido em CAP-2.
+  spec_checkpoint: false
+  invoke_dev_with: ""
