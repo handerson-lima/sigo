@@ -8,7 +8,10 @@ import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/lotes/presentation/add_lote_screen.dart';
 import 'package:app/src/features/lotes/presentation/lotes_list_screen.dart';
+import 'package:app/src/features/obras/domain/obra_member.dart';
+import 'package:app/src/features/obras/presentation/access_denied_screen.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
+import 'package:app/src/features/obras/presentation/obra_dashboard_screen.dart';
 import 'package:app/src/features/equipes/data/equipe_repository.dart';
 import 'package:app/src/features/equipes/domain/equipe.dart';
 import 'package:app/src/features/equipes/presentation/equipes_list_screen.dart';
@@ -530,12 +533,104 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Novo Lote'));
+    await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
 
     final addScreen = tester.widget<AddLoteScreen>(find.byType(AddLoteScreen));
     expect(addScreen.construtoraId, 'c1');
     expect(addScreen.loteamentoId, 'l1');
     expect(addScreen.quadraId, 'q1');
+  });
+
+  testWidgets('membro nao-admin nao acessa a rota lotes/novo', (tester) async {
+    final router = GoRouter(
+      initialLocation:
+          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/novo',
+      routes: construtoraRoutes,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({
+              'isActive': true,
+              'isAdmin': false,
+              'modules': ['lotes'],
+            }),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccessDeniedScreen), findsOneWidget);
+    expect(find.byType(AddLoteScreen), findsNothing);
+  });
+
+  testWidgets(
+      'card legado de Lotes e Setores navega para a lista de loteamentos',
+      (tester) async {
+    final router = GoRouter(
+      initialLocation: '/construtora/c1/obra/o1',
+      routes: [
+        GoRoute(
+          path: '/construtora/:cId/obra/:oId',
+          builder: (context, state) => ObraDashboardScreen(
+            construtoraId: state.pathParameters['cId']!,
+            obraId: state.pathParameters['oId']!,
+          ),
+        ),
+        GoRoute(
+          path: '/construtora/:cId/loteamentos',
+          builder: (context, state) => LoteamentosListScreen(
+            construtoraId: state.pathParameters['cId']!,
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({
+              'isActive': true,
+              'isAdmin': false,
+              'modules': ['lotes'],
+            }),
+          ),
+          currentPermissionsProvider(
+            (construtoraId: 'c1', obraId: 'o1'),
+          ).overrideWith(
+            (ref) => Stream.value(
+              ObraMember(
+                userId: 'u1',
+                isActive: true,
+                isAdmin: false,
+                modules: ['lotes'],
+                joinedAt: DateTime(2025),
+              ),
+            ),
+          ),
+          loteamentoRepositoryProvider.overrideWithValue(
+            FakeLoteamentoRepository([makeLoteamento('l1')]),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Lotes e Setores'));
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.path, '/construtora/c1/loteamentos');
+    expect(find.byType(LoteamentosListScreen), findsOneWidget);
   });
 }

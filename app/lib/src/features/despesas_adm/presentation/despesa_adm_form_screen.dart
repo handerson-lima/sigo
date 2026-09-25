@@ -372,6 +372,8 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
                       loteId: _selectedLoteId,
                       enabled: !_isLoading,
                       loteLabel: 'Apropriação por Lote (Opcional)',
+                      loteHelperText:
+                          'Selecione se for custo direto do lote ou deixe vazio para rateio geral',
                       onLoteamentoChanged: (val) {
                         setState(() {
                           _loteamentoId = val;

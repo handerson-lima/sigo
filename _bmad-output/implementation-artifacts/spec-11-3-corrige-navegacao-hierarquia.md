@@ -2,7 +2,7 @@
 title: 'Correção da navegação hierárquica (Epic 11)'
 type: 'bugfix'
 created: '2026-09-24'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: 'f43a5d3c3b644614c5cce491faab6ca4821f921a'
@@ -81,6 +81,40 @@ context: ['_bmad-output/implementation-artifacts/epic-11-context.md', '_bmad-out
 - 5 listagens migradas para `SigoLayout` + `SigoErrorState`/`SigoEmptyState`; `LoteStatus.label` em pt-BR e "Fase".
 - Follow-up (não silenciado): criação de Loteamento/Quadra ainda sem tela (repos têm `create`, sem UI); registrado em `deferred-work.md`. Regressão menor conhecida: em edição de despesa ADM o lote salvo não é reposto no seletor hierárquico (o caminho antigo já retornava vazio em produção; não piora).
 - Evidência: `flutter analyze` limpo; `flutter test` 480 verdes; `grep dummy app/lib` sem ocorrências.
+
+## Review Triage Log
+
+Passada 1 (blind-hunter + edge-case-hunter + verification-gap). Sem loopback: nenhum `intent_gap`/`bad_spec`; patches agrupados por causa raiz.
+
+**Grupo A — estados/UX do `LoteHierarchySelector` e erros**
+- `medium` BH1/EC2/BH15/EC10 — selector engole erro de loteamentos/quadras/lotes (`SizedBox.shrink`) e `chamada` usa `value ?? []`: sem retry/causa. Verificado no diff e no widget. → patch: exibir `SigoErrorState` com retry por nível.
+- `medium` BH5 — `loteValidator != null` remove a opção "Nenhum lote específico (Geral da Obra)", impedindo limpar o lote. Verificado em `lote_hierarchy_selector.dart`. → patch: manter a opção nula e validar quando apropriação ativa.
+- `low` BH3 — `helperText` de rateio vs custo direto perdido em `despesa_adm_form_screen`. Verificado. → patch: repor via `loteLabel/helper`.
+- `medium` BH6 — `SigoErrorState` exibe `cause.toString()` cru (sem pt-BR/sanitização). → patch: resumo pt-BR por tipo.
+- `low` BH7/EC9 — `substring(0,120)` pode cortar par surrogate. → patch: `characters.take`.
+- `low` BH2 — `SigoEmptyState.action` sem uso; CTA de vazio. → patch: usar em Lotes quando admin.
+
+**Grupo B — verificação/lacunas de teste**
+- `medium` VG1 — `module`/`adminOnly` das rotas nunca avaliados (testes usam dev=true). → patch: casos no `access_guard_test.dart` + rota `novo` com não-admin.
+- `medium` VG2 — links legados trocados sem teste de navegação. → patch: assertar `router.state.uri.path` ao tocar no card/voltar.
+- `low` VG3 — `LoteStatus.label` sem asserção (só "Fase"). → patch: assertar `Status: No prazo`.
+- `medium` BH9 — sem testes para os widgets novos/branches do selector. → patch.
+- `medium` BH10 — `stock_saida`/`stock_monetario` removem override e passam a depender do erro engolido. → patch: overrides + assert.
+
+**Grupo C — divergência de permissão nos pontos de entrada**
+- `medium` BH11/EC8/VG4 — FAB "Novo Lote" aceita `role` string; `AccessGuard` usa booleanos → botão aparece e rota nega. Verificado (`lotes_list_screen.dart:34-38` vs `access_guard.dart:38`). → patch: fonte única de permissão (isAdmin||isOwner, sem `role`).
+- `medium` EC5/EC6 — card/sidebar "Lotes e Setores" gateados por módulo de **obra**, mas a rota central exige módulo central `lotes` → AccessDenied. → patch: gatear por permissão central (igual `AccessGuard`).
+- `medium` EC4 — card "Validação & Qualidade" aponta para `/loteamentos` e nega a quem só tem `validacao`. → patch: apontar para a rota de validação.
+- `medium` EC7 — "Voltar aos Lotes" em `lote_validacoes_screen` aponta para `/loteamentos` e nega a quem só tem `validacao`. → patch: voltar ao dashboard da obra.
+
+**Adiados/rejeitados**
+- `false` BH12 — remoção do gráfico "Status dos Lotes" foi decisão F1 aprovada; sem defeito.
+- `false` BH14 — corrigir coordenadas da spec = editar esta spec; rejeitado por regra.
+- `false` BH16 — `context.go` para rota-filha + `pop` no AddLoteScreen funcional no GoRouter aninhado.
+- `false` EC1 — `quadraId` não nulo com `loteamentoId` nulo é inalcançável: os callbacks resetam `quadraId` ao trocar loteamento.
+- `low` → reject BH8 — cores/semântica dos widgets novos: cosmético, padrão do repo usa `Colors.*`; sem dano demonstrado.
+- `low` → defer EC3 — ids retidos ausentes após refresh causam dropdowns vazios; borda pré-existente de dados.
+- `maybe-false` → defer BH4 — edição de chamada não repõe loteamento/quadra do lote salvo; o caminho antigo já retornava vazio em produção.
 
 ## Verification
 

@@ -16,9 +16,16 @@ class SigoErrorState extends StatelessWidget {
 
   String? get _causeSummary {
     if (cause == null) return null;
-    final text = cause.toString().replaceAll('\n', ' ').trim();
-    if (text.isEmpty) return null;
-    return text.length > 120 ? '${text.substring(0, 120)}…' : text;
+    final raw = cause.toString();
+    if (raw.contains('permission-denied')) {
+      return 'Sem permissão de acesso';
+    }
+    if (raw.contains('unavailable')) {
+      return 'Sem conexão com o servidor';
+    }
+    final clean = raw.replaceAll('\n', ' ').trim();
+    if (clean.isEmpty) return null;
+    return clean.characters.take(120).toString();
   }
 
   @override

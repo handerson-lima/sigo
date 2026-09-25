@@ -227,10 +227,11 @@ class SigoSidebar extends ConsumerWidget {
                       context.go('/construtora/$cId/obra/$oId');
                     },
                   ),
-                  if (obra != null &&
-                      obra.isActive &&
-                      (obra.isAdmin ||
-                          obra.modules.map(normalizeModule).contains('lotes')))
+                  if (isDev ||
+                      isConstrutoraAdmin ||
+                      (construtoraMember != null &&
+                          construtoraMember['isActive'] == true &&
+                          construtoraModules.contains('lotes')))
                     _NavItem(
                       icon: Icons.map,
                       title: 'Lotes e Setores',

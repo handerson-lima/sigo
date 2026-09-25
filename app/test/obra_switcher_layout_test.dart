@@ -53,6 +53,13 @@ void main() {
             construtoraObrasProvider('c1').overrideWith(
               (ref) => Future.value(obrasList),
             ),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'modules': ['lotes'],
+              }),
+            ),
             currentPermissionsProvider((construtoraId: 'c1', obraId: 'obraA'))
                 .overrideWith(
                   (ref) => Stream.value(
@@ -84,9 +91,10 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Na Obra A: exibe Diário de Obra (na sidebar e no dashboard card), não exibe Lotes
+      // Na Obra A: exibe Diário de Obra (na sidebar e no dashboard card); o
+      // atalho de Lotes é liberado pela permissão central.
       expect(find.text('Diário de Obra'), findsNWidgets(2));
-      expect(find.text('Lotes e Setores'), findsNothing);
+      expect(find.text('Lotes e Setores'), findsNWidgets(2));
 
       // Abre dropdown do seletor de obra e seleciona Obra Beta
       final dropdown = find.byKey(const Key('obra-switcher-dropdown'));

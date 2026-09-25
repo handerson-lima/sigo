@@ -7,7 +7,14 @@ import 'package:app/src/features/almoxarifado/domain/movimentacao.dart';
 import 'package:app/src/features/almoxarifado/presentation/movimentacao_screen.dart';
 import 'package:app/src/features/obras/domain/obra.dart';
 import 'package:app/src/features/obras/presentation/construtora_obras_provider.dart';
+import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
+import 'package:app/src/features/loteamentos/domain/loteamento.dart';
+import 'package:app/src/features/lotes/data/lote_repository.dart';
+import 'package:app/src/features/lotes/domain/lote.dart';
+import 'package:app/src/features/quadras/data/quadra_repository.dart';
+import 'package:app/src/features/quadras/domain/quadra.dart';
 import 'package:app/src/sync/operation_queue.dart';
+
 
 void main() {
   group('Story 3.3 — Estoque: Saída via Requisição por Lote', () {
@@ -161,6 +168,15 @@ void main() {
         ProviderScope(
           overrides: [
             construtoraObrasProvider('c1').overrideWith((ref) => fakeObras),
+            watchLoteamentosProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Loteamento>[]),
+            ),
+            watchQuadrasProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Quadra>[]),
+            ),
+            watchLotesProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Lote>[]),
+            ),
           ],
           child: MaterialApp(
             home: MovimentacaoScreen(
@@ -202,6 +218,17 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            watchLoteamentosProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Loteamento>[]),
+            ),
+            watchQuadrasProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Quadra>[]),
+            ),
+            watchLotesProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Lote>[]),
+            ),
+          ],
           child: MaterialApp(
             home: MovimentacaoScreen(
               construtoraId: 'c1',
@@ -241,6 +268,17 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            watchLoteamentosProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Loteamento>[]),
+            ),
+            watchQuadrasProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Quadra>[]),
+            ),
+            watchLotesProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Lote>[]),
+            ),
+          ],
           child: MaterialApp(
             home: MovimentacaoScreen(
               construtoraId: 'c1',

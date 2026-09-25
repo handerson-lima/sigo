@@ -14,6 +14,12 @@ import 'package:app/src/features/almoxarifado/presentation/stock_history_screen.
 import 'package:app/src/features/almoxarifado/data/almoxarifado_repository.dart';
 import 'package:app/src/features/obras/domain/obra.dart';
 import 'package:app/src/features/obras/presentation/construtora_obras_provider.dart';
+import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
+import 'package:app/src/features/loteamentos/domain/loteamento.dart';
+import 'package:app/src/features/lotes/data/lote_repository.dart';
+import 'package:app/src/features/lotes/domain/lote.dart';
+import 'package:app/src/features/quadras/data/quadra_repository.dart';
+import 'package:app/src/features/quadras/domain/quadra.dart';
 import 'package:app/src/sync/operation_queue.dart';
 
 class FakeAlmoxarifadoRepository extends AlmoxarifadoRepository {
@@ -467,6 +473,15 @@ void main() {
         ProviderScope(
           overrides: [
             construtoraObrasProvider('c1').overrideWith((ref) => const <Obra>[]),
+            watchLoteamentosProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Loteamento>[]),
+            ),
+            watchQuadrasProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Quadra>[]),
+            ),
+            watchLotesProvider.overrideWith(
+              (ref, arg) => Stream.value(const <Lote>[]),
+            ),
             almoxarifadoRepositoryProvider.overrideWithValue(AlmoxarifadoRepository()),
           ],
           child: MaterialApp(

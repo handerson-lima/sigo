@@ -32,10 +32,7 @@ class LotesListScreen extends ConsumerWidget {
     final lotesAsync = ref.watch(watchLotesProvider(params));
     final member = ref.watch(construtoraPermissionProvider(construtoraId)).value;
     final isAdmin = member?['isActive'] == true &&
-        (member?['isAdmin'] == true ||
-            member?['isOwner'] == true ||
-            member?['role'] == 'admin' ||
-            member?['role'] == 'owner');
+        (member?['isAdmin'] == true || member?['isOwner'] == true);
 
     final baseRoute =
         '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes';
@@ -64,9 +61,16 @@ class LotesListScreen extends ConsumerWidget {
               ),
               data: (items) {
                 if (items.isEmpty) {
-                  return const SigoEmptyState(
+                  return SigoEmptyState(
                     message: 'Nenhum lote cadastrado',
                     icon: Icons.crop_landscape_outlined,
+                    action: isAdmin
+                        ? ElevatedButton.icon(
+                            onPressed: () => context.go('$baseRoute/novo'),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Novo Lote'),
+                          )
+                        : null,
                   );
                 }
 

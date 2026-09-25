@@ -351,4 +351,120 @@ void main() {
       expect(find.text('central diario'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'adminOnly+module lotes nega membro ativo nao-admin mesmo com o modulo',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'modules': ['lotes'],
+              }),
+            ),
+          ],
+          child: const MaterialApp(
+            home: AccessGuard(
+              construtoraId: 'c1',
+              module: 'lotes',
+              adminOnly: true,
+              child: Text('novo lote'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('novo lote'), findsNothing);
+      expect(find.text('Acesso Negado'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'module lotes sem o modulo central nega membro ativo nao-admin',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'modules': ['diario'],
+              }),
+            ),
+          ],
+          child: const MaterialApp(
+            home: AccessGuard(
+              construtoraId: 'c1',
+              module: 'lotes',
+              child: Text('lotes'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('lotes'), findsNothing);
+      expect(find.text('Acesso Negado'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'module lotes com o modulo central permite membro ativo nao-admin',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'modules': ['lotes'],
+              }),
+            ),
+          ],
+          child: const MaterialApp(
+            home: AccessGuard(
+              construtoraId: 'c1',
+              module: 'lotes',
+              child: Text('lotes'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('lotes'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'adminOnly+module lotes permite admin de construtora',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+            ),
+          ],
+          child: const MaterialApp(
+            home: AccessGuard(
+              construtoraId: 'c1',
+              module: 'lotes',
+              adminOnly: true,
+              child: Text('novo lote'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('novo lote'), findsOneWidget);
+    },
+  );
 }

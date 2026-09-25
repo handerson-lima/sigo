@@ -439,30 +439,57 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
           )
         : const AsyncData<List<Lote>>([]);
     final lotes = lotesAsync.value ?? [];
+    final lotesComErro =
+        _loteamentoId != null && _quadraId != null && lotesAsync.hasError;
 
-    final hierarchySelector = LoteHierarchySelector(
-      construtoraId: widget.construtoraId,
-      loteamentoId: _loteamentoId,
-      quadraId: _quadraId,
-      loteId: _defaultLotId,
-      enabled: !_isSaving,
-      showLoteField: false,
-      onLoteamentoChanged: (val) {
-        setState(() {
-          _loteamentoId = val;
-          _quadraId = null;
-          _defaultLotId = null;
-        });
-      },
-      onQuadraChanged: (val) {
-        setState(() {
-          _quadraId = val;
-          _defaultLotId = null;
-        });
-      },
-      onLoteChanged: (val) {
-        setState(() => _defaultLotId = val);
-      },
+    final hierarchySelector = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LoteHierarchySelector(
+          construtoraId: widget.construtoraId,
+          loteamentoId: _loteamentoId,
+          quadraId: _quadraId,
+          loteId: _defaultLotId,
+          enabled: !_isSaving,
+          showLoteField: false,
+          onLoteamentoChanged: (val) {
+            setState(() {
+              _loteamentoId = val;
+              _quadraId = null;
+              _defaultLotId = null;
+            });
+          },
+          onQuadraChanged: (val) {
+            setState(() {
+              _quadraId = val;
+              _defaultLotId = null;
+            });
+          },
+        ),
+        if (lotesComErro)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Não foi possível carregar os lotes.'),
+                ),
+                TextButton(
+                  onPressed: () => ref.invalidate(
+                    watchLotesProvider((
+                      construtoraId: widget.construtoraId,
+                      loteamentoId: _loteamentoId!,
+                      quadraId: _quadraId!,
+                    )),
+                  ),
+                  child: const Text('Tentar novamente'),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
 
     return funcionariosAsync.when(

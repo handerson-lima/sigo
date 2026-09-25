@@ -198,6 +198,12 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 
 - `StreamProvider.family` sem `autoDispose` acumula subscriptions do Firestore. source_spec: `_bmad-output/implementation-artifacts/spec-11-1-navegacao-loteamento-quadra-lote.md`; location: `app/lib/src/features/loteamentos/data/loteamento_repository.dart:36`. Evidence: padrão pré-existente de setores/equipes; `autoDispose` reintroduziria o `AsyncLoading` que a história quer evitar; decisão de ciclo de vida de provider a revisitar.
 
+## Deferred from: code review of spec-11-3-corrige-navegacao-hierarquia (2026-09-24)
+
+- `LoteHierarchySelector`: ids retidos (loteamento/quadra) ausentes após refresh geram dropdowns vazios. source_spec: `_bmad-output/implementation-artifacts/spec-11-3-corrige-navegacao-hierarquia.md`; location: `app/lib/src/features/lotes/presentation/widgets/lote_hierarchy_selector.dart`. Evidence: borda pré-existente de dados; o `_valorSeguro` só protege `initialValue`, não o gate do nível seguinte.
+
+- `chamada_form_screen`: editar uma chamada não repõe loteamento/quadra do lote padrão salvo (só `_defaultLotId`). source_spec: `_bmad-output/implementation-artifacts/spec-11-3-corrige-navegacao-hierarquia.md`; location: `app/lib/src/features/rh/presentation/chamada_form_screen.dart`. Evidence: o caminho antigo (`dummy_loteamento`/`dummy_quadra`) já retornava vazio em produção; repor exigiria resolver o pai do lote.
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-3-corrige-navegacao-hierarquia.md`
   summary: Criar telas/ações de criação para Loteamento e Quadra (e Setor/Equipe) na hierarquia; hoje só Lote tem `AddLoteScreen` roteada.
   evidence: `LoteamentoRepository.createLoteamento` e `QuadraRepository.createQuadra` existem, mas nenhum formulário/rota os usa; as listagens novas ficam sem CTA de criação nesses níveis (spec-11-3 só entregou vazio + CTA de Lote por não haver formulário).

@@ -169,6 +169,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Lote 01'), findsOneWidget);
       expect(find.textContaining('Fase: Fundação'), findsOneWidget);
+      expect(find.textContaining('Status: No prazo'), findsOneWidget);
     });
 
     testWidgets('ObrasListScreen exibe botao de Nova Obra para Administrador', (tester) async {
