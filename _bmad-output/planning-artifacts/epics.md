@@ -86,6 +86,10 @@ Adm/owner troca papel/módulos na hierarquia, remove de um nó, troca cargo na c
 O usuário navega pela hierarquia estrutural após o login para detalhar os componentes da construção.
 **FRs covered:** (Nova feature de navegação estrutural)
 
+### Epic 12: Gestão de Construtoras no Painel Dev
+Devs podem ativar ou desativar o status das construtoras para suspender acesso global no app.
+**FRs covered:** (Gestão global)
+
 ## Epic 8: Visibilidade dos vínculos
 
 Adm/owner enxerga cada membro com Cargo · N obras e abre o detalhe.
@@ -234,3 +238,31 @@ So that eu veja quem está responsável.
 **When** acesso seus detalhes
 **Then** vejo os Setores associados e as Equipes alocadas
 **And** posso visualizar as responsabilidades e papéis em cada nó.
+
+## Epic 12: Gestão de Construtoras no Painel Dev
+
+Devs podem ativar ou desativar o status das construtoras para suspender acesso global no app.
+
+### Story 12.1: Adicionar controle de ativação de construtora no Painel Dev
+
+As a dev no Painel Dev,
+I want poder ativar e desativar o status de uma construtora,
+So that eu suspenda o acesso globalmente a ela.
+
+**Acceptance Criteria:**
+**Given** estou logado como dev no Painel Dev
+**When** altero o toggle/switch de uma construtora
+**Then** atualiza o campo `isActive` no model e no banco
+**And** um snackbar de confirmação é exibido.
+
+### Story 12.2: Ocultar construtoras inativas na listagem do usuário
+
+As a usuário final,
+I want ver apenas construtoras ativas,
+So that eu não acesse projetos inativos indevidamente.
+
+**Acceptance Criteria:**
+**Given** que acesso a tela de "Minhas Construtoras"
+**When** a lista é carregada
+**Then** não vejo construtoras que tenham `isActive == false`
+**And** a restrição é forçada no backend (queries `.where('isActive', isEqualTo: true)`) e também via Security Rules (Firestore).

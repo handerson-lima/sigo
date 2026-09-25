@@ -1,0 +1,16 @@
+- id: "1"
+  title: Adicionar controle de ativação de construtora no Painel Dev
+  description: >-
+    Adicionar capacidade do Dev ativar e desativar uma construtora pela tela de Gestão, persistindo o status no banco de dados. Referente à CAP-1.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Adicione o campo booleano `isActive` (default: `true`) no model de Construtora e faça o mapeamento no serializador. Na interface do Painel Dev, utilize um componente de Toggle/Switch de acordo com o design system atual. Ao inativar, exiba um simples snackbar de confirmação em vez de dialogos obstrutivos.
+- id: "2"
+  title: Ocultar construtoras inativas na listagem do usuário
+  description: >-
+    Omitir construtoras inativadas na tela "Minhas Construtoras" e bloquear o acesso via regras de segurança. Referente à CAP-2 e Constraints.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Modifique a query do Firestore que alimenta a listagem 'Minhas Construtoras' adicionando o filtro `.where('isActive', isEqualTo: true)`. Além disso, atualize as regras de segurança do Firestore (Security Rules) para barrar a leitura de documentos onde `isActive == false` para usuários comuns, garantindo a constraint de segurança.

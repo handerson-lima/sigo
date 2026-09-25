@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-24-2026 18:41
+last_updated: 09-24-2026 21:57
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -32,82 +32,6 @@ observed_baseline:
   note: "C0–C6 implementados e validados localmente; sem deploy de produção."
 
 development_status:
-  epic-0: in-progress
-  0-1-registrar-decisoes: done
-  0-2-definir-politica: in-progress
-  0-3-aprovar-termos: backlog
-  0-4-matriz-acesso: backlog
-  epic-0-retrospective: optional
-
-  epic-1: done
-  1-1-projeto-flutter: done
-  1-2-configurar-firebase: done
-  1-3-colecao-users: done
-  1-4-subcolecao-members: done
-  1-5-descoberta-obras: done
-  1-6-fluxo-login: done
-  1-7-selecao-obra: done
-  1-8-recalculo-modulos: done
-  epic-1-retrospective: done
-
-  epic-2: done
-  2-1-service-worker-pwa: done
-  2-2-cache-aplicativo: done
-  2-3-indexeddb: done
-  2-4-fila-sincronizacao: done
-  2-5-armazenamento-local-blobs: done
-  2-6-particionar-cache: done
-  2-7-isolar-operacoes: done
-  2-8-sync-engine: done
-  2-9-endpoints-transacionais: done
-  2-10-idempotencia: done
-  2-11-executar-autorizacao: done
-  2-12-indicador-sincronizacao: done
-  2-13-sistema-carimbo: done
-  2-14-versionamento-migracao: done
-  epic-2-retrospective: done
-
-  2-5-1-firestore-rules: done
-  2-5-2-storage-rules: done
-  2-5-3-validar-membership: done
-  2-5-4-revalidacao-autorizacao: done
-  2-5-5-testes-seguranca: done
-
-  epic-3: done
-  3-1-crud-projetos-lotes: done
-  3-2-estoque-recebimento: done
-  3-3-estoque-saida: done
-  3-4-estoque-ajustes: done
-  3-5-estoque-estorno: done
-  3-6-estoque-rateio: done
-  3-7-monetario-centavos: done
-  epic-3-retrospective: optional
-
-  epic-4: done
-  4-1-rh-cadastro: done
-  4-2-rh-chamada: done
-  4-3-rh-custos: done
-  4-4-rh-validar-invariantes: done
-  epic-4-retrospective: done
-
-  epic-5: done
-  5-1-modulo-epi: done
-  5-2-modulo-validacao: done
-  5-3-modulo-adm: done
-  5-4-fornecedores: done
-  5-5-parcelas-recebimento: done
-  5-6-visao-360-custos: done
-  epic-5-retrospective: done
-
-  epic-6: backlog
-  6-1-testes-offline: backlog
-  6-2-testes-integridade: backlog
-  epic-6-retrospective: optional
-
-  epic-7: backlog
-  7-1-responsividade: backlog
-  epic-7-retrospective: optional
-
   epic-8: done
   8-1-lista-com-cargo-n-obras: done
   8-2-filtros-e-busca: done
@@ -129,6 +53,11 @@ development_status:
   11-1-navegação-loteamento-quadra-lote: done
   11-2-navegação-lote-setor-equipe: review
   epic-11-retrospective: done
+
+  epic-12: backlog
+  12-1-adicionar-controle-de-ativação-de-construtora-no-painel-dev: backlog
+  12-2-ocultar-construtoras-inativas-na-listagem-do-usuário: backlog
+  epic-12-retrospective: optional
 legacy_scope_mapping:
   "1-4-subcolecao-members": "construtoras/{cId}/obras/{oId}/members/{uid}"
   "1-5-descoberta-obras": "Validar queries atuais de construtora_members e members"
