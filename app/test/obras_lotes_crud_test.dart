@@ -55,20 +55,16 @@ void main() {
         loteamentoId: 'lt1',
         quadraId: 'qd1',
         name: 'Casa 101',
-        phase: 'Fundação',
-        status: LoteStatus.atrasado,
         createdAt: now,
+        updatedAt: now,
       );
 
       final json = lote.toJson();
       expect(json['id'], 'l1');
       expect(json['name'], 'Casa 101');
-      expect(json['status'], 'atrasado');
 
       final deserialized = Lote.fromJson(json);
       expect(deserialized.id, 'l1');
-      expect(deserialized.phase, 'Fundação');
-      expect(deserialized.status, LoteStatus.atrasado);
     });
 
     test('Obra domain model serialization e deserialization', () {
@@ -125,11 +121,9 @@ void main() {
 
       expect(fakeRepo.lotes.length, 1);
       expect(fakeRepo.lotes.first.name, 'Casa 05');
-      expect(fakeRepo.lotes.first.phase, 'Plantas');
-      expect(fakeRepo.lotes.first.status, LoteStatus.noPrazo);
     });
 
-    testWidgets('LotesListScreen exibe a lista de lotes com status e fase', (tester) async {
+    testWidgets('LotesListScreen exibe a lista de lotes', (tester) async {
       final fakeRepo = FakeLoteRepository();
       fakeRepo.lotes.add(
         Lote(
@@ -138,9 +132,8 @@ void main() {
           loteamentoId: 'lt1',
           quadraId: 'qd1',
           name: 'Lote 01',
-          phase: 'Fundação',
-          status: LoteStatus.noPrazo,
           createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
         ),
       );
 
@@ -168,8 +161,6 @@ void main() {
 
       await tester.pumpAndSettle();
       expect(find.text('Lote 01'), findsOneWidget);
-      expect(find.textContaining('Fase: Fundação'), findsOneWidget);
-      expect(find.textContaining('Status: No prazo'), findsOneWidget);
     });
 
     testWidgets('ObrasListScreen exibe botao de Nova Obra para Administrador', (tester) async {

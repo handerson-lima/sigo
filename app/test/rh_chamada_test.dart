@@ -239,9 +239,8 @@ void main() {
         loteamentoId: 'lt-1',
         quadraId: 'qd-1',
         name: 'Casa 10',
-        phase: 'Alvenaria',
-        status: LoteStatus.noPrazo,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       ),
       Lote(
         id: 'l-2',
@@ -249,9 +248,8 @@ void main() {
         loteamentoId: 'lt-1',
         quadraId: 'qd-1',
         name: 'Casa 11',
-        phase: 'Alvenaria',
-        status: LoteStatus.noPrazo,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       ),
     ];
 

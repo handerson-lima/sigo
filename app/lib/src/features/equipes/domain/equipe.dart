@@ -25,11 +25,13 @@ class Equipe {
   final String loteamentoId;
   final String quadraId;
   final String loteId;
-  final String setorId;
+  final String etapaId;
   final String name;
   final String? responsavelId;
   @JsonKey(fromJson: _dateTimeFromTimestamp, toJson: _dateTimeToTimestamp)
   final DateTime createdAt;
+  @JsonKey(fromJson: _dateTimeFromTimestamp, toJson: _dateTimeToTimestamp)
+  final DateTime updatedAt;
 
   Equipe({
     required this.id,
@@ -37,10 +39,11 @@ class Equipe {
     required this.loteamentoId,
     required this.quadraId,
     required this.loteId,
-    required this.setorId,
+    required this.etapaId,
     required this.name,
     this.responsavelId,
     required this.createdAt,
+    required this.updatedAt,
   });
 
   factory Equipe.fromJson(Map<String, dynamic> json) => _$EquipeFromJson(json);

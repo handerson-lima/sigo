@@ -8,7 +8,6 @@ import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/lotes/presentation/add_lote_screen.dart';
 import 'package:app/src/features/lotes/presentation/lotes_list_screen.dart';
-import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/access_denied_screen.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/obras/presentation/obra_dashboard_screen.dart';
@@ -18,9 +17,9 @@ import 'package:app/src/features/equipes/presentation/equipes_list_screen.dart';
 import 'package:app/src/features/quadras/data/quadra_repository.dart';
 import 'package:app/src/features/quadras/domain/quadra.dart';
 import 'package:app/src/features/quadras/presentation/quadras_list_screen.dart';
-import 'package:app/src/features/setores/data/setor_repository.dart';
-import 'package:app/src/features/setores/domain/setor.dart';
-import 'package:app/src/features/setores/presentation/setores_list_screen.dart';
+import 'package:app/src/features/etapas/data/etapa_repository.dart';
+import 'package:app/src/features/etapas/domain/etapa.dart';
+import 'package:app/src/features/etapas/presentation/etapas_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,18 +65,29 @@ class FakeLoteRepository implements LoteRepository {
   Future<void> createLote(Lote lote) async {}
 }
 
-class FakeSetorRepository implements SetorRepository {
-  final List<Setor> setores;
-  FakeSetorRepository(this.setores);
+class FakeEtapaRepository implements EtapaRepository {
+  final List<Etapa> etapas;
+  FakeEtapaRepository(this.etapas);
 
   @override
-  Stream<List<Setor>> watchSetores(
+  Stream<List<Etapa>> watchEtapas(
     String construtoraId,
     String loteamentoId,
     String quadraId,
     String loteId,
   ) =>
-      Stream.value(setores);
+      Stream.value(etapas);
+
+  @override
+  Future<void> createEtapa(Etapa etapa) async {}
+
+  @override
+  Future<void> createDefaultEtapas({
+    required String construtoraId,
+    required String loteamentoId,
+    required String quadraId,
+    required String loteId,
+  }) async {}
 }
 
 class FakeEquipeRepository implements EquipeRepository {
@@ -90,9 +100,12 @@ class FakeEquipeRepository implements EquipeRepository {
     String loteamentoId,
     String quadraId,
     String loteId,
-    String setorId,
+    String etapaId,
   ) =>
       Stream.value(equipes);
+
+  @override
+  Future<void> createEquipe(Equipe equipe) async {}
 }
 
 Loteamento makeLoteamento(String id) => Loteamento(
@@ -100,6 +113,7 @@ Loteamento makeLoteamento(String id) => Loteamento(
       construtoraId: 'c1',
       name: 'Loteamento $id',
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
 Quadra makeQuadra(String id) => Quadra(
@@ -108,6 +122,7 @@ Quadra makeQuadra(String id) => Quadra(
       loteamentoId: 'l1',
       name: 'Quadra $id',
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
 Lote makeLote(String id) => Lote(
@@ -116,19 +131,20 @@ Lote makeLote(String id) => Lote(
       loteamentoId: 'l1',
       quadraId: 'q1',
       name: 'Lote $id',
-      phase: 'Plantas',
-      status: LoteStatus.noPrazo,
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
-Setor makeSetor(String id) => Setor(
+Etapa makeEtapa(String id) => Etapa(
       id: id,
       construtoraId: 'c1',
       loteamentoId: 'l1',
       quadraId: 'q1',
       loteId: 'lo1',
-      name: 'Setor $id',
+      nome: 'Etapa $id',
+      ordem: 1,
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
 Equipe makeEquipe(String id) => Equipe(
@@ -137,9 +153,10 @@ Equipe makeEquipe(String id) => Equipe(
       loteamentoId: 'l1',
       quadraId: 'q1',
       loteId: 'lo1',
-      setorId: 's1',
+      etapaId: 'e1',
       name: 'Equipe $id',
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
 void main() {
@@ -324,7 +341,7 @@ void main() {
     );
   });
 
-  testWidgets('deep-link em :loteId redireciona para a lista de setores',
+  testWidgets('deep-link em :loteId redireciona para a lista de etapas',
       (tester) async {
     final router = GoRouter(
       initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1',
@@ -335,8 +352,8 @@ void main() {
       ProviderScope(
         overrides: [
           trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-          setorRepositoryProvider.overrideWithValue(
-            FakeSetorRepository([makeSetor('s1')]),
+          etapaRepositoryProvider.overrideWithValue(
+            FakeEtapaRepository([makeEtapa('e1')]),
           ),
         ],
         child: MaterialApp.router(routerConfig: router),
@@ -345,19 +362,19 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.byType(SetoresListScreen), findsOneWidget);
-    expect(find.text('Setor s1'), findsOneWidget);
+    expect(find.byType(EtapasListScreen), findsOneWidget);
+    expect(find.text('Etapa e1'), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores',
+      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas',
     );
   });
 
-  testWidgets('deep-link em :setorId redireciona para a lista de equipes',
+  testWidgets('deep-link em :etapaId redireciona para a lista de equipes',
       (tester) async {
     final router = GoRouter(
       initialLocation:
-          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores/s1',
+          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1',
       routes: construtoraRoutes,
     );
 
@@ -365,7 +382,7 @@ void main() {
       ProviderScope(
         overrides: [
           trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-          setorRepositoryProvider.overrideWithValue(FakeSetorRepository([])),
+          etapaRepositoryProvider.overrideWithValue(FakeEtapaRepository([])),
           equipeRepositoryProvider.overrideWithValue(
             FakeEquipeRepository([makeEquipe('e1')]),
           ),
@@ -380,14 +397,14 @@ void main() {
     expect(find.text('Equipe e1'), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores/s1/equipes',
+      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1/equipes',
     );
   });
 
-  testWidgets('crumb de Setor ascende para a lista de setores', (tester) async {
+  testWidgets('crumb de Etapa ascende para a lista de etapas', (tester) async {
     final router = GoRouter(
       initialLocation:
-          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores/s1/equipes',
+          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1/equipes',
       routes: construtoraRoutes,
     );
 
@@ -395,8 +412,8 @@ void main() {
       ProviderScope(
         overrides: [
           trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-          setorRepositoryProvider.overrideWithValue(
-            FakeSetorRepository([makeSetor('s1')]),
+          etapaRepositoryProvider.overrideWithValue(
+            FakeEtapaRepository([makeEtapa('e1')]),
           ),
           equipeRepositoryProvider.overrideWithValue(
             FakeEquipeRepository([makeEquipe('e1')]),
@@ -409,13 +426,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(EquipesListScreen), findsOneWidget);
 
-    await tester.tap(find.text('Setor'));
+    await tester.tap(find.text('Etapa'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(SetoresListScreen), findsOneWidget);
+    expect(find.byType(EtapasListScreen), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores',
+      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas',
     );
   });
 
@@ -495,7 +512,7 @@ void main() {
       ProviderScope(
         overrides: [
           trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-          setorRepositoryProvider.overrideWithValue(FakeSetorRepository([])),
+          etapaRepositoryProvider.overrideWithValue(FakeEtapaRepository([])),
         ],
         child: MaterialApp.router(routerConfig: router),
       ),
@@ -505,7 +522,7 @@ void main() {
 
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/setores',
+      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas',
     );
     expect(router.state.uri.queryParameters['x'], '1');
     expect(router.state.uri.fragment, 'alvo');

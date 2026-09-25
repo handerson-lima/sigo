@@ -11,22 +11,23 @@ class LoteamentoRepository {
 
   LoteamentoRepository(this._firestore);
 
-  CollectionReference<Loteamento> _loteamentosRef(String construtoraId) =>
+  CollectionReference<Loteamento> _loteamentosRef() =>
       _firestore
-          .collection('construtoras/$construtoraId/loteamentos')
+          .collection('loteamentos')
           .withConverter<Loteamento>(
             fromFirestore: (snapshot, _) => Loteamento.fromJson(snapshot.data()!),
             toFirestore: (loteamento, _) => loteamento.toJson(),
           );
 
   Stream<List<Loteamento>> watchLoteamentos(String construtoraId) {
-    return _loteamentosRef(construtoraId)
+    return _loteamentosRef()
+        .where('construtoraId', isEqualTo: construtoraId)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 
   Future<void> createLoteamento(Loteamento loteamento) async {
-    final docRef = _loteamentosRef(loteamento.construtoraId).doc(loteamento.id);
+    final docRef = _loteamentosRef().doc(loteamento.id);
     await docRef.set(loteamento);
   }
 }

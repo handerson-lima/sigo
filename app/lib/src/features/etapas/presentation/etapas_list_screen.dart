@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../data/setor_repository.dart';
+import '../data/etapa_repository.dart';
 import 'package:intl/intl.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 import '../../../common_widgets/sigo_empty_state.dart';
 import '../../../common_widgets/sigo_error_state.dart';
 import '../../../common_widgets/sigo_layout.dart';
 
-class SetoresListScreen extends ConsumerWidget {
+class EtapasListScreen extends ConsumerWidget {
   final String construtoraId;
   final String loteamentoId;
   final String quadraId;
   final String loteId;
 
-  const SetoresListScreen({
+  const EtapasListScreen({
     super.key,
     required this.construtoraId,
     required this.loteamentoId,
@@ -30,29 +30,29 @@ class SetoresListScreen extends ConsumerWidget {
       quadraId: quadraId,
       loteId: loteId,
     );
-    final setoresAsync = ref.watch(watchSetoresProvider(params));
+    final etapasAsync = ref.watch(watchEtapasProvider(params));
     final baseRoute =
-        '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores';
+        '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/etapas';
 
     return SigoLayout(
-      title: 'Setores',
+      title: 'Etapas',
       activeRoute: baseRoute,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SigoBreadcrumbs(),
           Expanded(
-            child: setoresAsync.when(
+            child: etapasAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => SigoErrorState(
-                message: 'Não foi possível carregar os setores.',
+                message: 'Não foi possível carregar as etapas.',
                 cause: err,
-                onRetry: () => ref.invalidate(watchSetoresProvider(params)),
+                onRetry: () => ref.invalidate(watchEtapasProvider(params)),
               ),
               data: (items) {
                 if (items.isEmpty) {
                   return const SigoEmptyState(
-                    message: 'Nenhum setor cadastrado',
+                    message: 'Nenhuma etapa cadastrada',
                     icon: Icons.view_module_outlined,
                   );
                 }
@@ -64,7 +64,7 @@ class SetoresListScreen extends ConsumerWidget {
                     final dateStr =
                         DateFormat('dd/MM/yyyy HH:mm').format(item.createdAt);
                     return ListTile(
-                      title: Text(item.name),
+                      title: Text(item.nome),
                       subtitle: Text('Criado em: $dateStr'),
                       onTap: () {
                         context.go(

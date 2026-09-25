@@ -58,6 +58,7 @@ Loteamento makeLoteamento(String id) => Loteamento(
       construtoraId: 'c1',
       name: 'Loteamento $id',
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
 Quadra makeQuadra(String id) => Quadra(
@@ -66,6 +67,7 @@ Quadra makeQuadra(String id) => Quadra(
       loteamentoId: 'l1',
       name: 'Quadra $id',
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
 Lote makeLote(String id) => Lote(
@@ -74,9 +76,8 @@ Lote makeLote(String id) => Lote(
       loteamentoId: 'l1',
       quadraId: 'q1',
       name: 'Lote $id',
-      phase: 'Plantas',
-      status: LoteStatus.noPrazo,
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
 void main() {

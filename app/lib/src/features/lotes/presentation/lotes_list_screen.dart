@@ -80,12 +80,9 @@ class LotesListScreen extends ConsumerWidget {
                     final item = items[index];
                     return ListTile(
                       title: Text(item.name),
-                      subtitle: Text(
-                        'Status: ${item.status.label} | Fase: ${item.phase}',
-                      ),
                       onTap: () {
                         context.go(
-                          '$baseRoute/${item.id}/setores',
+                          '$baseRoute/${item.id}/etapas',
                         );
                       },
                     );

@@ -12,10 +12,11 @@ Equipe _$EquipeFromJson(Map<String, dynamic> json) => Equipe(
   loteamentoId: json['loteamentoId'] as String,
   quadraId: json['quadraId'] as String,
   loteId: json['loteId'] as String,
-  setorId: json['setorId'] as String,
+  etapaId: json['etapaId'] as String,
   name: json['name'] as String,
   responsavelId: json['responsavelId'] as String?,
   createdAt: _dateTimeFromTimestamp(json['createdAt']),
+  updatedAt: _dateTimeFromTimestamp(json['updatedAt']),
 );
 
 Map<String, dynamic> _$EquipeToJson(Equipe instance) => <String, dynamic>{
@@ -24,8 +25,9 @@ Map<String, dynamic> _$EquipeToJson(Equipe instance) => <String, dynamic>{
   'loteamentoId': instance.loteamentoId,
   'quadraId': instance.quadraId,
   'loteId': instance.loteId,
-  'setorId': instance.setorId,
+  'etapaId': instance.etapaId,
   'name': instance.name,
   'responsavelId': instance.responsavelId,
   'createdAt': _dateTimeToTimestamp(instance.createdAt),
+  'updatedAt': _dateTimeToTimestamp(instance.updatedAt),
 };

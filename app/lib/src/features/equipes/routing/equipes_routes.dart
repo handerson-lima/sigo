@@ -14,7 +14,7 @@ List<RouteBase> get equipesRoutes => [
           final loteamentoId = state.pathParameters['loteamentoId']!;
           final quadraId = state.pathParameters['quadraId']!;
           final loteId = state.pathParameters['loteId']!;
-          final setorId = state.pathParameters['setorId']!;
+          final etapaId = state.pathParameters['etapaId']!;
           return AccessGuard(
             construtoraId: cId,
             module: 'lotes',
@@ -23,7 +23,7 @@ List<RouteBase> get equipesRoutes => [
               loteamentoId: loteamentoId,
               quadraId: quadraId,
               loteId: loteId,
-              setorId: setorId,
+              etapaId: etapaId,
             ),
           );
         },

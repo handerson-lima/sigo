@@ -12,7 +12,7 @@ class EquipesListScreen extends ConsumerWidget {
   final String loteamentoId;
   final String quadraId;
   final String loteId;
-  final String setorId;
+  final String etapaId;
 
   const EquipesListScreen({
     super.key,
@@ -20,7 +20,7 @@ class EquipesListScreen extends ConsumerWidget {
     required this.loteamentoId,
     required this.quadraId,
     required this.loteId,
-    required this.setorId,
+    required this.etapaId,
   });
 
   @override
@@ -30,14 +30,14 @@ class EquipesListScreen extends ConsumerWidget {
       loteamentoId: loteamentoId,
       quadraId: quadraId,
       loteId: loteId,
-      setorId: setorId,
+      etapaId: etapaId,
     );
     final equipesAsync = ref.watch(watchEquipesProvider(params));
 
     return SigoLayout(
       title: 'Equipes',
       activeRoute:
-          '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/setores/$setorId/equipes',
+          '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/etapas/$etapaId/equipes',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

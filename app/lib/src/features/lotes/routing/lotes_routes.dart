@@ -2,7 +2,7 @@ import 'package:go_router/go_router.dart';
 import '../presentation/lotes_list_screen.dart';
 import '../presentation/add_lote_screen.dart';
 import '../../../common_widgets/access_guard.dart';
-import '../../setores/routing/setores_routes.dart';
+import '../../etapas/routing/etapas_routes.dart';
 
 abstract class LotesPaths {
   static const list = 'lotes';
@@ -49,11 +49,11 @@ List<RouteBase> get lotesRoutes => [
             path: ':loteId',
             redirect: (context, state) => state.uri.path == state.matchedLocation
                 ? state.uri
-                      .replace(path: '${state.matchedLocation}/setores')
+                      .replace(path: '${state.matchedLocation}/etapas')
                       .toString()
                 : null,
             routes: [
-              ...setoresRoutes,
+              ...etapasRoutes,
             ],
           )
         ],

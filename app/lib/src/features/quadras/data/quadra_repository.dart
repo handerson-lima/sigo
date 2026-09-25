@@ -11,22 +11,24 @@ class QuadraRepository {
 
   QuadraRepository(this._firestore);
 
-  CollectionReference<Quadra> _quadrasRef(String construtoraId, String loteamentoId) =>
+  CollectionReference<Quadra> _quadrasRef() =>
       _firestore
-          .collection('construtoras/$construtoraId/loteamentos/$loteamentoId/quadras')
+          .collection('quadras')
           .withConverter<Quadra>(
             fromFirestore: (snapshot, _) => Quadra.fromJson(snapshot.data()!),
             toFirestore: (quadra, _) => quadra.toJson(),
           );
 
   Stream<List<Quadra>> watchQuadras(String construtoraId, String loteamentoId) {
-    return _quadrasRef(construtoraId, loteamentoId)
+    return _quadrasRef()
+        .where('construtoraId', isEqualTo: construtoraId)
+        .where('loteamentoId', isEqualTo: loteamentoId)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 
   Future<void> createQuadra(Quadra quadra) async {
-    final docRef = _quadrasRef(quadra.construtoraId, quadra.loteamentoId).doc(quadra.id);
+    final docRef = _quadrasRef().doc(quadra.id);
     await docRef.set(quadra);
   }
 }

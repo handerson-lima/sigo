@@ -2,31 +2,6 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'lote.g.dart';
 
-enum LoteStatus {
-  noPrazo,
-  atrasado,
-  paralisado,
-  concluido,
-}
-
-extension LoteStatusLabel on LoteStatus {
-  String get label => switch (this) {
-    LoteStatus.noPrazo => 'No prazo',
-    LoteStatus.atrasado => 'Atrasado',
-    LoteStatus.paralisado => 'Paralisado',
-    LoteStatus.concluido => 'Concluído',
-  };
-}
-
-const List<String> defaultLotePhases = [
-  'Plantas',
-  'Fundação',
-  'Estrutura',
-  'Alvenaria',
-  'Acabamento',
-  'Entregue'
-];
-
 @JsonSerializable()
 class Lote {
   final String id;
@@ -34,10 +9,8 @@ class Lote {
   final String loteamentoId;
   final String quadraId;
   final String name;
-  final String phase;
-  final LoteStatus status;
-  final String? responsavelId;
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   Lote({
     required this.id,
@@ -45,10 +18,8 @@ class Lote {
     required this.loteamentoId,
     required this.quadraId,
     required this.name,
-    required this.phase,
-    required this.status,
-    this.responsavelId,
     required this.createdAt,
+    required this.updatedAt,
   });
 
   factory Lote.fromJson(Map<String, dynamic> json) => _$LoteFromJson(json);

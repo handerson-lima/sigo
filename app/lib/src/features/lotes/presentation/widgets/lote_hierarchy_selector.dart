@@ -148,7 +148,7 @@ class LoteHierarchySelector extends ConsumerWidget {
                     ...lotes.map(
                       (l) => DropdownMenuItem(
                         value: l.id,
-                        child: Text('${l.name} (${l.phase})'),
+                        child: Text(l.name),
                       ),
                     ),
                   ],

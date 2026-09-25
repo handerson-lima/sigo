@@ -9,6 +9,7 @@ class Quadra {
   final String loteamentoId;
   final String name;
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   Quadra({
     required this.id,
@@ -16,6 +17,7 @@ class Quadra {
     required this.loteamentoId,
     required this.name,
     required this.createdAt,
+    required this.updatedAt,
   });
 
   factory Quadra.fromJson(Map<String, dynamic> json) => _$QuadraFromJson(json);
