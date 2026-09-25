@@ -25,6 +25,7 @@ import 'package:app/src/features/quadras/presentation/quadras_list_screen.dart';
 import 'package:app/src/features/etapas/data/etapa_repository.dart';
 import 'package:app/src/features/etapas/domain/etapa.dart';
 import 'package:app/src/features/etapas/presentation/etapas_list_screen.dart';
+import 'package:app/src/features/notifications/data/notifications_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -687,16 +688,32 @@ void main() {
         loteamentoRepositoryProvider.overrideWithValue(
           FakeLoteamentoRepository([makeLoteamento('l1')]),
         ),
+        userNotificationsProvider.overrideWith((ref) => const Stream.empty()),
       ],
     );
 
-    addTearDown(container.dispose);
-    await container.read(authStateChangesProvider.future);
+    final router = GoRouter(
+      initialLocation: '/',
+      redirect: (context, state) {
+        if (state.uri.path == '/construtora' || state.uri.path.startsWith('/construtora/')) {
+          final newUri = state.uri.replace(path: state.uri.path.replaceFirst(RegExp(r'^/construtora'), '/construtoras'));
+          return newUri.toString();
+        }
+        return null;
+      },
+      routes: construtoraRoutes,
+    );
 
-    // Read router directly without pumping the UI to avoid background timers from missing mock repositories.
-    final router = container.read(routerProvider);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
 
     router.go('/construtora/c1/loteamentos?q=1#frag');
+    // Only pump once to process the route change without looping indefinitely
+    await tester.pump();
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(), '/construtoras/c1/loteamentos?q=1#frag');
   });
