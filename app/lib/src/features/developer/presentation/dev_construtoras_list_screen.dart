@@ -5,8 +5,23 @@ import 'package:flutter/material.dart';
 import '../../../common_widgets/sigo_layout.dart';
 import '../../construtoras/domain/construtora.dart';
 
-class DevConstrutorasListScreen extends StatelessWidget {
+class DevConstrutorasListScreen extends StatefulWidget {
   const DevConstrutorasListScreen({super.key});
+
+  @override
+  State<DevConstrutorasListScreen> createState() => _DevConstrutorasListScreenState();
+}
+
+class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _statusFilter = 'Todas'; // 'Todas', 'Ativas', 'Inativas'
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +58,37 @@ class DevConstrutorasListScreen extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            // Barra de busca e filtros
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+                    decoration: const InputDecoration(
+                      labelText: 'Buscar por Nome ou CNPJ',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'Todas', label: Text('Todas')),
+                    ButtonSegment(value: 'Ativas', label: Text('Ativas')),
+                    ButtonSegment(value: 'Inativas', label: Text('Inativas')),
+                  ],
+                  selected: {_statusFilter},
+                  onSelectionChanged: (Set<String> newSelection) {
+                    setState(() {
+                      _statusFilter = newSelection.first;
+                    });
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 32),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
@@ -56,7 +102,7 @@ class DevConstrutorasListScreen extends StatelessWidget {
                     return Center(child: Text('Erro: ${snapshot.error}'));
                   }
 
-                  final docs = snapshot.data?.docs ?? [];
+                  var docs = snapshot.data?.docs ?? [];
 
                   if (docs.isEmpty) {
                     return const Center(
@@ -64,10 +110,37 @@ class DevConstrutorasListScreen extends StatelessWidget {
                     );
                   }
 
+                  // Aplicar os filtros locais (client-side)
+                  final filteredDocs = docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final name = (data['name'] as String?)?.toLowerCase() ?? '';
+                    final cnpj = (data['cnpj'] as String?)?.toLowerCase() ?? '';
+                    final isActive = data['isActive'] == true;
+
+                    // Filtro de status
+                    if (_statusFilter == 'Ativas' && !isActive) return false;
+                    if (_statusFilter == 'Inativas' && isActive) return false;
+
+                    // Filtro de busca (nome ou cnpj)
+                    if (_searchQuery.isNotEmpty) {
+                      if (!name.contains(_searchQuery) && !cnpj.contains(_searchQuery)) {
+                        return false;
+                      }
+                    }
+
+                    return true;
+                  }).toList();
+
+                  if (filteredDocs.isEmpty) {
+                    return const Center(
+                      child: Text('Nenhuma construtora corresponde aos filtros.'),
+                    );
+                  }
+
                   return ListView.builder(
-                    itemCount: docs.length,
+                    itemCount: filteredDocs.length,
                     itemBuilder: (context, index) {
-                      final doc = docs[index];
+                      final doc = filteredDocs[index];
                       final data = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
                       data['id'] = (data['id'] as String?)?.isNotEmpty == true ? data['id'] : doc.id;
                       data['name'] = (data['name'] as String?)?.isNotEmpty == true ? data['name'] : doc.id;
@@ -85,12 +158,35 @@ class DevConstrutorasListScreen extends StatelessWidget {
                         margin: const EdgeInsets.only(bottom: 16),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: Colors.orange.shade100,
-                            child: const Icon(Icons.business, color: Colors.orange),
+                            backgroundColor: construtora.isActive ? Colors.orange.shade100 : Colors.grey.shade200,
+                            child: Icon(Icons.business, color: construtora.isActive ? Colors.orange : Colors.grey),
                           ),
-                          title: Text(
-                            construtora.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          title: Row(
+                            children: [
+                              Text(
+                                construtora.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: construtora.isActive ? null : Colors.grey,
+                                  decoration: construtora.isActive ? null : TextDecoration.lineThrough,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              if (construtora.isActive)
+                                const Chip(
+                                  label: Text('Ativa', style: TextStyle(fontSize: 10)),
+                                  backgroundColor: Colors.green,
+                                  labelStyle: TextStyle(color: Colors.white),
+                                  visualDensity: VisualDensity.compact,
+                                )
+                              else
+                                const Chip(
+                                  label: Text('Inativa', style: TextStyle(fontSize: 10)),
+                                  backgroundColor: Colors.red,
+                                  labelStyle: TextStyle(color: Colors.white),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                            ],
                           ),
                           subtitle: Text('ID: ${construtora.id} | CNPJ: ${construtora.cnpj ?? 'N/A'}'),
                           trailing: const Icon(Icons.chevron_right),
