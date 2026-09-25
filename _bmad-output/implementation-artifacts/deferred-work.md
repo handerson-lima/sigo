@@ -253,3 +253,13 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `_bmad-output/implementation-artifacts/spec-13-2-rotas-declarativas-drill-down.md`
   summary: Higienizar o estado global de navegação `obraSelecionadaProvider`/`ObraSwitcher`, que deveria ser derivado da URL conforme o AD-2.
   evidence: `app/lib/src/features/construtoras/presentation/membros_providers.dart:206-217` (`obraSelecionadaProvider`) e `app/lib/src/common_widgets/sigo_top_bar.dart:206-282` (switcher navegando por estado). Decidido diferir para focar a 13.2 no drill-down Construtora→Loteamento→Quadra; os módulos obra-scoped permanecem funcionais até a higienização.
+
+## Deferred from: code review (2026-09-25) — spec-13-2-rotas-declarativas-drill-down
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-2-rotas-declarativas-drill-down.md`
+  summary: Duas fontes de verdade — `loteamentos` (top-level, escrita por `_AddLoteamentoDialog`) vs `construtoras/{cId}/obras` (fluxos obra-scoped de membros/RH etc.), sem sincronização.
+  evidence: `app/lib/src/features/loteamentos/presentation/loteamentos_list_screen.dart:142` grava em `loteamentos` (top-level, AD-1), enquanto os fluxos de vínculo seguem em `construtoras/{cId}/obras`. Estado transitório da migração 13.1→13.3; a higienização das entidades/rotas `obra` é escopo da 13.3.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-2-rotas-declarativas-drill-down.md`
+  summary: Landing de membro ativo sem o módulo `lotes` — o card de construtora manda para `/construtoras/:cid`, que redireciona incondicionalmente para `/construtoras/:cid/loteamentos` (sob `AccessGuard(module: 'lotes')`), resultando em `AccessDenied`; `ObrasListScreen` ficou órfã e o import em `construtora_routes.dart:6` sem uso.
+  evidence: `app/lib/src/features/construtoras/routing/construtora_routes.dart:40-50` e `app/lib/src/features/construtoras/presentation/construtoras_list_screen.dart:75-80`. Decisão diferida por não haver caso de uso real hoje; reavaliar quando surgir membro ativo sem o módulo `lotes`.

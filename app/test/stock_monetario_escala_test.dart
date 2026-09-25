@@ -498,8 +498,8 @@ void main() {
       // Digita Quantidade 10
       await tester.enterText(find.byType(TextFormField).first, '10');
 
-      // Preenche Obra de Destino
-      final obraField = find.widgetWithText(TextFormField, 'ID da Obra de Destino');
+      // Preenche Loteamento de Destino
+      final obraField = find.widgetWithText(TextFormField, 'ID do Loteamento de Destino');
       expect(obraField, findsOneWidget);
       await tester.enterText(obraField, 'obra-torre-norte');
       await tester.pumpAndSettle();

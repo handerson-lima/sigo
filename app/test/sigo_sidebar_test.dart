@@ -43,7 +43,7 @@ void main() {
 
       await tester.pumpAndSettle();
       expect(find.text('Loteamentos'), findsNothing);
-      expect(find.text('Diário de Obra'), findsNothing);
+      expect(find.text('Diário de Loteamento'), findsNothing);
     },
   );
 
@@ -91,7 +91,7 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      expect(find.text('Diário de Obra'), findsWidgets);
+      expect(find.text('Diário de Loteamento'), findsWidgets);
     },
   );
 }

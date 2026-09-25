@@ -873,7 +873,7 @@ void main() {
     }
 
     Future<void> selecionarObra(WidgetTester tester, String nome) async {
-      await tester.tap(find.text('Por obra'));
+      await tester.tap(find.text('Por loteamento'));
       await tester.pumpAndSettle();
       await tester.tap(find.byType(DropdownButtonFormField<String>));
       await tester.pumpAndSettle();
@@ -906,7 +906,7 @@ void main() {
       await tester.pumpAndSettle();
       await selecionarObra(tester, 'Obra o1');
       expect(
-        find.text('Não foi possível carregar os membros desta obra.'),
+        find.text('Não foi possível carregar os membros deste loteamento.'),
         findsOneWidget,
       );
       expect(find.text('Nenhum membro encontrado.'), findsNothing);
@@ -1111,7 +1111,7 @@ void main() {
             tester.element(find.byType(MembrosScreen)),
           );
           expect(container.read(obraSelecionadaProvider), isNull);
-          expect(find.text('Selecione uma obra'), findsOneWidget);
+          expect(find.text('Selecione um loteamento'), findsOneWidget);
           expect(find.text('Obra o1'), findsNothing);
           await tester.tap(find.byType(DropdownButtonFormField<String>));
           await tester.pumpAndSettle();
@@ -1133,9 +1133,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(TextField), findsOneWidget);
-      await tester.tap(find.text('Por obra'));
+      await tester.tap(find.text('Por loteamento'));
       await tester.pumpAndSettle();
-      expect(find.text('Nenhuma obra ativa'), findsOneWidget);
+      expect(find.text('Nenhum loteamento ativo'), findsOneWidget);
     });
 
     testWidgets(
@@ -1189,11 +1189,11 @@ void main() {
       expect(find.text('ana@obra.com'), findsOneWidget);
       expect(find.text('Ana Souza'), findsOneWidget);
 
-      await tester.tap(find.text('Por obra'));
+      await tester.tap(find.text('Por loteamento'));
       await tester.pumpAndSettle();
       // Sem obra selecionada: orientação (pendentes excluídos).
       expect(find.text('Ana Souza'), findsNothing);
-      expect(find.text('Selecione uma obra'), findsOneWidget);
+      expect(find.text('Selecione um loteamento'), findsOneWidget);
 
       await tester.tap(find.byType(DropdownButtonFormField<String>));
       await tester.pumpAndSettle();
@@ -1271,10 +1271,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Por obra'));
+      await tester.tap(find.text('Por loteamento'));
       await tester.pumpAndSettle();
-      expect(find.text('Nenhuma obra ativa'), findsOneWidget);
-      expect(find.text('Selecione uma obra'), findsOneWidget);
+      expect(find.text('Nenhum loteamento ativo'), findsOneWidget);
+      expect(find.text('Selecione um loteamento'), findsOneWidget);
     });
 
     testWidgets('8.2 Por obra com obras em loading mostra indicador', (
@@ -1296,10 +1296,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Por obra'));
+      await tester.tap(find.text('Por loteamento'));
       await tester.pump();
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
-      expect(find.text('Selecione uma obra'), findsOneWidget);
+      expect(find.text('Selecione um loteamento'), findsOneWidget);
       expect(find.text('Nenhum membro encontrado.'), findsNothing);
     });
 
@@ -1323,7 +1323,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Por obra'));
+      await tester.tap(find.text('Por loteamento'));
       await tester.pumpAndSettle();
       expect(find.text('Não foi possível carregar os loteamentos.'), findsOneWidget);
     });
@@ -2041,18 +2041,20 @@ void main() {
         expect(find.text('Operário'), findsWidgets);
 
         final chkDiario = tester.widget<CheckboxListTile>(
-          find.widgetWithText(CheckboxListTile, 'Diário de Obras'),
+          find.widgetWithText(CheckboxListTile, 'Diário de Loteamento'),
         );
         expect(chkDiario.value, isTrue);
 
-        expect(find.text('Selecione a obra'), findsOneWidget);
+        expect(find.text('Selecione o loteamento'), findsOneWidget);
         final confirmarBtnInicial = tester.widget<FilledButton>(
           find.widgetWithText(FilledButton, 'Confirmar atribuição'),
         );
         expect(confirmarBtnInicial.onPressed, isNull);
 
         expect(
-          find.text('Selecione uma obra para ver o resumo da atribuição.'),
+          find.text(
+            'Selecione um loteamento para ver o resumo da atribuição.',
+          ),
           findsOneWidget,
         );
 
@@ -2136,7 +2138,7 @@ void main() {
       );
 
       await tester.tap(
-        find.widgetWithText(CheckboxListTile, 'Diário de Obras'),
+        find.widgetWithText(CheckboxListTile, 'Diário de Loteamento'),
       );
       await tester.pumpAndSettle();
 
@@ -2168,7 +2170,7 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Nenhuma obra ativa'), findsOneWidget);
+      expect(find.text('Nenhum loteamento ativo'), findsOneWidget);
       final btn = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Confirmar atribuição'),
       );
@@ -2255,7 +2257,7 @@ void main() {
       expect(find.text('Sem permissão para gerir vínculo'), findsOneWidget);
     });
 
-    testWidgets('9.1 textScale 1.3 sem overflow no diálogo de atribuição', skip: true,, (
+    testWidgets('9.1 textScale 1.3 sem overflow no diálogo de atribuição', skip: true, (
       tester,
     ) async {
       await tester.pumpWidget(

@@ -157,7 +157,7 @@ void main() {
       expect(find.text('Confirmar Entrada'), findsOneWidget);
 
       // Na entrada, campo de obra de destino não deve ser exibido
-      expect(find.text('ID da Obra de Destino'), findsNothing);
+      expect(find.text('ID do Loteamento de Destino'), findsNothing);
     });
 
     testWidgets('MovimentacaoScreen não exibe campos de NF para Saída de Material', (tester) async {
@@ -182,7 +182,7 @@ void main() {
       );
 
       expect(find.text('Saída de Material'), findsOneWidget);
-      expect(find.text('ID da Obra de Destino'), findsOneWidget);
+      expect(find.text('ID do Loteamento de Destino'), findsOneWidget);
       expect(find.text('Confirmar Saída'), findsOneWidget);
 
       // Na saída, campos exclusivos de entrada/recebimento não devem ser exibidos

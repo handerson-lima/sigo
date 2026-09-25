@@ -74,7 +74,7 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
   };
 
   static const Map<String, String> _moduleLabels = {
-    'diario': 'Diário de Obras',
+    'diario': 'Diário de Loteamento',
     'lotes': 'Lotes',
     'estoque': 'Estoque',
   };
@@ -107,7 +107,7 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
         selecionados.isEmpty ? 'nenhum módulo' : selecionados.join(', ');
     final obraNome = widget.obraNome.trim().isNotEmpty
         ? widget.obraNome
-        : 'Obra ${widget.obraId}';
+        : 'Loteamento ${widget.obraId}';
     return '${widget.membroIdentificador} será $_rotuloPapel em $obraNome com acesso a $modulosTexto';
   }
 
@@ -145,7 +145,7 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
       if (mounted) {
         final obraNome = widget.obraNome.trim().isNotEmpty
             ? widget.obraNome
-            : 'Obra ${widget.obraId}';
+            : 'Loteamento ${widget.obraId}';
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Papel atualizado em $obraNome.')),
@@ -208,7 +208,7 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
 
               // Papel
               Text(
-                'Papel na obra',
+                'Papel no loteamento',
                 style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),

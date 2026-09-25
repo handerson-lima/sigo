@@ -17,7 +17,6 @@ class ErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('ErrorScreen built with error: $error');
     return Scaffold(
       appBar: AppBar(title: const Text('Página não encontrada')),
       body: Center(

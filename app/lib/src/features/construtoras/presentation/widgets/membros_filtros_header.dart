@@ -53,7 +53,7 @@ class MembrosFiltrosHeader extends StatelessWidget {
                 ),
                 ButtonSegment<FiltroMembros>(
                   value: FiltroMembros.porObra,
-                  label: Text('Por obra'),
+                  label: Text('Por loteamento'),
                   icon: Icon(Icons.business),
                 ),
                 ButtonSegment<FiltroMembros>(
@@ -90,7 +90,7 @@ class MembrosFiltrosHeader extends StatelessWidget {
             obrasAtivasAsync.when(
               data: (obras) {
                 if (obras.isEmpty) {
-                  return const Text('Nenhuma obra ativa');
+                  return const Text('Nenhum loteamento ativo');
                 }
                 final sel = obraSelecionada;
                 final selecionadaValida =
@@ -106,10 +106,10 @@ class MembrosFiltrosHeader extends StatelessWidget {
                   initialValue: selecionadaValida ? sel : null,
                   isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Obra',
+                    labelText: 'Loteamento',
                     border: OutlineInputBorder(),
                   ),
-                  hint: const Text('Selecionar obra'),
+                  hint: const Text('Selecionar loteamento'),
                   items: [
                     for (final obra in obras)
                       DropdownMenuItem<String>(

@@ -191,7 +191,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Saída de Material'), findsOneWidget);
-      expect(find.text('Obra de Destino'), findsOneWidget);
+      expect(find.text('Loteamento de Destino'), findsOneWidget);
       expect(find.text('Apropriar diretamente ao Lote'), findsOneWidget);
       expect(find.text('Solicitante / Retirado por (Opcional)'), findsOneWidget);
 
@@ -293,7 +293,7 @@ void main() {
 
       // Preenche quantidade válida e obra
       await tester.enterText(find.widgetWithText(TextFormField, 'Quantidade (saco)'), '5');
-      await tester.enterText(find.widgetWithText(TextFormField, 'ID da Obra de Destino'), 'obra-teste');
+      await tester.enterText(find.widgetWithText(TextFormField, 'ID do Loteamento de Destino'), 'obra-teste');
 
       // Ativa switch de apropriação
       final switchFinder = find.byKey(const Key('apropriacao-lote-switch'));

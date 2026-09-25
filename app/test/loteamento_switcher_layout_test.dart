@@ -18,10 +18,10 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       final router = GoRouter(
-        initialLocation: '/construtoras/c1/loteamentos/obraA',
+        initialLocation: '/construtoras/c1/obra/obraA',
         routes: [
           GoRoute(
-            path: '/construtoras/:cId/loteamentos/:oId',
+            path: '/construtoras/:cId/obra/:oId',
             builder: (context, state) {
               final cId = state.pathParameters['cId']!;
               final oId = state.pathParameters['oId']!;

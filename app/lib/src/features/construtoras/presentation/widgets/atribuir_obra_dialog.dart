@@ -51,7 +51,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
   };
 
   static const Map<String, String> _moduleLabels = {
-    'diario': 'Diário de Obras',
+    'diario': 'Diário de Loteamento',
     'lotes': 'Lotes',
     'estoque': 'Estoque',
   };
@@ -76,18 +76,18 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
 
   String _gerarResumo(List<Obra> obras) {
     if (_selectedObraId == null) {
-      return 'Selecione uma obra para ver o resumo da atribuição.';
+      return 'Selecione um loteamento para ver o resumo da atribuição.';
     }
     final obra = obras.firstWhere(
       (o) => o.id == _selectedObraId,
       orElse: () => Obra(
         id: _selectedObraId!,
         construtoraId: widget.construtoraId,
-        name: 'Obra',
+        name: 'Loteamento',
         createdAt: DateTime.now(),
       ),
     );
-    final obraNome = obra.name.trim().isNotEmpty ? obra.name : 'Obra ${obra.id}';
+    final obraNome = obra.name.trim().isNotEmpty ? obra.name : 'Loteamento ${obra.id}';
 
     final selecionados = _modules.entries
         .where((e) => e.value)
@@ -217,7 +217,9 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
               final obraSelecionadaNome =
                   (obraSelecionadaObj?.name.trim().isNotEmpty == true)
                       ? obraSelecionadaObj!.name
-                      : (_selectedObraId != null ? 'Obra $_selectedObraId' : 'Obra');
+                      : (_selectedObraId != null
+                            ? 'Loteamento $_selectedObraId'
+                            : 'Loteamento');
               final temObras = obrasDisponiveis.isNotEmpty;
 
               return Column(
@@ -228,7 +230,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Atribuir à obra',
+                          'Atribuir ao loteamento',
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -250,7 +252,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Obra',
+                    'Loteamento',
                     style: theme.textTheme.labelLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -264,7 +266,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                             EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       child: Text(
-                        'Nenhuma obra ativa',
+                        'Nenhum loteamento ativo',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -279,12 +281,12 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                         border: OutlineInputBorder(),
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        hintText: 'Selecione a obra',
+                        hintText: 'Selecione o loteamento',
                       ),
                       items: obrasDisponiveis.map((obra) {
                         final label = obra.name.trim().isNotEmpty
                             ? obra.name
-                            : 'Obra ${obra.id}';
+                            : 'Loteamento ${obra.id}';
                         return DropdownMenuItem<String>(
                           value: obra.id,
                           child: Text(
@@ -303,7 +305,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                     ),
                   const SizedBox(height: 12),
                   Text(
-                    'Papel na obra',
+                    'Papel no loteamento',
                     style: theme.textTheme.labelLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -312,6 +314,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
                   DropdownButtonFormField<String>(
                     key: AtribuirObraDialog.papelDropdownKey,
                     initialValue: _selectedRole,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding:

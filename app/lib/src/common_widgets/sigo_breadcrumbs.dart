@@ -31,6 +31,12 @@ class SigoBreadcrumbs extends StatelessWidget {
           final cid = pathSegments[i + 1];
           segments.add(BreadcrumbSegment(label: 'Construtora', url: '/construtoras/$cid'));
         }
+      } else if (pathSegments[i] == 'obra') {
+        if (i + 1 < pathSegments.length) {
+          segments.add(BreadcrumbSegment(label: 'Loteamento', url: currentUrl));
+        } else {
+          segments.add(BreadcrumbSegment(label: 'Loteamentos'));
+        }
       } else if (pathSegments[i] == 'loteamentos') {
         if (i + 1 < pathSegments.length) {
           segments.add(BreadcrumbSegment(label: 'Loteamento', url: currentUrl));

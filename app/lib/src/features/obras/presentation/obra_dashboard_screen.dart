@@ -86,7 +86,7 @@ class ObraDashboardScreen extends ConsumerWidget {
 
         return SigoLayout(
           title: 'Painel do Loteamento',
-          activeRoute: '/construtoras/$construtoraId/loteamentos/$obraId',
+          activeRoute: '/construtoras/$construtoraId/obra/$obraId',
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

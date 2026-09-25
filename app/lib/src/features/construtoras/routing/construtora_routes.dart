@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../../../common_widgets/access_guard.dart';
 import '../presentation/construtoras_list_screen.dart';
-import '../../obras/presentation/obras_list_screen.dart';
 import '../presentation/membros_screen.dart';
 
 import '../../obras/routing/obra_routes.dart';
@@ -41,7 +40,9 @@ List<RouteBase> get construtoraRoutes => [
           final cId = state.pathParameters['cId']!;
           final path = state.uri.path.replaceAll(RegExp(r'/$'), '');
           if (path == '/construtoras/$cId') {
-            return '/construtoras/$cId/loteamentos';
+            return state.uri
+                .replace(path: '/construtoras/$cId/loteamentos')
+                .toString();
           }
           return null;
         },

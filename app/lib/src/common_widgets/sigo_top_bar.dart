@@ -68,7 +68,8 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
       final segments = uri?.pathSegments ?? [];
       if (segments.length >= 2 && segments[0] == 'construtoras') {
         cId = segments[1];
-        if (segments.length >= 4 && segments[2] == 'loteamentos') {
+        if (segments.length >= 4 &&
+            (segments[2] == 'obra' || segments[2] == 'loteamentos')) {
           oId = segments[3];
         }
       }
@@ -269,7 +270,7 @@ class LoteamentoSwitcher extends ConsumerWidget {
               }).toList(),
               onChanged: (newLoteamentoId) {
                 if (newLoteamentoId != null && newLoteamentoId != currentLoteamentoId) {
-                  context.go('/construtoras/$construtoraId/loteamentos/$newLoteamentoId');
+                  context.go('/construtoras/$construtoraId/obra/$newLoteamentoId');
                 }
               },
             ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../data/loteamento_repository.dart';
+import '../../obras/presentation/current_permissions_provider.dart';
+import '../../authentication/data/user_repository.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 import '../../../common_widgets/sigo_empty_state.dart';
 import '../../../common_widgets/sigo_error_state.dart';
@@ -21,21 +23,31 @@ class LoteamentosListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final params = (construtoraId: construtoraId);
     final loteamentosAsync = ref.watch(watchLoteamentosProvider(params));
+    final cm = ref.watch(construtoraPermissionProvider(construtoraId)).value;
+    final admin =
+        ref.watch(trustedDevProvider).value == true ||
+        cm?['isActive'] == true &&
+            (cm?['isAdmin'] == true ||
+                cm?['isOwner'] == true ||
+                cm?['role'] == 'admin' ||
+                cm?['role'] == 'owner');
 
     return SigoLayout(
       title: 'Loteamentos',
       activeRoute: '/construtoras/$construtoraId/loteamentos',
       actions: [
-        IconButton(
-          icon: const Icon(Icons.add_business, color: Colors.black54),
-          tooltip: 'Novo Loteamento',
-          onPressed: () {
-            showDialog(
-              context: context,
-              builder: (ctx) => _AddLoteamentoDialog(construtoraId: construtoraId),
-            );
-          },
-        ),
+        if (admin)
+          IconButton(
+            icon: const Icon(Icons.add_business, color: Colors.black54),
+            tooltip: 'Novo Loteamento',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) =>
+                    _AddLoteamentoDialog(construtoraId: construtoraId),
+              );
+            },
+          ),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,16 +66,20 @@ class LoteamentosListScreen extends ConsumerWidget {
                   return SigoEmptyState(
                     message: 'Nenhum loteamento cadastrado',
                     icon: Icons.map_outlined,
-                    action: ElevatedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (ctx) => _AddLoteamentoDialog(construtoraId: construtoraId),
-                        );
-                      },
-                      icon: const Icon(Icons.add),
-                      label: const Text('Criar Novo Loteamento'),
-                    ),
+                    action: admin
+                        ? ElevatedButton.icon(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => _AddLoteamentoDialog(
+                                  construtoraId: construtoraId,
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text('Criar Novo Loteamento'),
+                          )
+                        : null,
                   );
                 }
 
@@ -115,7 +131,7 @@ class _AddLoteamentoDialogState extends ConsumerState<_AddLoteamentoDialog> {
             labelText: 'Nome do Loteamento',
             border: OutlineInputBorder(),
           ),
-          validator: (v) => v == null || v.isEmpty ? 'Nome é obrigatório' : null,
+          validator: (v) => v == null || v.trim().isEmpty ? 'Nome é obrigatório' : null,
           onSaved: (v) => _name = v!,
         ),
       ),
@@ -139,10 +155,12 @@ class _AddLoteamentoDialogState extends ConsumerState<_AddLoteamentoDialog> {
                       createdAt: DateTime.now(),
                       updatedAt: DateTime.now(),
                     );
-                    await ref.read(loteamentoRepositoryProvider).createLoteamento(loteamento);
-                    if (mounted) Navigator.of(context).pop();
+                    await ref
+                        .read(loteamentoRepositoryProvider)
+                        .createLoteamento(loteamento);
+                    if (context.mounted) Navigator.of(context).pop();
                   } catch (e) {
-                    if (mounted) {
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Erro: $e')),
                       );

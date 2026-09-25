@@ -56,7 +56,7 @@ class ObraVinculoRow extends StatelessWidget {
     final papel = rotuloPapelObra(vinculo);
     final ativo = vinculo.isActive;
     final status = rotuloStatusVinculo(ativo);
-    final nome = obra.name.trim().isEmpty ? 'Obra ${obra.id}' : obra.name;
+    final nome = obra.name.trim().isEmpty ? 'Loteamento ${obra.id}' : obra.name;
 
     final statusBg = ativo ? const Color(0xFFECFDF5) : Colors.grey.shade100;
     final statusBorder = ativo ? const Color(0xFF10B981) : Colors.grey.shade400;

@@ -274,7 +274,7 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                   if (erroVinculos)
                     ListTile(
                       title: const Text(
-                        'Não foi possível carregar os membros desta obra.',
+                        'Não foi possível carregar os membros deste loteamento.',
                       ),
                       trailing: TextButton(
                         onPressed: () => ref.invalidate(obraMembersProvider((
@@ -290,7 +290,7 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                     const Center(
                       child: Padding(
                         padding: EdgeInsets.only(top: 80),
-                        child: Text('Selecione uma obra'),
+                        child: Text('Selecione um loteamento'),
                       ),
                     )
                   else ...[
@@ -365,9 +365,9 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                     ? membro.email.trim()
                     : 'UID: ${membro.uid}';
                 final semantics = contagemCarregando
-                    ? '$nome, $cargo, carregando obras, ativo'
+                    ? '$nome, $cargo, carregando loteamentos, ativo'
                     : (contagemErro && count == 0)
-                        ? '$nome, $cargo, erro ao carregar obras, ativo'
+                        ? '$nome, $cargo, erro ao carregar loteamentos, ativo'
                         : '$nome, $cargo, ${textoContagemObras(count)}, ativo';
                 return MemberRow(
                   nome: nome,
