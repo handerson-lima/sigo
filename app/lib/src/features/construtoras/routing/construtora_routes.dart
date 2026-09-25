@@ -47,7 +47,11 @@ List<RouteBase> get construtoraRoutes => [
       return null;
     },
     builder: (context, state) {
-      return const SizedBox.shrink();
+      return const Scaffold(
+        body: Center(
+          child: Text('Construtora não encontrada ou rota inválida.'),
+        ),
+      );
     },
     routes: [
       GoRoute(

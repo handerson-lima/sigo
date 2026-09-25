@@ -39,7 +39,6 @@ class ObraMembersRepository {
     Future<List<ConnectivityResult>> Function()? checkConnectivity,
     Future<dynamic> Function(Map<String, dynamic> data)? callSetMembership,
   }) : _checkConnectivity = checkConnectivity ?? _defaultCheckConnectivity,
-       // ignore: prefer_initializing_formals
        _callSetMembership = callSetMembership;
 
   static Future<List<ConnectivityResult>> _defaultCheckConnectivity() =>

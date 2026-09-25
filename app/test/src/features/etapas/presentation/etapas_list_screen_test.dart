@@ -7,8 +7,11 @@ import 'package:app/src/features/etapas/data/etapa_repository.dart';
 import 'package:app/src/features/etapas/domain/etapa.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:app/src/features/obras/domain/obra_member.dart';
 
 class FakeEtapaRepository implements EtapaRepository {
+  bool createCalled = false;
+  
   @override
   Future<void> createDefaultEtapas({
     WriteBatch? batch,
@@ -17,6 +20,7 @@ class FakeEtapaRepository implements EtapaRepository {
     required String quadraId,
     required String loteId,
   }) async {
+    createCalled = true;
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
@@ -40,8 +44,8 @@ void main() {
       ProviderScope(
         overrides: [
           watchEtapasProvider.overrideWith((ref, arg) => Stream.value([])),
-          isConstrutoraAdminProvider('c1')
-              .overrideWith((ref) => Stream.value(false)),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+              .overrideWith((ref) => Stream.value(null)),
         ],
         child: buildTestWidget(
           const EtapasListScreen(
@@ -83,8 +87,8 @@ void main() {
           watchEtapasProvider.overrideWith(
             (ref, arg) => Stream.value([mockEtapa]),
           ),
-          isConstrutoraAdminProvider('c1')
-              .overrideWith((ref) => Stream.value(false)),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+              .overrideWith((ref) => Stream.value(null)),
         ],
         child: buildTestWidget(
           const EtapasListScreen(
@@ -114,8 +118,8 @@ void main() {
       ProviderScope(
         overrides: [
           watchEtapasProvider.overrideWith((ref, arg) => stream),
-          isConstrutoraAdminProvider('c1')
-              .overrideWith((ref) => Stream.value(false)),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+              .overrideWith((ref) => Stream.value(null)),
         ],
         child: buildTestWidget(
           const EtapasListScreen(
@@ -142,13 +146,22 @@ void main() {
   testWidgets('Renderiza botao Inicializar Etapas para admin e executa', (
     tester,
   ) async {
+    final fakeRepo = FakeEtapaRepository();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           watchEtapasProvider.overrideWith((ref, arg) => Stream.value([])),
-          isConstrutoraAdminProvider('c1')
-              .overrideWith((ref) => Stream.value(true)),
-          etapaRepositoryProvider.overrideWithValue(FakeEtapaRepository()),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+              .overrideWith((ref) => Stream.value(
+                ObraMember(
+                  userId: 'user',
+                  isAdmin: true,
+                  isActive: true,
+                  modules: [],
+                  joinedAt: DateTime.now(),
+                ),
+              )),
+          etapaRepositoryProvider.overrideWithValue(fakeRepo),
         ],
         child: buildTestWidget(
           const EtapasListScreen(
@@ -176,5 +189,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsWidgets);
 
     await tester.pumpAndSettle();
+    
+    expect(fakeRepo.createCalled, isTrue);
   });
 }

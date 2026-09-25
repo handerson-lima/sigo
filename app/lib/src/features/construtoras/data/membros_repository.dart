@@ -35,7 +35,6 @@ class MembrosRepository {
     Future<List<ConnectivityResult>> Function()? checkConnectivity,
     Future<dynamic> Function(Map<String, dynamic> data)? callSetCargo,
   }) : _checkConnectivity = checkConnectivity ?? _defaultCheckConnectivity,
-       // ignore: prefer_initializing_formals
        _callSetCargo = callSetCargo;
 
   static Future<List<ConnectivityResult>> _defaultCheckConnectivity() =>

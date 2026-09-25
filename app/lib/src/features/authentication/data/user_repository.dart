@@ -70,18 +70,12 @@ final trustedDevProvider = StreamProvider<bool>((ref) {
         }
         // Fallback de transição e auto-provisionamento para dev legítimo com globalRole == 'dev'
         try {
-          debugPrint(
-            '[DEBUG_DEV] Checking dev for user: ${user.uid}, email: ${user.email}',
-          );
           final userDoc = await FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
               .get();
           final data = userDoc.data();
-          debugPrint('[DEBUG_DEV] User doc data: $data');
-          if (data?['globalRole'] == 'dev' ||
-              user.email?.toLowerCase().contains('dev') == true) {
-            debugPrint('[DEBUG_DEV] User is dev! Provisioning dev_roles...');
+          if (data?['globalRole'] == 'dev') {
             await FirebaseFirestore.instance
                 .collection('dev_roles')
                 .doc(user.uid)
@@ -89,11 +83,10 @@ final trustedDevProvider = StreamProvider<bool>((ref) {
                   'isActive': true,
                   'createdAt': FieldValue.serverTimestamp(),
                 });
-            debugPrint('[DEBUG_DEV] Successfully provisioned dev_roles!');
             return true;
           }
-        } catch (e, st) {
-          debugPrint('[DEBUG_DEV] Error checking/provisioning dev: $e\n$st');
+        } catch (e) {
+          // Ignorar erros de leitura se o usuário não for dev
         }
         return false;
       });

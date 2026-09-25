@@ -71,7 +71,7 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'O envio está demorando muito. O estado é incerto, mas seus dados não foram perdidos.',
+              'A criação está demorando além do esperado. Os dados continuam sendo sincronizados em segundo plano.',
             ),
           ),
         );

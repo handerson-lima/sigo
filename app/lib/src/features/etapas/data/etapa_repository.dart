@@ -83,7 +83,11 @@ class EtapaRepository {
 
     final localBatch = batch ?? _firestore.batch();
     for (final etapa in etapasDefault) {
-      localBatch.set(_etapasRef().doc(etapa.id), etapa);
+      localBatch.set(
+        _etapasRef().doc(etapa.id),
+        etapa,
+        SetOptions(merge: true),
+      );
     }
 
     if (batch == null) {

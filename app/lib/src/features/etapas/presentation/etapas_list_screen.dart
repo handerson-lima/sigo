@@ -90,9 +90,12 @@ class _EtapasListScreenState extends ConsumerState<EtapasListScreen> {
         '/construtoras/${widget.construtoraId}/loteamentos/${widget.loteamentoId}/quadras/${widget.quadraId}/lotes/${widget.loteId}/etapas';
 
     final adminAsync = ref.watch(
-      isConstrutoraAdminProvider(widget.construtoraId),
+      currentPermissionsProvider((
+        construtoraId: widget.construtoraId,
+        obraId: widget.loteamentoId,
+      )),
     );
-    final isAdmin = adminAsync.value ?? false;
+    final isAdmin = adminAsync.value?.isAdmin == true;
 
     return SigoLayout(
       title: 'Etapas',
@@ -115,6 +118,11 @@ class _EtapasListScreenState extends ConsumerState<EtapasListScreen> {
                     message: 'Nenhuma etapa cadastrada',
                     icon: Icons.view_module_outlined,
                     action: adminAsync.when(
+                      error: (err, _) => Text(
+                        'Erro de permissão',
+                        style: TextStyle(color: Colors.red.shade300),
+                      ),
+                      loading: () => const SizedBox.shrink(),
                       data: (_) {
                         if (!isAdmin) return null;
                         if (_isInitializing) {
@@ -138,19 +146,7 @@ class _EtapasListScreenState extends ConsumerState<EtapasListScreen> {
                           child: const Text('Inicializar Etapas'),
                         );
                       },
-                      loading: () => const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          SizedBox(width: 8),
-                          Text('Verificando permissões...'),
-                        ],
-                      ),
-                      error: (_, __) => null,
+                      // loading e error já definidos acima
                     ),
                   );
                 }

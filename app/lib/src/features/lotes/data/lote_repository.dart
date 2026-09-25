@@ -38,10 +38,7 @@ class LoteRepository {
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 
-  Future<void> createLote(Lote lote) async {
-    final docRef = _lotesRef().doc(lote.id);
-    await docRef.set(lote);
-  }
+
 
   Future<void> createLoteComEtapas(Lote lote) async {
     final batch = _firestore.batch();

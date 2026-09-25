@@ -287,7 +287,7 @@ class LoteamentoSwitcher extends ConsumerWidget {
                 if (newLoteamentoId != null &&
                     newLoteamentoId != currentLoteamentoId) {
                   context.go(
-                    '/construtoras/$construtoraId/obra/$newLoteamentoId',
+                    '/construtoras/$construtoraId/loteamentos/$newLoteamentoId',
                   );
                 }
               },
