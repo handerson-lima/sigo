@@ -18,10 +18,10 @@ class FinanceiroListScreen extends ConsumerWidget {
 
     return SigoLayout(
       title: 'Contas a Pagar / Financeiro',
-      activeRoute: '/construtora/$construtoraId/financeiro',
+      activeRoute: '/construtoras/$construtoraId/financeiro',
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () =>
-            context.go('/construtora/$construtoraId/financeiro/novo'),
+            context.go('/construtoras/$construtoraId/financeiro/novo'),
         icon: const Icon(Icons.add),
         label: const Text('Nova Despesa'),
       ),

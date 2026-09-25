@@ -2,9 +2,10 @@
 title: 'Story 13.2 - Rotas Declarativas e Drill-down Inicial (Construtora → Loteamento → Quadra)'
 type: 'feature'
 created: '2026-09-25'
-status: 'ready-for-dev'
+status: 'in-review'
 route: 'dispatch'
 review_loop_iteration: 0
+baseline_commit: '2e48915ec6ea4a0469248f2940882b438061f75f'
 context: ['_bmad-output/implementation-artifacts/epic-13-context.md', '_bmad-output/planning-artifacts/architecture/architecture-obras-2026-09-24/ARCHITECTURE-SPINE.md', '_bmad-output/specs/spec-navegacao-loteamento-etapa/SPEC.md', '_bmad-output/planning-artifacts/architecture/architecture-modular-routing-2026-09-23/ARCHITECTURE-SPINE.md']
 ---
 
@@ -71,14 +72,14 @@ context: ['_bmad-output/implementation-artifacts/epic-13-context.md', '_bmad-out
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `app/lib/src/features/construtoras/routing/construtora_routes.dart` — trocar `ConstrutoraPaths.detail` para `/construtoras/:cid` e ajustar `membros`/subárvore; manter os módulos obra-scoped vivos sob o plural (ver Decisions).
-- [ ] `app/lib/src/features/{loteamentos,quadras,lotes,etapas,equipes}/routing/*_routes.dart` — atualizar paths/`*For()` para plural e `:cid`; preservar os redirects pai→filho existentes.
-- [ ] `app/lib/src/routing/app_router.dart` — adicionar redirect de `/construtora/...` → `/construtoras/...` preservando query/fragment (rota de compatibilidade).
-- [ ] `app/lib/src/common_widgets/sigo_breadcrumbs.dart` — reconhecer `construtoras` e emitir o crumb da Construtora (link para `/construtoras/:cid/loteamentos`), sem quebrar os crumbs existentes.
-- [ ] `app/lib/src/common_widgets/sigo_sidebar.dart` e `sigo_top_bar.dart` — parser para `construtoras`; renomear "Lotes e Setores"→"Loteamentos" e demais labels de navegação.
-- [ ] `app/lib/src/features/construtoras/presentation/construtoras_list_screen.dart` — card navega para `/construtoras/:cid/loteamentos` (CAP-1).
-- [ ] `app/lib/src/features/obras/presentation/obras_list_screen.dart` / `obra_dashboard_screen.dart` — ajustar entrypoint e labels "Obra"→"Loteamento" na navegação (card da construtora → Loteamentos; ver Decisions).
-- [ ] `app/test/**` — migrar paths para plural e cobrir: card→Loteamentos, deep-link até Quadra, redirects pai→filho, redirect de compatibilidade (se A) e crumb da Construtora.
+- [x] `app/lib/src/features/construtoras/routing/construtora_routes.dart` — trocar `ConstrutoraPaths.detail` para `/construtoras/:cid` e ajustar `membros`/subárvore; manter os módulos obra-scoped vivos sob o plural (ver Decisions).
+- [x] `app/lib/src/features/{loteamentos,quadras,lotes,etapas,equipes}/routing/*_routes.dart` — atualizar paths/`*For()` para plural e `:cid`; preservar os redirects pai→filho existentes.
+- [x] `app/lib/src/routing/app_router.dart` — adicionar redirect de `/construtora/...` → `/construtoras/...` preservando query/fragment (rota de compatibilidade).
+- [x] `app/lib/src/common_widgets/sigo_breadcrumbs.dart` — reconhecer `construtoras` e emitir o crumb da Construtora (link para `/construtoras/:cid/loteamentos`), sem quebrar os crumbs existentes.
+- [x] `app/lib/src/common_widgets/sigo_sidebar.dart` e `sigo_top_bar.dart` — parser para `construtoras`; renomear "Lotes e Setores"→"Loteamentos" e demais labels de navegação.
+- [x] `app/lib/src/features/construtoras/presentation/construtoras_list_screen.dart` — card navega para `/construtoras/:cid/loteamentos` (CAP-1).
+- [x] `app/lib/src/features/obras/presentation/obras_list_screen.dart` / `obra_dashboard_screen.dart` — ajustar entrypoint e labels "Obra"→"Loteamento" na navegação (card da construtora → Loteamentos; ver Decisions).
+- [x] `app/test/**` — migrar paths para plural e cobrir: card→Loteamentos, deep-link até Quadra, redirects pai→filho, redirect de compatibilidade (se A) e crumb da Construtora.
 
 **Acceptance Criteria:**
 - Given um usuário logado, when toca o card de uma construtora, then a URL é `/construtoras/:cid/loteamentos` e vê os Loteamentos da construtora.

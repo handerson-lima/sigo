@@ -138,7 +138,7 @@ class _AddDiarioScreenState extends ConsumerState<AddDiarioScreen> {
   Widget build(BuildContext context) {
     return SigoLayout(
       title: 'Novo RDO',
-      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/diarios',
+      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/diarios',
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Form(

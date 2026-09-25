@@ -17,16 +17,16 @@ class DiariosListScreen extends ConsumerWidget {
 
     return SigoLayout(
       title: 'Diários de Obra (RDO)',
-      activeRoute: '/construtora/$construtoraId/obra/$obraId/diarios',
+      activeRoute: '/construtoras/$construtoraId/obra/$obraId/diarios',
       actions: [
         IconButton(
           icon: const Icon(Icons.sync),
           tooltip: 'Fila de Sincronização',
-          onPressed: () => context.push('/construtora/$construtoraId/obra/$obraId/diarios/sync'),
+          onPressed: () => context.push('/construtoras/$construtoraId/obra/$obraId/diarios/sync'),
         ),
       ],
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/construtora/$construtoraId/obra/$obraId/diarios/novo'),
+        onPressed: () => context.go('/construtoras/$construtoraId/obra/$obraId/diarios/novo'),
         icon: const Icon(Icons.add),
         label: const Text('Novo RDO'),
       ),

@@ -18,19 +18,19 @@ abstract class RhPaths {
   static const editarChamada =
       'obra/:oId/rh/chamadas/:chId';
 
-  static String rhFor(String cId) => '/construtora/$cId/rh';
+  static String rhFor(String cId) => '/construtoras/$cId/rh';
   static String funcionariosFor(String cId) =>
-      '/construtora/$cId/rh/funcionarios';
+      '/construtoras/$cId/rh/funcionarios';
   static String novoFuncionarioFor(String cId) =>
-      '/construtora/$cId/rh/funcionarios/novo';
+      '/construtoras/$cId/rh/funcionarios/novo';
   static String editarFuncionarioFor(String cId, String fId) =>
-      '/construtora/$cId/rh/funcionarios/$fId/editar';
+      '/construtoras/$cId/rh/funcionarios/$fId/editar';
   static String chamadasFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/rh/chamadas';
+      '/construtoras/$cId/obra/$oId/rh/chamadas';
   static String novaChamadaFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/rh/chamadas/nova';
+      '/construtoras/$cId/obra/$oId/rh/chamadas/nova';
   static String editarChamadaFor(String cId, String oId, String chId) =>
-      '/construtora/$cId/obra/$oId/rh/chamadas/$chId';
+      '/construtoras/$cId/obra/$oId/rh/chamadas/$chId';
 }
 
 /// Rotas do módulo de RH (funcionários + chamadas).

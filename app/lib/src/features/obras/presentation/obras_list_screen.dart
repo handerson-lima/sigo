@@ -80,12 +80,12 @@ class ObrasListScreen extends ConsumerWidget {
 
     return SigoLayout(
       title: 'Painel da Construtora',
-      activeRoute: '/construtora/$construtoraId',
+      activeRoute: '/construtoras/$construtoraId',
       actions: [
         if (admin)
           IconButton(
             icon: const Icon(Icons.add_business, color: Colors.black54),
-            tooltip: 'Nova Obra',
+            tooltip: 'Novo Loteamento',
             onPressed: () {
               showDialog(
                 context: context,
@@ -98,7 +98,7 @@ class ObrasListScreen extends ConsumerWidget {
             icon: const Icon(Icons.people, color: Colors.black54),
             tooltip: 'Gerenciar Membros',
             onPressed: () {
-              context.go('/construtora/$construtoraId/membros');
+              context.go('/construtoras/$construtoraId/membros');
             },
           ),
         if (canViewLoteamentos)
@@ -106,7 +106,7 @@ class ObrasListScreen extends ConsumerWidget {
             icon: const Icon(Icons.map_outlined, color: Colors.black54),
             tooltip: 'Loteamentos',
             onPressed: () {
-              context.go('/construtora/$construtoraId/loteamentos');
+              context.go('/construtoras/$construtoraId/loteamentos');
             },
           ),
         if (hasRh)
@@ -114,7 +114,7 @@ class ObrasListScreen extends ConsumerWidget {
             icon: const Icon(Icons.badge, color: Colors.black54),
             tooltip: 'Recursos Humanos (RH)',
             onPressed: () {
-              context.go('/construtora/$construtoraId/rh');
+              context.go('/construtoras/$construtoraId/rh');
             },
           ),
         if (stock)
@@ -122,7 +122,7 @@ class ObrasListScreen extends ConsumerWidget {
             icon: const Icon(Icons.inventory_2, color: Colors.black54),
             tooltip: 'Almoxarifado Global',
             onPressed: () {
-              context.go('/construtora/$construtoraId/almoxarifado');
+              context.go('/construtoras/$construtoraId/almoxarifado');
             },
           ),
         if (admin)
@@ -133,7 +133,7 @@ class ObrasListScreen extends ConsumerWidget {
             ),
             tooltip: 'Financeiro Global',
             onPressed: () {
-              context.go('/construtora/$construtoraId/financeiro');
+              context.go('/construtoras/$construtoraId/financeiro');
             },
           ),
         if (hasValidacao)
@@ -141,7 +141,7 @@ class ObrasListScreen extends ConsumerWidget {
             icon: const Icon(Icons.rule, color: Colors.black54),
             tooltip: 'Templates de Validação',
             onPressed: () {
-              context.go('/construtora/$construtoraId/validacao/templates');
+              context.go('/construtoras/$construtoraId/validacao/templates');
             },
           ),
         if (hasEpi)
@@ -149,7 +149,7 @@ class ObrasListScreen extends ConsumerWidget {
             icon: const Icon(Icons.health_and_safety, color: Colors.black54),
             tooltip: 'Catálogo de EPIs',
             onPressed: () {
-              context.go('/construtora/$construtoraId/epis');
+              context.go('/construtoras/$construtoraId/epis');
             },
           ),
         if (hasFornecedores)
@@ -157,7 +157,7 @@ class ObrasListScreen extends ConsumerWidget {
             icon: const Icon(Icons.storefront, color: Colors.black54),
             tooltip: 'Fornecedores',
             onPressed: () {
-              context.go('/construtora/$construtoraId/fornecedores');
+              context.go('/construtoras/$construtoraId/fornecedores');
             },
           ),
       ],
@@ -171,7 +171,7 @@ class ObrasListScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'Nenhuma obra encontrada para você nesta construtora.',
+                    'Nenhum loteamento encontrado para você nesta construtora.',
                     textAlign: TextAlign.center,
                   ),
                   if (admin) ...[
@@ -185,7 +185,7 @@ class ObrasListScreen extends ConsumerWidget {
                         );
                       },
                       icon: const Icon(Icons.add),
-                      label: const Text('Criar Nova Obra'),
+                      label: const Text('Criar Novo Loteamento'),
                     ),
                   ],
                 ],
@@ -284,7 +284,7 @@ class ObrasListScreen extends ConsumerWidget {
                       elevation: 4,
                       child: InkWell(
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/${obra.id}',
+                          '/construtoras/$construtoraId/obra/${obra.id}',
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -367,13 +367,13 @@ class _AddObraDialogState extends ConsumerState<_AddObraDialog> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Obra cadastrada com sucesso!')),
+          const SnackBar(content: Text('Loteamento cadastrado com sucesso!')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao cadastrar obra: $e')),
+          SnackBar(content: Text('Erro ao cadastrar loteamento: $e')),
         );
       }
     } finally {
@@ -384,7 +384,7 @@ class _AddObraDialogState extends ConsumerState<_AddObraDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Nova Obra'),
+      title: const Text('Novo Loteamento'),
       content: SizedBox(
         width: 450,
         child: Form(
@@ -396,7 +396,7 @@ class _AddObraDialogState extends ConsumerState<_AddObraDialog> {
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Nome da Obra *',
+                    labelText: 'Nome do Loteamento *',
                     hintText: 'Ex: Residencial Flores',
                   ),
                   autofocus: true,

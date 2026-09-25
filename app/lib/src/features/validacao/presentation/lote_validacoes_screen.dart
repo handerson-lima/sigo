@@ -187,12 +187,12 @@ class LoteValidacoesScreen extends ConsumerWidget {
 
     return SigoLayout(
       title: 'Validação & Qualidade do Lote',
-      activeRoute: '/construtora/$construtoraId/obra/$obraId/lotes/$loteId/validacoes',
+      activeRoute: '/construtoras/$construtoraId/obra/$obraId/lotes/$loteId/validacoes',
       actions: [
         ElevatedButton.icon(
           onPressed: () {
             context.go(
-              '/construtora/$construtoraId/obra/$obraId/lotes/$loteId/validacoes/nova',
+              '/construtoras/$construtoraId/obra/$obraId/lotes/$loteId/validacoes/nova',
             );
           },
           icon: const Icon(Icons.playlist_add),
@@ -207,7 +207,7 @@ class LoteValidacoesScreen extends ConsumerWidget {
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
-                  context.go('/construtora/$construtoraId/obra/$obraId');
+                  context.go('/construtoras/$construtoraId/obra/$obraId');
                 },
                 tooltip: 'Voltar aos Lotes',
               ),
@@ -257,7 +257,7 @@ class LoteValidacoesScreen extends ConsumerWidget {
                               ElevatedButton.icon(
                                 onPressed: () {
                                   context.go(
-                                    '/construtora/$construtoraId/obra/$obraId/lotes/$loteId/validacoes/nova',
+                                    '/construtoras/$construtoraId/obra/$obraId/lotes/$loteId/validacoes/nova',
                                   );
                                 },
                                 icon: const Icon(Icons.add_task),
@@ -285,7 +285,7 @@ class LoteValidacoesScreen extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(12),
                                 onTap: () {
                                   context.go(
-                                    '/construtora/$construtoraId/obra/$obraId/lotes/$loteId/validacoes/${vistoria.id}',
+                                    '/construtoras/$construtoraId/obra/$obraId/lotes/$loteId/validacoes/${vistoria.id}',
                                   );
                                 },
                                 child: Padding(

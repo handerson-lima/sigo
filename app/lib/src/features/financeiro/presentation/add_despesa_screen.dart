@@ -66,7 +66,7 @@ class _AddDespesaScreenState extends ConsumerState<AddDespesaScreen> {
 
     return SigoLayout(
       title: 'Nova Despesa',
-      activeRoute: '/construtora/${widget.construtoraId}/financeiro',
+      activeRoute: '/construtoras/${widget.construtoraId}/financeiro',
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Form(

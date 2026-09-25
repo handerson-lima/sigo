@@ -38,7 +38,7 @@ class Visao360CustosScreen extends ConsumerWidget {
 
     return SigoLayout(
       title: 'Visão 360º de Custos',
-      activeRoute: '/construtora/$construtoraId/obra/$obraId/custos-360',
+      activeRoute: '/construtoras/$construtoraId/obra/$obraId/custos-360',
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh),
@@ -384,7 +384,7 @@ class Visao360CustosScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: () {
           context.go(
-            '/construtora/$construtoraId/obra/$obraId/custos-360/lotes/${lote.loteId}',
+            '/construtoras/$construtoraId/obra/$obraId/custos-360/lotes/${lote.loteId}',
           );
         },
         child: Padding(

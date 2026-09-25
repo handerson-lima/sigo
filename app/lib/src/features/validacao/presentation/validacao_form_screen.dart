@@ -270,7 +270,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
           ),
         );
         context.go(
-          '/construtora/${widget.construtoraId}/obra/${widget.obraId}/lotes/${widget.loteId}/validacoes',
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/lotes/${widget.loteId}/validacoes',
         );
       }
     } catch (e) {
@@ -360,7 +360,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
           ),
         );
         context.go(
-          '/construtora/${widget.construtoraId}/obra/${widget.obraId}/lotes/${widget.loteId}/validacoes',
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/lotes/${widget.loteId}/validacoes',
         );
       }
     } catch (e) {
@@ -428,7 +428,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
                 context.go(
-                  '/construtora/${widget.construtoraId}/obra/${widget.obraId}/lotes/${widget.loteId}/validacoes',
+                  '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/lotes/${widget.loteId}/validacoes',
                 );
               },
             ),
@@ -468,7 +468,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                       ElevatedButton(
                         onPressed: () {
                           context.go(
-                            '/construtora/${widget.construtoraId}/validacao/templates',
+                            '/construtoras/${widget.construtoraId}/validacao/templates',
                           );
                         },
                         child: const Text('Ir para Templates de Validação'),
@@ -530,7 +530,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
                 context.go(
-                  '/construtora/${widget.construtoraId}/obra/${widget.obraId}/lotes/${widget.loteId}/validacoes',
+                  '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/lotes/${widget.loteId}/validacoes',
                 );
               },
             ),
@@ -941,7 +941,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
     return SigoLayout(
       title: 'Vistoria de Validação',
       activeRoute:
-          '/construtora/${widget.construtoraId}/obra/${widget.obraId}/lotes/${widget.loteId}/validacoes',
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/lotes/${widget.loteId}/validacoes',
       child: _carregando
           ? const Center(child: CircularProgressIndicator())
           : _erroCarregamento != null

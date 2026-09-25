@@ -14,11 +14,11 @@ abstract class AlmoxarifadoPaths {
   static const novoMaterial = 'almoxarifado/novo_material';
   static const movimentacao = 'almoxarifado/movimentacao';
 
-  static String listFor(String cId) => '/construtora/$cId/almoxarifado';
+  static String listFor(String cId) => '/construtoras/$cId/almoxarifado';
   static String novoMaterialFor(String cId) =>
-      '/construtora/$cId/almoxarifado/novo_material';
+      '/construtoras/$cId/almoxarifado/novo_material';
   static String movimentacaoFor(String cId) =>
-      '/construtora/$cId/almoxarifado/movimentacao';
+      '/construtoras/$cId/almoxarifado/movimentacao';
 }
 
 /// Rotas do módulo de almoxarifado.

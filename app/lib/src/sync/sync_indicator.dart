@@ -366,9 +366,9 @@ Future<void> showSyncStatusDialog({
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
                     if (obraId != null && obraId.isNotEmpty) {
-                      context.go('/construtora/$construtoraId/obra/$obraId/diarios/sync');
+                      context.go('/construtoras/$construtoraId/obra/$obraId/diarios/sync');
                     } else {
-                      context.go('/construtora/$construtoraId/sync');
+                      context.go('/construtoras/$construtoraId/sync');
                     }
                   },
                 ),

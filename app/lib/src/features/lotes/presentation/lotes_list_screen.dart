@@ -34,7 +34,7 @@ class LotesListScreen extends ConsumerWidget {
         (member?['isAdmin'] == true || member?['isOwner'] == true);
 
     final baseRoute =
-        '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes';
+        '/construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes';
 
     return SigoLayout(
       title: 'Lotes',

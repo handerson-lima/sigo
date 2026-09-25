@@ -97,7 +97,7 @@ class FornecedorAutocompleteField extends ConsumerWidget {
                   tooltip: 'Cadastrar Novo Fornecedor',
                   onPressed: () {
                     context.push(
-                      '/construtora/$construtoraId/fornecedores/novo',
+                      '/construtoras/$construtoraId/fornecedores/novo',
                     );
                   },
                 ),

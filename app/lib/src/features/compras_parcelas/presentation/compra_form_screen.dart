@@ -434,7 +434,7 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
           ? 'Nova Compra / Nota Fiscal'
           : 'Editar Compra / NF',
       activeRoute:
-          '/construtora/${widget.construtoraId}/obra/${widget.obraId}/compras',
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/compras',
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(

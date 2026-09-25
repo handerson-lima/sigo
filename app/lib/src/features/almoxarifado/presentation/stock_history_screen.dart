@@ -332,7 +332,7 @@ class StockHistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SigoLayout(
     title: 'Histórico · ${material.name}',
-    activeRoute: '/construtora/$c/almoxarifado',
+    activeRoute: '/construtoras/$c/almoxarifado',
     child: Column(
       children: [
         if (canManage)

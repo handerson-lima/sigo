@@ -45,7 +45,7 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
 
     return SigoLayout(
       title: 'Catálogo de EPIs',
-      activeRoute: '/construtora/${widget.construtoraId}/epis',
+      activeRoute: '/construtoras/${widget.construtoraId}/epis',
       actions: [
         ElevatedButton.icon(
           onPressed: () => _abrirFormulario(),

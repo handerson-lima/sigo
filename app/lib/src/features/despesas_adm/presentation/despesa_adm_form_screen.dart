@@ -279,7 +279,7 @@ class _DespesaAdmFormScreenState extends ConsumerState<DespesaAdmFormScreen> {
       title: widget.despesaId != null
           ? 'Editar Despesa'
           : 'Nova Despesa / Conta a Pagar',
-      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas',
+      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/despesas',
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(

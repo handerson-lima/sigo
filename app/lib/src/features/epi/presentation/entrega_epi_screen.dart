@@ -212,7 +212,7 @@ class _EntregaEpiScreenState extends ConsumerState<EntregaEpiScreen> {
 
     return SigoLayout(
       title: 'Entrega de EPI',
-      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/epis/entrega',
+      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/epis/entrega',
       child: SingleChildScrollView(
         child: Form(
           key: _formKey,

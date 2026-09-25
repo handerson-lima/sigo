@@ -187,7 +187,7 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
       final listAsync = ref.watch(funcionariosStreamProvider(widget.construtoraId));
       return SigoLayout(
         title: isEditing ? 'Editar Colaborador' : 'Novo Colaborador',
-        activeRoute: '/construtora/${widget.construtoraId}/rh/funcionarios',
+        activeRoute: '/construtoras/${widget.construtoraId}/rh/funcionarios',
         child: listAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Erro ao carregar dados: $e')),
@@ -218,7 +218,7 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
 
     return SigoLayout(
       title: isEditing ? 'Editar Colaborador' : 'Novo Colaborador',
-      activeRoute: '/construtora/${widget.construtoraId}/rh/funcionarios',
+      activeRoute: '/construtoras/${widget.construtoraId}/rh/funcionarios',
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Center(

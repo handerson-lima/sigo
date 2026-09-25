@@ -85,8 +85,8 @@ class ObraDashboardScreen extends ConsumerWidget {
         }
 
         return SigoLayout(
-          title: 'Painel da Obra',
-          activeRoute: '/construtora/$construtoraId/obra/$obraId',
+          title: 'Painel do Loteamento',
+          activeRoute: '/construtoras/$construtoraId/obra/$obraId',
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,7 +116,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                       member.isAdmin ? 'Nível: Administrador' : 'Nível: Membro',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: Text('ID da Obra: $obraId'),
+                    subtitle: Text('ID do Loteamento: $obraId'),
                   ),
                 ),
                 const SizedBox(height: 28),
@@ -143,9 +143,9 @@ class ObraDashboardScreen extends ConsumerWidget {
                     if (canCentralLotes)
                       SigoModuleCard(
                         icon: Icons.map,
-                        title: 'Lotes e Setores',
+                        title: 'Loteamentos',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/loteamentos',
+                          '/construtoras/$construtoraId/loteamentos',
                         ),
                       ),
                     if (member.isAdmin ||
@@ -154,7 +154,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.assignment,
                         title: 'Diário de Obra',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/$obraId/diarios',
+                          '/construtoras/$construtoraId/obra/$obraId/diarios',
                         ),
                       ),
                     if (canValidacao)
@@ -162,7 +162,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.rule,
                         title: 'Validação & Qualidade',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/validacao/templates',
+                          '/construtoras/$construtoraId/validacao/templates',
                         ),
                       ),
                   ],
@@ -193,7 +193,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.playlist_add_check,
                         title: 'Chamada Diária (RH)',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/$obraId/rh/chamadas',
+                          '/construtoras/$construtoraId/obra/$obraId/rh/chamadas',
                         ),
                       ),
                     if (canEpi)
@@ -201,7 +201,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.health_and_safety,
                         title: 'Entrega de EPIs',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/$obraId/epis/entrega',
+                          '/construtoras/$construtoraId/obra/$obraId/epis/entrega',
                         ),
                       ),
                   ],
@@ -232,7 +232,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.receipt_long,
                         title: 'Contas a Pagar / ADM',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/$obraId/despesas',
+                          '/construtoras/$construtoraId/obra/$obraId/despesas',
                         ),
                       ),
                     if (canCompras)
@@ -240,7 +240,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.shopping_cart_outlined,
                         title: 'Compras e NF',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/$obraId/compras',
+                          '/construtoras/$construtoraId/obra/$obraId/compras',
                         ),
                       ),
                     if (canAdm || canFinanceiro)
@@ -248,7 +248,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.query_stats_rounded,
                         title: 'Visão 360 Custos',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/obra/$obraId/custos-360',
+                          '/construtoras/$construtoraId/obra/$obraId/custos-360',
                         ),
                       ),
                     if (canEstoque)
@@ -256,7 +256,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.inventory_2,
                         title: 'Almoxarifado',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/almoxarifado',
+                          '/construtoras/$construtoraId/almoxarifado',
                         ),
                       ),
                     if (canFinanceiro)
@@ -264,7 +264,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         icon: Icons.account_balance_wallet,
                         title: 'Financeiro',
                         onTap: () => context.go(
-                          '/construtora/$construtoraId/financeiro',
+                          '/construtoras/$construtoraId/financeiro',
                         ),
                       ),
                   ],

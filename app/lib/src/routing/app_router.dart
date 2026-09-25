@@ -55,6 +55,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         }
       }
 
+      if (state.uri.path.startsWith('/construtora/')) {
+        return state.uri.replace(path: state.uri.path.replaceFirst('/construtora/', '/construtoras/')).toString();
+      }
+
       return null;
     },
     routes: [

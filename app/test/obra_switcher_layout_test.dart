@@ -18,10 +18,10 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       final router = GoRouter(
-        initialLocation: '/construtora/c1/obra/obraA',
+        initialLocation: '/construtoras/c1/obra/obraA',
         routes: [
           GoRoute(
-            path: '/construtora/:cId/obra/:oId',
+            path: '/construtoras/:cId/obra/:oId',
             builder: (context, state) {
               final cId = state.pathParameters['cId']!;
               final oId = state.pathParameters['oId']!;
@@ -94,7 +94,7 @@ void main() {
       // Na Obra A: exibe Diário de Obra (na sidebar e no dashboard card); o
       // atalho de Lotes é liberado pela permissão central.
       expect(find.text('Diário de Obra'), findsNWidgets(2));
-      expect(find.text('Lotes e Setores'), findsNWidgets(2));
+      expect(find.text('Loteamentos'), findsNWidgets(2));
 
       // Abre dropdown do seletor de obra e seleciona Obra Beta
       final dropdown = find.byKey(const Key('obra-switcher-dropdown'));
@@ -106,8 +106,8 @@ void main() {
       await tester.tap(itemB);
       await tester.pumpAndSettle();
 
-      // Na Obra B: atualiza instantaneamente para exibir Lotes e Setores e ocultar Diário
-      expect(find.text('Lotes e Setores'), findsNWidgets(2));
+      // Na Obra B: atualiza instantaneamente para exibir Loteamentos e ocultar Diário
+      expect(find.text('Loteamentos'), findsNWidgets(2));
       expect(find.text('Diário de Obra'), findsNothing);
     },
   );

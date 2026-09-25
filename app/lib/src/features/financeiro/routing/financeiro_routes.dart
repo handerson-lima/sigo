@@ -9,8 +9,8 @@ abstract class FinanceiroPaths {
   static const list = 'financeiro';
   static const novo = 'financeiro/novo';
 
-  static String listFor(String cId) => '/construtora/$cId/financeiro';
-  static String novoFor(String cId) => '/construtora/$cId/financeiro/novo';
+  static String listFor(String cId) => '/construtoras/$cId/financeiro';
+  static String novoFor(String cId) => '/construtoras/$cId/financeiro/novo';
 }
 
 /// Rotas do módulo financeiro.

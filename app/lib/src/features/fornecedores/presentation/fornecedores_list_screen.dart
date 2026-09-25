@@ -102,12 +102,12 @@ class _FornecedoresListScreenState
 
     return SigoLayout(
       title: 'Catálogo de Fornecedores',
-      activeRoute: '/construtora/${widget.construtoraId}/fornecedores',
+      activeRoute: '/construtoras/${widget.construtoraId}/fornecedores',
       actions: [
         ElevatedButton.icon(
           onPressed: () {
             context.push(
-              '/construtora/${widget.construtoraId}/fornecedores/novo',
+              '/construtoras/${widget.construtoraId}/fornecedores/novo',
             );
           },
           icon: const Icon(Icons.add_business),
@@ -274,7 +274,7 @@ class _FornecedoresListScreenState
                         ElevatedButton.icon(
                           onPressed: () {
                             context.push(
-                              '/construtora/${widget.construtoraId}/fornecedores/novo',
+                              '/construtoras/${widget.construtoraId}/fornecedores/novo',
                             );
                           },
                           icon: const Icon(Icons.add),
@@ -571,7 +571,7 @@ class _FornecedoresListScreenState
                 ElevatedButton.icon(
                   onPressed: () {
                     context.push(
-                      '/construtora/${widget.construtoraId}/fornecedores/${f.id}/editar',
+                      '/construtoras/${widget.construtoraId}/fornecedores/${f.id}/editar',
                     );
                   },
                   icon: const Icon(Icons.edit_outlined, size: 16),

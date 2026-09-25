@@ -252,7 +252,7 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
     final isSaida = widget.type == MovimentacaoType.saida;
     return SigoLayout(
       title: isSaida ? 'Saída de Material' : 'Entrada de Material',
-      activeRoute: '/construtora/${widget.construtoraId}/almoxarifado',
+      activeRoute: '/construtoras/${widget.construtoraId}/almoxarifado',
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Form(

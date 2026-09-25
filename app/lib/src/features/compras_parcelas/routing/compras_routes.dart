@@ -14,13 +14,13 @@ abstract class ComprasPaths {
       'obra/:oId/compras/:compraId/editar';
 
   static String listFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/compras';
+      '/construtoras/$cId/obra/$oId/compras';
   static String novaFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/compras/nova';
+      '/construtoras/$cId/obra/$oId/compras/nova';
   static String detalhesFor(String cId, String oId, String compraId) =>
-      '/construtora/$cId/obra/$oId/compras/$compraId';
+      '/construtoras/$cId/obra/$oId/compras/$compraId';
   static String editarFor(String cId, String oId, String compraId) =>
-      '/construtora/$cId/obra/$oId/compras/$compraId/editar';
+      '/construtoras/$cId/obra/$oId/compras/$compraId/editar';
 }
 
 /// Rotas do módulo de compras e parcelas.

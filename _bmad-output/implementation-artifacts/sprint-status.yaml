@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-25-2026 12:31
+last_updated: 09-25-2026 12:33
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -59,9 +59,9 @@ development_status:
   12-2-ocultar-construtoras-inativas-na-listagem-do-usuário: review
   epic-12-retrospective: optional
 
-  epic-13: backlog
+  epic-13: in-progress
   13-1-atualizar-esquema-de-dados-raiz-no-firestore: backlog
-  13-2-rotas-declarativas-e-drill-down-inicial: backlog
+  13-2-rotas-declarativas-e-drill-down-inicial: in-progress
   13-3-ramificação-específica-de-etapas-por-lote: backlog
   13-4-navegação-final-alocação-de-equipe-na-etapa: backlog
   epic-13-retrospective: optional

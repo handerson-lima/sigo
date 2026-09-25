@@ -75,7 +75,7 @@ class _AddLoteScreenState extends ConsumerState<AddLoteScreen> {
   Widget build(BuildContext context) {
     return SigoLayout(
       title: 'Novo Lote',
-      activeRoute: '/construtora/${widget.construtoraId}/loteamentos/${widget.loteamentoId}/quadras/${widget.quadraId}/lotes',
+      activeRoute: '/construtoras/${widget.construtoraId}/loteamentos/${widget.loteamentoId}/quadras/${widget.quadraId}/lotes',
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(

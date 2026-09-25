@@ -69,7 +69,7 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
 
     return SigoLayout(
       title: 'Detalhes da Despesa',
-      activeRoute: '/construtora/$construtoraId/obra/$obraId/despesas/$despesaId',
+      activeRoute: '/construtoras/$construtoraId/obra/$obraId/despesas/$despesaId',
       actions: [
         despesaAsync.maybeWhen(
           data: (despesa) {
@@ -81,7 +81,7 @@ class DespesaAdmDetailsScreen extends ConsumerWidget {
               tooltip: 'Editar Despesa',
               onPressed: () {
                 context.push(
-                  '/construtora/$construtoraId/obra/$obraId/despesas/$despesaId/editar',
+                  '/construtoras/$construtoraId/obra/$obraId/despesas/$despesaId/editar',
                 );
               },
             );

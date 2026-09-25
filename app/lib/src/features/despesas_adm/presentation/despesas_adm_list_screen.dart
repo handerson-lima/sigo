@@ -144,12 +144,12 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
 
     return SigoLayout(
       title: 'Módulo ADM — Contas a Pagar',
-      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas',
+      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/despesas',
       actions: [
         ElevatedButton.icon(
           onPressed: () {
             context.push(
-              '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas/nova',
+              '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/despesas/nova',
             );
           },
           icon: const Icon(Icons.add),
@@ -390,7 +390,7 @@ class _DespesasAdmListScreenState extends ConsumerState<DespesasAdmListScreen> {
                             despesa: d,
                             onTap: () {
                               context.push(
-                                '/construtora/${widget.construtoraId}/obra/${widget.obraId}/despesas/${d.id}',
+                                '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/despesas/${d.id}',
                               );
                             },
                             onLiquidar: () => _abrirModalLiquidacao(d),

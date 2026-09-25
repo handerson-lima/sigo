@@ -16,14 +16,14 @@ abstract class ValidacaoPaths {
       'obra/:oId/lotes/:loteId/validacoes/:validacaoId';
 
   static String templatesFor(String cId) =>
-      '/construtora/$cId/validacao/templates';
+      '/construtoras/$cId/validacao/templates';
   static String loteValidacoesFor(String cId, String oId, String loteId) =>
-      '/construtora/$cId/obra/$oId/lotes/$loteId/validacoes';
+      '/construtoras/$cId/obra/$oId/lotes/$loteId/validacoes';
   static String novaValidacaoFor(String cId, String oId, String loteId) =>
-      '/construtora/$cId/obra/$oId/lotes/$loteId/validacoes/nova';
+      '/construtoras/$cId/obra/$oId/lotes/$loteId/validacoes/nova';
   static String editarValidacaoFor(
           String cId, String oId, String loteId, String validacaoId) =>
-      '/construtora/$cId/obra/$oId/lotes/$loteId/validacoes/$validacaoId';
+      '/construtoras/$cId/obra/$oId/lotes/$loteId/validacoes/$validacaoId';
 }
 
 /// Rotas do módulo de validação.

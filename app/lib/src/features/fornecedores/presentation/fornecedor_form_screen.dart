@@ -294,7 +294,7 @@ class _FornecedorFormScreenState extends ConsumerState<FornecedorFormScreen> {
 
     return SigoLayout(
       title: isEdicao ? 'Editar Fornecedor' : 'Novo Fornecedor',
-      activeRoute: '/construtora/${widget.construtoraId}/fornecedores',
+      activeRoute: '/construtoras/${widget.construtoraId}/fornecedores',
       child: Form(
         key: _formKey,
         child: SingleChildScrollView(

@@ -32,7 +32,7 @@ void main() {
             builder: (context, state) => const Scaffold(
               appBar: SigoTopBar(
                 title: 'Painel',
-                activeRoute: '/construtora/c9/obra/o9',
+                activeRoute: '/construtoras/c9/obra/o9',
               ),
             ),
           ),

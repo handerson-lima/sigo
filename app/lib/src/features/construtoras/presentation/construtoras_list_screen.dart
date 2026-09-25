@@ -65,7 +65,7 @@ class ConstrutorasListScreen extends ConsumerWidget {
               return Card(
                 elevation: 4,
                 child: InkWell(
-                  onTap: () => context.go('/construtora/${construtora.id}'),
+                  onTap: () => context.go('/construtoras/${construtora.id}/loteamentos'),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(

@@ -29,10 +29,10 @@ Loteamento makeLoteamento(String id) => Loteamento(
 
 Widget buildTestWidget(Widget child) {
   final router = GoRouter(
-    initialLocation: '/construtora/c1/loteamentos',
+    initialLocation: '/construtoras/c1/loteamentos',
     routes: [
       GoRoute(
-        path: '/construtora/c1/loteamentos',
+        path: '/construtoras/c1/loteamentos',
         builder: (context, state) => child,
       ),
     ],
@@ -144,10 +144,10 @@ void main() {
     var buildCount = 0;
 
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos',
+      initialLocation: '/construtoras/c1/loteamentos',
       routes: [
         GoRoute(
-          path: '/construtora/c1/loteamentos',
+          path: '/construtoras/c1/loteamentos',
           builder: (context, state) => ValueListenableBuilder<int>(
             valueListenable: rebuild,
             builder: (context, _, _) {

@@ -35,10 +35,10 @@ Lote makeLote(String id) => Lote(
 
 Widget buildTestWidget(Widget child) {
   final router = GoRouter(
-    initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+    initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
     routes: [
       GoRoute(
-        path: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+        path: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
         builder: (context, state) => child,
       ),
     ],
@@ -165,10 +165,10 @@ void main() {
     var buildCount = 0;
 
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
       routes: [
         GoRoute(
-          path: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+          path: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
           builder: (context, state) => ValueListenableBuilder<int>(
             valueListenable: rebuild,
             builder: (context, _, _) {

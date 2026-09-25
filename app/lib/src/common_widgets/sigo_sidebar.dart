@@ -25,7 +25,7 @@ class SigoSidebar extends ConsumerWidget {
     final pathSegments = uri.pathSegments;
     String? cId;
     String? oId;
-    if (pathSegments.length >= 2 && pathSegments[0] == 'construtora') {
+    if (pathSegments.length >= 2 && pathSegments[0] == 'construtoras') {
       cId = pathSegments[1];
       if (pathSegments.length >= 4 && pathSegments[2] == 'obra') {
         oId = pathSegments[3];
@@ -221,10 +221,10 @@ class SigoSidebar extends ConsumerWidget {
                   _NavItem(
                     icon: Icons.dashboard,
                     title: 'Dashboard',
-                    isActive: activeRoute == '/construtora/$cId/obra/$oId',
+                    isActive: activeRoute == '/construtoras/$cId/obra/$oId',
                     onTap: () {
                       Scaffold.maybeOf(context)?.closeDrawer();
-                      context.go('/construtora/$cId/obra/$oId');
+                      context.go('/construtoras/$cId/obra/$oId');
                     },
                   ),
                   if (isDev ||
@@ -234,11 +234,11 @@ class SigoSidebar extends ConsumerWidget {
                           construtoraModules.contains('lotes')))
                     _NavItem(
                       icon: Icons.map,
-                      title: 'Lotes e Setores',
-                      isActive: activeRoute.contains('/lotes'),
+                      title: 'Loteamentos',
+                      isActive: activeRoute.contains('/loteamentos'),
                       onTap: () {
                         Scaffold.maybeOf(context)?.closeDrawer();
-                        context.go('/construtora/$cId/loteamentos');
+                        context.go('/construtoras/$cId/loteamentos');
                       },
                     ),
                   if (obra != null &&
@@ -251,7 +251,7 @@ class SigoSidebar extends ConsumerWidget {
                       isActive: activeRoute.contains('/diarios'),
                       onTap: () {
                         Scaffold.maybeOf(context)?.closeDrawer();
-                        context.go('/construtora/$cId/obra/$oId/diarios');
+                        context.go('/construtoras/$cId/obra/$oId/diarios');
                       },
                     ),
                   if (obra != null &&
@@ -265,7 +265,7 @@ class SigoSidebar extends ConsumerWidget {
                       isActive: activeRoute.contains('/rh/chamadas'),
                       onTap: () {
                         Scaffold.maybeOf(context)?.closeDrawer();
-                        context.go('/construtora/$cId/obra/$oId/rh/chamadas');
+                        context.go('/construtoras/$cId/obra/$oId/rh/chamadas');
                       },
                     ),
                   if (canEpi)
@@ -275,7 +275,7 @@ class SigoSidebar extends ConsumerWidget {
                       isActive: activeRoute.contains('/epis/entrega'),
                       onTap: () {
                         Scaffold.maybeOf(context)?.closeDrawer();
-                        context.go('/construtora/$cId/obra/$oId/epis/entrega');
+                        context.go('/construtoras/$cId/obra/$oId/epis/entrega');
                       },
                     ),
                   if (canAdm)
@@ -285,7 +285,7 @@ class SigoSidebar extends ConsumerWidget {
                       isActive: activeRoute.contains('/despesas'),
                       onTap: () {
                         Scaffold.maybeOf(context)?.closeDrawer();
-                        context.go('/construtora/$cId/obra/$oId/despesas');
+                        context.go('/construtoras/$cId/obra/$oId/despesas');
                       },
                     ),
                   if (canCompras)
@@ -295,7 +295,7 @@ class SigoSidebar extends ConsumerWidget {
                       isActive: activeRoute.contains('/compras'),
                       onTap: () {
                         Scaffold.maybeOf(context)?.closeDrawer();
-                        context.go('/construtora/$cId/obra/$oId/compras');
+                        context.go('/construtoras/$cId/obra/$oId/compras');
                       },
                     ),
                   if (canAdm || canFinanceiro)
@@ -305,7 +305,7 @@ class SigoSidebar extends ConsumerWidget {
                       isActive: activeRoute.contains('/custos-360'),
                       onTap: () {
                         Scaffold.maybeOf(context)?.closeDrawer();
-                        context.go('/construtora/$cId/obra/$oId/custos-360');
+                        context.go('/construtoras/$cId/obra/$oId/custos-360');
                       },
                     ),
                   if (!collapsed) ...[
@@ -343,7 +343,7 @@ class SigoSidebar extends ConsumerWidget {
                     icon: Icons.sync,
                     title: 'Fila deste dispositivo',
                     isActive: activeRoute.endsWith('/sync'),
-                    onTap: () => context.go('/construtora/$cId/sync'),
+                    onTap: () => context.go('/construtoras/$cId/sync'),
                   ),
                 if (cId != null && canRh)
                   _NavItem(
@@ -353,7 +353,7 @@ class SigoSidebar extends ConsumerWidget {
                         !activeRoute.contains('/chamadas'),
                     onTap: () {
                       Scaffold.maybeOf(context)?.closeDrawer();
-                      context.go('/construtora/$cId/rh/funcionarios');
+                      context.go('/construtoras/$cId/rh/funcionarios');
                     },
                   ),
                 if (cId != null && canEpiCatalogo)
@@ -363,7 +363,7 @@ class SigoSidebar extends ConsumerWidget {
                     isActive: activeRoute.contains('/epis') && !activeRoute.contains('/obra/'),
                     onTap: () {
                       Scaffold.maybeOf(context)?.closeDrawer();
-                      context.go('/construtora/$cId/epis');
+                      context.go('/construtoras/$cId/epis');
                     },
                   ),
                 if (cId != null && canValidacao)
@@ -373,7 +373,7 @@ class SigoSidebar extends ConsumerWidget {
                     isActive: activeRoute.contains('/validacao/templates'),
                     onTap: () {
                       Scaffold.maybeOf(context)?.closeDrawer();
-                      context.go('/construtora/$cId/validacao/templates');
+                      context.go('/construtoras/$cId/validacao/templates');
                     },
                   ),
                 if (cId != null && canFornecedores)
@@ -383,7 +383,7 @@ class SigoSidebar extends ConsumerWidget {
                     isActive: activeRoute.contains('/fornecedores'),
                     onTap: () {
                       Scaffold.maybeOf(context)?.closeDrawer();
-                      context.go('/construtora/$cId/fornecedores');
+                      context.go('/construtoras/$cId/fornecedores');
                     },
                   ),
                 if (cId != null && canEstoque)
@@ -393,7 +393,7 @@ class SigoSidebar extends ConsumerWidget {
                     isActive: activeRoute.contains('/almoxarifado'),
                     onTap: () {
                       Scaffold.maybeOf(context)?.closeDrawer();
-                      context.go('/construtora/$cId/almoxarifado');
+                      context.go('/construtoras/$cId/almoxarifado');
                     },
                   ),
                 if (cId != null && canFinanceiro)
@@ -403,7 +403,7 @@ class SigoSidebar extends ConsumerWidget {
                     isActive: activeRoute.contains('/financeiro'),
                     onTap: () {
                       Scaffold.maybeOf(context)?.closeDrawer();
-                      context.go('/construtora/$cId/financeiro');
+                      context.go('/construtoras/$cId/financeiro');
                     },
                   ),
                 if (cId != null && canMembros)
@@ -413,7 +413,7 @@ class SigoSidebar extends ConsumerWidget {
                     isActive: activeRoute.contains('/membros'),
                     onTap: () {
                       Scaffold.maybeOf(context)?.closeDrawer();
-                      context.go('/construtora/$cId/membros');
+                      context.go('/construtoras/$cId/membros');
                     },
                   ),
                 if (isDev)

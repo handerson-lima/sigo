@@ -227,7 +227,7 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
     return SigoLayout(
       title: 'Detalhes da Compra / NF',
       activeRoute:
-          '/construtora/${widget.construtoraId}/obra/${widget.obraId}/compras',
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/compras',
       actions: [
         compraAsync.maybeWhen(
           data: (compra) {
@@ -240,7 +240,7 @@ class _CompraDetalhesScreenState extends ConsumerState<CompraDetalhesScreen> {
               onSelected: (val) {
                 if (val == 'editar') {
                   context.push(
-                    '/construtora/${widget.construtoraId}/obra/${widget.obraId}/compras/${widget.compraId}/editar',
+                    '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/compras/${widget.compraId}/editar',
                   );
                 } else if (val == 'cancelar') {
                   _cancelarCompra(compra);

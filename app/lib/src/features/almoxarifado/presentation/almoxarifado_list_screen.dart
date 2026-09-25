@@ -30,10 +30,10 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
 
     return SigoLayout(
       title: 'Almoxarifado Central',
-      activeRoute: '/construtora/$construtoraId/almoxarifado',
+      activeRoute: '/construtoras/$construtoraId/almoxarifado',
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.go(
-          '/construtora/$construtoraId/almoxarifado/novo_material',
+          '/construtoras/$construtoraId/almoxarifado/novo_material',
         ),
         icon: const Icon(Icons.add),
         label: const Text('Novo Material'),
@@ -112,7 +112,7 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
                       icon: const Icon(Icons.arrow_upward, color: Colors.green),
                       tooltip: 'Registrar Entrada',
                       onPressed: () => context.go(
-                        '/construtora/$construtoraId/almoxarifado/movimentacao',
+                        '/construtoras/$construtoraId/almoxarifado/movimentacao',
                         extra: {'material': material, 'type': 'entrada'},
                       ),
                     ),
@@ -120,7 +120,7 @@ class AlmoxarifadoListScreen extends ConsumerWidget {
                       icon: const Icon(Icons.arrow_downward, color: Colors.red),
                       tooltip: 'Registrar Saída',
                       onPressed: () => context.go(
-                        '/construtora/$construtoraId/almoxarifado/movimentacao',
+                        '/construtoras/$construtoraId/almoxarifado/movimentacao',
                         extra: {'material': material, 'type': 'saida'},
                       ),
                     ),

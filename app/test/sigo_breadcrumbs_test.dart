@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 GoRouter _router() => GoRouter(
-      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
       routes: [
         GoRoute(
-          path: '/construtora/:cId',
+          path: '/construtoras/:cId',
           builder: (context, state) => const SizedBox(),
           routes: [
             GoRoute(
@@ -51,10 +51,11 @@ void main() {
     await tester.pumpWidget(MaterialApp.router(routerConfig: _router()));
     await tester.pumpAndSettle();
 
+    expect(find.text('Construtora'), findsOneWidget);
     expect(find.text('Loteamento'), findsOneWidget);
     expect(find.text('Quadra'), findsOneWidget);
     expect(find.text('Lotes'), findsOneWidget);
-    expect(find.text('/'), findsNWidgets(2));
+    expect(find.text('/'), findsNWidgets(3));
   });
 
   testWidgets('tocar num segmento com url navega para a lista do nivel',

@@ -32,7 +32,7 @@ class EtapasListScreen extends ConsumerWidget {
     );
     final etapasAsync = ref.watch(watchEtapasProvider(params));
     final baseRoute =
-        '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/etapas';
+        '/construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/etapas';
 
     return SigoLayout(
       title: 'Etapas',

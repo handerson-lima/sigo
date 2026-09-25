@@ -33,7 +33,7 @@ void main() {
           data: MediaQueryData(size: physicalSize),
           child: const SigoLayout(
             title: 'Painel Teste',
-            activeRoute: '/construtora/c1/obra/o1',
+            activeRoute: '/construtoras/c1/obra/o1',
             child: Text('Conteudo Principal'),
           ),
         ),

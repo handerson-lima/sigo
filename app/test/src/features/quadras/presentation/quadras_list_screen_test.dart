@@ -30,10 +30,10 @@ Quadra makeQuadra(String id) => Quadra(
 
 Widget buildTestWidget(Widget child) {
   final router = GoRouter(
-    initialLocation: '/construtora/c1/loteamentos/l1/quadras',
+    initialLocation: '/construtoras/c1/loteamentos/l1/quadras',
     routes: [
       GoRoute(
-        path: '/construtora/c1/loteamentos/l1/quadras',
+        path: '/construtoras/c1/loteamentos/l1/quadras',
         builder: (context, state) => child,
       ),
     ],
@@ -148,10 +148,10 @@ void main() {
     var buildCount = 0;
 
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos/l1/quadras',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras',
       routes: [
         GoRoute(
-          path: '/construtora/c1/loteamentos/l1/quadras',
+          path: '/construtoras/c1/loteamentos/l1/quadras',
           builder: (context, state) => ValueListenableBuilder<int>(
             valueListenable: rebuild,
             builder: (context, _, _) {

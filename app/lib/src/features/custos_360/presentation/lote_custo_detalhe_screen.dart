@@ -159,7 +159,7 @@ class _LoteCustoDetalheScreenState
 
     return SigoLayout(
       title: titulo,
-      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/custos-360',
+      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/custos-360',
       actions: [
         IconButton(
           icon: const Icon(Icons.edit_calendar_outlined),

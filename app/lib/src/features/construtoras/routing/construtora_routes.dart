@@ -21,11 +21,11 @@ import '../../custos_360/routing/custos_360_routes.dart';
 /// Constantes de path para construtoras.
 abstract class ConstrutoraPaths {
   static const list = '/';
-  static const detail = '/construtora/:cId';
+  static const detail = '/construtoras/:cId';
   static const membros = 'membros';
 
-  static String detailFor(String cId) => '/construtora/$cId';
-  static String membrosFor(String cId) => '/construtora/$cId/membros';
+  static String detailFor(String cId) => '/construtoras/$cId';
+  static String membrosFor(String cId) => '/construtoras/$cId/membros';
 }
 
 /// Rotas do módulo de construtoras.

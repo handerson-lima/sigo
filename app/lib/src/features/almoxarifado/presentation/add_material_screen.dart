@@ -57,7 +57,7 @@ class _AddMaterialScreenState extends ConsumerState<AddMaterialScreen> {
   Widget build(BuildContext context) {
     return SigoLayout(
       title: 'Novo Material no Catálogo',
-      activeRoute: '/construtora/${widget.construtoraId}/almoxarifado',
+      activeRoute: '/construtoras/${widget.construtoraId}/almoxarifado',
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(

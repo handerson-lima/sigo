@@ -23,7 +23,12 @@ class SigoBreadcrumbs extends StatelessWidget {
     for (int i = 0; i < pathSegments.length; i++) {
       currentUrl += '/${pathSegments[i]}';
       
-      if (pathSegments[i] == 'loteamentos') {
+      if (pathSegments[i] == 'construtoras') {
+        if (i + 1 < pathSegments.length) {
+          final cid = pathSegments[i + 1];
+          segments.add(BreadcrumbSegment(label: 'Construtora', url: '/construtoras/$cid/loteamentos'));
+        }
+      } else if (pathSegments[i] == 'loteamentos') {
         if (i + 1 < pathSegments.length) {
           segments.add(BreadcrumbSegment(label: 'Loteamento', url: currentUrl));
         } else {

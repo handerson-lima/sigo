@@ -163,7 +163,7 @@ void main() {
       expect(find.text('Lote 01'), findsOneWidget);
     });
 
-    testWidgets('ObrasListScreen exibe botao de Nova Obra para Administrador', (tester) async {
+    testWidgets('ObrasListScreen exibe botao de Novo Loteamento para Administrador', (tester) async {
       final fakeRepo = FakeObraRepository();
 
       await tester.pumpWidget(
@@ -187,17 +187,17 @@ void main() {
       await tester.pumpAndSettle();
 
       // Encontra o botão de criar obra na AppBar e no centro do estado vazio
-      expect(find.byTooltip('Nova Obra'), findsOneWidget);
-      expect(find.text('Criar Nova Obra'), findsOneWidget);
+      expect(find.byTooltip('Novo Loteamento'), findsOneWidget);
+      expect(find.text('Criar Novo Loteamento'), findsOneWidget);
       // Admin/owner enxerga o atalho de Loteamentos
       expect(find.byTooltip('Loteamentos'), findsOneWidget);
 
-      // Clica em Nova Obra e abre diálogo
-      await tester.tap(find.byTooltip('Nova Obra'));
+      // Clica em Novo Loteamento e abre diálogo
+      await tester.tap(find.byTooltip('Novo Loteamento'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Nova Obra'), findsOneWidget);
-      expect(find.text('Nome da Obra *'), findsOneWidget);
+      expect(find.text('Novo Loteamento'), findsOneWidget);
+      expect(find.text('Nome do Loteamento *'), findsOneWidget);
 
       // Preenche e submete
       await tester.enterText(find.byType(TextFormField).first, 'Residencial Bela Vista');
@@ -209,7 +209,7 @@ void main() {
       expect(fakeRepo.obras.first.construtoraId, 'c1');
     });
 
-    testWidgets('ObrasListScreen oculta botao de Nova Obra para membro comum nao-admin', (tester) async {
+    testWidgets('ObrasListScreen oculta botao de Novo Loteamento para membro comum nao-admin', (tester) async {
       final fakeRepo = FakeObraRepository();
 
       await tester.pumpWidget(
@@ -233,8 +233,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Membro comum não vê ações administrativas de criação de obra
-      expect(find.byTooltip('Nova Obra'), findsNothing);
-      expect(find.text('Criar Nova Obra'), findsNothing);
+      expect(find.byTooltip('Novo Loteamento'), findsNothing);
+      expect(find.text('Criar Novo Loteamento'), findsNothing);
       // Sem módulo lotes, o atalho de Loteamentos fica oculto
       expect(find.byTooltip('Loteamentos'), findsNothing);
     });

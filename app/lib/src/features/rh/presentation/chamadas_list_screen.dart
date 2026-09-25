@@ -39,13 +39,13 @@ class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
 
     return SigoLayout(
       title: 'Chamada Diária (RH)',
-      activeRoute: '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
+      activeRoute: '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
       actions: [
         IconButton(
           icon: const Icon(Icons.add),
           tooltip: 'Nova Chamada',
           onPressed: () => context.push(
-            '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
+            '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
           ),
         ),
       ],
@@ -53,7 +53,7 @@ class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
         icon: const Icon(Icons.playlist_add_check),
         label: const Text('Nova Chamada'),
         onPressed: () => context.push(
-          '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
         ),
       ),
       child: Column(
@@ -126,7 +126,7 @@ class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
                             icon: const Icon(Icons.add),
                             label: const Text('Lançar Chamada de Hoje'),
                             onPressed: () => context.push(
-                              '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
+                              '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/nova',
                             ),
                           ),
                         ],
@@ -143,7 +143,7 @@ class _ChamadasListScreenState extends ConsumerState<ChamadasListScreen> {
                     return _ChamadaCard(
                       chamada: chamada,
                       onTap: () => context.push(
-                        '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/${chamada.id}',
+                        '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/${chamada.id}',
                       ),
                     );
                   },

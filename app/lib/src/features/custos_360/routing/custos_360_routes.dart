@@ -11,9 +11,9 @@ abstract class Custos360Paths {
       'obra/:oId/custos-360/lotes/:loteId';
 
   static String visao360For(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/custos-360';
+      '/construtoras/$cId/obra/$oId/custos-360';
   static String loteCustoFor(String cId, String oId, String loteId) =>
-      '/construtora/$cId/obra/$oId/custos-360/lotes/$loteId';
+      '/construtoras/$cId/obra/$oId/custos-360/lotes/$loteId';
 }
 
 /// Rotas do módulo de custos 360.

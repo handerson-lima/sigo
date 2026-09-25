@@ -16,10 +16,10 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       final router = GoRouter(
-        initialLocation: '/construtora/c1/obra/obraA',
+        initialLocation: '/construtoras/c1/obra/obraA',
         routes: [
           GoRoute(
-            path: '/construtora/:cId/obra/:oId',
+            path: '/construtoras/:cId/obra/:oId',
             builder: (context, state) {
               final cId = state.pathParameters['cId']!;
               final oId = state.pathParameters['oId']!;
@@ -42,7 +42,7 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      expect(find.text('Lotes e Setores'), findsNothing);
+      expect(find.text('Loteamentos'), findsNothing);
       expect(find.text('Diário de Obra'), findsNothing);
     },
   );
@@ -55,10 +55,10 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       final router = GoRouter(
-        initialLocation: '/construtora/c1/obra/obraA',
+        initialLocation: '/construtoras/c1/obra/obraA',
         routes: [
           GoRoute(
-            path: '/construtora/:cId/obra/:oId',
+            path: '/construtoras/:cId/obra/:oId',
             builder: (context, state) {
               final cId = state.pathParameters['cId']!;
               final oId = state.pathParameters['oId']!;

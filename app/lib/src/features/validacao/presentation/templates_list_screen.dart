@@ -38,7 +38,7 @@ class _TemplatesListScreenState extends ConsumerState<TemplatesListScreen> {
 
     return SigoLayout(
       title: 'Templates de Validação & Qualidade',
-      activeRoute: '/construtora/${widget.construtoraId}/validacao/templates',
+      activeRoute: '/construtoras/${widget.construtoraId}/validacao/templates',
       actions: [
         ElevatedButton.icon(
           onPressed: () => _abrirDialogTemplate(),

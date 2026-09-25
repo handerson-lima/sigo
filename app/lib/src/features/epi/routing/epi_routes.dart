@@ -9,9 +9,9 @@ abstract class EpiPaths {
   static const catalogo = 'epis';
   static const entrega = 'obra/:oId/epis/entrega';
 
-  static String catalogoFor(String cId) => '/construtora/$cId/epis';
+  static String catalogoFor(String cId) => '/construtoras/$cId/epis';
   static String entregaFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/epis/entrega';
+      '/construtoras/$cId/obra/$oId/epis/entrega';
 }
 
 /// Rotas do módulo de EPIs.

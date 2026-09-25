@@ -12,13 +12,13 @@ abstract class DiarioPaths {
   static const novo = 'obra/:oId/diarios/novo';
   static const sync = 'obra/:oId/diarios/sync';
 
-  static String syncConstrutoraFor(String cId) => '/construtora/$cId/sync';
+  static String syncConstrutoraFor(String cId) => '/construtoras/$cId/sync';
   static String listFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/diarios';
+      '/construtoras/$cId/obra/$oId/diarios';
   static String novoFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/diarios/novo';
+      '/construtoras/$cId/obra/$oId/diarios/novo';
   static String syncFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/diarios/sync';
+      '/construtoras/$cId/obra/$oId/diarios/sync';
 }
 
 /// Rotas do módulo de diário de obra.

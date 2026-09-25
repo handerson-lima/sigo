@@ -37,7 +37,7 @@ class EquipesListScreen extends ConsumerWidget {
     return SigoLayout(
       title: 'Equipes',
       activeRoute:
-          '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/etapas/$etapaId/equipes',
+          '/construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes/$loteId/etapas/$etapaId/equipes',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

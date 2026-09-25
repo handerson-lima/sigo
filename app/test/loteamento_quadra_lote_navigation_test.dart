@@ -164,10 +164,10 @@ void main() {
   testWidgets('LoteamentosListScreen navega para a lista de quadras',
       (tester) async {
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos',
+      initialLocation: '/construtoras/c1/loteamentos',
       routes: [
         GoRoute(
-          path: '/construtora/:cId/loteamentos',
+          path: '/construtoras/:cId/loteamentos',
           builder: (context, state) => LoteamentosListScreen(
             construtoraId: state.pathParameters['cId']!,
           ),
@@ -207,10 +207,10 @@ void main() {
 
   testWidgets('QuadrasListScreen navega para a lista de lotes', (tester) async {
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos/l1/quadras',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras',
       routes: [
         GoRoute(
-          path: '/construtora/:cId/loteamentos/:loteamentoId/quadras',
+          path: '/construtoras/:cId/loteamentos/:loteamentoId/quadras',
           builder: (context, state) => QuadrasListScreen(
             construtoraId: state.pathParameters['cId']!,
             loteamentoId: state.pathParameters['loteamentoId']!,
@@ -254,7 +254,7 @@ void main() {
       'rotas reais aninhadas renderizam breadcrumbs e crumb-pai ascende para a lista',
       (tester) async {
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
       routes: construtoraRoutes,
     );
 
@@ -302,13 +302,13 @@ void main() {
     expect(find.text('Quadra q1'), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras',
+      '/construtoras/c1/loteamentos/l1/quadras',
     );
   });
 
   testWidgets('crumb raiz ascende para a lista de loteamentos', (tester) async {
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
       routes: construtoraRoutes,
     );
 
@@ -338,14 +338,14 @@ void main() {
     expect(find.byType(LoteamentosListScreen), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos',
+      '/construtoras/c1/loteamentos',
     );
   });
 
   testWidgets('deep-link em :loteId redireciona para a lista de etapas',
       (tester) async {
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1',
       routes: construtoraRoutes,
     );
 
@@ -367,7 +367,7 @@ void main() {
     expect(find.text('Etapa e1'), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas',
+      '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas',
     );
   });
 
@@ -375,7 +375,7 @@ void main() {
       (tester) async {
     final router = GoRouter(
       initialLocation:
-          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1',
+          '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1',
       routes: construtoraRoutes,
     );
 
@@ -398,14 +398,14 @@ void main() {
     expect(find.text('Equipe e1'), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1/equipes',
+      '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1/equipes',
     );
   });
 
   testWidgets('crumb de Etapa ascende para a lista de etapas', (tester) async {
     final router = GoRouter(
       initialLocation:
-          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1/equipes',
+          '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1/equipes',
       routes: construtoraRoutes,
     );
 
@@ -433,14 +433,14 @@ void main() {
     expect(find.byType(EtapasListScreen), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas',
+      '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas',
     );
   });
 
   testWidgets('deep-link em :loteamentoId redireciona para a lista de quadras',
       (tester) async {
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos/l1',
+      initialLocation: '/construtoras/c1/loteamentos/l1',
       routes: construtoraRoutes,
     );
 
@@ -465,14 +465,14 @@ void main() {
     expect(find.text('Quadra q1'), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras',
+      '/construtoras/c1/loteamentos/l1/quadras',
     );
   });
 
   testWidgets('deep-link em :quadraId redireciona para a lista de lotes',
       (tester) async {
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1',
       routes: construtoraRoutes,
     );
 
@@ -497,7 +497,7 @@ void main() {
     expect(find.text('Lote lo1'), findsOneWidget);
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+      '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
     );
   });
 
@@ -505,7 +505,7 @@ void main() {
       (tester) async {
     final router = GoRouter(
       initialLocation:
-          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1?x=1#alvo',
+          '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1?x=1#alvo',
       routes: construtoraRoutes,
     );
 
@@ -523,7 +523,7 @@ void main() {
 
     expect(
       router.state.uri.path,
-      '/construtora/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas',
+      '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas',
     );
     expect(router.state.uri.queryParameters['x'], '1');
     expect(router.state.uri.fragment, 'alvo');
@@ -532,7 +532,7 @@ void main() {
   testWidgets('admin toca Novo Lote e abre AddLoteScreen com os ids corretos',
       (tester) async {
     final router = GoRouter(
-      initialLocation: '/construtora/c1/loteamentos/l1/quadras/q1/lotes',
+      initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
       routes: construtoraRoutes,
     );
 
@@ -563,7 +563,7 @@ void main() {
   testWidgets('membro nao-admin nao acessa a rota lotes/novo', (tester) async {
     final router = GoRouter(
       initialLocation:
-          '/construtora/c1/loteamentos/l1/quadras/q1/lotes/novo',
+          '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/novo',
       routes: construtoraRoutes,
     );
 
@@ -590,20 +590,20 @@ void main() {
   });
 
   testWidgets(
-      'card legado de Lotes e Setores navega para a lista de loteamentos',
+      'card legado de Loteamentos navega para a lista de loteamentos',
       (tester) async {
     final router = GoRouter(
-      initialLocation: '/construtora/c1/obra/o1',
+      initialLocation: '/construtoras/c1/obra/o1',
       routes: [
         GoRoute(
-          path: '/construtora/:cId/obra/:oId',
+          path: '/construtoras/:cId/obra/:oId',
           builder: (context, state) => ObraDashboardScreen(
             construtoraId: state.pathParameters['cId']!,
             obraId: state.pathParameters['oId']!,
           ),
         ),
         GoRoute(
-          path: '/construtora/:cId/loteamentos',
+          path: '/construtoras/:cId/loteamentos',
           builder: (context, state) => LoteamentosListScreen(
             construtoraId: state.pathParameters['cId']!,
           ),
@@ -645,10 +645,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Lotes e Setores'));
+    await tester.tap(find.text('Loteamentos'));
     await tester.pumpAndSettle();
 
-    expect(router.state.uri.path, '/construtora/c1/loteamentos');
+    expect(router.state.uri.path, '/construtoras/c1/loteamentos');
     expect(find.byType(LoteamentosListScreen), findsOneWidget);
   });
 }

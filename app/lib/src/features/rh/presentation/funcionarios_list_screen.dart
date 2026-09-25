@@ -40,7 +40,7 @@ class _FuncionariosListScreenState
 
     return SigoLayout(
       title: 'Recursos Humanos — Funcionários',
-      activeRoute: '/construtora/${widget.construtoraId}/rh',
+      activeRoute: '/construtoras/${widget.construtoraId}/rh',
       actions: [
         IconButton(
           key: const Key('btn_open_equipes'),
@@ -60,7 +60,7 @@ class _FuncionariosListScreenState
           tooltip: 'Novo Funcionário',
           onPressed: () {
             context.push(
-              '/construtora/${widget.construtoraId}/rh/funcionarios/novo',
+              '/construtoras/${widget.construtoraId}/rh/funcionarios/novo',
             );
           },
         ),
@@ -69,7 +69,7 @@ class _FuncionariosListScreenState
         key: const Key('btn_add_funcionario_fab'),
         onPressed: () {
           context.push(
-            '/construtora/${widget.construtoraId}/rh/funcionarios/novo',
+            '/construtoras/${widget.construtoraId}/rh/funcionarios/novo',
           );
         },
         icon: const Icon(Icons.add),

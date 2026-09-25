@@ -14,13 +14,13 @@ abstract class DespesasAdmPaths {
       'obra/:oId/despesas/:despesaId/editar';
 
   static String listFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/despesas';
+      '/construtoras/$cId/obra/$oId/despesas';
   static String novaFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId/despesas/nova';
+      '/construtoras/$cId/obra/$oId/despesas/nova';
   static String detalhesFor(String cId, String oId, String despesaId) =>
-      '/construtora/$cId/obra/$oId/despesas/$despesaId';
+      '/construtoras/$cId/obra/$oId/despesas/$despesaId';
   static String editarFor(String cId, String oId, String despesaId) =>
-      '/construtora/$cId/obra/$oId/despesas/$despesaId/editar';
+      '/construtoras/$cId/obra/$oId/despesas/$despesaId/editar';
 }
 
 /// Rotas do módulo de despesas administrativas.

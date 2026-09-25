@@ -25,7 +25,7 @@ class QuadrasListScreen extends ConsumerWidget {
     return SigoLayout(
       title: 'Quadras',
       activeRoute:
-          '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras',
+          '/construtoras/$construtoraId/loteamentos/$loteamentoId/quadras',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -55,7 +55,7 @@ class QuadrasListScreen extends ConsumerWidget {
                       trailing: const Icon(Icons.arrow_forward_ios),
                       onTap: () {
                         context.go(
-                          '/construtora/$construtoraId/loteamentos/$loteamentoId/quadras/${item.id}/lotes',
+                          '/construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/${item.id}/lotes',
                         );
                       },
                     );

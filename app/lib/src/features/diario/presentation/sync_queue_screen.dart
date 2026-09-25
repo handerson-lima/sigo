@@ -28,7 +28,7 @@ class SyncQueueScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SigoLayout(
     title: 'Fila deste dispositivo',
-    activeRoute: '/construtora/$construtoraId/obra/$obraId/diarios',
+    activeRoute: '/construtoras/$construtoraId/obra/$obraId/diarios',
     child: StreamBuilder<List<Map<String, dynamic>>>(
       stream: OperationQueue.instance.watch(),
       builder: (context, snapshot) {

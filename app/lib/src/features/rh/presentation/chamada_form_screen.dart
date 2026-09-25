@@ -119,7 +119,7 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
             textColor: Colors.white,
             onPressed: () {
               context.pushReplacement(
-                '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/${existing.id}',
+                '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas/${existing.id}',
               );
             },
           ),
@@ -515,7 +515,7 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
 
             return ChamadaFormView(
               activeRoute:
-                  '/construtora/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
+                  '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/rh/chamadas',
               existingChamada: _existingChamada,
               selectedDate: _selectedDate,
               formattedDate: _formattedDate,

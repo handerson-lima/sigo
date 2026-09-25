@@ -22,7 +22,7 @@ class LoteamentosListScreen extends ConsumerWidget {
 
     return SigoLayout(
       title: 'Loteamentos',
-      activeRoute: '/construtora/$construtoraId/loteamentos',
+      activeRoute: '/construtoras/$construtoraId/loteamentos',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -52,7 +52,7 @@ class LoteamentosListScreen extends ConsumerWidget {
                       trailing: const Icon(Icons.arrow_forward_ios),
                       onTap: () {
                         context.go(
-                          '/construtora/$construtoraId/loteamentos/${item.id}/quadras',
+                          '/construtoras/$construtoraId/loteamentos/${item.id}/quadras',
                         );
                       },
                     );

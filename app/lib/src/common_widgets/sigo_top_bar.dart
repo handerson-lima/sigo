@@ -66,7 +66,7 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
     if (route != null) {
       final uri = Uri.tryParse(route);
       final segments = uri?.pathSegments ?? [];
-      if (segments.length >= 2 && segments[0] == 'construtora') {
+      if (segments.length >= 2 && segments[0] == 'construtoras') {
         cId = segments[1];
         if (segments.length >= 4 && segments[2] == 'obra') {
           oId = segments[3];
@@ -235,7 +235,7 @@ class ObraSwitcher extends ConsumerWidget {
               key: const Key('obra-switcher-dropdown'),
               value: selectedValue,
               hint: const Text(
-                'Selecionar Obra',
+                'Selecionar Loteamento',
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
               icon: const Icon(Icons.swap_horiz, size: 18, color: Colors.amber),
@@ -269,7 +269,7 @@ class ObraSwitcher extends ConsumerWidget {
               }).toList(),
               onChanged: (newObraId) {
                 if (newObraId != null && newObraId != currentObraId) {
-                  context.go('/construtora/$construtoraId/obra/$newObraId');
+                  context.go('/construtoras/$construtoraId/obra/$newObraId');
                 }
               },
             ),

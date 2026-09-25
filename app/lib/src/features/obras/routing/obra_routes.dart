@@ -8,7 +8,7 @@ abstract class ObraPaths {
   static const dashboard = 'obra/:oId';
 
   static String dashboardFor(String cId, String oId) =>
-      '/construtora/$cId/obra/$oId';
+      '/construtoras/$cId/obra/$oId';
 }
 
 /// Rotas do módulo de obras.

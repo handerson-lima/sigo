@@ -166,7 +166,7 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
 
     return SigoLayout(
       title: 'Gestão de Membros',
-      activeRoute: '/construtora/$construtoraId/membros',
+      activeRoute: '/construtoras/$construtoraId/membros',
       actions: [
         IconButton(
           icon: const Icon(Icons.person_add),

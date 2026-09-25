@@ -10,10 +10,10 @@ abstract class FornecedoresPaths {
   static const novo = 'fornecedores/novo';
   static const editar = 'fornecedores/:fornecedorId/editar';
 
-  static String listFor(String cId) => '/construtora/$cId/fornecedores';
-  static String novoFor(String cId) => '/construtora/$cId/fornecedores/novo';
+  static String listFor(String cId) => '/construtoras/$cId/fornecedores';
+  static String novoFor(String cId) => '/construtoras/$cId/fornecedores/novo';
   static String editarFor(String cId, String fornecedorId) =>
-      '/construtora/$cId/fornecedores/$fornecedorId/editar';
+      '/construtoras/$cId/fornecedores/$fornecedorId/editar';
 }
 
 /// Rotas do módulo de fornecedores.

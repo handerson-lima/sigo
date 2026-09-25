@@ -44,11 +44,11 @@ class _ComprasListScreenState extends ConsumerState<ComprasListScreen> {
     return SigoLayout(
       title: 'Compras e Notas Fiscais',
       activeRoute:
-          '/construtora/${widget.construtoraId}/obra/${widget.obraId}/compras',
+          '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/compras',
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           context.push(
-            '/construtora/${widget.construtoraId}/obra/${widget.obraId}/compras/nova',
+            '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/compras/nova',
           );
         },
         icon: const Icon(Icons.add),
@@ -264,7 +264,7 @@ class _ComprasListScreenState extends ConsumerState<ComprasListScreen> {
           borderRadius: BorderRadius.circular(10),
           onTap: () {
             context.push(
-              '/construtora/${widget.construtoraId}/obra/${widget.obraId}/compras/${compra.id}',
+              '/construtoras/${widget.construtoraId}/obra/${widget.obraId}/compras/${compra.id}',
             );
           },
           child: Padding(
