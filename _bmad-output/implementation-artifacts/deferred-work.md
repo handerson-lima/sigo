@@ -247,3 +247,9 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `_bmad-output/implementation-artifacts/spec-13-1-atualizar-esquema-dados-raiz-firestore.md`
   summary: `Etapa` usa codec de data ISO string, divergindo de `Equipe` (Firestore Timestamp).
   evidence: `app/lib/src/features/etapas/domain/etapa.dart` não usa `_dateTimeFromTimestamp`; segue o estilo de `lote.dart`/`quadra.dart`. A unificação dos codecs nos 5 models é a retro-item 39 (já aberta).
+
+## Deferred from: planning of spec-13-2-rotas-declarativas-drill-down (2026-09-25)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-2-rotas-declarativas-drill-down.md`
+  summary: Higienizar o estado global de navegação `obraSelecionadaProvider`/`ObraSwitcher`, que deveria ser derivado da URL conforme o AD-2.
+  evidence: `app/lib/src/features/construtoras/presentation/membros_providers.dart:206-217` (`obraSelecionadaProvider`) e `app/lib/src/common_widgets/sigo_top_bar.dart:206-282` (switcher navegando por estado). Decidido diferir para focar a 13.2 no drill-down Construtora→Loteamento→Quadra; os módulos obra-scoped permanecem funcionais até a higienização.
