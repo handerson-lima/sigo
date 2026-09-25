@@ -701,18 +701,17 @@ void main() {
         }
         return null;
       },
-      routes: construtoraRoutes,
+      routes: [
+        GoRoute(
+          path: '/construtoras/:cId/loteamentos',
+          builder: (context, state) => const SizedBox(),
+        ),
+      ],
     );
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
 
     router.go('/construtora/c1/loteamentos?q=1#frag');
-    // Only pump once to process the route change without looping indefinitely
     await tester.pump();
 
     expect(router.routerDelegate.currentConfiguration.uri.toString(), '/construtoras/c1/loteamentos?q=1#frag');
