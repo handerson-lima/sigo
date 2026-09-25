@@ -266,3 +266,15 @@ So that eu não acesse projetos inativos indevidamente.
 **When** a lista é carregada
 **Then** não vejo construtoras que tenham `isActive == false`
 **And** a restrição é forçada no backend (queries `.where('isActive', isEqualTo: true)`) e também via Security Rules (Firestore).
+
+## Epic 13: Navegação Hierárquica Loteamento a Equipe
+
+Este epic implementa a fundação completa de dados e navegação para a nova hierarquia de domínio: Construtora → Loteamento → Quadra → Lote → Etapa → Equipe.
+
+### Story 13.1: Atualizar esquema de dados raiz no Firestore
+
+### Story 13.2: Rotas Declarativas e Drill-down Inicial
+
+### Story 13.3: Ramificação Específica de Etapas por Lote
+
+### Story 13.4: Navegação Final: Alocação de Equipe na Etapa
