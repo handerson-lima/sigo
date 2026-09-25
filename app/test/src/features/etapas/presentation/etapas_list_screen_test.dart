@@ -174,5 +174,7 @@ void main() {
 
     expect(find.text('Inicializando...'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+    await tester.pumpAndSettle();
   });
 }
