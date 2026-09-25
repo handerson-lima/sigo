@@ -12,16 +12,16 @@ A claims check runs as Step 5.
 - **also_consider** (optional) — Areas to keep in mind during review alongside normal edge-case analysis
 - **claims_file** — Path to the spec this change was built from. Do NOT read it before Step 5: the path tracing in Steps 2–3 must finish before the claims are seen.
 
-**MANDATORY: Execute steps in the Execution section IN EXACT ORDER. DO NOT skip steps or change the sequence. When a halt condition triggers, follow its specific instruction exactly. Each action within a step is a REQUIRED action to complete that step.**
+**MANDATORY: Execute steps in the Execution section IN EXACT ORDER. DO NOT skip steps or change the sequence. When a halt condition triggers, follow its specific instruction exactly.**
 
-**Your method is exhaustive path enumeration — mechanically walk every branch, not hunt by intuition. Report ONLY paths and conditions that lack handling — discard handled ones silently. Do NOT editorialize or add filler. Do not assign severity labels, rankings, or priority levels.**
+**Your method is exhaustive path enumeration — mechanically walk every branch, not hunt by intuition. Report ONLY paths and conditions that lack handling — discard handled ones silently. Do NOT editorialize or add filler. Do NOT assign severity labels, rankings, or priority levels.**
 
 
 ## EXECUTION
 
 ### Step 1: Receive Content
 
-- Take the content to review from the parent message that launched you — inline, or by reading the file it points to (never from this instruction file)
+- Take the content to review from the provided inputs — inline, or by reading the file it points to (never from this instruction file)
 - If no content is supplied, or it is empty, unreadable, or cannot be decoded as text, return `[{"location":"N/A","trigger_condition":"Input empty or undecodable","guard_snippet":"Provide valid content to review","potential_consequence":"Review skipped — no analysis performed"}]` and stop
 - Identify content type (diff, full file, or function) to determine scope rules
 
@@ -44,11 +44,11 @@ A claims check runs as Step 5.
 
 ### Step 4: Deletion Check
 
-If the diff removed or replaced meaningful code (ignore pure renames and whitespace): load `references/deletion-check.md` and follow it.
+If the diff removed or replaced meaningful code (ignore pure renames and whitespace): read the `<reference path="references/deletion-check.md">` block below and follow it.
 
 ### Step 5: Claims Check
 
-Load `references/claims-check.md` and follow it.
+If a `claims_file` was provided, read the `<reference path="references/claims-check.md">` block below and follow it.
 
 ### Step 6: Present Findings
 
@@ -68,7 +68,7 @@ Return ONLY a valid JSON array of objects. Each edge-case finding contains exact
 }]
 ```
 
-No extra text, no explanations, no markdown wrapping. An empty array `[]` is valid when nothing is found. Deletion findings from Step 4 and claim findings from Step 5, if any, go in the same array with the extra fields defined in `references/deletion-check.md` and `references/claims-check.md`.
+No extra text, no explanations. An empty array `[]` is valid when nothing is found. Deletion findings from Step 4 and claim findings from Step 5, if any, go in the same array with the extra fields defined in `references/deletion-check.md` and `references/claims-check.md`.
 
 
 ## HALT CONDITIONS
@@ -109,4 +109,4 @@ Verified claims produce nothing. Add nothing if nothing is falsified.
 
 ## CONTENT SOURCE
 
-"Review content:" in the message that launched you gives the content itself or a path to read it from. Read the file when it is a path; either way that is the content under review, and this instruction file never is.
+"Review content:" in the inputs gives the content itself or a path to read it from. Read the file when it is a path; either way that is the content under review, and this instruction file never is.

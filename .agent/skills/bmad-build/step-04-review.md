@@ -24,7 +24,7 @@ Announce skipped layers first, then launch every active layer before handling an
 
 {workflow.review_layers}
 
-If a layer's instruction requires subagents and none are available, for each such layer write under `{{.implementation_artifacts}}` that layer's child prompt with every file it points to — the diff, the claims, the reviewer instruction file — replaced inline by that file's contents, and every other line left exactly as written. That session shares no filesystem with this one, so its prompt has to stand alone; this is the only place you read a reviewer instruction file yourself. Then HALT. Ask the human to run each in a separate session (ideally a different LLM) and paste back the findings.
+If a layer's instruction requires subagents and none are available, for each such layer write under `{{.implementation_artifacts}}` that layer's standalone fallback prompt. Do not inline the contents of `{diff_file}` or `{claims_file}`; leave them as paths or instruct the human to attach them, ensuring the anti-anchoring guarantee holds (claims must not be read before step 5). That session shares no filesystem with this one, so its prompt has to stand alone; this is the only place you read a reviewer instruction file yourself. Then HALT. Ask the human to run each in a separate session (ideally a different LLM), attaching the required files, and paste back the findings.
 
 ### Classify
 
