@@ -23,7 +23,7 @@ class LegacyRecovery extends ConsumerWidget {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Text(
-            'Não foi possível consultar pendências legadas desta obra.',
+            'Não foi possível consultar pendências legadas deste loteamento.',
           );
         }
         final docs = (snapshot.data?.docs ?? []).where(

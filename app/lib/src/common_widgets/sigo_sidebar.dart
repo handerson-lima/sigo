@@ -27,7 +27,7 @@ class SigoSidebar extends ConsumerWidget {
     String? oId;
     if (pathSegments.length >= 2 && pathSegments[0] == 'construtoras') {
       cId = pathSegments[1];
-      if (pathSegments.length >= 4 && (pathSegments[2] == 'obra' || pathSegments[2] == 'loteamentos')) {
+      if (pathSegments.length >= 4 && (pathSegments[2] == 'loteamentos')) {
         oId = pathSegments[3];
       }
     }

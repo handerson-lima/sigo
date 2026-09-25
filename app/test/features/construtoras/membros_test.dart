@@ -248,19 +248,19 @@ void main() {
 
   group('8.1 singular/plural', () {
     test('textoContagemObras 0/1/N', () {
-      expect(textoContagemObras(0), 'Nenhuma obra vinculada');
-      expect(textoContagemObras(1), '1 obra');
-      expect(textoContagemObras(2), '2 obras');
+      expect(textoContagemObras(0), 'Nenhum loteamento vinculado');
+      expect(textoContagemObras(1), '1 loteamento');
+      expect(textoContagemObras(2), '2 loteamentos');
     });
 
     test('subtitleMembroAtivo combina cargo + contador', () {
       final op = Membro(uid: 'u', isAdmin: false, role: 'operario');
-      expect(subtitleMembroAtivo(op, 2), 'Operário · 2 obras');
+      expect(subtitleMembroAtivo(op, 2), 'Operário · 2 loteamentos');
       final adm = Membro(uid: 'a', isAdmin: true, role: 'admin');
-      expect(subtitleMembroAtivo(adm, 1), 'Administrador · 1 obra');
+      expect(subtitleMembroAtivo(adm, 1), 'Administrador · 1 loteamento');
       expect(
         subtitleMembroAtivo(adm, 0),
-        'Administrador · Nenhuma obra vinculada',
+        'Administrador · Nenhum loteamento vinculado',
       );
     });
 
@@ -327,7 +327,7 @@ void main() {
     });
   });
 
-  testWidgets('8.1 pendente no topo + ativos com Cargo · N obras', (
+  testWidgets('8.1 pendente no topo + ativos com Cargo · N loteamentos', (
     tester,
   ) async {
     final mockMembros = [
@@ -367,9 +367,9 @@ void main() {
     expect(find.textContaining('novo@x.com'), findsOneWidget);
     expect(find.textContaining('⏳'), findsNothing);
 
-    // Ativos abaixo com Cargo · N obras.
-    expect(find.text('Operário · 2 obras'), findsOneWidget);
-    expect(find.text('Administrador · Nenhuma obra vinculada'), findsOneWidget);
+    // Ativos abaixo com Cargo · N loteamentos.
+    expect(find.text('Operário · 2 loteamentos'), findsOneWidget);
+    expect(find.text('Administrador · Nenhum loteamento vinculado'), findsOneWidget);
 
     // Ordem: pendente antes dos ativos.
     final pendenteY = tester.getTopLeft(find.text('Novo Membro')).dy;
@@ -499,7 +499,7 @@ void main() {
     expect(pendingBuilds, 2);
   });
 
-  testWidgets('8.1 obraMembers loading mostra placeholder sem zero falso', (
+  testWidgets('8.1 loteamentoMembers loading mostra placeholder sem zero falso', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -528,10 +528,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Operário · …'), findsOneWidget);
-    expect(find.text('Nenhuma obra vinculada'), findsNothing);
+    expect(find.text('Nenhum loteamento vinculado'), findsNothing);
   });
 
-  testWidgets('8.1 obraMembers com erro mostra placeholder sem zero falso', (
+  testWidgets('8.1 loteamentoMembers com erro mostra placeholder sem zero falso', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -564,10 +564,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Operário · …'), findsOneWidget);
-    expect(find.text('Nenhuma obra vinculada'), findsNothing);
+    expect(find.text('Nenhum loteamento vinculado'), findsNothing);
   });
 
-  testWidgets('8.1 obrasAtivas com erro mostra placeholder sem zero falso', (
+  testWidgets('8.1 loteamentosAtivas com erro mostra placeholder sem zero falso', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -595,7 +595,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Operário · …'), findsOneWidget);
-    expect(find.text('Nenhuma obra vinculada'), findsNothing);
+    expect(find.text('Nenhum loteamento vinculado'), findsNothing);
   });
 
   testWidgets('8.1 retry invalida obraMembers (contador incrementa)', (
@@ -1325,7 +1325,7 @@ void main() {
 
       await tester.tap(find.text('Por obra'));
       await tester.pumpAndSettle();
-      expect(find.text('Não foi possível carregar as obras.'), findsOneWidget);
+      expect(find.text('Não foi possível carregar os loteamentos.'), findsOneWidget);
     });
 
     testWidgets('8.2 Limpar busca restaura a lista', (tester) async {
@@ -1477,7 +1477,7 @@ void main() {
       expect(find.text('Operário'), findsWidgets);
       expect(find.text('Ativo'), findsWidgets);
       expect(find.text('Desde 15/01/2026'), findsOneWidget);
-      expect(find.text('Obras vinculadas'), findsOneWidget);
+      expect(find.text('Loteamentos vinculados'), findsOneWidget);
       expect(find.byType(ObraVinculoRow), findsOneWidget);
       expect(find.text('Obra o1'), findsOneWidget);
       expect(find.text('Operário'), findsWidgets);
@@ -1490,7 +1490,7 @@ void main() {
       expect(trocarCargo.onPressed, isNotNull);
 
       final atribuir = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Atribuir à obra'),
+        find.widgetWithText(FilledButton, 'Atribuir ao loteamento'),
       );
       expect(atribuir.onPressed, isNotNull);
     });
@@ -1507,7 +1507,7 @@ void main() {
       await tester.pumpAndSettle();
       await abrirDetalhe(tester);
 
-      expect(find.text('Nenhuma obra vinculada — Atribuir'), findsOneWidget);
+      expect(find.text('Nenhum loteamento vinculado — Atribuir'), findsOneWidget);
       expect(find.byType(ObraVinculoRow), findsNothing);
       expect(find.byType(ObraVinculoVazio), findsOneWidget);
       final ctaAcionavel = tester.widgetList<FilledButton>(
@@ -1558,7 +1558,7 @@ void main() {
 
       expect(find.byType(BottomSheet), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsWidgets);
-      expect(find.text('Nenhuma obra vinculada — Atribuir'), findsNothing);
+      expect(find.text('Nenhum loteamento vinculado — Atribuir'), findsNothing);
       expect(find.text('Desde 15/01/2026'), findsNothing);
     });
 
@@ -1660,11 +1660,11 @@ void main() {
       await abrirDetalheComSpinner(tester);
 
       expect(find.byType(CircularProgressIndicator), findsWidgets);
-      expect(find.text('Nenhuma obra vinculada — Atribuir'), findsNothing);
+      expect(find.text('Nenhum loteamento vinculado — Atribuir'), findsNothing);
       stream.add([_obra('o1')]);
       await tester.pumpAndSettle();
       expect(find.byType(ObraVinculoRow), findsOneWidget);
-      expect(find.text('Nenhuma obra vinculada — Atribuir'), findsNothing);
+      expect(find.text('Nenhum loteamento vinculado — Atribuir'), findsNothing);
     });
 
     testWidgets('8.3 obras erro mostra erro + retry sem virar vazio', (
@@ -1685,8 +1685,8 @@ void main() {
       await tester.pumpAndSettle();
       await abrirDetalhe(tester);
 
-      expect(find.text('Não foi possível carregar as obras.'), findsOneWidget);
-      expect(find.text('Nenhuma obra vinculada — Atribuir'), findsNothing);
+      expect(find.text('Não foi possível carregar os loteamentos.'), findsOneWidget);
+      expect(find.text('Nenhum loteamento vinculado — Atribuir'), findsNothing);
       expect(find.text('Tentar novamente'), findsWidgets);
     });
 
@@ -1712,17 +1712,17 @@ void main() {
       await tester.pumpAndSettle();
       await abrirDetalhe(tester);
 
-      expect(find.text('Não foi possível carregar as obras.'), findsOneWidget);
+      expect(find.text('Não foi possível carregar os loteamentos.'), findsOneWidget);
       expect(leituras, greaterThanOrEqualTo(1));
 
       await tester.tap(find.text('Tentar novamente').last);
       await tester.pumpAndSettle();
       expect(find.byType(ObraVinculoRow), findsOneWidget);
-      expect(find.text('Não foi possível carregar as obras.'), findsNothing);
+      expect(find.text('Não foi possível carregar os loteamentos.'), findsNothing);
       expect(leituras, greaterThan(1));
     });
 
-    testWidgets('8.3 a11y anuncia nome, cargo, N obras e status; Esc fecha', (
+    testWidgets('8.3 a11y anuncia nome, cargo, N loteamentos e status; Esc fecha', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();
@@ -1739,7 +1739,7 @@ void main() {
         expect(find.byType(MemberDetalheSheet), findsOneWidget);
         expect(
           find.bySemanticsLabel(
-            RegExp(r'ana@obra\.com.*Operário.*1 obra.*Ativo'),
+            RegExp(r'ana@obra\.com.*Operário.*1 loteamento.*Ativo'),
           ),
           findsWidgets,
         );
@@ -1823,7 +1823,7 @@ void main() {
       expect(find.byType(MemberDetalheSheet), findsOneWidget);
       expect(find.text('Detalhe de ana@obra.com'), findsOneWidget);
       expect(find.byType(ObraVinculoRow), findsOneWidget);
-      expect(find.text('Atribuir à obra'), findsOneWidget);
+      expect(find.text('Atribuir ao loteamento'), findsOneWidget);
       expect(find.byType(ObraVinculoVazio), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -1833,11 +1833,11 @@ void main() {
       expect(rotuloStatusVinculo(true), 'Ativo');
       expect(rotuloStatusVinculo(false), 'Inativo');
       expect(rotuloPapelObra(_om('u1', isAdmin: false)), 'Operário');
-      expect(rotuloPapelObra(_om('u1', isAdmin: true)), 'Admin da obra');
+      expect(rotuloPapelObra(_om('u1', isAdmin: true)), 'Admin do loteamento');
       expect(rotuloCargoFlags(isOwner: false, isAdmin: false), 'Operário');
       expect(rotuloCargoFlags(isOwner: false, isAdmin: true), 'Administrador');
       expect(rotuloCargoFlags(isOwner: true, isAdmin: true), 'Proprietário');
-      expect(obrasVinculadasVazioLabel, 'Nenhuma obra vinculada — Atribuir');
+      expect(obrasVinculadasVazioLabel, 'Nenhum loteamento vinculado — Atribuir');
     });
 
     testWidgets('8.3 ativo tem onTap na linha (chevron visível)', (
@@ -1951,14 +1951,14 @@ void main() {
       await tester.pumpAndSettle();
       await abrirDetalhe(tester);
 
-      expect(find.text('Não foi possível carregar as obras.'), findsOneWidget);
+      expect(find.text('Não foi possível carregar os loteamentos.'), findsOneWidget);
       expect(find.byType(ObraVinculoRow), findsNothing);
       expect(leituras, greaterThanOrEqualTo(1));
 
       await tester.tap(find.text('Tentar novamente').last);
       await tester.pumpAndSettle();
       expect(find.byType(ObraVinculoRow), findsOneWidget);
-      expect(find.text('Não foi possível carregar as obras.'), findsNothing);
+      expect(find.text('Não foi possível carregar os loteamentos.'), findsNothing);
       expect(leituras, greaterThan(1));
     });
   });
@@ -2032,11 +2032,11 @@ void main() {
         await tester.tap(find.text('ana@obra.com'));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
         await tester.pumpAndSettle();
 
         expect(find.byType(AtribuirObraDialog), findsOneWidget);
-        expect(find.text('Atribuir à obra'), findsWidgets);
+        expect(find.text('Atribuir ao loteamento'), findsWidgets);
         expect(find.text('Membro: ana@obra.com'), findsOneWidget);
         expect(find.text('Operário'), findsWidgets);
 
@@ -2107,7 +2107,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(AtribuirObraDialog.obraDropdownKey));
@@ -2165,7 +2165,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
       await tester.pumpAndSettle();
 
       expect(find.text('Nenhuma obra ativa'), findsOneWidget);
@@ -2176,7 +2176,7 @@ void main() {
     });
 
     testWidgets(
-      '9.1 membro inativo na construtora tem Atribuir à obra desabilitado',
+      '9.1 membro inativo na construtora tem Atribuir ao loteamento desabilitado',
       (tester) async {
         await tester.pumpWidget(
           ProviderScope(
@@ -2189,7 +2189,7 @@ void main() {
         await tester.pumpAndSettle();
 
         final atribuirBtn = tester.widget<FilledButton>(
-          find.widgetWithText(FilledButton, 'Atribuir à obra'),
+          find.widgetWithText(FilledButton, 'Atribuir ao loteamento'),
         );
         expect(atribuirBtn.onPressed, isNull);
         expect(find.text('Ative na construtora primeiro'), findsOneWidget);
@@ -2208,7 +2208,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(find.text('Cancelar'));
@@ -2234,7 +2234,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(AtribuirObraDialog.obraDropdownKey));
@@ -2273,7 +2273,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
@@ -2317,7 +2317,7 @@ void main() {
     Future<void> abrirDialogo(WidgetTester tester) async {
       await tester.tap(find.text('ana@obra.com'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir à obra'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Atribuir ao loteamento'));
       await tester.pumpAndSettle();
     }
 
@@ -2358,7 +2358,7 @@ void main() {
       await abrirDialogo(tester);
 
       await selecionarObra92(tester, 'Obra o2');
-      await selecionarPapel92(tester, 'Admin da obra');
+      await selecionarPapel92(tester, 'Admin do loteamento');
       await confirmar92(tester);
 
       expect(fakeObraMembersRepo.chamadas.length, 1);
@@ -2372,7 +2372,7 @@ void main() {
       });
       expect(find.byType(AtribuirObraDialog), findsNothing);
       expect(
-        find.text('Atribuído a Obra o2 como Admin da obra.'),
+        find.text('Atribuído a Obra o2 como Admin do loteamento.'),
         findsOneWidget,
       );
     });
@@ -2395,11 +2395,11 @@ void main() {
         findsOneWidget,
       );
 
-      await selecionarPapel92(tester, 'Admin da obra');
+      await selecionarPapel92(tester, 'Admin do loteamento');
 
       expect(
         find.text(
-          'ana@obra.com será Admin da obra em Obra o2 com acesso a Diário',
+          'ana@obra.com será Admin do loteamento em Obra o2 com acesso a Diário',
         ),
         findsOneWidget,
       );
@@ -2423,7 +2423,7 @@ void main() {
       );
       expect(roleDropdown.initialValue, 'operario');
       expect(find.text('Operário'), findsWidgets);
-      expect(find.text('Admin da obra'), findsNothing);
+      expect(find.text('Admin do loteamento'), findsNothing);
 
       await selecionarObra92(tester, 'Obra o2');
       await confirmar92(tester);
@@ -2520,13 +2520,13 @@ void main() {
         await tester.pumpAndSettle();
         await abrirDialogo(tester);
         await selecionarObra92(tester, 'Obra o2');
-        await selecionarPapel92(tester, 'Admin da obra');
+        await selecionarPapel92(tester, 'Admin do loteamento');
 
         expect(tester.takeException(), isNull);
         expect(find.byType(AtribuirObraDialog), findsOneWidget);
         expect(
           find.text(
-            'ana@obra.com será Admin da obra em Obra o2 com acesso a Diário',
+            'ana@obra.com será Admin do loteamento em Obra o2 com acesso a Diário',
           ),
           findsOneWidget,
         );
@@ -2534,7 +2534,7 @@ void main() {
         await tester.tap(find.byKey(AtribuirObraDialog.papelDropdownKey));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        expect(find.text('Admin da obra'), findsWidgets);
+        expect(find.text('Admin do loteamento'), findsWidgets);
       },
     );
 
@@ -2667,7 +2667,7 @@ void main() {
     }
 
     testWidgets(
-      '10.1 pré-preenchimento: isAdmin=true → dropdown mostra Admin da obra',
+      '10.1 pré-preenchimento: isAdmin=true → dropdown mostra Admin do loteamento',
       (tester) async {
         await tester.pumpWidget(
           buildTrocar(isAdmin: true, modules: ['diario', 'lotes']),
@@ -2678,7 +2678,7 @@ void main() {
         expect(find.byType(TrocarPapelDialog), findsOneWidget);
         // O resumo reflete o estado pré-preenchido
         expect(
-          find.textContaining('será Admin da obra em Obra o1'),
+          find.textContaining('será Admin do loteamento em Obra o1'),
           findsOneWidget,
         );
         // Chips diario e lotes marcados
@@ -2717,14 +2717,14 @@ void main() {
         await tester.tap(find.text('abrir'));
         await tester.pumpAndSettle();
 
-        // Seleciona Admin da obra
+        // Seleciona Admin do loteamento
         await tester.tap(find.byKey(TrocarPapelDialog.papelDropdownKey));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Admin da obra').last);
+        await tester.tap(find.text('Admin do loteamento').last);
         await tester.pumpAndSettle();
 
         expect(
-          find.textContaining('será Admin da obra em Obra o1'),
+          find.textContaining('será Admin do loteamento em Obra o1'),
           findsOneWidget,
         );
 
@@ -2835,9 +2835,9 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // 10.2 Remover da obra
+  // 10.2 Remover do loteamento
   // ---------------------------------------------------------------------------
-  group('10.2 Remover da obra', () {
+  group('10.2 Remover do loteamento', () {
     late FakeObraMembersRepository fakeRemover;
 
     setUp(() {
@@ -2889,7 +2889,7 @@ void main() {
         await tester.tap(overflowKey);
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Remover da obra'));
+        await tester.tap(find.text('Remover do loteamento'));
         await tester.pumpAndSettle();
 
         // Dialog confirm
@@ -2923,7 +2923,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('overflow-o1')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Remover da obra'));
+      await tester.tap(find.text('Remover do loteamento'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
@@ -2988,7 +2988,7 @@ void main() {
 
         expect(find.byType(TrocarPapelDialog), findsOneWidget);
         expect(
-          find.textContaining('será Admin da obra em Obra o1'),
+          find.textContaining('será Admin do loteamento em Obra o1'),
           findsOneWidget,
         );
         final chipDiario = tester.widget<FilterChip>(
@@ -3023,7 +3023,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('overflow-o1')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Remover da obra'));
+      await tester.tap(find.text('Remover do loteamento'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(FilledButton, 'Remover'));
@@ -3441,7 +3441,7 @@ void main() {
       }
 
       testWidgets(
-        '10.3 Desativar: dialog lista 2 obras afetadas pelo nome',
+        '10.3 Desativar: dialog lista 2 loteamentos afetadas pelo nome',
         (tester) async {
           await tester.pumpWidget(
             ProviderScope(
@@ -3495,7 +3495,7 @@ void main() {
       );
 
       testWidgets(
-        '10.3 Desativar HAPPY_PATH: 1 obra → N+1 CFs + snackbar Membro desativado',
+        '10.3 Desativar HAPPY_PATH: 1 loteamento → N+1 CFs + snackbar Membro desativado',
         (tester) async {
           await tester.pumpWidget(
             ProviderScope(
@@ -3530,7 +3530,7 @@ void main() {
       );
 
       testWidgets(
-        '10.3 Desativar HAPPY_PATH: 2 obras → N+1 CFs + indicador de progresso no botão',
+        '10.3 Desativar HAPPY_PATH: 2 loteamentos → N+1 CFs + indicador de progresso no botão',
         (tester) async {
           await tester.pumpWidget(
             ProviderScope(
@@ -3587,8 +3587,8 @@ void main() {
           await tester.tap(desativarBtn);
           await tester.pumpAndSettle();
 
-          // Verifica que lista o texto "Nenhuma obra vinculada"
-          expect(find.textContaining('Nenhuma obra vinculada'), findsWidgets);
+          // Verifica que lista o texto "Nenhum loteamento vinculado"
+          expect(find.textContaining('Nenhum loteamento vinculado'), findsWidgets);
 
           await tester.tap(
               find.widgetWithText(FilledButton, 'Desativar').last);

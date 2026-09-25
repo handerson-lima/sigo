@@ -171,9 +171,9 @@ String rotuloCargoPendente(String? role) {
 
 /// Texto do contador: 0 → `Nenhuma obra vinculada`, 1 → `1 obra`, N → `N obras`.
 String textoContagemObras(int n) {
-  if (n <= 0) return 'Nenhuma obra vinculada';
-  if (n == 1) return '1 obra';
-  return '$n obras';
+  if (n <= 0) return 'Nenhum loteamento vinculado';
+  if (n == 1) return '1 loteamento';
+  return '$n loteamentos';
 }
 
 /// Subtitle do ativo: `Cargo · N obras` (singular/plural).
@@ -328,7 +328,7 @@ String formatarJoinedAt(DateTime joinedAt) =>
 
 /// Papel na obra: `member`/legado → Operário; nunca `owner` como papel de obra.
 String rotuloPapelObra(ObraMember vinculo) =>
-    vinculo.isAdmin ? 'Admin da obra' : 'Operário';
+    vinculo.isAdmin ? 'Admin do loteamento' : 'Operário';
 
 /// Filtra ativos por obra via junção `uid → obras` em memória.
 /// `obraId` nulo/vazio = sem restrição (retorna cópia da entrada).

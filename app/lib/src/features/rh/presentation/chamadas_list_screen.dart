@@ -295,7 +295,7 @@ class _ChamadaCard extends StatelessWidget {
               Text(
                 chamada.teamName != null
                     ? 'Equipe: ${chamada.teamName}'
-                    : 'Equipe: Geral da Obra',
+                    : 'Equipe: Geral do Loteamento',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),

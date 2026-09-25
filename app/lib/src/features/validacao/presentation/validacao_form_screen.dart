@@ -885,7 +885,7 @@ class _ValidacaoFormScreenState extends ConsumerState<ValidacaoFormScreen> {
                 readOnly: isFinalizada,
                 decoration: const InputDecoration(
                   hintText:
-                      'Insira comentários finais ou diretrizes para a equipe da obra...',
+                      'Insira comentários finais ou diretrizes para a equipe do loteamento...',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,

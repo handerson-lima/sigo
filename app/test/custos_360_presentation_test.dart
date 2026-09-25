@@ -83,7 +83,7 @@ void main() {
 
       // Verifica Cabeçalho e KPIs
       expect(find.text('Visão 360º de Custos'), findsOneWidget);
-      expect(find.text('Custo Total Realizado da Obra'), findsOneWidget);
+      expect(find.text('Custo Total Realizado do Loteamento'), findsOneWidget);
       expect(find.text('R\$ 30.000,00'), findsWidgets);
 
       // Verifica 4 Cubos

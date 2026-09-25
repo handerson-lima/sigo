@@ -110,17 +110,17 @@ void main() {
       // Verifica labels de cargo renderizados (8.1: subtitle Cargo · N obras + chip)
       expect(find.text('Proprietário'), findsOneWidget); // chip trailing
       expect(
-        find.text('Proprietário · Nenhuma obra vinculada'),
+        find.text('Proprietário · Nenhum loteamento vinculado'),
         findsOneWidget,
       ); // subtitle
       expect(find.text('Administrador'), findsOneWidget); // chip trailing
       expect(
-        find.text('Administrador · Nenhuma obra vinculada'),
+        find.text('Administrador · Nenhum loteamento vinculado'),
         findsOneWidget,
       ); // subtitle
       expect(find.text('Operário'), findsOneWidget); // chip trailing
       expect(
-        find.text('Operário · Nenhuma obra vinculada'),
+        find.text('Operário · Nenhum loteamento vinculado'),
         findsOneWidget,
       ); // subtitle
 

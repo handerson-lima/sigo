@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/authentication/data/auth_repository.dart';
 import '../features/notifications/presentation/notifications_button.dart';
-import '../features/obras/presentation/construtora_obras_provider.dart';
+import '../features/loteamentos/data/loteamento_repository.dart';
 import '../sync/sync_indicator.dart';
 import '../design_system/sigo_theme.dart';
 import 'sidebar_state.dart';
@@ -68,7 +68,7 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
       final segments = uri?.pathSegments ?? [];
       if (segments.length >= 2 && segments[0] == 'construtoras') {
         cId = segments[1];
-        if (segments.length >= 4 && segments[2] == 'obra') {
+        if (segments.length >= 4 && segments[2] == 'loteamentos') {
           oId = segments[3];
         }
       }
@@ -155,9 +155,9 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                ObraSwitcher(
+                LoteamentoSwitcher(
                   construtoraId: cId,
-                  currentObraId: oId,
+                  currentLoteamentoId: oId,
                 ),
               ],
             )
@@ -203,24 +203,24 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
   }
 }
 
-class ObraSwitcher extends ConsumerWidget {
+class LoteamentoSwitcher extends ConsumerWidget {
   final String construtoraId;
-  final String currentObraId;
+  final String currentLoteamentoId;
 
-  const ObraSwitcher({
+  const LoteamentoSwitcher({
     super.key,
     required this.construtoraId,
-    required this.currentObraId,
+    required this.currentLoteamentoId,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final obrasAsync = ref.watch(construtoraObrasProvider(construtoraId));
-    return obrasAsync.maybeWhen(
-      data: (obras) {
-        if (obras.isEmpty) return const SizedBox.shrink();
-        final isSelectedPresent = obras.any((o) => o.id == currentObraId);
-        final selectedValue = isSelectedPresent ? currentObraId : null;
+    final loteamentosAsync = ref.watch(watchLoteamentosProvider((construtoraId: construtoraId)));
+    return loteamentosAsync.maybeWhen(
+      data: (loteamentos) {
+        if (loteamentos.isEmpty) return const SizedBox.shrink();
+        final isSelectedPresent = loteamentos.any((l) => l.id == currentLoteamentoId);
+        final selectedValue = isSelectedPresent ? currentLoteamentoId : null;
 
         return Container(
           height: 36,
@@ -232,7 +232,7 @@ class ObraSwitcher extends ConsumerWidget {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              key: const Key('obra-switcher-dropdown'),
+              key: const Key('loteamento-switcher-dropdown'),
               value: selectedValue,
               hint: const Text(
                 'Selecionar Loteamento',
@@ -244,32 +244,32 @@ class ObraSwitcher extends ConsumerWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
-              items: obras.map((o) {
+              items: loteamentos.map((l) {
                 return DropdownMenuItem<String>(
-                  key: Key('obra-switcher-item-${o.id}'),
-                  value: o.id,
+                  key: Key('loteamento-switcher-item-${l.id}'),
+                  value: l.id,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.business,
                         size: 14,
-                        color: o.id == currentObraId
+                        color: l.id == currentLoteamentoId
                             ? Colors.amber[900]
                             : Colors.black45,
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        o.name,
+                        l.name,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 );
               }).toList(),
-              onChanged: (newObraId) {
-                if (newObraId != null && newObraId != currentObraId) {
-                  context.go('/construtoras/$construtoraId/obra/$newObraId');
+              onChanged: (newLoteamentoId) {
+                if (newLoteamentoId != null && newLoteamentoId != currentLoteamentoId) {
+                  context.go('/construtoras/$construtoraId/loteamentos/$newLoteamentoId');
                 }
               },
             ),

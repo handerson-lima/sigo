@@ -114,7 +114,7 @@ class _AddDespesaScreenState extends ConsumerState<AddDespesaScreen> {
                     data: (obras) {
                       return DropdownButtonFormField<String?>(
                         initialValue: _selectedObraId,
-                        decoration: const InputDecoration(labelText: 'Obra (Opcional - Custo Global se Vazio)'),
+                        decoration: const InputDecoration(labelText: 'Loteamento (Opcional - Custo Global se Vazio)'),
                         items: [
                           const DropdownMenuItem<String?>(value: null, child: Text('Nenhuma (Custo Administrativo)')),
                           ...obras.map((o) => DropdownMenuItem(value: o.id, child: Text(o.name))),
@@ -123,7 +123,7 @@ class _AddDespesaScreenState extends ConsumerState<AddDespesaScreen> {
                       );
                     },
                     loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, st) => Text('Erro ao carregar obras: $e'),
+                    error: (e, st) => Text('Erro ao carregar loteamentos: $e'),
                   ),
                   const SizedBox(height: 32),
                   ElevatedButton(

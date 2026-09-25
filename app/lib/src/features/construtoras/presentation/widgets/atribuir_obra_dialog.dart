@@ -64,7 +64,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
 
   static const Map<String, String> _roleLabels = {
     'operario': 'Operário',
-    'admin': 'Admin da obra',
+    'admin': 'Admin do loteamento',
   };
 
   String get _rotuloPapel => _roleLabels[_selectedRole] ?? 'Operário';

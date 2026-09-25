@@ -148,12 +148,12 @@ class Visao360CustosScreen extends ConsumerWidget {
                                   size: 48, color: Colors.grey.shade400),
                               const SizedBox(height: 8),
                               const Text(
-                                'Nenhum lote cadastrado nesta obra.',
+                                'Nenhum lote cadastrado neste loteamento.',
                                 style: TextStyle(fontWeight: FontWeight.w600),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Cadastre lotes no módulo de Obras/Lotes para apurar os 4 cubos.',
+                                'Cadastre lotes no módulo de Loteamentos/Lotes para apurar os 4 cubos.',
                                 style: TextStyle(
                                     fontSize: 12, color: Colors.grey.shade600),
                               ),
@@ -247,7 +247,7 @@ class Visao360CustosScreen extends ConsumerWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 const Text(
-                  'Custo Total Realizado da Obra',
+                  'Custo Total Realizado do Loteamento',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 Text(
@@ -449,7 +449,7 @@ class Visao360CustosScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        'Participação na Obra',
+                        'Participação no Loteamento',
                         style: TextStyle(
                             fontSize: 11, color: Colors.grey.shade600),
                       ),

@@ -16,7 +16,7 @@ class DiariosListScreen extends ConsumerWidget {
     final diariosAsync = ref.watch(obraDiariosProvider((construtoraId: construtoraId, obraId: obraId)));
 
     return SigoLayout(
-      title: 'Diários de Obra (RDO)',
+      title: 'Diários de Loteamento (RDL)',
       activeRoute: '/construtoras/$construtoraId/obra/$obraId/diarios',
       actions: [
         IconButton(
@@ -35,7 +35,7 @@ class DiariosListScreen extends ConsumerWidget {
         error: (e, st) => Center(child: Text('Erro: $e')),
         data: (diarios) {
           if (diarios.isEmpty) {
-            return const Center(child: Text('Nenhum diário registrado nesta obra.'));
+            return const Center(child: Text('Nenhum diário registrado neste loteamento.'));
           }
           return ListView.builder(
             itemCount: diarios.length,

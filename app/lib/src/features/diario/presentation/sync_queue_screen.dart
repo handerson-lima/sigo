@@ -13,7 +13,7 @@ class SyncQueueScreen extends StatelessWidget {
     required this.obraId,
   });
   static const actions = {
-    'finalizeDiario': 'Diário de obra',
+    'finalizeDiario': 'Diário de loteamento',
     'stockCommand': 'Movimentação de estoque',
     'payExpense': 'Pagamento',
   };

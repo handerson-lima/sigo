@@ -294,7 +294,7 @@ class Custos360Repository {
           itens.add(ExtratoItemCusto(
             id: 'rateio_indireto_$loteId',
             cubo: CuboCusto.rateioIndireto,
-            descricao: 'Cota-parte das Despesas Gerais da Obra (Rateio Indireto)',
+            descricao: 'Cota-parte das Despesas Gerais do Loteamento (Rateio Indireto)',
             data: DateTime.now(),
             valorCents: rateioCents,
             documentoReferencia: 'Rateio Algébrico AD-7',

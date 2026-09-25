@@ -70,7 +70,7 @@ class _TrocarPapelDialogState extends ConsumerState<TrocarPapelDialog> {
 
   static const Map<String, String> _roleLabels = {
     'operario': 'Operário',
-    'admin': 'Admin da obra',
+    'admin': 'Admin do loteamento',
   };
 
   static const Map<String, String> _moduleLabels = {

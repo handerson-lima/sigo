@@ -86,7 +86,7 @@ class ObraDashboardScreen extends ConsumerWidget {
 
         return SigoLayout(
           title: 'Painel do Loteamento',
-          activeRoute: '/construtoras/$construtoraId/obra/$obraId',
+          activeRoute: '/construtoras/$construtoraId/loteamentos/$obraId',
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,7 +152,7 @@ class ObraDashboardScreen extends ConsumerWidget {
                         member.modules.map(normalizeModule).contains('diario'))
                       SigoModuleCard(
                         icon: Icons.assignment,
-                        title: 'Diário de Obra',
+                        title: 'Diário de Loteamento',
                         onTap: () => context.go(
                           '/construtoras/$construtoraId/obra/$obraId/diarios',
                         ),

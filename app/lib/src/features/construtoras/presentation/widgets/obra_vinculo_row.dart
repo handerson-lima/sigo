@@ -113,7 +113,7 @@ class ObraVinculoRow extends StatelessWidget {
                       if (onRemover != null)
                         const PopupMenuItem(
                           value: _ObraVinculoAction.remover,
-                          child: Text('Remover da obra'),
+                          child: Text('Remover do loteamento'),
                         ),
                     ],
                   ),

@@ -127,7 +127,7 @@ class ChamadaFiltrosHeader extends StatelessWidget {
             items: [
               const DropdownMenuItem<String?>(
                 value: null,
-                child: Text('Todos os Colaboradores da Obra'),
+                child: Text('Todos os Colaboradores do Loteamento'),
               ),
               ...equipes.map(
                 (e) => DropdownMenuItem(value: e.id, child: Text(e.name)),

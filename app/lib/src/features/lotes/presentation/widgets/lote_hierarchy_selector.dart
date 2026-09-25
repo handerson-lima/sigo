@@ -143,7 +143,7 @@ class LoteHierarchySelector extends ConsumerWidget {
                   items: [
                     const DropdownMenuItem<String>(
                       value: null,
-                      child: Text('Nenhum lote específico (Geral da Obra)'),
+                      child: Text('Nenhum lote específico (Geral do Loteamento)'),
                     ),
                     ...lotes.map(
                       (l) => DropdownMenuItem(

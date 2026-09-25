@@ -66,7 +66,7 @@ class RhInvarianteValidator {
         for (final alloc in ap.allocations) {
           if (!lotesValidosDaObra.contains(alloc.lotId)) {
             erros.add(
-              'Lote inválido ou não pertencente à obra: ${alloc.lotName} (ID: ${alloc.lotId}).',
+              'Lote inválido ou não pertencente ao loteamento: ${alloc.lotName} (ID: ${alloc.lotId}).',
             );
           }
         }
@@ -88,12 +88,12 @@ class RhInvarianteValidator {
     }
 
     if (statusExistenteEmOutraObra == PresencaStatus.presente) {
-      return 'Colaborador $workerName já possui apontamento em tempo integral (100%) na obra "$nomeOutraObra" nesta mesma data.';
+      return 'Colaborador $workerName já possui apontamento em tempo integral (100%) no loteamento "$nomeOutraObra" nesta mesma data.';
     }
 
     if (statusExistenteEmOutraObra == PresencaStatus.meioPeriodo) {
       if (statusNovo == PresencaStatus.presente) {
-        return 'Colaborador $workerName já possui meio-período (50%) na obra "$nomeOutraObra". Alocação em tempo integral (100%) excederia o limite diário de 100%.';
+        return 'Colaborador $workerName já possui meio-período (50%) no loteamento "$nomeOutraObra". Alocação em tempo integral (100%) excederia o limite diário de 100%.';
       }
     }
 

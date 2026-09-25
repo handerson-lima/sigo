@@ -60,7 +60,7 @@ class WatermarkService {
       // Linha 3: Obra e Responsável
       final contextSegments = <String>[];
       if (metadata.obraNomeOuId != null && metadata.obraNomeOuId!.trim().isNotEmpty) {
-        contextSegments.add('Obra: ${metadata.obraNomeOuId!.trim()}');
+        contextSegments.add('Loteamento: ${metadata.obraNomeOuId!.trim()}');
       }
       if (metadata.responsavelNomeOuUid != null && metadata.responsavelNomeOuUid!.trim().isNotEmpty) {
         contextSegments.add('Resp: ${metadata.responsavelNomeOuUid!.trim()}');

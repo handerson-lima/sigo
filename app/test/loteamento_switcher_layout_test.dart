@@ -1,7 +1,7 @@
 import 'package:app/src/features/authentication/data/user_repository.dart';
-import 'package:app/src/features/obras/domain/obra.dart';
 import 'package:app/src/features/obras/domain/obra_member.dart';
-import 'package:app/src/features/obras/presentation/construtora_obras_provider.dart';
+import 'package:app/src/features/loteamentos/domain/loteamento.dart';
+import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/obras/presentation/obra_dashboard_screen.dart';
 import 'package:flutter/material.dart';
@@ -18,10 +18,10 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       final router = GoRouter(
-        initialLocation: '/construtoras/c1/obra/obraA',
+        initialLocation: '/construtoras/c1/loteamentos/obraA',
         routes: [
           GoRoute(
-            path: '/construtoras/:cId/obra/:oId',
+            path: '/construtoras/:cId/loteamentos/:oId',
             builder: (context, state) {
               final cId = state.pathParameters['cId']!;
               final oId = state.pathParameters['oId']!;
@@ -31,18 +31,20 @@ void main() {
         ],
       );
 
-      final obrasList = [
-        Obra(
+      final List<Loteamento> loteamentosList = [
+        Loteamento(
           id: 'obraA',
           construtoraId: 'c1',
           name: 'Obra Alfa',
           createdAt: DateTime(2025),
+          updatedAt: DateTime(2025),
         ),
-        Obra(
+        Loteamento(
           id: 'obraB',
           construtoraId: 'c1',
           name: 'Obra Beta',
           createdAt: DateTime(2025),
+          updatedAt: DateTime(2025),
         ),
       ];
 
@@ -50,8 +52,8 @@ void main() {
         ProviderScope(
           overrides: [
             trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraObrasProvider('c1').overrideWith(
-              (ref) => Future.value(obrasList),
+            watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+              (ref) => Stream.value(loteamentosList),
             ),
             construtoraPermissionProvider('c1').overrideWith(
               (ref) => Stream.value({
@@ -91,24 +93,24 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Na Obra A: exibe Diário de Obra (na sidebar e no dashboard card); o
+      // Na Obra A: exibe Diário de Loteamento (na sidebar e no dashboard card); o
       // atalho de Lotes é liberado pela permissão central.
-      expect(find.text('Diário de Obra'), findsNWidgets(2));
+      expect(find.text('Diário de Loteamento'), findsNWidgets(2));
       expect(find.text('Loteamentos'), findsNWidgets(2));
 
       // Abre dropdown do seletor de obra e seleciona Obra Beta
-      final dropdown = find.byKey(const Key('obra-switcher-dropdown'));
+      final dropdown = find.byKey(const Key('loteamento-switcher-dropdown'));
       expect(dropdown, findsOneWidget);
       await tester.tap(dropdown);
       await tester.pumpAndSettle();
 
-      final itemB = find.byKey(const Key('obra-switcher-item-obraB')).last;
-      await tester.tap(itemB);
+      final itemB = find.byKey(const Key('loteamento-switcher-item-obraB')).last;
+      await tester.tap(itemB, warnIfMissed: false);
       await tester.pumpAndSettle();
 
       // Na Obra B: atualiza instantaneamente para exibir Loteamentos e ocultar Diário
       expect(find.text('Loteamentos'), findsNWidgets(2));
-      expect(find.text('Diário de Obra'), findsNothing);
+      expect(find.text('Diário de Loteamento'), findsNothing);
     },
   );
 }

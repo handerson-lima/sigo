@@ -111,13 +111,13 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
     if (effectiveObraId.isEmpty) {
       return obrasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Erro ao carregar obras: $err')),
+        error: (err, _) => Center(child: Text('Erro ao carregar loteamentos: $err')),
         data: (list) {
           if (list.isEmpty) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24.0),
-                child: Text('Nenhuma obra cadastrada para consultar entregas de EPI.'),
+                child: Text('Nenhum loteamento cadastrado para consultar entregas de EPI.'),
               ),
             );
           }
@@ -147,7 +147,7 @@ class _ColaboradorEpisTabState extends ConsumerState<ColaboradorEpisTab> {
             DropdownButtonFormField<String>(
               initialValue: effectiveObraId,
               decoration: const InputDecoration(
-                labelText: 'Obra',
+                labelText: 'Loteamento',
                 prefixIcon: Icon(Icons.business),
                 border: OutlineInputBorder(),
                 isDense: true,

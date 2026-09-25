@@ -311,7 +311,7 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                         key: const Key('obra-dropdown'),
                         initialValue: _selectedObraId,
                         decoration: const InputDecoration(
-                          labelText: 'Obra de Destino',
+                          labelText: 'Loteamento de Destino',
                         ),
                         items: obras
                             .map((o) => DropdownMenuItem(
@@ -330,36 +330,36 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                         validator: (v) =>
                             (v == null || v.isEmpty) &&
                             _obraController.text.trim().isEmpty
-                                ? 'Informe a obra de destino'
+                                ? 'Informe o loteamento de destino'
                                 : null,
                       );
                     }
                     return TextFormField(
                       controller: _obraController,
                       decoration: const InputDecoration(
-                        labelText: 'ID da Obra de Destino',
+                        labelText: 'ID do Loteamento de Destino',
                       ),
                       validator: (v) => v == null || v.trim().isEmpty
-                          ? 'Informe a obra de destino'
+                          ? 'Informe o loteamento de destino'
                           : null,
                     );
                   },
                   loading: () => TextFormField(
                     controller: _obraController,
                     decoration: const InputDecoration(
-                      labelText: 'ID da Obra de Destino',
+                      labelText: 'ID do Loteamento de Destino',
                     ),
                     validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Informe a obra de destino'
+                        ? 'Informe o loteamento de destino'
                         : null,
                   ),
                   error: (_, _) => TextFormField(
                     controller: _obraController,
                     decoration: const InputDecoration(
-                      labelText: 'ID da Obra de Destino',
+                      labelText: 'ID do Loteamento de Destino',
                     ),
                     validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Informe a obra de destino'
+                        ? 'Informe o loteamento de destino'
                         : null,
                   ),
                 ),

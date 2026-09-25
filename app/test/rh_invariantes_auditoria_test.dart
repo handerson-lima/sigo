@@ -164,7 +164,7 @@ void main() {
           lotesValidosDaObra: {'l1', 'l2'},
         );
 
-        expect(erros, anyElement(contains('não pertencente à obra')));
+        expect(erros, anyElement(contains('não pertencente ao loteamento')));
       });
     });
 
@@ -179,7 +179,7 @@ void main() {
         );
 
         expect(conflito, isNotNull);
-        expect(conflito, contains('tempo integral (100%) na obra "Residencial Aurora"'));
+        expect(conflito, contains('tempo integral (100%) no loteamento "Residencial Aurora"'));
       });
 
       test('Bloqueia tempo integral quando colaborador já tem meio-período (50%) em outra obra', () {

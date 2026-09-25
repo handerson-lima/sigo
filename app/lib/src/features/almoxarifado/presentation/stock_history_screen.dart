@@ -93,7 +93,7 @@ class StockHistoryScreen extends StatelessWidget {
     final obs = (d['observacao'] ?? d['reason'] ?? '') as String;
     final details = <String>[];
     if (obraId != null && obraId.isNotEmpty) {
-      details.add('Obra: $obraId');
+      details.add('Loteamento: $obraId');
     }
     if (loteId != null && loteId.isNotEmpty) {
       details.add('Lote: $loteId');

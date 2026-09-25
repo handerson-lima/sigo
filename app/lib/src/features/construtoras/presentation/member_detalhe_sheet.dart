@@ -102,9 +102,9 @@ class MemberDetalheSheet extends ConsumerWidget {
     final statusLabel =
         vinculo == null ? '' : ', ${rotuloStatusVinculo(vinculo.isActive)}';
     final obrasA11y = meta.carregando
-        ? 'carregando obras'
+        ? 'carregando loteamentos'
         : (meta.erro && count == 0)
-            ? 'erro ao carregar obras'
+            ? 'erro ao carregar loteamentos'
             : textoContagemObras(count);
 
     return Padding(
@@ -156,7 +156,7 @@ class MemberDetalheSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Obras vinculadas',
+              'Loteamentos vinculados',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -187,7 +187,7 @@ class MemberDetalheSheet extends ConsumerWidget {
                                 membro: membro,
                               )
                           : null,
-                      child: const Text('Atribuir à obra'),
+                      child: const Text('Atribuir ao loteamento'),
                     ),
                     OutlinedButton(
                       onPressed: vinculo != null
@@ -389,7 +389,7 @@ class MemberDetalheSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Não foi possível carregar as obras.',
+            'Não foi possível carregar os loteamentos.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 4),
@@ -474,7 +474,7 @@ class MemberDetalheSheet extends ConsumerWidget {
     final email = membro.email.trim();
     final identificador = email.isNotEmpty ? email : 'UID: ${membro.uid}';
     final obraNome =
-        obra.name.trim().isNotEmpty ? obra.name : 'Obra ${obra.id}';
+        obra.name.trim().isNotEmpty ? obra.name : 'Loteamento ${obra.id}';
     await TrocarPapelDialog.show(
       context: context,
       construtoraId: construtoraId,
@@ -544,10 +544,10 @@ class MemberDetalheSheet extends ConsumerWidget {
     // Texto da lista de obras afetadas.
     final String textoObras;
     if (obrasAfetadas.isEmpty) {
-      textoObras = 'Nenhuma obra vinculada.';
+      textoObras = 'Nenhum loteamento vinculado.';
     } else {
       final nomes = obrasAfetadas
-          .map((o) => o.name.trim().isNotEmpty ? o.name : 'Obra ${o.id}')
+          .map((o) => o.name.trim().isNotEmpty ? o.name : 'Loteamento ${o.id}')
           .join('\n• ');
       textoObras = '• $nomes';
     }
@@ -563,12 +563,12 @@ class MemberDetalheSheet extends ConsumerWidget {
             children: [
               Text(
                 '$identificador perderá acesso imediato à construtora'
-                '${obrasAfetadas.isNotEmpty ? ' e às obras abaixo' : ''}.',
+                '${obrasAfetadas.isNotEmpty ? ' e aos loteamentos abaixo' : ''}.',
               ),
               if (obrasAfetadas.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'Obras afetadas:',
+                  'Loteamentos afetados:',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
@@ -690,7 +690,7 @@ class MemberDetalheSheet extends ConsumerWidget {
     final email = membro.email.trim();
     final identificador = email.isNotEmpty ? email : 'UID: ${membro.uid}';
     final obraNome =
-        obra.name.trim().isNotEmpty ? obra.name : 'Obra ${obra.id}';
+        obra.name.trim().isNotEmpty ? obra.name : 'Loteamento ${obra.id}';
 
     final confirmar = await showDialog<bool>(
       context: context,

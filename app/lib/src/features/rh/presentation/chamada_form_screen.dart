@@ -112,7 +112,7 @@ class _ChamadaFormScreenState extends ConsumerState<ChamadaFormScreen> {
           backgroundColor: Colors.amber.shade900,
           duration: const Duration(seconds: 5),
           content: Text(
-            'Já existe uma chamada registrada em $dateStr para esta obra.',
+            'Já existe uma chamada registrada em $dateStr para este loteamento.',
           ),
           action: SnackBarAction(
             label: 'Ver Chamada',
