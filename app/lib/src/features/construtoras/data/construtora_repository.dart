@@ -73,12 +73,11 @@ class ConstrutoraRepository {
     'construtoras/$userId/$dev',
     () => _loadgetUserConstrutoras(userId, dev: dev),
     (items) => items.map((e) => e.toJson()).toList(),
-    (data) {
-      final items = (data as List)
+    (data) => filtrarConstrutorasAtivas(
+      (data as List)
           .map((e) => Construtora.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
-      return dev ? items : filtrarConstrutorasAtivas(items);
-    },
+          .toList(),
+    ),
   );
 
   Future<List<Construtora>> _loadgetUserConstrutoras(
@@ -89,13 +88,15 @@ class ConstrutoraRepository {
       final all = await _firestore
           .collection('construtoras')
           .get(const GetOptions(source: Source.server));
-      return all.docs
-          .map(
-            (d) => Construtora.fromJson(
-              compatibleDates(d.data(), ['createdAt', 'updatedAt']),
-            ),
-          )
-          .toList();
+      return filtrarConstrutorasAtivas(
+        all.docs
+            .map(
+              (d) => Construtora.fromJson(
+                compatibleDates(d.data(), ['createdAt', 'updatedAt']),
+              ),
+            )
+            .toList(),
+      );
     }
     final querySnapshot = await _firestore
         .collectionGroup('construtora_members')

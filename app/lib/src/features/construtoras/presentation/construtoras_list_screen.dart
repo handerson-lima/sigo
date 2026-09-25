@@ -35,7 +35,7 @@ class ConstrutorasListScreen extends ConsumerWidget {
                 children: [
                   Text(
                     isDev
-                        ? 'Nenhuma construtora encontrada no sistema.'
+                        ? 'Nenhuma construtora ativa encontrada.'
                         : 'Você não pertence a nenhuma construtora.\nFale com o administrador.',
                     textAlign: TextAlign.center,
                   ),
