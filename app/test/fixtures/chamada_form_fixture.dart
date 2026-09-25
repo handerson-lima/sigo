@@ -102,9 +102,8 @@ class TestLoteRepository implements LoteRepository {
         loteamentoId: 'lt1',
         quadraId: 'qd1',
         name: id,
-        phase: 'Estrutura',
-        status: LoteStatus.noPrazo,
         createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
       ),
   ];
   late final stream = Stream.value(lotes).asBroadcastStream();
@@ -124,6 +123,7 @@ class TestLoteamentoRepository implements LoteamentoRepository {
       construtoraId: 'c1',
       name: 'Loteamento Teste',
       createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
     ),
   ];
   @override
@@ -141,6 +141,7 @@ class TestQuadraRepository implements QuadraRepository {
       loteamentoId: 'lt1',
       name: 'Quadra Teste',
       createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
     ),
   ];
   @override

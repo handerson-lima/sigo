@@ -2,17 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:app/src/features/equipes/presentation/equipes_list_screen.dart';
-import 'package:app/src/features/equipes/data/equipe_repository.dart';
-import 'package:app/src/features/equipes/domain/equipe.dart';
+import 'package:app/src/features/etapas/presentation/etapas_list_screen.dart';
+import 'package:app/src/features/etapas/data/etapa_repository.dart';
+import 'package:app/src/features/etapas/domain/etapa.dart';
 
 void main() {
   Widget buildTestWidget(Widget child) {
     final router = GoRouter(
-      initialLocation: '/equipes',
+      initialLocation: '/etapas',
       routes: [
         GoRoute(
-          path: '/equipes',
+          path: '/etapas',
           builder: (context, state) => child,
         ),
       ],
@@ -23,39 +23,38 @@ void main() {
     );
   }
 
-  testWidgets('Renderiza lista de equipes vazia', (tester) async {
+  testWidgets('Renderiza lista de etapas vazia', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          watchEquipesProvider.overrideWith((ref, arg) => Stream.value([])),
+          watchEtapasProvider.overrideWith((ref, arg) => Stream.value([])),
         ],
-        child: buildTestWidget(const EquipesListScreen(
+        child: buildTestWidget(const EtapasListScreen(
           construtoraId: 'c1',
           loteamentoId: 'l1',
           quadraId: 'q1',
           loteId: 'lo1',
-          etapaId: 's1',
         )),
       ),
     );
 
     await tester.pump(); // Resolve GoRouter
-    await tester.pump(); // First frame of EquipesListScreen
+    await tester.pump(); // First frame of EtapasListScreen
     await tester.pump(const Duration(milliseconds: 100)); // Wait for Stream.value
     await tester.pump(); // Render data
-    
-    expect(find.text('Nenhuma equipe cadastrada'), findsOneWidget);
+
+    expect(find.text('Nenhuma etapa cadastrada'), findsOneWidget);
   });
 
-  testWidgets('Renderiza lista com equipes', (tester) async {
-    final mockEquipe = Equipe(
+  testWidgets('Renderiza lista com etapas', (tester) async {
+    final mockEtapa = Etapa(
       id: 'e1',
       construtoraId: 'c1',
       loteamentoId: 'l1',
       quadraId: 'q1',
       loteId: 'lo1',
-      etapaId: 's1',
-      name: 'Equipe A',
+      nome: 'Muro',
+      ordem: 1,
       createdAt: DateTime(2023, 1, 1),
       updatedAt: DateTime(2023, 1, 1),
     );
@@ -63,40 +62,38 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          watchEquipesProvider.overrideWith((ref, arg) => Stream.value([mockEquipe])),
+          watchEtapasProvider.overrideWith((ref, arg) => Stream.value([mockEtapa])),
         ],
-        child: buildTestWidget(const EquipesListScreen(
+        child: buildTestWidget(const EtapasListScreen(
           construtoraId: 'c1',
           loteamentoId: 'l1',
           quadraId: 'q1',
           loteId: 'lo1',
-          etapaId: 's1',
         )),
       ),
     );
 
     await tester.pump(); // Resolve GoRouter
-    await tester.pump(); // First frame of EquipesListScreen
+    await tester.pump(); // First frame of EtapasListScreen
     await tester.pump(const Duration(milliseconds: 100)); // Wait for Stream.value
     await tester.pump(); // Render data
-    
-    expect(find.text('Equipe A'), findsOneWidget);
+
+    expect(find.text('Muro'), findsOneWidget);
   });
 
   testWidgets('Renderiza erro e recarrega ao tentar novamente', (tester) async {
-    var stream = Stream<List<Equipe>>.error(Exception('falha'));
+    var stream = Stream<List<Etapa>>.error(Exception('falha'));
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          watchEquipesProvider.overrideWith((ref, arg) => stream),
+          watchEtapasProvider.overrideWith((ref, arg) => stream),
         ],
-        child: buildTestWidget(const EquipesListScreen(
+        child: buildTestWidget(const EtapasListScreen(
           construtoraId: 'c1',
           loteamentoId: 'l1',
           quadraId: 'q1',
           loteId: 'lo1',
-          etapaId: 's1',
         )),
       ),
     );
@@ -104,7 +101,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Não foi possível carregar as equipes.'),
+      find.text('Não foi possível carregar as etapas.'),
       findsOneWidget,
     );
 
@@ -112,6 +109,6 @@ void main() {
     await tester.tap(find.text('Tentar novamente'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Nenhuma equipe cadastrada'), findsOneWidget);
+    expect(find.text('Nenhuma etapa cadastrada'), findsOneWidget);
   });
 }

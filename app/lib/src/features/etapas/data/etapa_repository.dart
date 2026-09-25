@@ -40,73 +40,47 @@ class EtapaRepository {
     await docRef.set(etapa);
   }
 
+  static List<Etapa> buildDefaultEtapas({
+    required String construtoraId,
+    required String loteamentoId,
+    required String quadraId,
+    required String loteId,
+    required String Function() newId,
+    required DateTime now,
+  }) {
+    return EtapaTipo.values
+        .map(
+          (tipo) => Etapa(
+            id: newId(),
+            construtoraId: construtoraId,
+            loteamentoId: loteamentoId,
+            quadraId: quadraId,
+            loteId: loteId,
+            nome: tipo.label,
+            ordem: tipo.ordem,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        )
+        .toList();
+  }
+
   Future<void> createDefaultEtapas({
     required String construtoraId,
     required String loteamentoId,
     required String quadraId,
     required String loteId,
   }) async {
+    final etapasDefault = buildDefaultEtapas(
+      construtoraId: construtoraId,
+      loteamentoId: loteamentoId,
+      quadraId: quadraId,
+      loteId: loteId,
+      newId: () => _firestore.collection('etapas').doc().id,
+      now: DateTime.now(),
+    );
+
     final batch = _firestore.batch();
-    final now = DateTime.now();
-
-    final etapasDefault = [
-      Etapa(
-        id: _firestore.collection('etapas').doc().id,
-        construtoraId: construtoraId,
-        loteamentoId: loteamentoId,
-        quadraId: quadraId,
-        loteId: loteId,
-        nome: EtapaTipo.muro.label,
-        ordem: EtapaTipo.muro.ordem,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Etapa(
-        id: _firestore.collection('etapas').doc().id,
-        construtoraId: construtoraId,
-        loteamentoId: loteamentoId,
-        quadraId: quadraId,
-        loteId: loteId,
-        nome: EtapaTipo.cinza1.label,
-        ordem: EtapaTipo.cinza1.ordem,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Etapa(
-        id: _firestore.collection('etapas').doc().id,
-        construtoraId: construtoraId,
-        loteamentoId: loteamentoId,
-        quadraId: quadraId,
-        loteId: loteId,
-        nome: EtapaTipo.cinza2.label,
-        ordem: EtapaTipo.cinza2.ordem,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Etapa(
-        id: _firestore.collection('etapas').doc().id,
-        construtoraId: construtoraId,
-        loteamentoId: loteamentoId,
-        quadraId: quadraId,
-        loteId: loteId,
-        nome: EtapaTipo.cinza3.label,
-        ordem: EtapaTipo.cinza3.ordem,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      Etapa(
-        id: _firestore.collection('etapas').doc().id,
-        construtoraId: construtoraId,
-        loteamentoId: loteamentoId,
-        quadraId: quadraId,
-        loteId: loteId,
-        nome: EtapaTipo.branca.label,
-        ordem: EtapaTipo.branca.ordem,
-        createdAt: now,
-        updatedAt: now,
-      ),
-    ];
-
     for (final etapa in etapasDefault) {
       batch.set(_etapasRef().doc(etapa.id), etapa);
     }

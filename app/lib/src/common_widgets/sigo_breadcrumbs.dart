@@ -41,11 +41,11 @@ class SigoBreadcrumbs extends StatelessWidget {
         } else {
           segments.add(BreadcrumbSegment(label: 'Lotes'));
         }
-      } else if (pathSegments[i] == 'setores') {
+      } else if (pathSegments[i] == 'etapas') {
         if (i + 1 < pathSegments.length) {
-          segments.add(BreadcrumbSegment(label: 'Setor', url: currentUrl));
+          segments.add(BreadcrumbSegment(label: 'Etapa', url: currentUrl));
         } else {
-          segments.add(BreadcrumbSegment(label: 'Setores'));
+          segments.add(BreadcrumbSegment(label: 'Etapas'));
         }
       } else if (pathSegments[i] == 'equipes') {
          if (i + 1 < pathSegments.length) {

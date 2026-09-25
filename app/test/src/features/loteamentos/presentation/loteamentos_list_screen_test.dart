@@ -24,6 +24,7 @@ Loteamento makeLoteamento(String id) => Loteamento(
       construtoraId: 'c1',
       name: 'Loteamento $id',
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
 Widget buildTestWidget(Widget child) {

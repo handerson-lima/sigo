@@ -44,32 +44,6 @@ match /construtoras/{c} {
     allow update: if admin(c) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','cnpj','address','logoUrl','updatedAt']) && (!('logoUrl' in request.resource.data) || request.resource.data.logoUrl == null || request.resource.data.logoUrl is string);
     allow delete: if dev();
     match /construtora_members/{uid} { allow read: if signed() && (request.auth.uid == uid || admin(c)); allow write: if dev(); }
-  }
-
-  match /loteamentos/{id} {
-    allow read: if member(resource.data.construtoraId);
-    allow write: if admin(request.resource.data.construtoraId);
-  }
-
-  match /quadras/{id} {
-    allow read: if member(resource.data.construtoraId);
-    allow write: if admin(request.resource.data.construtoraId);
-  }
-
-  match /lotes/{id} {
-    allow read: if member(resource.data.construtoraId);
-    allow write: if admin(request.resource.data.construtoraId);
-  }
-
-  match /etapas/{id} {
-    allow read: if member(resource.data.construtoraId);
-    allow write: if admin(request.resource.data.construtoraId);
-  }
-
-  match /equipes/{id} {
-    allow read: if member(resource.data.construtoraId);
-    allow write: if admin(request.resource.data.construtoraId);
-  }
    match /commands/{id} { allow read: if dev() || (signed() && resource.data.actor == request.auth.uid); allow write: if dev(); }
    match /funcionarios/{f} {
     allow read: if rh(c);
@@ -217,6 +191,40 @@ match /construtoras/{c} {
      allow delete: if dev();
     }
    }
+  }
+  match /loteamentos/{id} {
+    allow read: if member(resource.data.construtoraId);
+    allow create: if admin(request.resource.data.construtoraId);
+    allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
+    allow delete: if admin(resource.data.construtoraId);
+  }
+
+  match /quadras/{id} {
+    allow read: if member(resource.data.construtoraId);
+    allow create: if admin(request.resource.data.construtoraId);
+    allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
+    allow delete: if admin(resource.data.construtoraId);
+  }
+
+  match /lotes/{id} {
+    allow read: if member(resource.data.construtoraId);
+    allow create: if admin(request.resource.data.construtoraId);
+    allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
+    allow delete: if admin(resource.data.construtoraId);
+  }
+
+  match /etapas/{id} {
+    allow read: if member(resource.data.construtoraId);
+    allow create: if admin(request.resource.data.construtoraId);
+    allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
+    allow delete: if admin(resource.data.construtoraId);
+  }
+
+  match /equipes/{id} {
+    allow read: if member(resource.data.construtoraId);
+    allow create: if admin(request.resource.data.construtoraId);
+    allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
+    allow delete: if admin(resource.data.construtoraId);
   }
   match /{path=**}/construtora_members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
   match /{path=**}/members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }

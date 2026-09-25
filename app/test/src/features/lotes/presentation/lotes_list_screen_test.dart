@@ -29,9 +29,8 @@ Lote makeLote(String id) => Lote(
       loteamentoId: 'l1',
       quadraId: 'q1',
       name: 'Lote $id',
-      phase: 'Plantas',
-      status: LoteStatus.noPrazo,
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
 Widget buildTestWidget(Widget child) {

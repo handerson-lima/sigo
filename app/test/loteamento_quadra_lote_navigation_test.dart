@@ -8,6 +8,7 @@ import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/lotes/presentation/add_lote_screen.dart';
 import 'package:app/src/features/lotes/presentation/lotes_list_screen.dart';
+import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/access_denied_screen.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/obras/presentation/obra_dashboard_screen.dart';

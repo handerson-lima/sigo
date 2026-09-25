@@ -73,6 +73,62 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "etapas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "construtoraId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "loteamentoId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quadraId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "loteId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ordem",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "equipes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "construtoraId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "loteamentoId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quadraId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "loteId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "etapaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

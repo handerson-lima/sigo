@@ -25,6 +25,7 @@ Quadra makeQuadra(String id) => Quadra(
       loteamentoId: 'l1',
       name: 'Quadra $id',
       createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
     );
 
 Widget buildTestWidget(Widget child) {

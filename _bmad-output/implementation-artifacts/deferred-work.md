@@ -221,3 +221,29 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
 - source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
   summary: Acesso por rota direta a uma construtora inativa exibe estado de erro em vez de "Acesso Negado".
   evidence: `AccessGuard` decide o acesso apenas pelo doc de vínculo (`app/lib/src/common_widgets/access_guard.dart:30-37`), que segue legível com a construtora inativa; `getConstrutoraObras` então falha com `permission-denied` e a tela mostra `Erro: ...`. Dados não são expostos (negação server-side); só o UX de rota direta/stale é afetado.
+
+## Deferred from: code review of spec-13-1-atualizar-esquema-dados-raiz-firestore (2026-09-25)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-1-atualizar-esquema-dados-raiz-firestore.md`
+  summary: `EtapaRepository.createDefaultEtapas` não é chamado no fluxo de criação de Lote, então todo Lote criado pela UI nasce sem as 5 etapas fixas.
+  evidence: `createDefaultEtapas` só aparece em `app/lib/src/features/etapas/data/etapa_repository.dart` e em fakes de teste; `AddLoteScreen._submit` (`app/lib/src/features/lotes/presentation/add_lote_screen.dart`) cria o Lote sem semear etapas. O AC 13.1 é condicional ("when chamo createDefaultEtapas") e a ramificação/criação de etapas por Lote é o escopo da Story 13.3 (epic-13-context).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-1-atualizar-esquema-dados-raiz-firestore.md`
+  summary: O caminho de `batch.commit()` de `createDefaultEtapas` não tem teste; só a função pura `buildDefaultEtapas` é exercitada.
+  evidence: `app/test/etapa_repository_test.dart` invoca `EtapaRepository.buildDefaultEtapas`; não há mock/harness de Firestore em Dart no `app/pubspec.yaml` (sem mockito/firebase-mock), então validar o batch exigiria infraestrutura nova.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-1-atualizar-esquema-dados-raiz-firestore.md`
+  summary: Nenhum teste executa os repositórios reais com Firestore, então o isolamento multi-tenant por foreign keys (`where('construtoraId'|...)`) não é verificado.
+  evidence: `app/test/loteamento_quadra_lote_providers_test.dart` e os testes de tela usam fakes/overrides; não há emulador Firestore para Dart no repo (só a suíte de rules em Node). Remover um `.where('loteamentoId', ...)` em `quadra_repository.dart` não quebraria nenhum teste executado.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-1-atualizar-esquema-dados-raiz-firestore.md`
+  summary: As rules top-level novas (`loteamentos`, `quadras`, `lotes`, `etapas`, `equipes`) não têm casos no emulador; `security-rules.test.cjs` cobre apenas caminhos aninhados.
+  evidence: `functions/test/security-rules.test.cjs` não referencia as 5 coleções; `functions/package.json` expõe `test:rules`, mas o CI roda `npm test` (`unit.cjs`) e `flutter analyze/test`, não `test:rules` (`.github/workflows/ci.yml`). Já há um defer correlato da 12.2 sobre esse script fora do CI.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-1-atualizar-esquema-dados-raiz-firestore.md`
+  summary: Rotas legadas `/setores` ficam sem redirect, a hierarquia de Etapa não é surfada na UI e restam rótulos "Setores" (`sigo_sidebar.dart:237`, `obra_dashboard_screen.dart:146`).
+  evidence: o escopo congelado da 13.1 é camada de dados (models/repositories/providers/rules); rotas declarativas e drill-down de UI são o objetivo explícito da Story 13.2 (epic-13-context), e a 13.3/13.4 estendem a hierarquia.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-1-atualizar-esquema-dados-raiz-firestore.md`
+  summary: `Etapa` usa codec de data ISO string, divergindo de `Equipe` (Firestore Timestamp).
+  evidence: `app/lib/src/features/etapas/domain/etapa.dart` não usa `_dateTimeFromTimestamp`; segue o estilo de `lote.dart`/`quadra.dart`. A unificação dos codecs nos 5 models é a retro-item 39 (já aberta).

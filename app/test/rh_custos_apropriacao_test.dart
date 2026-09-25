@@ -476,9 +476,8 @@ void main() {
           loteamentoId: 'lt1',
           quadraId: 'qd1',
           name: 'Lote 1',
-          phase: 'Alvenaria',
-          status: LoteStatus.noPrazo,
           createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
         ),
       ];
 

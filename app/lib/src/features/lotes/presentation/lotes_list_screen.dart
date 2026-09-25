@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/lote_repository.dart';
-import '../domain/lote.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 import '../../../common_widgets/sigo_empty_state.dart';
 import '../../../common_widgets/sigo_error_state.dart';
