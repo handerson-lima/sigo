@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +23,38 @@ class FakeEtapaRepository implements EtapaRepository {
   }) async {
     createCalled = true;
     await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeEtapaRepositoryTimeout implements EtapaRepository {
+  @override
+  Future<void> createDefaultEtapas({
+    WriteBatch? batch,
+    required String construtoraId,
+    required String loteamentoId,
+    required String quadraId,
+    required String loteId,
+  }) async {
+    throw TimeoutException('Simulated timeout');
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeEtapaRepositoryError implements EtapaRepository {
+  @override
+  Future<void> createDefaultEtapas({
+    WriteBatch? batch,
+    required String construtoraId,
+    required String loteamentoId,
+    required String quadraId,
+    required String loteId,
+  }) async {
+    throw Exception('Simulated error');
   }
 
   @override
@@ -191,5 +224,91 @@ void main() {
     await tester.pumpAndSettle();
     
     expect(fakeRepo.createCalled, isTrue);
+  });
+
+  testWidgets('Renderiza SnackBar com timeout ao demorar na inicializacao', (
+    tester,
+  ) async {
+    final fakeRepo = FakeEtapaRepositoryTimeout();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          watchEtapasProvider.overrideWith((ref, arg) => Stream.value([])),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+              .overrideWith((ref) => Stream.value(
+                ObraMember(
+                  userId: 'user',
+                  isAdmin: true,
+                  isActive: true,
+                  modules: [],
+                  joinedAt: DateTime.now(),
+                ),
+              )),
+          etapaRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: buildTestWidget(
+          const EtapasListScreen(
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+            quadraId: 'q1',
+            loteId: 'lo1',
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump();
+
+    await tester.tap(find.text('Inicializar Etapas'));
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.text('A inicialização está demorando muito. Os dados estão sendo processados.'), findsOneWidget);
+  });
+
+  testWidgets('Renderiza SnackBar de erro genérico ao falhar inicializacao', (
+    tester,
+  ) async {
+    final fakeRepo = FakeEtapaRepositoryError();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          watchEtapasProvider.overrideWith((ref, arg) => Stream.value([])),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+              .overrideWith((ref) => Stream.value(
+                ObraMember(
+                  userId: 'user',
+                  isAdmin: true,
+                  isActive: true,
+                  modules: [],
+                  joinedAt: DateTime.now(),
+                ),
+              )),
+          etapaRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: buildTestWidget(
+          const EtapasListScreen(
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+            quadraId: 'q1',
+            loteId: 'lo1',
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump();
+
+    await tester.tap(find.text('Inicializar Etapas'));
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Erro ao inicializar etapas. Tente novamente.'), findsOneWidget);
   });
 }

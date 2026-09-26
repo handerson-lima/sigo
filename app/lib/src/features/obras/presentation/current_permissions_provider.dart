@@ -15,16 +15,7 @@ final construtoraPermissionProvider = StreamProvider.autoDispose
       return cachedDocument('construtoras/$c/construtora_members/${user.uid}');
     });
 
-final isConstrutoraAdminProvider = StreamProvider.autoDispose
-    .family<bool, String>((ref, construtoraId) {
-      final dev = ref.watch(trustedDevProvider).value == true;
-      if (dev) return Stream.value(true);
 
-      final cm = ref.watch(construtoraPermissionProvider(construtoraId)).value;
-      if (cm == null || cm['isActive'] != true) return Stream.value(false);
-
-      return Stream.value(cm['isAdmin'] == true || cm['isOwner'] == true);
-    });
 
 final obraDocProvider = StreamProvider.autoDispose
     .family<Map<String, dynamic>?, ObraScope>((ref, scope) {

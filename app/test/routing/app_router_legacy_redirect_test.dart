@@ -61,5 +61,6 @@ void main() {
       await go('/construtoras/c1/loteamentos'),
       '/construtoras/c1/loteamentos',
     );
+    expect(await go('/construtoras/c1'), '/construtoras/c1/loteamentos');
   });
 }

@@ -24,7 +24,7 @@ abstract class ConstrutoraPaths {
   static const detail = '/construtoras/:cId';
   static const membros = 'membros';
 
-  static String detailFor(String cId) => '/construtoras/$cId';
+
   static String membrosFor(String cId) => '/construtoras/$cId/membros';
 }
 

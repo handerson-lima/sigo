@@ -2,7 +2,7 @@
 title: 'Story 13.3 - Ramificação Específica de Etapas por Lote'
 type: 'feature'
 created: '2026-09-25'
-status: 'in-review'
+status: 'done'
 baseline_commit: '9668da9'
 route: 'dispatch'
 context: ['_bmad-output/implementation-artifacts/epic-13-context.md', '_bmad-output/specs/spec-navegacao-loteamento-etapa/hierarquia-etapas.md']
