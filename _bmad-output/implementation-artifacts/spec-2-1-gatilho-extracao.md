@@ -2,7 +2,7 @@
 title: 'Story 2.1: Gatilho OnFinalize e Extração de Geometria Bruta'
 type: 'feature'
 created: '2026-09-26'
-status: 'done'
+status: 'in-review'
 baseline_commit: '2b0f467b261c0500b6f3e57269c6993851200e83'
 route: 'dispatch'
 review_loop_iteration: 1

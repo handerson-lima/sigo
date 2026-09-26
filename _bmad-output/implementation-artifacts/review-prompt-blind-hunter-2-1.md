@@ -5,6 +5,6 @@ Output a Markdown list of findings only — no severity, priority, or ranking.
 If the content is empty, stop and say so.
 If you have zero findings, re-check and keep thinking; do not stop with an empty list.
 
-CONTENT: the unified diff at `/Users/usuario/obras/_bmad-output/implementation-artifacts/diff-spec-2-1.diff`. Read that file — it is the content under review.
+CONTENT: the unified diff at `/Users/usuario/obras/diff-2-1.patch` (Please read or attach this file).
 
 Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.

@@ -1,0 +1,376 @@
+diff --git a/app/lib/src/features/loteamentos/data/loteamentos_import_repository.dart b/app/lib/src/features/loteamentos/data/loteamentos_import_repository.dart
+new file mode 100644
+index 0000000..d5ea4cd
+--- /dev/null
++++ b/app/lib/src/features/loteamentos/data/loteamentos_import_repository.dart
+@@ -0,0 +1,54 @@
++import 'dart:typed_data';
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:firebase_storage/firebase_storage.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++final loteamentosImportRepositoryProvider = Provider<LoteamentosImportRepository>((ref) {
++  return LoteamentosImportRepository(
++    FirebaseFirestore.instance,
++    FirebaseStorage.instance,
++  );
++});
++
++class LoteamentosImportRepository {
++  final FirebaseFirestore _firestore;
++  final FirebaseStorage _storage;
++
++  LoteamentosImportRepository(this._firestore, this._storage);
++
++  /// Realiza o upload do arquivo DXF para o Cloud Storage
++  /// Retorna o identificador gerado que pode ser usado como ID do rascunho
++  Future<String> uploadDxf({
++    required String userId,
++    required Uint8List fileBytes,
++    required String filename,
++  }) async {
++    final timestamp = DateTime.now().millisecondsSinceEpoch;
++    // O arquivo é salvo com um prefixo único
++    final uniqueFilename = '${timestamp}_$filename';
++    final path = 'loteamentos_drafts_uploads/$userId/$uniqueFilename';
++    final ref = _storage.ref(path);
++
++    await ref.putData(
++      fileBytes,
++      SettableMetadata(contentType: 'application/dxf'),
++    );
++    
++    // Retorna o identificador único para escutar no Firestore
++    return uniqueFilename;
++  }
++
++  /// Escuta a criação/atualização do rascunho na coleção loteamentos_drafts
++  Stream<Map<String, dynamic>?> watchDraft(String draftId) {
++    return _firestore
++        .collection('loteamentos_drafts')
++        .doc(draftId)
++        .snapshots()
++        .map((snapshot) {
++      if (snapshot.exists) {
++        return snapshot.data();
++      }
++      return null;
++    });
++  }
++}
+diff --git a/app/lib/src/features/loteamentos/presentation/loteamento_import_screen.dart b/app/lib/src/features/loteamentos/presentation/loteamento_import_screen.dart
+new file mode 100644
+index 0000000..bce5fe4
+--- /dev/null
++++ b/app/lib/src/features/loteamentos/presentation/loteamento_import_screen.dart
+@@ -0,0 +1,143 @@
++import 'dart:typed_data';
++import 'package:file_picker/file_picker.dart';
++import 'package:flutter/material.dart';
++import 'package:flutter_dropzone/flutter_dropzone.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:go_router/go_router.dart';
++
++import '../../authentication/data/auth_repository.dart';
++import '../data/loteamentos_import_repository.dart';
++
++class LoteamentoImportScreen extends ConsumerStatefulWidget {
++  final String construtoraId;
++
++  const LoteamentoImportScreen({
++    super.key,
++    required this.construtoraId,
++  });
++
++  @override
++  ConsumerState<LoteamentoImportScreen> createState() => _LoteamentoImportScreenState();
++}
++
++class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen> {
++  late DropzoneViewController dropzoneController;
++  bool isHighlighted = false;
++  bool isUploading = false;
++
++  Future<void> _uploadFileBytes(Uint8List bytes, String name) async {
++    setState(() => isUploading = true);
++    try {
++      final user = ref.read(authRepositoryProvider).currentUser;
++      if (user == null) throw Exception('Usuário não autenticado');
++
++      final repo = ref.read(loteamentosImportRepositoryProvider);
++      final draftId = await repo.uploadDxf(
++        userId: user.uid,
++        fileBytes: bytes,
++        filename: name,
++      );
++
++      if (mounted) {
++        context.go('/construtoras/${widget.construtoraId}/loteamentos/import/processing/$draftId');
++      }
++    } catch (e) {
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text('Erro no upload: $e')),
++        );
++        setState(() => isUploading = false);
++      }
++    }
++  }
++
++  Future<void> _pickFile() async {
++    final result = await FilePicker.pickFiles(
++      type: FileType.custom,
++      allowedExtensions: ['dxf'],
++    );
++
++    if (result.isNotEmpty) {
++      final file = result.first;
++      final bytes = await file.xFile.readAsBytes();
++      await _uploadFileBytes(bytes, file.name);
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    return Scaffold(
++      appBar: AppBar(
++        title: const Text('Importar Loteamento (DXF)'),
++      ),
++      body: Center(
++        child: isUploading
++            ? const Column(
++                mainAxisAlignment: MainAxisAlignment.center,
++                children: [
++                  CircularProgressIndicator(),
++                  SizedBox(height: 16),
++                  Text('Enviando arquivo...'),
++                ],
++              )
++            : Container(
++                width: 600,
++                height: 400,
++                decoration: BoxDecoration(
++                  color: isHighlighted ? Colors.blue.withValues(alpha: 0.1) : Colors.grey[100],
++                  border: Border.all(
++                    color: isHighlighted ? Colors.blue : Colors.grey,
++                    width: 2,
++                    style: BorderStyle.solid,
++                  ),
++                  borderRadius: BorderRadius.circular(16),
++                ),
++                child: Stack(
++                  children: [
++                    DropzoneView(
++                      operation: DragOperation.copy,
++                      cursor: CursorType.grab,
++                      onCreated: (controller) => dropzoneController = controller,
++                      onHover: () => setState(() => isHighlighted = true),
++                      onLeave: () => setState(() => isHighlighted = false),
++                      onDropFile: (dynamic ev) async {
++                        setState(() => isHighlighted = false);
++                        final name = await dropzoneController.getFilename(ev);
++                        final bytes = await dropzoneController.getFileData(ev);
++                        if (!name.toLowerCase().endsWith('.dxf')) {
++                          if (mounted) {
++                            ScaffoldMessenger.of(context).showSnackBar(
++                              const SnackBar(content: Text('Por favor, envie um arquivo .dxf')),
++                            );
++                          }
++                          return;
++                        }
++                        await _uploadFileBytes(bytes, name);
++                      },
++                    ),
++                    Center(
++                      child: Column(
++                        mainAxisAlignment: MainAxisAlignment.center,
++                        children: [
++                          const Icon(Icons.cloud_upload, size: 80, color: Colors.grey),
++                          const SizedBox(height: 16),
++                          const Text(
++                            'Arraste e solte o arquivo .dxf aqui',
++                            style: TextStyle(fontSize: 18, color: Colors.grey),
++                          ),
++                          const SizedBox(height: 16),
++                          ElevatedButton.icon(
++                            onPressed: _pickFile,
++                            icon: const Icon(Icons.folder_open),
++                            label: const Text('Selecionar Arquivo'),
++                          ),
++                        ],
++                      ),
++                    ),
++                  ],
++                ),
++              ),
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/loteamentos/presentation/loteamento_processing_screen.dart b/app/lib/src/features/loteamentos/presentation/loteamento_processing_screen.dart
+new file mode 100644
+index 0000000..9d8c449
+--- /dev/null
++++ b/app/lib/src/features/loteamentos/presentation/loteamento_processing_screen.dart
+@@ -0,0 +1,87 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:go_router/go_router.dart';
++
++import '../data/loteamentos_import_repository.dart';
++
++final draftStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, draftId) {
++  final repo = ref.watch(loteamentosImportRepositoryProvider);
++  return repo.watchDraft(draftId);
++});
++
++class LoteamentoProcessingScreen extends ConsumerStatefulWidget {
++  final String construtoraId;
++  final String draftId;
++
++  const LoteamentoProcessingScreen({
++    super.key,
++    required this.construtoraId,
++    required this.draftId,
++  });
++
++  @override
++  ConsumerState<LoteamentoProcessingScreen> createState() => _LoteamentoProcessingScreenState();
++}
++
++class _LoteamentoProcessingScreenState extends ConsumerState<LoteamentoProcessingScreen> {
++  @override
++  Widget build(BuildContext context) {
++    final draftStream = ref.watch(draftStreamProvider(widget.draftId));
++
++    return Scaffold(
++      body: Center(
++        child: draftStream.when(
++          data: (data) {
++            if (data == null) {
++              // Ainda não existe (processando background)
++              return const Column(
++                mainAxisAlignment: MainAxisAlignment.center,
++                children: [
++                  CircularProgressIndicator(),
++                  SizedBox(height: 24),
++                  Text(
++                    'Processando Geometria...',
++                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
++                  ),
++                  SizedBox(height: 8),
++                  Text('Aguarde enquanto o servidor converte os polígonos. Não feche esta tela.'),
++                ],
++              );
++            }
++
++            // Quando houver data, redireciona automaticamente
++            WidgetsBinding.instance.addPostFrameCallback((_) {
++              if (mounted) {
++                // Para o futuro canvas de revisão (Epic 3)
++                context.replace('/construtoras/${widget.construtoraId}/loteamentos/draft/${widget.draftId}');
++              }
++            });
++
++            return const Column(
++              mainAxisAlignment: MainAxisAlignment.center,
++              children: [
++                Icon(Icons.check_circle, color: Colors.green, size: 64),
++                SizedBox(height: 16),
++                Text('Rascunho gerado com sucesso! Redirecionando...'),
++              ],
++            );
++          },
++          loading: () => const CircularProgressIndicator(),
++          error: (err, stack) => Column(
++            mainAxisAlignment: MainAxisAlignment.center,
++            children: [
++              const Icon(Icons.error, color: Colors.red, size: 64),
++              const SizedBox(height: 16),
++              Text('Erro ao escutar processamento:\n$err', textAlign: TextAlign.center),
++              const SizedBox(height: 16),
++              ElevatedButton(
++                onPressed: () => context.pop(),
++                child: const Text('Voltar'),
++              ),
++            ],
++          ),
++        ),
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/loteamentos/presentation/loteamentos_list_screen.dart b/app/lib/src/features/loteamentos/presentation/loteamentos_list_screen.dart
+index 52aee78..556198e 100644
+--- a/app/lib/src/features/loteamentos/presentation/loteamentos_list_screen.dart
++++ b/app/lib/src/features/loteamentos/presentation/loteamentos_list_screen.dart
+@@ -36,7 +36,12 @@ class LoteamentosListScreen extends ConsumerWidget {
+       title: 'Loteamentos',
+       activeRoute: '/construtoras/$construtoraId/loteamentos',
+       actions: [
+-        if (admin)
++        if (admin) ...[
++          IconButton(
++            icon: const Icon(Icons.file_upload, color: Colors.black54),
++            tooltip: 'Importar DXF',
++            onPressed: () => context.go('/construtoras/$construtoraId/loteamentos/import'),
++          ),
+           IconButton(
+             icon: const Icon(Icons.add_business, color: Colors.black54),
+             tooltip: 'Novo Loteamento',
+@@ -48,6 +53,7 @@ class LoteamentosListScreen extends ConsumerWidget {
+               );
+             },
+           ),
++        ],
+       ],
+       child: Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+diff --git a/app/lib/src/features/loteamentos/routing/loteamentos_routes.dart b/app/lib/src/features/loteamentos/routing/loteamentos_routes.dart
+index dafbd9c..859fa72 100644
+--- a/app/lib/src/features/loteamentos/routing/loteamentos_routes.dart
++++ b/app/lib/src/features/loteamentos/routing/loteamentos_routes.dart
+@@ -1,6 +1,8 @@
+ import 'package:go_router/go_router.dart';
+ 
+ import '../presentation/loteamentos_list_screen.dart';
++import '../presentation/loteamento_import_screen.dart';
++import '../presentation/loteamento_processing_screen.dart';
+ import '../../../common_widgets/access_guard.dart';
+ import '../../quadras/routing/quadras_routes.dart';
+ 
+@@ -21,6 +23,34 @@ List<RouteBase> get loteamentosRoutes => [
+       );
+     },
+     routes: [
++      GoRoute(
++        path: 'import',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'lotes',
++            child: LoteamentoImportScreen(construtoraId: cId),
++          );
++        },
++        routes: [
++          GoRoute(
++            path: 'processing/:draftId',
++            builder: (context, state) {
++              final cId = state.pathParameters['cId']!;
++              final draftId = state.pathParameters['draftId']!;
++              return AccessGuard(
++                construtoraId: cId,
++                module: 'lotes',
++                child: LoteamentoProcessingScreen(
++                  construtoraId: cId,
++                  draftId: draftId,
++                ),
++              );
++            },
++          ),
++        ],
++      ),
+       GoRoute(
+         path: ':loteamentoId',
+         redirect: (context, state) => state.uri.path == state.matchedLocation

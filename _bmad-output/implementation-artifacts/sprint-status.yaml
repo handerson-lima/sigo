@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-26-2026 12:31
+last_updated: 09-26-2026 12:39
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -35,7 +35,7 @@ development_status:
   epic-1: in-progress
   1-1-componente-de-upload-de-arquivo-dxf: done
   1-2-listener-de-processamento-e-sala-de-espera-animação: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: in-progress
   2-1-gatilho-onfinalize-e-extração-de-geometria-bruta: in-progress
@@ -397,3 +397,17 @@ action_items:
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: "epic-1-retro-item-46-implementar-limite-maximo-de-tamanho-de"
+    epic: 1
+    action: "Implementar limite maximo de tamanho de arquivo no DXF antes/durante
+      o upload no Firebase Storage para prevenir estouro."
+    owner: "dev (Amelia)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-import-retro-2026-09-26.md"
+  - id: "epic-1-retro-item-47-garantir-que-o-epic-3-e-a-story-do-canva"
+    epic: 1
+    action: "Garantir que o Epic 3 e a Story do Canvas de Revisao implementem corretamente
+      a rota de draft, caso contrario os usuarios sofrerao 404 no final do upload."
+    owner: "maranduteam"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-import-retro-2026-09-26.md"
