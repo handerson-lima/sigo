@@ -1,79 +1,101 @@
 ---
-name: '{name}'
+name: 'Importação de DXF para Loteamentos'
 type: architecture-spine
-purpose: build-substrate    # build-substrate (default) · discussion · report · deck
-altitude: feature           # initiative (keeps features) · feature (keeps epics) · epic (keeps stories)
-paradigm: '{named design pattern, e.g. hexagonal, layered, pipes-and-filters, actor}'
-scope: '{what this spine governs}'
-status: draft               # draft · final
-created: '{date}'
-updated: '{date}'
-binds: []                   # capability / unit IDs governed (from the driving spec; at epic altitude, also the inherited parent AD ids)
-sources: []
+purpose: build-substrate
+altitude: feature
+paradigm: 'Async Pipeline & Immutable Drafts'
+scope: 'Fluxo de ingestão, validação geométrica e gravação de Loteamentos via DXF'
+status: final
+created: '2026-09-26'
+updated: '2026-09-26'
+binds: ["Data Import Pipeline", "UI State"]
+sources: ["LOTEAMENTO_HR_R13A.dxf"]
 companions: []
 ---
 
-# Architecture Spine — {name}
-
-<!-- TEMPLATE GUIDE — act on these comments, then delete them; never emit a comment in the finished spine. This is a shape, not a script: keep only the sections this spine needs and cut the rest (no empty headers). A small intent may be just paradigm + a few ADs + conventions; a platform earns more. An inherited epic spine is usually mostly Inherited Invariants + a thin Deferred. Decisions, not rationale (rationale lives in the memlog). Carry shape in diagrams; prose only where it must. -->
+# Architecture Spine — Importação de DXF para Loteamentos
 
 ## Design Paradigm
 
-<!-- Name the pattern (a known one loads a whole model for free) and map its layers to namespaces/directories. The smallest, most durable thing here. -->
+**Async Pipeline & Immutable Drafts**
+O processamento pesado ocorre de forma assíncrona no backend, gerando um estado intermediário imutável (Draft/Rascunho) que o cliente consome para revisão. Nenhuma mutação de inserção em massa ocorre diretamente do client.
 
 ## Inherited Invariants
 
-<!-- Only when this spine inherits a higher-altitude parent. The parent's ADs/conventions/paradigm that bind here, by their ORIGINAL ids — read-only, never renumbered, not re-derived. A local decision that contradicts one is a conflict to surface, not an override. Cut this section otherwise. -->
-
 | Inherited | From parent | Binds here |
 | --- | --- | --- |
-| {AD-id / convention} | {parent spine} | {what it constrains in this scope} |
+| AD-1 (Modelo Relacional Flat no Firestore) | architecture-obras-2026-09-24 | O resultado final do import não pode ser aninhado. Devem ser gravados em coleções raízes. |
+| AD-2 (Rotas Declarativas Aninhadas) | architecture-obras-2026-09-24 | As rotas da UI de revisão devem respeitar a taxonomia do GoRouter. |
 
 ## Invariants & Rules
 
-<!-- The durable heart: calls a future builder can't read off compliant code. One block per decision: stable ascending id (never reused/renumbered), Binds, Prevents (the divergence), Rule (enforceable). Tag [ADOPTED] when the user or existing reality settled it. Include a dependency-direction diagram (who may depend on whom) — it IS a rule; author it as valid mermaid, never an empty graph. -->
+### AD-3 — Parser Boundary and Stack
 
-### AD-1 — {decision}
+- **Binds:** Data Import Pipeline
+- **Prevents:** Thread-blocking heavy geometry math in Flutter Web and reliance on immature Dart CAD libraries.
+- **Rule:** O parsing do DXF e os cálculos matemáticos complexos de *Point-in-Polygon* devem ocorrer exclusivamente no backend utilizando uma Cloud Function em Python com bibliotecas `ezdxf` e `shapely`. O output deve ser um `GeoJSON` limpo.
 
-- **Binds:** {capability / unit ids / fr/nfr's, areas, or `all`}
-- **Prevents:** {the divergence this stops}
-- **Rule:** {the constraint downstream must follow}
+### AD-4 — State Mutation and Async Flow
+
+- **Binds:** Import Flow, UI State
+- **Prevents:** HTTP timeouts em arquivos grandes e perda de progresso caso a interface feche (UI unmount).
+- **Rule:** O Flutter deve fazer upload do DXF diretamente para o Cloud Storage. Isso acionará uma Background Cloud Function que fará o processamento e salvará o GeoJSON em uma coleção temporária `loteamentos_drafts` no Firestore. O Flutter apenas escuta as mudanças deste documento.
+
+### AD-5 — Ambiguity Resolution and Ingestion
+
+- **Binds:** Data Import Pipeline, UI State
+- **Prevents:** Client-side transaction failures and UI freezing during massive batch writes (Firestore 500-write limit).
+- **Rule:** O backend aplicará heurísticas iniciais (ex: remover textos como "Área" ou "Casa") para parear Lotes. Lotes sem identificação clara recebem `"status": "ambiguo"` no GeoJSON para o usuário corrigir na UI. Ao aprovar, a UI não realiza gravações; ela delega ao backend a responsabilidade de executar os *batch writes* nas coleções finais (`loteamentos`, `quadras` e `lotes`) e apagar o rascunho.
 
 ## Consistency Conventions
 
-<!-- Defaults that bind where independent builders would drift. Cut rows that don't apply; add rows the project needs. -->
-
 | Concern | Convention |
 | --- | --- |
-| Naming (entities, files, interfaces, events) | |
-| Data & formats (ids, dates, error shapes, envelopes) | |
-| State & cross-cutting (mutation, errors, logging, config, auth) | |
+| Naming (entities) | Os rascunhos viverão na coleção raiz temporária: `loteamentos_drafts`. |
+| Data & formats | O Payload de comunicação UI/Backend será estruturado em formato estrito **GeoJSON**, contendo as propriedades estendidas `tipo` (quadra/lote), `nome`, e `status`. |
+| State & cross-cutting | A persistência final segue a regra AD-1, lidando com os Foreign Keys (ex: criar o Loteamento, capturar o ID auto-gerado, repassar às Quadras e Lotes em transação). |
 
 ## Stack
 
-<!-- SEED — verified current at authoring; the code owns this once it exists. Name + version only; the why lives in the memlog. One row per language, framework, key dependency, platform, or chain that's pinned. -->
-
 | Name | Version |
 | --- | --- |
-| {language / framework / key dep / platform / chain} | {pinned version} |
+| Python (Cloud Functions Gen 2) | 3.11+ |
+| ezdxf (Python) | Current |
+| shapely (Python) | Current |
+| Flutter / Dart | 3.x (Current) |
 
 ## Structural Seed
 
-<!-- The shapes worth fixing at cold-start — not a fixed list. Include only what's non-obvious at this altitude, and use as many diagrams as convey it, each as VALID mermaid (never a placeholder or empty graph). Candidates: system/container/context view; DEPLOYMENT & ENVIRONMENTS and external provider/infra topology (cover the operational envelope here when this altitude owns it — don't let it fall through); core-entity ERD (names + relationships only; an attribute that's itself an invariant is an AD, not a diagram); a minimal source tree. The code owns the detail — this is scaffold, not a mirror to maintain. -->
+O fluxo de dados da importação opera conforme a topologia abaixo:
 
-```text
-{root}/
-  {dir}/   # {what lives here}
+```mermaid
+sequenceDiagram
+    participant Flutter UI
+    participant Cloud Storage
+    participant Cloud Function (Python)
+    participant Firestore (Draft)
+    participant Firestore (Produção)
+
+    Flutter UI->>Cloud Storage: 1. Upload DXF File
+    Cloud Storage-->>Cloud Function (Python): 2. Trigger OnFinalize
+    Cloud Function (Python)->>Cloud Function (Python): 3. ezdxf + shapely (GeoJSON)
+    Cloud Function (Python)->>Firestore (Draft): 4. Set loteamentos_drafts/{id}
+    Firestore (Draft)-->>Flutter UI: 5. Snapshot Listener (GeoJSON ready)
+    Flutter UI->>Firestore (Draft): 6. User fixes Ambiguities & Marks 'Approved'
+    Firestore (Draft)-->>Cloud Function (Python): 7. Trigger OnUpdate (Approved)
+    Cloud Function (Python)->>Firestore (Produção): 8. Batch Writes (Loteamento, Quadras, Lotes)
+    Cloud Function (Python)->>Firestore (Draft): 9. Delete Draft
 ```
 
 ## Capability → Architecture Map
 
-<!-- Present when a spec drove this run. Bridges the spec's capabilities to where they live + what governs them; the consistency auditor's checklist. Cut otherwise. -->
-
 | Capability / Area | Lives in | Governed by |
 | --- | --- | --- |
-| {CAP-id / area} | {component / module} | {AD-id, convention, paradigm} |
+| DXF Parsing / Point-in-Polygon | Backend (Cloud Function) | AD-3 |
+| Import State / Upload | Cloud Storage + Firestore | AD-4 |
+| Ambiguity Resolution & Ingestion | Backend + Flutter UI | AD-5, AD-1 |
 
 ## Deferred
 
-<!-- Decisions intentionally pushed down, each with the reason it can wait — including whole dimensions this altitude doesn't own yet. The half of the contract that keeps the spine lean. -->
+- **GeoJSON Map Styling:** O detalhamento visual exato (cores, interações de clique, pins) do mapa na interface Flutter durante a aprovação fica postergado para a fase de UX/Design.
+- **Formato Final dos Metadados Extraídos:** A necessidade de gravar a "área" bruta de cada lote (já calculada no shapely) além das coordenadas no banco final será definida na Especificação (SPEC).
