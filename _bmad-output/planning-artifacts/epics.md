@@ -1,9 +1,11 @@
 ---
-stepsCompleted: [step-01-validate-prerequisites, step-02-design-epics, step-03-create-stories, step-04-final-validation]
-inputDocuments:
-  - _bmad-output/planning-artifacts/architecture/architecture-obras-2026-09-21/ARCHITECTURE-SPINE.md
-  - _bmad-output/planning-artifacts/ux-designs/ux-obras-2026-09-21/DESIGN.md
-  - _bmad-output/planning-artifacts/ux-designs/ux-obras-2026-09-21/EXPERIENCE.md
+stepsCompleted: [1, 2, 3]
+inputDocuments: [
+  "_bmad-output/specs/spec-importacao-dxf/SPEC.md",
+  "_bmad-output/planning-artifacts/architecture/architecture-obras-2026-09-26/ARCHITECTURE-SPINE.md",
+  "_bmad-output/ux/ux-importacao-dxf/DESIGN.md",
+  "_bmad-output/ux/ux-importacao-dxf/EXPERIENCE.md"
+]
 ---
 
 # obras - Epic Breakdown
@@ -16,265 +18,228 @@ This document provides the complete epic and story breakdown for obras, decompos
 
 ### Functional Requirements
 
-FR1: Adm/owner visualiza lista de membros com cargo + N obras + pendentes (cargo · N obras, chip por papel)
-FR2: Filtrar Todos / Por obra / Pendentes + busca por email/displayName
-FR3: Visualizar detalhe do membro (vínculo construtora + obras vinculadas + status)
-FR4: Atribuir operário à obra (obra + papel Operário + módulos) via setMembership com obraId
-FR5: Atribuir admin à obra (papel Admin da obra)
-FR6: Trocar papel/módulos do vínculo na obra
-FR7: Remover membro da obra (desativar vínculo obra)
-FR8: Trocar cargo na construtora operario↔admin (owner só dev via trustedDev)
-FR9: Desativar/remover da construtora com remoção das N obras vinculadas
-FR10: Tratar erros mapeados pt-br (permission-denied, failed-precondition vínculo ativo, Papel inválido, sem conexão)
+FR1: O sistema deve permitir que o usuário faça o upload de um arquivo DXF para iniciar o processamento em background.
+FR2: O sistema deve processar a geometria do DXF (Point-in-Polygon) no backend, gerando um rascunho em formato GeoJSON armazenado na coleção `loteamentos_drafts` no Firestore.
+FR3: O sistema deve identificar lotes ambíguos ou sem identificação clara durante o processamento, sinalizando-os com status `ambiguo` no rascunho GeoJSON.
+FR4: O sistema deve renderizar o rascunho para o usuário final, permitindo que ele visualize a planta geográfica na UI, resolva as ambiguidades identificadas e aprove o rascunho.
+FR5: O sistema deve atualizar o status do rascunho para aprovado no Firestore após as resoluções do usuário na interface.
+FR6: Após aprovação do rascunho, o sistema executará as inserções em lote (batch writes) nas coleções de produção (`loteamentos`, `quadras`, `lotes`) de maneira assíncrona (background), finalizando com a exclusão do rascunho.
 
 ### NonFunctional Requirements
 
-NFR1: Rota /construtora/:cId/membros restrita a admin/owner via AccessGuard(adminOnly:true)
-NFR2: Leitura com cache Firestore; escrita de vínculo exige rede, sem fila offline
-NFR3: Módulos fail-closed (vazio = sem acesso); normalizar rdo→diario, almoxarifado→estoque
-NFR4: Acessibilidade — semântica, foco/teclado web, contraste, textScale 1.3x, papel nunca só por cor
-NFR5: Responsivo Mobile + Web PWA em SigoLayout (bottomsheet mobile / dialog desktop)
-NFR6: Escrita só via Functions setMembership/setConstrutoraRole; auditoria só servidor
+NFR1: O parsing do DXF e os cálculos matemáticos complexos de Point-in-Polygon NUNCA devem ocorrer no cliente web para não bloquear a thread principal em interfaces Flutter.
+NFR2: As inserções de produção não devem ser executadas no front-end para contornar limites transacionais (máximo 500 writes do Firestore) e previnir interrupções parciais se o usuário fechar a interface.
+NFR3: A persistência final dos dados nas coleções da base de dados raiz de produção deve seguir um modelo relacional flat, sem aninhamento, utilizando Foreign Keys.
+NFR4: A comunicação entre UI e Backend via Firestore deve utilizar rigorosamente o formato de GeoJSON, expandido apenas com as propriedades de dados tipo, nome e status.
 
 ### Additional Requirements
 
-- Brownfield Flutter existente, sem starter template (Epic 1 não precisa setup)
-- Criar ObraMembersRepository + providers obraMembersProvider((c,o)), obrasDaConstrutoraProvider(c), watchObrasDoMembro
-- Por obra agrega N streams no cliente (sem collectionGroup)
-- Desativação sem cascata transacional: N setMembership isActive:false + desativa construtora
-- Pré-requisito vínculo ativo construtora antes de obra; UI bloqueia com atalho Ativar
-- Após mutação invalidar membrosProvider + obraMembersProvider; pull-to-refresh
+- O backend deve ser implementado através de Cloud Functions em Python (Gen 2; 3.11+).
+- Devem ser incluídas as bibliotecas `ezdxf` e `shapely` no ambiente da Cloud Function.
+- O Cloud Storage será acionado via gatilho de OnFinalize.
+- O workflow contará com trigger OnUpdate acionado quando um rascunho é aprovado.
+- As rotas renderizadas para a revisão na interface (UI) devem seguir as diretrizes do pacote de navegação GoRouter.
 
 ### UX Design Requirements
 
-UX-DR1: MemberRow — avatar por papel, subtitle Cargo · N obras, chip + chevron, tap abre detalhe
-UX-DR2: RoleChip — Proprietário/Administrador/Operário/Pendente nos tokens DESIGN.md
-UX-DR3: ObraVinculoRow — nome obra + papel obra + status + overflow (trocar/remover); vazio Atribuir
-UX-DR4: AtribuirObraDialog — dropdown obra ativa, segmented papel, FilterChips módulos (default diario), resumo ao vivo, confirm desabilitado sem obra
-UX-DR5: ConfirmDestructiveDialog — remover obra / desativar construtora com consequência explícita
-UX-DR6: Tokens e estados — cores, tipografia Material, loading/vazio/erro/retry, snackbars sucesso/erro pt-br
-UX-DR7: A11y e plataforma — labels, focus trap, Esc fecha, alvos 48dp, painel desktop >1200px [ASSUMPTION]
+UX-DR1: Implementar Canvas contínuo com "fundo infinito", permitindo manipulação da planta através de Pan & Zoom (arrastar o clique e scroll do mouse).
+UX-DR2: Renderizar os polígonos GeoJSON no canvas adotando um estilo por status: alerta laranja/amarelo para "ambiguo" (c/ pulso dinâmico), neutro para base válida e verde sucesso para lotes recentemente corrigidos pelo usuário.
+UX-DR3: Criar um Painel Lateral (Side Panel) direito acoplado para abrigar a digitação da identificação correta (ex: "Lote 14") de lotes acionados via clique no canvas, além de botões "Salvar" e "Ignorar".
+UX-DR4: Otimizar o workflow por teclado centrado: ao selecionar um lote no mapa, o input numérico/texto lateral deve ganhar foco automático, aceitando a confirmação da edição diretamente com o toque da tecla ENTER.
+UX-DR5: Incorporar um Chip Dinâmico ou Barra de Status na interface (superior) exibindo dinamicamente o contador regressivo de "X Lotes Ambíguos" pendentes de revisão.
+UX-DR6: Desabilitar bloqueando o acionamento do Botão Principal "Aprovar Definitivamente" caso exista um ou mais lotes com sinal de ambíguo e habilitar na superação destas pendências.
 
 ### FR Coverage Map
 
-FR1: Epic 8 - lista com N obras + pendentes
-FR2: Epic 8 - filtros Todos/Por obra/Pendentes + busca
-FR3: Epic 8 - detalhe vínculo construtora + obras vinculadas
-FR4: Epic 9 - atribuir operário à obra
-FR5: Epic 9 - atribuir admin à obra
-FR6: Epic 10 - trocar papel/módulos na obra
-FR7: Epic 10 - remover da obra
-FR8: Epic 10 - trocar cargo na construtora (owner só dev)
-FR9: Epic 10 - desativar da construtora + remover de N obras
-FR10: Epic 9 (reuso Epic 10) - erros mapeados pt-br
+FR1: Epic 1 - Upload do arquivo via front-end.
+FR2: Epic 2 - Extração e gravação do rascunho GeoJSON no backend.
+FR3: Epic 2 - Algoritmo de identificação e marcação de ambiguidades no GeoJSON.
+FR4: Epic 1 (Escuta/Visualização Inicial) e Epic 3 (Resolução interativa no Canvas).
+FR5: Epic 3 - Mutação de status "aprovado" acionada pela UI.
+FR6: Epic 4 - Execução dos batches flat no backend e limpeza.
 
 ## Epic List
 
-### Epic 8: Visibilidade dos vínculos
-Adm/owner enxerga cada membro com Cargo · N nós da hierarquia e abre o detalhe.
-**FRs covered:** FR1, FR2, FR3
+### Epic 1: Upload e Monitoramento de Rascunho (Flutter UI)
+O usuário consegue submeter o arquivo físico do loteamento (DXF) e acompanhar visualmente o estado de carregamento contínuo ("Processando Geometria") até que o rascunho seja retornado pelo backend para visualização.
+**FRs covered:** FR1, FR4 (parcial)
 
-### Epic 9: Atribuição na Hierarquia (Loteamento a Equipe)
-Adm/owner atribui operário/equipe em um nível específico (ex: Lote ou Equipe) com papel + módulos.
-**FRs covered:** FR4, FR5, FR10
+### Epic 2: Processamento Geométrico Assíncrono (Backend Python)
+O arquivo enviado é traduzido perfeitamente de CAD para um modelo geográfico navegável no backend de forma assíncrona, com áreas problemáticas analisadas, isoladas e devolvidas como um Rascunho Imutável.
+**FRs covered:** FR2, FR3
 
-### Epic 10: Gestão do vínculo
-Adm/owner troca papel/módulos na hierarquia, remove de um nó, troca cargo na construtora e desativa.
-**FRs covered:** FR6, FR7, FR8, FR9
+### Epic 3: Revisão e Resolução Interativa de Ambiguidades (Flutter UI)
+O usuário visualiza o loteamento em um Canvas responsivo, localiza lotes problemáticos visualmente e os corrige rapidamente através do Painel Lateral utilizando atalhos de teclado, até destravar a aprovação final.
+**FRs covered:** FR4 (parcial), FR5
 
-### Epic 11: Drill-down do Dashboard
-O usuário navega pela hierarquia estrutural após o login para detalhar os componentes da construção.
-**FRs covered:** (Nova feature de navegação estrutural)
+### Epic 4: Consolidação e Persistência Flat (Backend Python)
+O loteamento revisado e aprovado pela interface torna-se definitivo e consultável no sistema de forma performática através de batches nas coleções flat de produção, extinguindo o rascunho temporário.
+**FRs covered:** FR6
 
-### Epic 12: Gestão de Construtoras no Painel Dev
-Devs podem ativar ou desativar o status das construtoras para suspender acesso global no app.
-**FRs covered:** (Gestão global)
+## Epic 1: Upload e Monitoramento de Rascunho (Flutter UI)
 
-## Epic 8: Visibilidade dos vínculos
+O usuário consegue submeter o arquivo físico do loteamento (DXF) e acompanhar visualmente o estado de carregamento contínuo ("Processando Geometria") até que o rascunho seja retornado pelo backend para visualização inicial.
 
-Adm/owner enxerga cada membro com Cargo · N obras e abre o detalhe.
+### Story 1.1: Componente de Upload de Arquivo DXF
 
-### Story 8.1: Lista com Cargo · N obras
-
-As a adm/owner da construtora,
-I want ver cada membro com cargo e quantidade de obras vinculadas,
-So that sei quem está alocado onde antes de atribuir.
+As a Analista de Projetos,
+I want enviar um arquivo de loteamento no formato .dxf através da interface web,
+So that o sistema receba os dados brutos e possa iniciar sua conversão.
 
 **Acceptance Criteria:**
 
-**Given** estou logado como admin ou owner com `AccessGuard(adminOnly:true)` liberado
-**When** abro `/construtora/:cId/membros`
-**Then** vejo pendentes no topo (`Pendente · Cargo`) e ativos abaixo com subtitle `Cargo · N obras` (ex. `Operário · 2 obras`)
-**And** avatar/chip seguem DESIGN.md (owner âmbar stars, admin azul, operário neutro; UX-DR1/UX-DR2)
-**And** lista combina `watchMembros(c)` + agregação `watchObraMembers(c,o)` por obra ativa sem collectionGroup (AD-5)
+**Given** que o usuário acessa a tela de Importação de Loteamento
+**When** ele arrasta e solta um arquivo `.dxf` (ou utiliza o botão de seleção de arquivo) e clica em enviar
+**Then** o aplicativo Flutter realiza o upload do arquivo diretamente para o bucket designado no Cloud Storage
+**And** a interface sinaliza visualmente a progressão ou a conclusão imediata do envio do arquivo físico.
 
-### Story 8.2: Filtros e busca
+### Story 1.2: Listener de Processamento e Sala de Espera (Animação)
 
-As a adm/owner,
-I want filtrar Todos / Por obra / Pendentes e buscar por email/nome,
-So that localizo rápido o operário.
-
-**Acceptance Criteria:**
-
-**Given** a lista 8.1 carregada
-**When** seleciono `Por obra` + obra X ou digito busca
-**Then** vejo só membros da obra X (junção em memória uid→obras) ou match local email/displayName
-**And** estado vazio mostra `Nenhum membro encontrado.`; dropdown vazio mostra `Nenhuma obra ativa` (FR2)
-
-### Story 8.3: Detalhe do membro
-
-As a adm/owner,
-I want abrir o detalhe com vínculo da construtora e obras vinculadas,
-So that decido atribuir/remover/trocar.
+As a Analista de Projetos,
+I want visualizar que a geometria do arquivo está sendo ativamente processada,
+So that eu saiba que o sistema não travou e aguarde com segurança a geração do rascunho.
 
 **Acceptance Criteria:**
 
-**Given** um membro da lista
-**When** toco na linha
-**Then** abre BottomSheet (mobile) / Dialog 480px (desktop) com bloco vínculo (cargo, status, desde quando) + bloco obras (`ObraVinculoRow`) + ações (UX-DR3)
-**And** sem obra mostra `Nenhuma obra vinculada — Atribuir`; inativo mostra aviso `Ative na construtora primeiro` (AD-9)
-**And** leitor de tela anuncia nome, cargo, N obras, status (NFR4)
+**Given** que o upload do arquivo DXF foi recém-concluído
+**When** o sistema aguarda a geração do rascunho (ouvindo o documento correspondente na coleção `loteamentos_drafts` no Firestore)
+**Then** a UI exibe a animação contínua "Processando Geometria..." (micro-interação) sem realizar polling agressivo
+**And** assim que o snapshot do documento GeoJSON é recebido via stream do Firestore, a tela transiciona automaticamente injetando os dados na próxima etapa (Canvas de Revisão).
 
-## Epic 9: Atribuição na Hierarquia (Loteamento a Equipe)
+## Epic 2: Processamento Geométrico Assíncrono (Backend Python)
 
-Adm/owner atribui operário/equipe em um nível específico (ex: Lote ou Equipe) com papel + módulos.
+O arquivo enviado é traduzido perfeitamente de CAD para um modelo geográfico navegável no backend de forma assíncrona, com áreas problemáticas analisadas, isoladas e devolvidas como um Rascunho Imutável.
 
-### Story 9.1: Atribuir operário à obra
+### Story 2.1: Gatilho OnFinalize e Extração de Geometria Bruta
 
-As a adm/owner,
-I want atribuir um operário a uma obra com módulos,
-So that ele acessa o diário/lotes/estoque da obra.
-
-**Acceptance Criteria:**
-
-**Given** detalhe de membro ativo na construtora
-**When** toco `Atribuir à obra`, seleciono obra ativa, mantenho `Operário`, módulos default `[diario]`, confirmo
-**Then** chama `setMembership{construtoraId, obraId, role:operario, modules}` (AD-1/AD-3/AD-4) e vejo `Atribuído a {obra} como Operário.` + lista atualiza N obras
-**And** Confirm desabilitado sem obra; resumo ao vivo `X será Operário em Y com acesso a Diário` (UX-DR4)
-**And** leitura normaliza `member→Operário`; nunca envia `owner` com obraId
-
-### Story 9.2: Atribuir admin + erros e offline
-
-As a adm/owner,
-I want atribuir Admin da obra e entender falhas (sem permissão, pré-requisito, sem conexão),
-So that não deixo vínculo inconsistente.
+As a Arquitetura de Importação,
+I want reagir automaticamente ao upload do DXF no Cloud Storage e ler suas entidades CAD,
+So that eu possa ter os polígonos brutos (lotes, quadras e textos) carregados na memória da Cloud Function.
 
 **Acceptance Criteria:**
 
-**Given** o dialog 9.1
-**When** seleciono `Admin da obra` e confirmo
-**Then** envia `role:admin` e o membro vira `obraAdmin` (AD-2)
-**And** `permission-denied` → `Você não tem permissão.` com dialog mantido; `failed-precondition` → `Ative o membro na construtora antes...` + atalho Ativar; `Papel inválido` nunca ocorre (opção owner oculta)
-**And** sem conexão → `Sem conexão — tente novamente`, sem fila/enqueue (AD-6/NFR2); sucesso invalida `membrosProvider` + `obraMembersProvider` (FR10)
+**Given** que um arquivo `.dxf` foi salvo no Cloud Storage pela UI
+**When** a Cloud Function Python (Gen 2) é acionada via trigger `OnFinalize`
+**Then** o arquivo deve ser lido e parseado usando a biblioteca `ezdxf`
+**And** os blocks e geometrias associadas às Quadras e Lotes devem ser isolados em estruturas de dados em memória, prontos para cálculos.
 
-## Epic 10: Gestão do vínculo
+### Story 2.2: Algoritmo Espacial Point-in-Polygon
 
-Adm/owner troca papel/módulos, remove da obra, troca cargo na construtora e desativa.
-
-### Story 10.1: Trocar papel/módulos na obra
-
-As a adm/owner,
-I want trocar Operário↔Admin da obra e módulos,
-So that ajusto acesso sem remover e readicionar.
+As a Arquitetura de Importação,
+I want cruzar espacialmente a geometria plana extraída,
+So that o sistema saiba exatamente quais polígonos de lote pertencem e estão contidos dentro de quais quadras.
 
 **Acceptance Criteria:**
 
-**Given** vínculo ativo em obra X
-**When** abro overflow `Trocar papel`, altero para Admin + módulos `[diario,lotes]` e confirmo
-**Then** chama `setMembership{obraId:X, role:admin, modules}`; linha atualiza papel + snackbar de sucesso (FR6, AD-3/AD-4)
-**And** módulos normalizam legados e `[]` nega acesso (fail-closed)
+**Given** as geometrias limpas extraídas do `ezdxf` na memória
+**When** a lógica utiliza a biblioteca `shapely` para processar a topologia
+**Then** cada polígono classificado como "Lote" deve passar por um teste Point-in-Polygon contra as "Quadras"
+**And** o resultado deve ser uma hierarquia em memória mapeando corretamente os relacionamentos espaciais entre eles.
 
-### Story 10.2: Remover da obra
+### Story 2.3: Heurística de Ambiguidades e Persistência do Rascunho (GeoJSON)
 
-As a adm/owner,
-I want remover o membro de uma obra com confirmação,
-So that revogo acesso preservando histórico.
-
-**Acceptance Criteria:**
-
-**Given** vínculo ativo em obra X
-**When** confirmo `Remover de X? Ele perde acesso imediato; diários preservados.`
-**Then** chama `setMembership{obraId:X, isActive:false}`; vínculo some, contador decrementa, snackbar `Removido de X.` (FR7, AD-7, UX-DR5)
-**And** membro tenta abrir X e vê `Acesso removido` sem retry infinito
-
-### Story 10.3: Trocar cargo na construtora e desativar
-
-As a adm/owner,
-I want trocar cargo operário↔admin e desativar da construtora removendo das obras,
-So that gerencio o ciclo completo do membro.
+As a Arquitetura de Importação,
+I want parear os textos com os polígonos e gerar o objeto final no banco,
+So that o Flutter possa renderizar o mapa GeoJSON completo e focar a atenção do usuário nos lotes defeituosos.
 
 **Acceptance Criteria:**
 
-**Given** detalhe do membro
-**When** troco cargo para Administrador e confirmo
-**Then** chama `setConstrutoraRole{role:admin}`; opção `owner` oculta sem `trustedDev` (só dev altera owner — AD-8/FR8)
-**And** ao Desativar com N obras → confirm `Remover de N obras + desativar?` dispara N `setMembership{obraId,isActive:false}` + `setMembership{isActive:false}` construtora (AD-7/FR9)
-**And** revogação efetiva imediata via gate `active(cm)` mesmo com docs órfãos
+**Given** os Lotes e Quadras estruturados espacialmente na memória
+**When** o algoritmo tentar associar as strings de texto (ex: números dos lotes) aos seus respectivos polígonos de lote
+**Then** lotes sem identificador interno válido ou textos ambíguos devem receber a propriedade estendida `"status": "ambiguo"`
+**And** lotes parseados com sucesso devem receber um status neutro/valido
+**And** o payload completo deve ser rigorosamente serializado como GeoJSON
+**And** o arquivo final deve ser persistido como um único documento na coleção `loteamentos_drafts` no Firestore, finalizando a execução da função.
 
-## Epic 11: Drill-down do Dashboard
+## Epic 3: Revisão e Resolução Interativa de Ambiguidades (Flutter UI)
 
-O usuário navega pela hierarquia estrutural após o login para detalhar os componentes da construção.
+O usuário visualiza o loteamento em um Canvas responsivo, localiza lotes problemáticos visualmente e os corrige rapidamente através do Painel Lateral utilizando atalhos de teclado, até destravar a aprovação final.
 
-### Story 11.1: Navegação Loteamento → Quadra → Lote
+### Story 3.1: Canvas Interativo e Renderização Estilizada de Polígonos
 
-As a usuário logado,
-I want visualizar a lista de Loteamentos e clicar para ver suas Quadras, e em seguida os Lotes,
-So that eu chegue ao contexto correto.
-
-**Acceptance Criteria:**
-**Given** estou logado e tenho acesso à construtora
-**When** abro o dashboard
-**Then** vejo a lista de Loteamentos disponíveis
-**And** ao clicar em um Loteamento, navego para a lista de suas Quadras, e sucessivamente até os Lotes.
-
-### Story 11.2: Navegação Lote → Setor → Equipe
-
-As a usuário logado no contexto de um Lote,
-I want visualizar os Setores e suas respectivas Equipes,
-So that eu veja quem está responsável.
+As a Analista de Projetos,
+I want navegar livremente pela planta do loteamento gerada pelo backend,
+So that eu encontre visualmente e com clareza as áreas problemáticas da importação.
 
 **Acceptance Criteria:**
-**Given** que naveguei até um Lote
-**When** acesso seus detalhes
-**Then** vejo os Setores associados e as Equipes alocadas
-**And** posso visualizar as responsabilidades e papéis em cada nó.
 
-## Epic 12: Gestão de Construtoras no Painel Dev
+**Given** que o documento GeoJSON do rascunho foi carregado pela UI
+**When** a tela de Revisão é exibida
+**Then** um componente de Canvas contínuo (fundo infinito) deve ser renderizado permitindo navegação fluida por arrasto (Pan) e rolagem (Zoom)
+**And** todos os polígonos contidos no GeoJSON devem ser pintados na tela
+**And** polígonos com propriedade `"status": "ambiguo"` devem ser renderizados com cor de Alerta (Laranja/Amarelo) e animação de pulso, enquanto os demais permanecem Neutros (Cinza).
 
-Devs podem ativar ou desativar o status das construtoras para suspender acesso global no app.
+### Story 3.2: Fluxo Rápido de Correção via Painel Lateral e Teclado
 
-### Story 12.1: Adicionar controle de ativação de construtora no Painel Dev
-
-As a dev no Painel Dev,
-I want poder ativar e desativar o status de uma construtora,
-So that eu suspenda o acesso globalmente a ela.
+As a Analista de Projetos,
+I want selecionar um lote ambíguo e identificar seu número rapidamente usando atalhos,
+So that eu possa resolver dezenas de ambiguidades sequenciais em poucos segundos, sem uso intensivo do mouse.
 
 **Acceptance Criteria:**
-**Given** estou logado como dev no Painel Dev
-**When** altero o toggle/switch de uma construtora
-**Then** atualiza o campo `isActive` no model e no banco
-**And** um snackbar de confirmação é exibido.
 
-### Story 12.2: Ocultar construtoras inativas na listagem do usuário
+**Given** que o usuário está visualizando a planta no Canvas
+**When** ele clica (seleciona) um polígono marcado como `ambiguo`
+**Then** um Painel Lateral de Correção deve abrir (ou deslizar) à direita contendo um campo de texto para o Identificador
+**And** o campo de input deve receber foco automático (*autofocus*) imediatamente
+**And** ao digitar o valor correto e pressionar a tecla `ENTER`, o lote deve ser atualizado localmente na UI, mudando sua renderização no mapa para a cor "Verde Sucesso" (resolvido).
 
-As a usuário final,
-I want ver apenas construtoras ativas,
-So that eu não acesse projetos inativos indevidamente.
+### Story 3.3: Gestão de Pendências e Gatilho de Aprovação
+
+As a Analista de Projetos,
+I want acompanhar exatamente quantos lotes restam corrigir e ser impedido de prosseguir com falhas,
+So that eu tenha garantia de que só estou aprovando um loteamento 100% íntegro para a base de produção.
 
 **Acceptance Criteria:**
-**Given** que acesso a tela de "Minhas Construtoras"
-**When** a lista é carregada
-**Then** não vejo construtoras que tenham `isActive == false`
-**And** a restrição é forçada no backend (queries `.where('isActive', isEqualTo: true)`) e também via Security Rules (Firestore).
 
-## Epic 13: Navegação Hierárquica Loteamento a Equipe
+**Given** que a tela de Revisão está em uso
+**When** houver polígonos marcados como `ambiguo` não resolvidos no GeoJSON (state local)
+**Then** uma Barra de Status (ou Chip flutuante) superior exibirá um contador regressivo (ex: "12 Lotes Ambíguos")
+**And** o botão principal de ação "Aprovar Loteamento Definitivamente" permanecerá desabilitado (cinza)
+**And** quando o contador de pendências atingir zero (0), a UI deve celebrar e o botão principal tornar-se habilitado (clicável)
+**And** ao clicar no botão habilitado, o sistema gravará o update no documento Firestore alterando seu status para `"aprovado"`.
 
-Este epic implementa a fundação completa de dados e navegação para a nova hierarquia de domínio: Construtora → Loteamento → Quadra → Lote → Etapa → Equipe.
+## Epic 4: Consolidação e Persistência Flat (Backend Python)
 
-### Story 13.1: Atualizar esquema de dados raiz no Firestore
+O loteamento revisado e aprovado pela interface torna-se definitivo e consultável no sistema de forma performática através de batches nas coleções flat de produção, extinguindo o rascunho temporário.
 
-### Story 13.2: Rotas Declarativas e Drill-down Inicial
+### Story 4.1: Gatilho OnUpdate e Carregamento do Rascunho Aprovado
 
-### Story 13.3: Ramificação Específica de Etapas por Lote
+As a Arquitetura de Importação,
+I want escutar o exato momento em que um usuário aprova um loteamento na interface,
+So that a Cloud Function de consolidação seja acionada isoladamente.
 
-### Story 13.4: Navegação Final: Alocação de Equipe na Etapa
+**Acceptance Criteria:**
+
+**Given** um documento de rascunho ativo na coleção `loteamentos_drafts`
+**When** seu campo `"status"` for atualizado para `"aprovado"` (via UI Flutter)
+**Then** uma Cloud Function Python configurada com trigger `OnUpdate` entra em execução
+**And** carrega para a memória o documento GeoJSON contendo a estrutura com as propriedades corrigidas pelo usuário.
+
+### Story 4.2: Inserção Flat via Firestore Batch Writes
+
+As a Arquitetura de Importação,
+I want separar o GeoJSON aprovado em entidades autônomas de banco de dados,
+So that a base final permaneça consultável por relacionamentos ("flat") e nenhuma inserção falhe por limites do servidor.
+
+**Acceptance Criteria:**
+
+**Given** o GeoJSON aprovado estruturado em memória na Cloud Function
+**When** o algoritmo preparar a inserção final na base
+**Then** um documento central deve ser gerado na coleção raiz `loteamentos`
+**And** documentos devem ser gerados na coleção `quadras` portando o ID do loteamento como *Foreign Key*
+**And** documentos devem ser gerados na coleção `lotes` portando o ID da quadra e do loteamento como *Foreign Keys*
+**And** as inserções devem ser agrupadas usando a API de `Batch Writes` do Firestore
+**And** se o total de gravações ultrapassar 500 documentos, o script deve fatiar inteligentemente os batches para respeitar o limite transacional (Firestore 500-write limit).
+
+### Story 4.3: Exclusão Final do Rascunho Temporário (Limpeza)
+
+As a Arquitetura de Importação,
+I want excluir o rascunho GeoJSON pesado após o sucesso da inserção,
+So that eu previna que a base acumule gigabytes de lixo temporário desnecessário (*tombstones*).
+
+**Acceptance Criteria:**
+
+**Given** que os `batch writes` da Story 4.2 foram "comitados" com sucesso no Firestore
+**When** a rotina atingir sua instrução final de encerramento
+**Then** o script emitirá o comando de deleção para o documento correspondente na coleção `loteamentos_drafts`
+**And** a Cloud Function deverá ser encerrada retornando um status formal de Sucesso (HTTP 200 / Log Info).
