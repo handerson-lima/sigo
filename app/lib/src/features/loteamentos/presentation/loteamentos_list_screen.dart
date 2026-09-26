@@ -36,7 +36,12 @@ class LoteamentosListScreen extends ConsumerWidget {
       title: 'Loteamentos',
       activeRoute: '/construtoras/$construtoraId/loteamentos',
       actions: [
-        if (admin)
+        if (admin) ...[
+          IconButton(
+            icon: const Icon(Icons.file_upload, color: Colors.black54),
+            tooltip: 'Importar DXF',
+            onPressed: () => context.go('/construtoras/$construtoraId/loteamentos/import'),
+          ),
           IconButton(
             icon: const Icon(Icons.add_business, color: Colors.black54),
             tooltip: 'Novo Loteamento',
@@ -48,6 +53,7 @@ class LoteamentosListScreen extends ConsumerWidget {
               );
             },
           ),
+        ],
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

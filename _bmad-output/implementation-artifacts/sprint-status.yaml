@@ -32,8 +32,8 @@ observed_baseline:
   note: "C0–C6 implementados e validados localmente; sem deploy de produção."
 
 development_status:
-  epic-1: backlog
-  1-1-componente-de-upload-de-arquivo-dxf: backlog
+  epic-1: in-progress
+  1-1-componente-de-upload-de-arquivo-dxf: review
   1-2-listener-de-processamento-e-sala-de-espera-animação: backlog
   epic-1-retrospective: optional
 
