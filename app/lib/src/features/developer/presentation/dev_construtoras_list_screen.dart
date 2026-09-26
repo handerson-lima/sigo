@@ -429,17 +429,16 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
                 ),
               ],
             ),
+            TextField(
+              controller: _cnpjController,
+              decoration: const InputDecoration(labelText: 'CNPJ (opcional)'),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: _telefoneController,
               inputFormatters: [_telefoneMask],
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(labelText: 'Telefone (WhatsApp)', hintText: '84 9999-9999'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _cnpjController,
-              decoration: const InputDecoration(labelText: 'CNPJ (opcional)'),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -648,15 +647,15 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
             ),
             const SizedBox(height: 16),
             TextField(
+              controller: _cnpjController,
+              decoration: const InputDecoration(labelText: 'CNPJ (opcional)'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
               controller: _telefoneController,
               inputFormatters: [_telefoneMask],
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(labelText: 'Telefone (WhatsApp)', hintText: '84 9999-9999'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _cnpjController,
-              decoration: const InputDecoration(labelText: 'CNPJ (opcional)'),
             ),
             const SizedBox(height: 16),
             SwitchListTile(
