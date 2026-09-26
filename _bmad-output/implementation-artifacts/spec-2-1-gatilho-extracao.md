@@ -2,7 +2,7 @@
 title: 'Story 2.1: Gatilho OnFinalize e Extração de Geometria Bruta'
 type: 'feature'
 created: '2026-09-26'
-status: 'ready-for-dev'
+status: 'done'
 baseline_commit: '2b0f467b261c0500b6f3e57269c6993851200e83'
 route: 'dispatch'
 review_loop_iteration: 1
@@ -53,12 +53,12 @@ context: ["_bmad-output/implementation-artifacts/epic-2-context.md"]
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `firebase.json` -- Atualizar a array `functions` para registrar o codebase `functions-python` (garantir runtime `python311`).
-- [ ] `functions-python/requirements.txt` -- Declarar dependências básicas (`functions-framework`, `ezdxf`, `google-cloud-storage`, `pytest`).
-- [ ] `functions-python/main.py` -- Implementar a Cloud Function `processar_dxf` decorada com o gatilho Storage OnFinalize interceptando `loteamentos_drafts_uploads/`.
-- [ ] `functions-python/main.py` -- Fazer download seguro garantindo fechamento de File Descriptors, usar `ezdxf.read()`, tratar erros sem engolir retries transientes, validar size/generation, e extrair o `{userId}` do path.
-- [ ] `functions-python/main.py` -- Extrair blocos (incluindo tratamento para `INSERT`) e iterar sobre o modelspace agrupando polígonos/linhas por layer (separando de entidades texto), mantendo em variáveis locais (isolamento para Story 2.2).
-- [ ] `functions-python/tests/` -- Criar testes unitários com pytest validando filtro de rota, DXF corrompido, arquivo sem entidades, e fluxo principal com DXF sintético.
+- [x] `firebase.json` -- Atualizar a array `functions` para registrar o codebase `functions-python` (garantir runtime `python311`).
+- [x] `functions-python/requirements.txt` e `functions-python/requirements-dev.txt` -- Declarar dependências básicas (`functions-framework`, `ezdxf`, `google-cloud-storage`, `pytest`).
+- [x] `functions-python/main.py` -- Implementar a Cloud Function `processar_dxf` decorada com o gatilho Storage OnFinalize interceptando `loteamentos_drafts_uploads/`.
+- [x] `functions-python/main.py` -- Fazer download seguro garantindo fechamento de File Descriptors, usar `ezdxf.read()`, tratar erros sem engolir retries transientes, validar size/generation, e extrair o `{userId}` do path.
+- [x] `functions-python/main.py` -- Extrair blocos (incluindo tratamento para `INSERT`) e iterar sobre o modelspace agrupando polígonos/linhas por layer (separando de entidades texto), mantendo em variáveis locais (isolamento para Story 2.2).
+- [x] `functions-python/tests/` -- Criar testes unitários com pytest validando filtro de rota, DXF corrompido, arquivo sem entidades, e fluxo principal com DXF sintético.
 
 **Acceptance Criteria:**
 - Given que um arquivo `.dxf` foi salvo no Cloud Storage no formato esperado pelo Flutter
@@ -91,6 +91,23 @@ context: ["_bmad-output/implementation-artifacts/epic-2-context.md"]
 - `false` - As dependências divergem, ex. `shapely` não utilizado. Verificado: `shapely` é proposital, preparado para a Story 2.2.
 - `false` - `epic-2-context.md` substituindo o contexto. Verificado: não havia contexto anterior para este épico que precisasse de preservação.
 - `false` - O status no spec diz `in-review` mas no yaml diz `in-progress`. Verificado: este é o estado correto da máquina de estados durante o step-04.
+- `low` [patch] - `__pycache__` e `debug.py` entram no changeset, e o `.gitignore` raiz não possui regras para Python. Fix: Adicionar regras ao `.gitignore` e remover `debug.py` do index.
+- `low` [patch] - `debug.py` possui falha silenciosa com o MagicMock. Fix: O arquivo `debug.py` será removido, pois era apenas para debug local.
+- `low` [patch] - `main.py` contém prints de debug (`DEBUG: Invalid path`). Fix: Remover os prints de debug.
+- `medium` [patch] - O decorator `@storage_fn.on_object_finalized(bucket="sigo-86dd9.appspot.com")` tem o bucket fixado no código de produção e testes. Fix: Remover o argumento `bucket` para ouvir o default.
+- `medium` [patch] - `firebase.json` omite a chave `runtime: python311`. Fix: Adicionar `"runtime": "python311"` ao codebase `functions-python`.
+- `high` [patch] - INSERTs não aplicam transformação matricial (coordenadas erradas) nem tratam aninhamentos. Fix: Usar `entity.virtual_entities()` do ezdxf, que resolve as matrizes de inserção e aninhamentos de forma transparente.
+- `medium` [patch] - Sub-entidades no layer 0 (comum em blocos) são descartadas pelo filtro. Fix: Herdar o layer da entidade pai (INSERT) para entidades no layer 0 ou "BYBLOCK".
+- `medium` [patch] - Acessar `entity.dxf.name` no INSERT pode lançar `AttributeError` e causar crash. Fix: Capturar corretamente as exceções de atributo ou usar `.dxf.get('name')`.
+- `medium` [patch] - Entidades de TEXT/MTEXT são descartadas e a heurística de ambiguidades ficará sem insumo. Fix: Extrair também os textos para a memória e retornar em uma lista `textos`.
+- `medium` [patch] - Parsing de caminho inconsistente: docstring diz 3 partes, mas código tenta 4. Fix: Padronizar e corrigir o parsing de `file_name.split("/")`.
+- `medium` [patch] - `firebase-functions==0.2.0` no `requirements.txt` é obsoleto e o `pytest` não está no principal. Fix: Atualizar as versões do SDK e mover `pytest` para o dev.
+- `low` [patch] - O .venv está usando Python 3.14 ao invés do target 3.11+. Fix: O CI de deploy usará a versão da engine, para o local usaremos o `uv` forçando o python 3.11.
+- `medium` [patch] - Cobertura de testes falha em INSERTs e caminhos extremos, sem asserção forte. Fix: Melhorar `test_main.py` com asserções das listas e cenários.
+- `medium` [patch] - `extract_dxf_geometries` não captura exceções base do ezdxf (`ezdxf.DXFError`). Fix: Capturar erros ezdxf e evitar leak para o except genérico.
+- `low` [patch] - As tarefas do spec-2-1 estão desmarcadas. Fix: Marcar as checkboxes no spec.
+- `high` [patch] - `epic-2-context.md` foi inteiramente reescrito e perdeu o contexto PWA UX. Fix: Restaurar o arquivo do git e apenas concatenar (append) o contexto novo.
+- `low` [patch] - diff-spec-2-1.diff repete hunks e inclui arquivos de processo. Fix: Gerar diff mais limpo e ignorar os próprios diffs.
 
 ## Design Notes
 
