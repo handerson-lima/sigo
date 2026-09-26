@@ -33,8 +33,8 @@ observed_baseline:
 
 development_status:
   epic-1: in-progress
-  1-1-componente-de-upload-de-arquivo-dxf: review
-  1-2-listener-de-processamento-e-sala-de-espera-animação: review
+  1-1-componente-de-upload-de-arquivo-dxf: done
+  1-2-listener-de-processamento-e-sala-de-espera-animação: done
   epic-1-retrospective: optional
 
   epic-2: backlog
