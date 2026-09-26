@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-26-2026 10:45
+last_updated: 09-26-2026 10:59
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -37,8 +37,8 @@ development_status:
   1-2-listener-de-processamento-e-sala-de-espera-animação: done
   epic-1-retrospective: optional
 
-  epic-2: backlog
-  2-1-gatilho-onfinalize-e-extração-de-geometria-bruta: backlog
+  epic-2: in-progress
+  2-1-gatilho-onfinalize-e-extração-de-geometria-bruta: in-progress
   2-2-algoritmo-espacial-point-in-polygon: backlog
   2-3-heurística-de-ambiguidades-e-persistência-do-rascunho-geojso: backlog
   epic-2-retrospective: optional
