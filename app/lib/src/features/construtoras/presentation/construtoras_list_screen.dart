@@ -79,6 +79,7 @@ class ConstrutorasListScreen extends ConsumerWidget {
 
                   return Card(
                     elevation: 4,
+                    clipBehavior: Clip.antiAlias,
                     child: InkWell(
                       onTap: () {
                         if (canViewLoteamentos) {
@@ -89,25 +90,51 @@ class ConstrutorasListScreen extends ConsumerWidget {
                           context.go('/construtoras/${construtora.id}');
                         }
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (construtora.logoUrl != null)
+                            Image.network(
+                              construtora.logoUrl!,
+                              fit: BoxFit.cover,
+                            )
+                          else
+                            Container(
+                              color: Theme.of(context).colorScheme.surfaceVariant,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.business,
+                                  size: 48,
+                                  color: Colors.black12,
+                                ),
+                              ),
+                            ),
+                          // Overlay escuro para garantir leitura do texto
+                          Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.transparent, Colors.black87],
+                                stops: [0.6, 1.0],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 16,
+                            right: 16,
+                            bottom: 16,
+                            child: Text(
                               construtora.name,
-                              style: Theme.of(context).textTheme.titleLarge,
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const Spacer(),
-                            if (construtora.cnpj != null)
-                              Text(
-                                'CNPJ: ${construtora.cnpj}',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   );
