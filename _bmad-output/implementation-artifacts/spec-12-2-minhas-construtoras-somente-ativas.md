@@ -42,3 +42,5 @@ context: []
 
 **Patch aplicado:** copy do estado vazio dev. **Verificação:** `flutter analyze` limpo; `flutter test` 503/503.
 
+**Revisão de homologação (2026-09-26):** recorte = commits `07171a8` + `c0be5c4` vs baseline `ed53736`; 4 camadas (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor). Esta spec renegocia o AC da spec original ("dev continua vendo todas as construtoras"): a homologação confirma que o código atual reflete esta spec — "Minhas Construtoras" filtra ativas também para dev, enquanto a Gestão Global do dev (`dev_construtoras_list_screen.dart`) segue vendo todas. Patch de teste aplicado (copy do estado vazio dev). Achados e triagem completos em `spec-12-2-ocultar-construtoras-inativas-na-listagem.md` (seção "Revisão de homologação").
+

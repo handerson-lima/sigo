@@ -291,3 +291,37 @@ Revisão de homologação feita sobre o código atual do escopo 11.2 (nível 4 "
 - source_spec: `_bmad-output/implementation-artifacts/spec-13-2-rotas-declarativas-drill-down.md`
   summary: Landing de membro ativo sem o módulo `lotes` — o card de construtora manda para `/construtoras/:cid`, que redireciona incondicionalmente para `/construtoras/:cid/loteamentos` (sob `AccessGuard(module: 'lotes')`), resultando em `AccessDenied`; `ObrasListScreen` ficou órfã e o import em `construtora_routes.dart:6` sem uso.
   evidence: `app/lib/src/features/construtoras/routing/construtora_routes.dart:40-50` e `app/lib/src/features/construtoras/presentation/construtoras_list_screen.dart:75-80`. Decisão diferida por não haver caso de uso real hoje; reavaliar quando surgir membro ativo sem o módulo `lotes`.
+
+## Deferred from: code review of spec-12-1-adicionar-controle-de-ativacao-de-construtora-no-painel-dev (2026-09-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-1-adicionar-controle-de-ativacao-de-construtora-no-painel-dev.md`
+  summary: Inativar pela UI da Story 12.1 não suspende o acesso por si só — o commit `ed53736` só grava `isActive`; não há filtro de query nem enforcement em `firestore.rules`.
+  evidence: O enforcement (`.where('isActive', isEqualTo: true)` + `activeConstrutora` em `member(c)`) é o escopo explícito da Story 12.2 (`spec-12-2-ocultar-construtoras-inativas-na-listagem.md`), presente no HEAD mas ausente no commit `ed53736`. Fora dos ACs da 12.1 (epics.md:246-256).
+
+## Deferred from: homologação of spec-12-2-ocultar-construtoras-inativas-na-listagem (2026-09-26)
+
+Recorte: commits `07171a8` + `c0be5c4` vs baseline `ed53736`; 4 camadas. Veredito: homologada; patch de teste aplicado (copy de vazio do dev). Defers abaixo.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
+  summary: Rules wildcard ainda expõem dados de construtora inativa (`movimentacoes` aberto a qualquer `signed()` e próprio `construtora_members`), furando o "bloqueio global" pretendido.
+  evidence: `firestore.rules:268-270` (fora dos hunks da 12.2); `member(c)`/`activeConstrutora` não governam esses caminhos. Pré-existente, retriado do review original #5.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
+  summary: Sem casos de rules para `loteamentos`/`quadras`/`lotes`/`etapas` de construtora inativa, apesar de o AC citar loteamentos/módulos.
+  evidence: o schema top-level é da 13.1 (`security-rules.test.cjs` não referencia as 5 coleções); o gate `member(c)`↔`activeConstrutora` é provado na raiz, em `mat_inativa` e no doc da construtora. Defers correlatos das 13.1/11.2 já registrados acima.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
+  summary: O wiring real de `getUserConstrutoras` (branch dev, decode do cache, `catch permission-denied`, `parent == null`, `rethrow`) não é exercitado por teste.
+  evidence: `cachedRead` exige `FirebaseAuth.instance.currentUser`, então testar o repositório depende de mock de Auth (nova dependência, vedada pela frozen) ou de um fake que aplique Rules; a lógica pura (`filtrarConstrutorasAtivas`, `construtoraInacessivel`) está coberta. Considerar seam injetável de auth/cache numa próxima iteração.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
+  summary: O teste de widget de "Minhas Construtoras" é vacuamente verdadeiro para o filtro e o copy de vazio do dev só passou a ter teste na homologação.
+  evidence: `app/test/features/construtoras/construtoras_list_screen_test.dart:34-35` afirma ausência de 'Construtora Inativa' sem nunca fornecê-la ao provider; o filtro vive no repositório. Copy dev coberta pelo teste adicionado na homologação.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
+  summary: `dev_construtoras_list_screen.dart` trata `isActive` ausente como inativo (`data['isActive'] == true`), divergindo do default "ausente ⇒ ativo" consolidado na 12.2.
+  evidence: `app/lib/src/features/developer/presentation/dev_construtoras_list_screen.dart:127`; arquivo preservado de propósito pela spec (12.1). Construtora legada sem `isActive` aparece como "Inativa" no painel e é escondida pelo filtro de "Ativas".
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
+  summary: `npm run test:rules` (garantia server-side da 12.2) não roda no CI; `npm test` executa apenas `unit.cjs`.
+  evidence: `.github/workflows/ci.yml:46` roda `npm test`; `test:rules` exige `firebase emulators:exec`. Infra pré-existente (retriado do review original #14).

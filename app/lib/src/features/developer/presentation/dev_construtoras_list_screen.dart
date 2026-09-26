@@ -242,6 +242,7 @@ class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
                               context: context,
                               builder: (ctx) => _EditConstrutoraDialog(
                                 construtora: construtora,
+                                firestore: FirebaseFirestore.instance,
                               ),
                             );
                           },
@@ -474,7 +475,11 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
 
 class _EditConstrutoraDialog extends StatefulWidget {
   final Construtora construtora;
-  const _EditConstrutoraDialog({required this.construtora});
+  final FirebaseFirestore firestore;
+  const _EditConstrutoraDialog({
+    required this.construtora,
+    required this.firestore,
+  });
 
   @override
   State<_EditConstrutoraDialog> createState() => _EditConstrutoraDialogState();
@@ -487,6 +492,7 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
   final _telefoneMask = MaskTextInputFormatter(mask: '## ####-####', filter: {"#": RegExp(r'[0-9]')});
   String? _logoUrl;
   late bool _isActive;
+  late final bool _isActiveInicial;
   bool _isSaving = false;
 
   @override
@@ -501,6 +507,7 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
     );
     _logoUrl = widget.construtora.logoUrl;
     _isActive = widget.construtora.isActive;
+    _isActiveInicial = widget.construtora.isActive;
   }
 
   Future<void> _pickLogo() async {
@@ -572,7 +579,7 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
     setState(() => _isSaving = true);
 
     try {
-      final docRef = FirebaseFirestore.instance
+      final docRef = widget.firestore
           .collection('construtoras')
           .doc(widget.construtora.id);
       await docRef.update({
@@ -585,11 +592,14 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
       });
 
       if (mounted) {
+        final mudouStatus = _isActive != _isActiveInicial;
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              _isActive
+              !mudouStatus
+                  ? 'Construtora atualizada com sucesso.'
+                  : _isActive
                   ? 'Construtora ativada com sucesso.'
                   : 'Construtora inativada com sucesso.',
             ),
@@ -664,9 +674,11 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
                 'Desativar suspende o acesso globalmente no app.',
               ),
               value: _isActive,
-              onChanged: (val) {
-                setState(() => _isActive = val);
-              },
+              onChanged: _isSaving
+                  ? null
+                  : (val) {
+                      setState(() => _isActive = val);
+                    },
             ),
           ],
         ),
@@ -690,3 +702,9 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
     );
   }
 }
+
+@visibleForTesting
+Widget buildEditConstrutoraDialog({
+  required Construtora construtora,
+  required FirebaseFirestore firestore,
+}) => _EditConstrutoraDialog(construtora: construtora, firestore: firestore);

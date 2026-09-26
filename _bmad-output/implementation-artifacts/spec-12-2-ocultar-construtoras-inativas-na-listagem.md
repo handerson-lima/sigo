@@ -70,6 +70,29 @@ context: []
 
 ## Implementation Notes
 
+### Revisão de homologação (2026-09-26)
+
+Recorte: commits `07171a8` + `c0be5c4` vs baseline `ed53736`; 4 camadas (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor). Escopo: filtro de construtoras ativas no repositório, `activeConstrutora`/`member(c)` nas Security Rules, copy do estado vazio e testes.
+
+**Pré-condição documental (intent renegociado):** a spec posterior `spec-12-2-minhas-construtoras-somente-ativas.md` (status `done`) renegocia o intent — dev também vê apenas ativas em "Minhas Construtoras" (a Gestão Global do dev, `dev_construtoras_list_screen.dart`, segue vendo todas). O AC "dev continua vendo todas independentemente de `isActive`" desta spec fica **superseded**. O código confere com a spec mais recente.
+
+- [x] [Homologação][Patch] Copy do estado vazio do dev (commit `c0be5c4`) sem teste — `construtoras_list_screen.dart:41`. Adicionado teste de widget `dev sem construtoras ativas vê copy próprio e atalho ao Painel Dev` em `app/test/features/construtoras/construtoras_list_screen_test.dart`.
+- [Defer] Rules wildcard (`movimentacoes`, `construtora_members` próprio) ainda expõem dados de construtora inativa — pré-existente (retriado do review original #5); `member(c)` não governa esses caminhos. Registrado em `deferred-work.md`.
+- [Defer] Sem teste de rules para `loteamentos`/`quadras`/`lotes`/`etapas` de construtora inativa (o AC cita loteamentos/módulos) — o schema top-level é da 13.1; o gate `member(c)`↔`activeConstrutora` é provado na raiz, em `mat_inativa` e no doc da construtora. Registrado em `deferred-work.md`.
+- [Defer] Wiring de `getUserConstrutoras` (branch dev, decode do cache, `catch permission-denied`, `parent == null`, `rethrow`) sem teste automatizado — exercitar exige mock de `FirebaseAuth` (nova dependência, vedada pela frozen) ou fake que aplique Rules. A lógica pura (`filtrarConstrutorasAtivas`, `construtoraInacessivel`) está coberta.
+- [Defer][low] O teste de widget de lista (`construtoras_list_screen_test.dart:34-35`) é vacuamente verdadeiro para o filtro (nenhuma inativa é fornecida ao provider); o filtro vive no repositório e a asserção de UI não o demonstra.
+- [Defer] `dev_construtoras_list_screen.dart` trata `isActive` ausente como inativo (`data['isActive'] == true`), divergindo do default "ausente ⇒ ativo" consolidado nesta story — arquivo preservado de propósito pela spec (12.1). Registrado em `deferred-work.md`.
+- [Rejected][false] "Dev filtra inativas violando o AC5": superseded pela spec posterior; sem defeito de código.
+- [Rejected][false] "Épico exige `.where('isActive', isEqualTo: true)`": desvio consciente — o `collectionGroup` não filtra campo do doc-pai e `.where` esconderia legados sem `isActive`; coberto pelas Design Notes.
+- [Rejected][false] Teste 2.4 (obra) vacuamente verdadeiro: a negação real é provada por `mat_inativa` (módulo estoque) e pela leitura do doc da construtora; a assertion de obra é redundante (retriado do review original #6).
+- [Rejected][false] "Sem controle positivo de membro ativo": os casos 2.1/2.2/2.6, 3.1 e 4.1 provam leitura de membro ativo; o dev lê inativa em 2.6.
+- [Rejected][false] `snapshot.data()!` poderia lançar e quebrar a lista: inalcançável — `activeConstrutora` é fail-closed para doc inexistente (`membership` órfã), retornando `permission-denied` que o `catch` converte em descarte.
+- [Rejected][false] `catch` só isola `permission-denied` e demais erros quebram a lista: comportamento intencional (erros reais devem aflorar); `unavailable`/`deadline-exceeded` têm fallback no `cachedRead`.
+- [Rejected][out of scope] Navegação condicional inerte/**AccessDenied** sem módulo `lotes`, remoção do CNPJ, `Image.network` sem `errorBuilder` e `'Erro: $err'` cru pertencem ao redesign dos cards (`a20f70a`), fora dos hunks da 12.2.
+- [Rejected][low] `activeConstrutora` get() extra/limites, sem guard de existência; param `dev` com semântica esvaziada; Timestamp duplicado; falta de backfill; cache não invalidado — cosmético/pré-existente/fail-closed.
+
+**Verificação pós-homologação:** `flutter analyze` sem novos achados (9 pré-existentes); `flutter test test/features/construtoras` 9/9; `npm run test:rules` 24/25 — o único fail (8.3, logo) é pré-existente do commit `6fd72f9`, fora do escopo.
+
 ## Spec Change Log
 
 ## Review Triage Log

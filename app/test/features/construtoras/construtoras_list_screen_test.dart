@@ -54,6 +54,31 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('dev sem construtoras ativas vê copy próprio e atalho ao Painel Dev', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+            userConstrutorasProvider.overrideWith((ref) async => []),
+          ],
+          child: const MaterialApp(home: ConstrutorasListScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Nenhuma construtora ativa encontrada'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Gerenciar Construtoras no Painel Dev'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('card navega para Loteamentos se possuir módulo', (
       tester,
     ) async {
