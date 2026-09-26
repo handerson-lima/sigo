@@ -14,6 +14,7 @@ Etapa _$EtapaFromJson(Map<String, dynamic> json) => Etapa(
   loteId: json['loteId'] as String,
   nome: json['nome'] as String,
   ordem: (json['ordem'] as num).toInt(),
+  responsavelId: json['responsavelId'] as String?,
   createdAt: DateTime.parse(json['createdAt'] as String),
   updatedAt: DateTime.parse(json['updatedAt'] as String),
 );
@@ -26,6 +27,7 @@ Map<String, dynamic> _$EtapaToJson(Etapa instance) => <String, dynamic>{
   'loteId': instance.loteId,
   'nome': instance.nome,
   'ordem': instance.ordem,
+  'responsavelId': instance.responsavelId,
   'createdAt': instance.createdAt.toIso8601String(),
   'updatedAt': instance.updatedAt.toIso8601String(),
 };

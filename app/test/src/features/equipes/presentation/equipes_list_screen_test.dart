@@ -45,7 +45,7 @@ void main() {
   });
 
   testWidgets('Renderiza lista com equipes', (tester) async {
-    final mockEquipe = Equipe(
+    final mockEquipe = EquipeLote(
       id: 'e1',
       construtoraId: 'c1',
       loteamentoId: 'l1',
@@ -87,7 +87,7 @@ void main() {
   });
 
   testWidgets('Renderiza erro e recarrega ao tentar novamente', (tester) async {
-    var stream = Stream<List<Equipe>>.error(Exception('falha'));
+    var stream = Stream<List<EquipeLote>>.error(Exception('falha'));
 
     await tester.pumpWidget(
       ProviderScope(

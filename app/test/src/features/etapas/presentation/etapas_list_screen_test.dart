@@ -8,7 +8,7 @@ import 'package:app/src/features/etapas/data/etapa_repository.dart';
 import 'package:app/src/features/etapas/domain/etapa.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:app/src/features/obras/domain/obra_member.dart';
+import 'package:app/src/features/authentication/data/user_repository.dart';
 
 class FakeEtapaRepository implements EtapaRepository {
   bool createCalled = false;
@@ -77,8 +77,10 @@ void main() {
       ProviderScope(
         overrides: [
           watchEtapasProvider.overrideWith((ref, arg) => Stream.value([])),
-          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
-              .overrideWith((ref) => Stream.value(null)),
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value(null),
+          ),
         ],
         child: buildTestWidget(
           const EtapasListScreen(
@@ -120,8 +122,10 @@ void main() {
           watchEtapasProvider.overrideWith(
             (ref, arg) => Stream.value([mockEtapa]),
           ),
-          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
-              .overrideWith((ref) => Stream.value(null)),
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value(null),
+          ),
         ],
         child: buildTestWidget(
           const EtapasListScreen(
@@ -151,8 +155,10 @@ void main() {
       ProviderScope(
         overrides: [
           watchEtapasProvider.overrideWith((ref, arg) => stream),
-          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
-              .overrideWith((ref) => Stream.value(null)),
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value(null),
+          ),
         ],
         child: buildTestWidget(
           const EtapasListScreen(
@@ -184,16 +190,10 @@ void main() {
       ProviderScope(
         overrides: [
           watchEtapasProvider.overrideWith((ref, arg) => Stream.value([])),
-          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
-              .overrideWith((ref) => Stream.value(
-                ObraMember(
-                  userId: 'user',
-                  isAdmin: true,
-                  isActive: true,
-                  modules: [],
-                  joinedAt: DateTime.now(),
-                ),
-              )),
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+          ),
           etapaRepositoryProvider.overrideWithValue(fakeRepo),
         ],
         child: buildTestWidget(
@@ -234,16 +234,10 @@ void main() {
       ProviderScope(
         overrides: [
           watchEtapasProvider.overrideWith((ref, arg) => Stream.value([])),
-          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
-              .overrideWith((ref) => Stream.value(
-                ObraMember(
-                  userId: 'user',
-                  isAdmin: true,
-                  isActive: true,
-                  modules: [],
-                  joinedAt: DateTime.now(),
-                ),
-              )),
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+          ),
           etapaRepositoryProvider.overrideWithValue(fakeRepo),
         ],
         child: buildTestWidget(
@@ -277,16 +271,10 @@ void main() {
       ProviderScope(
         overrides: [
           watchEtapasProvider.overrideWith((ref, arg) => Stream.value([])),
-          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
-              .overrideWith((ref) => Stream.value(
-                ObraMember(
-                  userId: 'user',
-                  isAdmin: true,
-                  isActive: true,
-                  modules: [],
-                  joinedAt: DateTime.now(),
-                ),
-              )),
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+          ),
           etapaRepositoryProvider.overrideWithValue(fakeRepo),
         ],
         child: buildTestWidget(

@@ -248,6 +248,34 @@ Findings 19–21 fechados em `spec-estabilizar-vinculos-epicos-8-10` (setCargo r
   summary: `Etapa` usa codec de data ISO string, divergindo de `Equipe` (Firestore Timestamp).
   evidence: `app/lib/src/features/etapas/domain/etapa.dart` não usa `_dateTimeFromTimestamp`; segue o estilo de `lote.dart`/`quadra.dart`. A unificação dos codecs nos 5 models é a retro-item 39 (já aberta).
 
+## Deferred from: code review of spec-11-2-navegacao-lote-setor-equipe (2026-09-26)
+
+Revisão de homologação feita sobre o código atual do escopo 11.2 (nível 4 "Setor" renomeado para `Etapa`). A maior parte dos achados é pré-existente da 13.1 e já está registrada acima; repetida aqui apenas para rastreio do review.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-navegacao-lote-setor-equipe.md`
+  summary: Codec de data de `Etapa` (ISO string) e null handling (`snapshot.data()!`, `Equipe.fromJson(snapshot.data() ?? {})`) podem lançar em docs com Timestamp/sem campos.
+  evidence: Duplicata do defer da 13.1 (`deferred-work.md`, linha 247) e retro-item 39; pré-existente, não causal da 11.2.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-navegacao-lote-setor-equipe.md`
+  summary: Sem testes das leituras reais `watchEtapas`/`watchEquipes`, do seed `createDefaultEtapas` sem batch e das rules top-level.
+  evidence: Duplicata dos defers da 13.1 (lines 231-241); não há harness Dart de Firestore real e `test:rules` está fora do CI.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-navegacao-lote-setor-equipe.md`
+  summary: `watchEtapasProvider`/`watchEquipesProvider` são `StreamProvider.family` sem `autoDispose`, retendo listeners por parâmetro.
+  evidence: Duplicata do defer da 11-1 (line 199): padrão pré-existente; `autoDispose` reintroduziria `AsyncLoading`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-navegacao-lote-setor-equipe.md`
+  summary: Sem cascata/limpeza de `etapas`/`equipes` órfãos ao apagar loteamento/quadra/lote pai.
+  evidence: Comportamento típico de denormalização; sem impacto imediato e sem ação definida.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-navegacao-lote-setor-equipe.md`
+  summary: Duas hierarquias de `lotes` coexistem (`lotes` raiz vs `construtoras/{c}/obras/{o}/lotes`).
+  evidence: Duplicata do defer da 13.2 (line 259); estado transitório 13.1→13.3, AD-1/retro-item 35.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-navegacao-lote-setor-equipe.md`
+  summary: Escopo extra fora dos ACs da 11.2 — seed automático de etapas e fluxo "Novo Lote" (`AddLoteScreen`).
+  evidence: Trabalho dos épicos 13.x; não exigido pelas Tasks/Acceptance da 11.2.
+
 ## Deferred from: planning of spec-13-2-rotas-declarativas-drill-down (2026-09-25)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-13-2-rotas-declarativas-drill-down.md`

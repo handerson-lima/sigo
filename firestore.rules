@@ -192,40 +192,79 @@ match /construtoras/{c} {
     }
    }
   }
-  match /loteamentos/{id} {
-    allow read: if member(resource.data.construtoraId);
-    allow create: if admin(request.resource.data.construtoraId);
-    allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
-    allow delete: if admin(resource.data.construtoraId);
-  }
+   // --- Hierarquia estrutural (top-level): loteamentos > quadras > lotes > etapas > equipes
+   function hierarchyRead(c) { return admin(c) || (member(c) && 'lotes' in cm(c).get('modules', [])); }
+   function loteamentoConstrutora(l) { return get(/databases/$(database)/documents/loteamentos/$(l)).data.construtoraId; }
+   function quadraData(q) { return get(/databases/$(database)/documents/quadras/$(q)).data; }
+   function loteData(l) { return get(/databases/$(database)/documents/lotes/$(l)).data; }
+   function etapaData(e) { return get(/databases/$(database)/documents/etapas/$(e)).data; }
 
-  match /quadras/{id} {
-    allow read: if member(resource.data.construtoraId);
-    allow create: if admin(request.resource.data.construtoraId);
-    allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
-    allow delete: if admin(resource.data.construtoraId);
-  }
+   match /loteamentos/{id} {
+     allow read: if hierarchyRead(resource.data.construtoraId);
+     allow create: if admin(request.resource.data.construtoraId);
+     allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
+     allow delete: if admin(resource.data.construtoraId);
+   }
 
-  match /lotes/{id} {
-    allow read: if member(resource.data.construtoraId);
-    allow create: if admin(request.resource.data.construtoraId);
-    allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
-    allow delete: if admin(resource.data.construtoraId);
-  }
+   match /quadras/{id} {
+     allow read: if hierarchyRead(resource.data.construtoraId);
+     allow create: if admin(request.resource.data.construtoraId)
+       && request.resource.data.loteamentoId is string
+       && exists(/databases/$(database)/documents/loteamentos/$(request.resource.data.loteamentoId))
+       && loteamentoConstrutora(request.resource.data.loteamentoId) == request.resource.data.construtoraId;
+     allow update: if admin(resource.data.construtoraId)
+       && request.resource.data.construtoraId == resource.data.construtoraId
+       && request.resource.data.loteamentoId == resource.data.loteamentoId;
+     allow delete: if admin(resource.data.construtoraId);
+   }
 
-  match /etapas/{id} {
-    allow read: if member(resource.data.construtoraId);
-    allow create: if admin(request.resource.data.construtoraId);
-    allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
-    allow delete: if admin(resource.data.construtoraId);
-  }
+   match /lotes/{id} {
+     allow read: if hierarchyRead(resource.data.construtoraId);
+     allow create: if admin(request.resource.data.construtoraId)
+       && request.resource.data.quadraId is string
+       && exists(/databases/$(database)/documents/quadras/$(request.resource.data.quadraId))
+       && quadraData(request.resource.data.quadraId).construtoraId == request.resource.data.construtoraId
+       && quadraData(request.resource.data.quadraId).loteamentoId == request.resource.data.loteamentoId;
+     allow update: if admin(resource.data.construtoraId)
+       && request.resource.data.construtoraId == resource.data.construtoraId
+       && request.resource.data.loteamentoId == resource.data.loteamentoId
+       && request.resource.data.quadraId == resource.data.quadraId;
+     allow delete: if admin(resource.data.construtoraId);
+   }
 
-  match /equipes/{id} {
-    allow read: if member(resource.data.construtoraId);
-    allow create: if admin(request.resource.data.construtoraId);
-    allow update: if admin(resource.data.construtoraId) && request.resource.data.construtoraId == resource.data.construtoraId;
-    allow delete: if admin(resource.data.construtoraId);
-  }
+   match /etapas/{id} {
+     allow read: if hierarchyRead(resource.data.construtoraId);
+     allow create: if admin(request.resource.data.construtoraId)
+       && request.resource.data.loteId is string
+       && exists(/databases/$(database)/documents/lotes/$(request.resource.data.loteId))
+       && loteData(request.resource.data.loteId).construtoraId == request.resource.data.construtoraId
+       && loteData(request.resource.data.loteId).loteamentoId == request.resource.data.loteamentoId
+       && loteData(request.resource.data.loteId).quadraId == request.resource.data.quadraId;
+     allow update: if admin(resource.data.construtoraId)
+       && request.resource.data.construtoraId == resource.data.construtoraId
+       && request.resource.data.loteamentoId == resource.data.loteamentoId
+       && request.resource.data.quadraId == resource.data.quadraId
+       && request.resource.data.loteId == resource.data.loteId;
+     allow delete: if admin(resource.data.construtoraId);
+   }
+
+   match /equipes/{id} {
+     allow read: if hierarchyRead(resource.data.construtoraId);
+     allow create: if admin(request.resource.data.construtoraId)
+       && request.resource.data.etapaId is string
+       && exists(/databases/$(database)/documents/etapas/$(request.resource.data.etapaId))
+       && etapaData(request.resource.data.etapaId).construtoraId == request.resource.data.construtoraId
+       && etapaData(request.resource.data.etapaId).loteamentoId == request.resource.data.loteamentoId
+       && etapaData(request.resource.data.etapaId).quadraId == request.resource.data.quadraId
+       && etapaData(request.resource.data.etapaId).loteId == request.resource.data.loteId;
+     allow update: if admin(resource.data.construtoraId)
+       && request.resource.data.construtoraId == resource.data.construtoraId
+       && request.resource.data.loteamentoId == resource.data.loteamentoId
+       && request.resource.data.quadraId == resource.data.quadraId
+       && request.resource.data.loteId == resource.data.loteId
+       && request.resource.data.etapaId == resource.data.etapaId;
+     allow delete: if admin(resource.data.construtoraId);
+   }
   match /{path=**}/construtora_members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
   match /{path=**}/members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
   match /{path=**}/movimentacoes/{id} { allow read: if dev() || signed(); }

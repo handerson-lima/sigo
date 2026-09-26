@@ -12,6 +12,7 @@ import '../../../common_widgets/sigo_breadcrumbs.dart';
 import '../../../common_widgets/sigo_empty_state.dart';
 import '../../../common_widgets/sigo_error_state.dart';
 import '../../../common_widgets/sigo_layout.dart';
+import '../../authentication/data/user_repository.dart';
 import '../../obras/presentation/current_permissions_provider.dart';
 
 class EtapasListScreen extends ConsumerStatefulWidget {
@@ -89,13 +90,14 @@ class _EtapasListScreenState extends ConsumerState<EtapasListScreen> {
     final baseRoute =
         '/construtoras/${widget.construtoraId}/loteamentos/${widget.loteamentoId}/quadras/${widget.quadraId}/lotes/${widget.loteId}/etapas';
 
-    final adminAsync = ref.watch(
-      currentPermissionsProvider((
-        construtoraId: widget.construtoraId,
-        obraId: widget.loteamentoId,
-      )),
-    );
-    final isAdmin = adminAsync.value?.isAdmin == true;
+    final dev = ref.watch(trustedDevProvider).value == true;
+    final member = ref
+        .watch(construtoraPermissionProvider(widget.construtoraId))
+        .value;
+    final isAdmin =
+        dev ||
+        (member?['isActive'] == true &&
+            (member?['isAdmin'] == true || member?['isOwner'] == true));
 
     return SigoLayout(
       title: 'Etapas',
@@ -117,16 +119,10 @@ class _EtapasListScreenState extends ConsumerState<EtapasListScreen> {
                   return SigoEmptyState(
                     message: 'Nenhuma etapa cadastrada',
                     icon: Icons.view_module_outlined,
-                    action: adminAsync.when(
-                      error: (err, _) => Text(
-                        'Erro de permissão',
-                        style: TextStyle(color: Colors.red.shade300),
-                      ),
-                      loading: () => const SizedBox.shrink(),
-                      data: (_) {
-                        if (!isAdmin) return null;
-                        if (_isInitializing) {
-                          return const Row(
+                    action: !isAdmin
+                        ? null
+                        : _isInitializing
+                        ? const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               SizedBox(
@@ -139,15 +135,11 @@ class _EtapasListScreenState extends ConsumerState<EtapasListScreen> {
                               SizedBox(width: 8),
                               Text('Inicializando...'),
                             ],
-                          );
-                        }
-                        return ElevatedButton(
-                          onPressed: _inicializarEtapas,
-                          child: const Text('Inicializar Etapas'),
-                        );
-                      },
-                      // loading e error já definidos acima
-                    ),
+                          )
+                        : ElevatedButton(
+                            onPressed: _inicializarEtapas,
+                            child: const Text('Inicializar Etapas'),
+                          ),
                   );
                 }
 

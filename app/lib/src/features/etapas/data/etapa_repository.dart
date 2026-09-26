@@ -40,6 +40,10 @@ class EtapaRepository {
     await docRef.set(etapa);
   }
 
+  Future<void> assignResponsavel(String etapaId, String? responsavelId) async {
+    await _etapasRef().doc(etapaId).update({'responsavelId': responsavelId});
+  }
+
   static List<Etapa> buildDefaultEtapas({
     required String construtoraId,
     required String loteamentoId,

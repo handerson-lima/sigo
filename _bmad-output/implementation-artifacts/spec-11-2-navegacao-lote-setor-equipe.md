@@ -2,7 +2,7 @@
 title: 'Story 11.2 - Navegação Lote → Setor → Equipe'
 type: 'feature'
 created: '2026-09-24'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 1
 baseline_commit: '29e3d5c30d76508dad4bac45bbb476dea3776fd0'
@@ -60,14 +60,36 @@ context: ['_bmad-output/implementation-artifacts/epic-11-context.md']
 - Given que um usuário acessou a rota de equipes, when ele visualizar a tela, then o componente de Breadcrumbs deve mostrar os links corretos para Loteamento > Quadra > Lote > Setor, permitindo navegação para cima.
 
 ### Review Findings
-- [ ] [Review][Decision] Conflito de Nomenclatura (Equipe) — A nova classe `Equipe` duplica o nome da entidade `Equipe` de RH com formato distinto, podendo gerar conflitos.
-- [ ] [Review][Decision] Conflito do SigoBreadcrumbs — O componente no diff altera a assinatura (recebe segments) o que pode quebrar usos existentes em disco (que não enviavam).
-- [ ] [Review][Patch] Rotas sem Prefixo da Construtora — As URLs nos redirects e Breadcrumbs (/loteamentos/...) não possuem o prefixo obrigatório /construtoras/:cId, resultando em tela 404 em todos os taps.
-- [ ] [Review][Patch] Rotas Vazias / Brancas — Rotas-pai `:loteId` e `:setorId` retornam `SizedBox()` sem um redirecionamento, resultando em tela branca. Além disso, `:loteId` na nova rota colide e sombreia a rota de etapas.
-- [ ] [Review][Patch] Crashes de Parse (Dados) — `snapshot.data()!` não verifica null, `createdAt` faz parse de String invés de Timestamp (causa crash), e lê id do corpo do JSON em vez de `snapshot.id`.
-- [ ] [Review][Patch] Desvio de UX (SigoLayout) — Telas estão usando Scaffold puro em vez de `SigoLayout`, perdendo a sidebar/navegação principal. Falta uso do `SigoEmptyState`/`SigoErrorState`.
-- [ ] [Review][Patch] Security Rules (Firestore) — Regras estão ausentes ou insuficientes para acessos em produção, e `AccessGuard` carece do param module correto.
-- [ ] [Review][Patch] Ausência de Testes — Faltam testes para breadcrumbs, taps e JSON parsing dos repositórios novos.
+
+_Revisão de homologação (2026-09-26): código atual do escopo 11.2 vs baseline `29e3d5c`; o nível 4 "Setor" foi renomeado para `Etapa` no código atual._
+
+- [x] [Review][Patch] Etapa é o nível 4 formal: adicionar `responsavelId` à `Etapa` e uma via de atribuição [app/lib/src/features/etapas/domain/etapa.dart:26-50] — decisão: manter Etapa como nível 4 e reconciliar o Intent adicionando o campo (o enum `EtapaTipo` fixo permanece como rótulo/ordem).
+- [x] [Review][Patch] Renomear a nova `Equipe` da hierarquia para evitar colisão com a `Equipe` de RH [app/lib/src/features/equipes/domain/equipe.dart:22] — decisão: renomear (ex.: `EquipeLote`/`EquipeHierarquia`); a `Equipe` de RH (`features/rh`) permanece.
+- [x] [Review][Patch] Rules top-level sem validação de coerência de pai nem de módulo [firestore.rules:209-228]
+- [x] [Review][Patch] `EtapasListScreen` passa `loteamentoId` como `obraId` ao `currentPermissionsProvider` [app/lib/src/features/etapas/presentation/etapas_list_screen.dart:92-97]
+- [x] [Review][Patch] FAB "Novo Lote" ignora `trustedDevProvider` (dev global sem membership não vê o botão, embora a rota permita) [app/lib/src/features/lotes/presentation/lotes_list_screen.dart:32-37]
+
+- [x] [Review][Defer] Codec de data inseguro/inconsistente em Etapa e null handling nos repositórios [app/lib/src/features/etapas/domain/etapa.g.dart:17-18] — deferred: pré-existente da Story 13.1; já registrado em `deferred-work.md` e retro-item 39 (unificar codecs).
+- [x] [Review][Defer] Faltam testes das leituras reais `watchEtapas`/`watchEquipes`/seed sem batch e das rules top-level [app/test/etapa_repository_test.dart:1] — deferred: pré-existente da 13.1; `deferred-work.md` (sem harness Dart de Firestore real; `test:rules` fora do CI).
+- [x] [Review][Defer] Providers-family de etapas/equipes sem `autoDispose` retêm listeners [app/lib/src/features/etapas/data/etapa_repository.dart:106] — deferred: padrão pré-existente; já diferido para 11-1 (reintroduz `AsyncLoading`).
+- [x] [Review][Defer] Sem cascata/limpeza de órfãos de `etapas`/`equipes` ao apagar pais [app/lib/src/features/equipes/data/equipe_repository.dart:22-38] — deferred: comportamento típico de denormalização; sem impacto imediato.
+- [x] [Review][Defer] Duas hierarquias de `lotes` coexistem (raiz vs `construtoras/{c}/obras/{o}/lotes`) [firestore.rules:101,209] — deferred: pré-existente; estado transitório 13.1→13.3 (AD-1, retro-item 35).
+- [x] [Review][Defer] Escopo extra fora dos ACs da 11.2: seed automático de etapas e fluxo "Novo Lote" [app/lib/src/features/etapas/data/etapa_repository.dart:43-96] — deferred: trabalho dos épicos 13.x, não exigido pela 11.2.
+
+#### Rejected (appendix)
+- `accepted-deviation` — Modelo achatado em coleções raiz em vez das subcoleções aninhadas do epic: decisão do usuário em 2026-09-26 de aceitar o esquema top-level (AD-1) e formalizar o desvio; achado encerrado.
+- `false` — `Equipe` nova sem `copyWith/isActive/schemaVersion` e "incompatível com docs legados": coleções distintas (`equipes` raiz vs `construtoras/{c}/equipes`), não há docs legados na raiz; `_dateTimeFromTimestamp` evita crash.
+- `false` — `orderBy('ordem')`/`orderBy('name')` descartam docs sem o campo: todo caminho de escrita (`toJson`) inclui `ordem`/`name`; cenário não alcançável pelo app.
+- `false` — teste atômico referencia `LoteRepository(fakeFirestore, etapaRepository)`/`createLoteComEtapas` "ausentes": existem em `app/lib/src/features/lotes/data/lote_repository.dart:19,43` (fora do recorte do diff).
+- `false` — índices compostos ausentes: `firestore.indexes.json` já contém `collectionGroup` `etapas` e `equipes` (linhas 78,104), adicionados em `1489c17`.
+- `low` — `member(c)` passa a chamar `activeConstrutora(c)` (fail-closed se o doc da construtora sumir): cenário improvável; bloqueio global é intencional.
+- `low` — timeframe/timer de `_inicializarEtapas` não cancela o commit: efeito limitado (provider reemite ao concluir; `merge:true` torna reenvio idempotente).
+- `low` — ids determinísticos + `merge` não corrigem `nome/ordem` de etapas existentes: exigiria versionamento/migração; sem impacto hoje.
+- `low` — `SigoBreadcrumbs` ignora segmentos desconhecidos, usa rótulos genéricos e mantém branch `'obra'` morto: cosmético/derivado do path.
+- `low` — `AccessGuard` reutiliza `module: 'lotes'` para etapas/equipes: não há módulo distinto definido; comportamento aceitável.
+- `low` — tela de equipes sem CTA de criação/gating admin: 11.2 só exige listagem base; sem ações de escrita na tela.
+- `low` — defeitos de estilo (espaços à direita, ordem de imports, comentário obsoleto): cosméticos.
+- `rejected (fix edita a spec)` — Contradição interna do contrato de breadcrumbs (recebe segments vs deriva do GoRouter): a própria Triage Log da spec já resolveu para derivado-do-router.
 
 ## Implementation Notes
 - O modelo `Lote` sofreu alterações em histórias anteriores (Story 11.1), resultando na quebra de 63 testes relacionados a `Lote` que esperavam parâmetros como `obraId` em vez de `loteamentoId` e `quadraId`. Esses erros de teste foram ignorados nesta etapa pois pertencem ao escopo da história anterior que não atualizou os testes adequadamente. As novas rotas não apresentam erros de análise e estão funcionando conforme o esperado.

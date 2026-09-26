@@ -12,14 +12,15 @@ class EquipeRepository {
 
   EquipeRepository(this._firestore);
 
-  CollectionReference<Equipe> _equipesRef() => _firestore
+  CollectionReference<EquipeLote> _equipesRef() => _firestore
       .collection('equipes')
-      .withConverter<Equipe>(
-        fromFirestore: (snapshot, _) => Equipe.fromJson(snapshot.data() ?? {}),
+      .withConverter<EquipeLote>(
+        fromFirestore: (snapshot, _) =>
+            EquipeLote.fromJson(snapshot.data() ?? {}),
         toFirestore: (equipe, _) => equipe.toJson(),
       );
 
-  Stream<List<Equipe>> watchEquipes(
+  Stream<List<EquipeLote>> watchEquipes(
     String construtoraId,
     String loteamentoId,
     String quadraId,
@@ -37,7 +38,7 @@ class EquipeRepository {
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 
-  Future<void> createEquipe(Equipe equipe) async {
+  Future<void> createEquipe(EquipeLote equipe) async {
     final docRef = _equipesRef().doc(equipe.id);
     await docRef.set(equipe);
   }
@@ -51,7 +52,7 @@ typedef EquipeParams = ({
   String etapaId,
 });
 
-final watchEquipesProvider = StreamProvider.family<List<Equipe>, EquipeParams>((
+final watchEquipesProvider = StreamProvider.family<List<EquipeLote>, EquipeParams>((
   ref,
   params,
 ) {

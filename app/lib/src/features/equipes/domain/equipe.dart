@@ -19,7 +19,7 @@ DateTime _dateTimeFromTimestamp(dynamic timestamp) {
 dynamic _dateTimeToTimestamp(DateTime date) => Timestamp.fromDate(date);
 
 @JsonSerializable()
-class Equipe {
+class EquipeLote {
   final String id;
   final String construtoraId;
   final String loteamentoId;
@@ -33,7 +33,7 @@ class Equipe {
   @JsonKey(fromJson: _dateTimeFromTimestamp, toJson: _dateTimeToTimestamp)
   final DateTime updatedAt;
 
-  Equipe({
+  EquipeLote({
     required this.id,
     required this.construtoraId,
     required this.loteamentoId,
@@ -46,6 +46,7 @@ class Equipe {
     required this.updatedAt,
   });
 
-  factory Equipe.fromJson(Map<String, dynamic> json) => _$EquipeFromJson(json);
-  Map<String, dynamic> toJson() => _$EquipeToJson(this);
+  factory EquipeLote.fromJson(Map<String, dynamic> json) =>
+      _$EquipeLoteFromJson(json);
+  Map<String, dynamic> toJson() => _$EquipeLoteToJson(this);
 }

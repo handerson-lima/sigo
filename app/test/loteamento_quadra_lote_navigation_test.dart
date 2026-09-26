@@ -87,6 +87,9 @@ class FakeEtapaRepository implements EtapaRepository {
   Future<void> createEtapa(Etapa etapa) async {}
 
   @override
+  Future<void> assignResponsavel(String etapaId, String? responsavelId) async {}
+
+  @override
   Future<void> createDefaultEtapas({
     WriteBatch? batch,
     required String construtoraId,
@@ -97,11 +100,11 @@ class FakeEtapaRepository implements EtapaRepository {
 }
 
 class FakeEquipeRepository implements EquipeRepository {
-  final List<Equipe> equipes;
+  final List<EquipeLote> equipes;
   FakeEquipeRepository(this.equipes);
 
   @override
-  Stream<List<Equipe>> watchEquipes(
+  Stream<List<EquipeLote>> watchEquipes(
     String construtoraId,
     String loteamentoId,
     String quadraId,
@@ -110,7 +113,7 @@ class FakeEquipeRepository implements EquipeRepository {
   ) => Stream.value(equipes);
 
   @override
-  Future<void> createEquipe(Equipe equipe) async {}
+  Future<void> createEquipe(EquipeLote equipe) async {}
 }
 
 Loteamento makeLoteamento(String id) => Loteamento(
@@ -152,7 +155,7 @@ Etapa makeEtapa(String id) => Etapa(
   updatedAt: DateTime(2026, 1, 1),
 );
 
-Equipe makeEquipe(String id) => Equipe(
+EquipeLote makeEquipe(String id) => EquipeLote(
   id: id,
   construtoraId: 'c1',
   loteamentoId: 'l1',

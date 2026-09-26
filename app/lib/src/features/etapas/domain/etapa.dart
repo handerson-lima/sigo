@@ -31,6 +31,7 @@ class Etapa {
   final String loteId;
   final String nome;
   final int ordem;
+  final String? responsavelId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -42,6 +43,7 @@ class Etapa {
     required this.loteId,
     required this.nome,
     required this.ordem,
+    this.responsavelId,
     required this.createdAt,
     required this.updatedAt,
   });
