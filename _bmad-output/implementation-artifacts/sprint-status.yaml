@@ -5,7 +5,7 @@
 # IDs históricos preservados; docs/stories não existe no workspace atual.
 
 generated: 09-14-2026 16:15
-last_updated: 09-26-2026 10:17
+last_updated: 09-26-2026 10:45
 project: obras
 project_key: SIGO
 tracking_system: file-system
@@ -34,7 +34,7 @@ observed_baseline:
 development_status:
   epic-1: in-progress
   1-1-componente-de-upload-de-arquivo-dxf: review
-  1-2-listener-de-processamento-e-sala-de-espera-animação: backlog
+  1-2-listener-de-processamento-e-sala-de-espera-animação: review
   epic-1-retrospective: optional
 
   epic-2: backlog
