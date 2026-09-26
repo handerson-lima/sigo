@@ -325,13 +325,3 @@ Recorte: commits `07171a8` + `c0be5c4` vs baseline `ed53736`; 4 camadas. Veredit
 - source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
   summary: `npm run test:rules` (garantia server-side da 12.2) não roda no CI; `npm test` executa apenas `unit.cjs`.
   evidence: `.github/workflows/ci.yml:46` roda `npm test`; `test:rules` exige `firebase emulators:exec`. Infra pré-existente (retriado do review original #14).
-
-- source_spec: _bmad-output/implementation-artifacts/spec-2-2-algoritmo-espacial-point-in-polygon.md
-  summary: Algoritmo atual não trata quadras sobrepostas, indexação espacial ou entidades multi-partes (bulges/LINE soltas).
-  evidence: Tratar todos os casos de borda e otimizar para O(N log N) não é escopo para esta etapa básica de point-in-polygon.
-
-## Deferred from: code review of spec-2-2-algoritmo-espacial-point-in-polygon (2026-09-26)
-
-- `LINE` isoladas e fechamento forçado sem verificar sequência [functions-python/geometry_utils.py:27,33-34]: pré-existente, já no Review Triage Log (Group 4, escopo); sequência de `LINE`s e verificação de conectividade excedem a história atual.
-- Bulges/arcos e POLYLINE mesh/3D não tratados [functions-python/geometry_utils.py:14,27]: pré-existente (Group 4); tesselação de arcos e normalização de polyface/mesh ficam para robustez futura.
-- `review_fallback_prompts.md` versionado com caminhos de máquina e conteúdo duplicado [review_fallback_prompts.md:33,42,46]: artefato de processo não-portável; limpeza de repositório sem impacto em runtime.

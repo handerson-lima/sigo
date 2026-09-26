@@ -2,4 +2,3 @@ firebase-functions>=0.4.3
 firebase-admin>=6.5.0
 ezdxf>=1.1.4
 google-cloud-storage>=2.18.2
-shapely>=2.0.6

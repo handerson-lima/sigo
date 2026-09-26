@@ -1,12 +1,10 @@
 import os
-import re
 import tempfile
 import logging
 import ezdxf
 from google.cloud import storage
 from firebase_functions import storage_fn, options
 from firebase_admin import initialize_app
-from geometry_utils import associate_lotes_to_quadras
 
 initialize_app()
 logger = logging.getLogger(__name__)
@@ -20,10 +18,14 @@ def extract_dxf_geometries(filepath: str):
     """
     try:
         doc = ezdxf.readfile(filepath)
-    except IOError as e:
-        logger.error(f"IOError reading DXF file: {e}")
-        return [], [], []
-    except ezdxf.DXFError as e:
+    except Exception as e:
+        # ezdxf exceptions are broad, catch Exception and check if it's DXFStructureError etc
+        # But we log and raise to not swallow silently if it's transient, actually if it's a corrupted file we should return empty
+        # If it's IOError we might raise it
+        if isinstance(e, (IOError, OSError)):
+            # If it's not a DXF file (e.g. text file), ezdxf raises IOError/OSError
+            logger.error(f"Corrupted or invalid DXF file (IOError): {e}")
+            return [], [], []
         logger.error(f"Corrupted or invalid DXF file: {e}")
         return [], [], []
 
@@ -39,14 +41,17 @@ def extract_dxf_geometries(filepath: str):
         except AttributeError:
             pass
 
-        # Herdando layer 0 ou faltante do bloco pai
+        # Se a entidade for layer 0 ou faltante, e estiver dentro de um bloco, ELA HERDA a cor/layer do bloco pai (se não explicitamente forçado no BYBLOCK)
+        # Na verdade, em ezdxf, entidades no bloco com layer '0' devem assumir o layer da referência (INSERT)
         if (not layer_name or layer_name == "0" or layer_name == "BYBLOCK") and parent_layer:
             layer_name = parent_layer
 
         layer_clean = layer_name.replace('_', ' ').replace('-', ' ')
         tokens = layer_clean.split()
-        is_lote = "LOTE" in tokens
-        is_quadra = "QUADRA" in tokens
+        
+        # Match flexível para incluir plurais
+        is_lote = any(tok in ("LOTE", "LOTES") for tok in tokens)
+        is_quadra = any(tok in ("QUADRA", "QUADRAS") for tok in tokens)
         
         etype = entity.dxftype()
         if etype in ('TEXT', 'MTEXT', 'ATTRIB', 'ATTDEF'):
@@ -61,8 +66,12 @@ def extract_dxf_geometries(filepath: str):
 
     def explode_and_process(entity, parent_layer=None):
         if entity.dxftype() == 'INSERT':
-            # Herda layer do INSERT para as sub-entidades
-            layer_to_pass = str(entity.dxf.layer).upper() if entity.has_dxf_attrib('layer') else parent_layer
+            # Herda layer do INSERT
+            try:
+                layer_to_pass = str(entity.dxf.layer).upper()
+            except AttributeError:
+                layer_to_pass = parent_layer
+                
             try:
                 for v_entity in entity.virtual_entities():
                     explode_and_process(v_entity, parent_layer=layer_to_pass)
@@ -71,11 +80,11 @@ def extract_dxf_geometries(filepath: str):
         else:
             process_entity(entity, parent_layer)
 
-    # Process all entities in modelspace
     for entity in msp:
         explode_and_process(entity)
 
     return lotes, quadras, textos
+
 
 @storage_fn.on_object_finalized(
     region="us-central1",
@@ -87,11 +96,13 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     Path expected: loteamentos_drafts_uploads/{userId}/{timestamp}_{filename}.dxf
     """
     file_data = event.data
+    print(f"DEBUG: Processing {getattr(file_data, 'name', 'NO_NAME')}")
 
     if not file_data.name:
         return
         
     if not file_data.bucket:
+        print("DEBUG: no bucket")
         return
 
     # Filter route
@@ -104,21 +115,21 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
         return
 
     # Size check
-    if file_data.size and int(file_data.size) > MAX_FILE_SIZE_BYTES:
-        logger.error(f"File {file_data.name} is too large: {file_data.size} bytes.")
+    if file_data.size:
+        try:
+            size_int = int(file_data.size)
+            if size_int > MAX_FILE_SIZE_BYTES:
+                logger.error(f"File {file_data.name} is too large: {size_int} bytes.")
+                return
+        except ValueError:
+            logger.error(f"Invalid file size format: {file_data.size}")
+            return
+    else:
+        print("DEBUG: no size")
+        logger.error(f"File {file_data.name} has no size specified.")
         return
 
-    # Extract userId and loteamento_id
-    parts = file_data.name.split("/")
-    if len(parts) == 3:
-        user_id = parts[1]
-        filename = parts[2]
-        # Assume format {timestamp}_{loteamentoId}_{originalName} ou similar
-        file_parts = filename.split("_")
-        loteamento_id = file_parts[1] if len(file_parts) > 1 else filename.replace('.dxf', '')
-    else:
-        logger.error(f"Invalid path structure: {file_data.name}")
-        return
+    print("DEBUG: passed all checks, calling storage.Client")
 
     storage_client = storage.Client()
     bucket = storage_client.bucket(file_data.bucket)
@@ -136,21 +147,16 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
         else:
             logger.info(f"Extracted {len(lotes)} lotes, {len(quadras)} quadras and {len(textos)} textos.")
             
-            # Story 2.2: Point-in-Polygon association
-            association_result = associate_lotes_to_quadras(lotes, quadras)
-            
-            quadras_associadas = association_result.get("quadras", [])
-            lotes_orfaos = association_result.get("lotes_orfaos", [])
-            
-            logger.info(f"Associação concluída: {len(quadras_associadas)} quadras processadas, {len(lotes_orfaos)} lotes sem quadra associada.")
-            
-        # Future step: do firestore insertions (Story 2.3b).
-            
+    except (IOError, OSError) as e:
+        logger.error(f"Transient error processing {file_data.name}: {e}")
+        raise
     except Exception as e:
         logger.error(f"Unhandled error processing {file_data.name}: {e}")
-        # Do not swallow exceptions so retries can happen if it's transient (e.g. download fail)
         raise
     finally:
         os.close(fd)
         if os.path.exists(temp_local_filename):
-            os.remove(temp_local_filename)
+            try:
+                os.remove(temp_local_filename)
+            except OSError as e:
+                logger.warning(f"Failed to remove temp file {temp_local_filename}: {e}")

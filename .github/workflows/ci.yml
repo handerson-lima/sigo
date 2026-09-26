@@ -45,6 +45,22 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  functions-python:
+    name: Functions pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: functions-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m pytest
+
   doc-check:
     name: Doc check
     runs-on: ubuntu-latest

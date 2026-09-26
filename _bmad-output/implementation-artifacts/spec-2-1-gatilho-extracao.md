@@ -2,10 +2,10 @@
 title: 'Story 2.1: Gatilho OnFinalize e Extração de Geometria Bruta'
 type: 'feature'
 created: '2026-09-26'
-status: 'in-review'
+status: 'done'
 baseline_commit: '2b0f467b261c0500b6f3e57269c6993851200e83'
 route: 'dispatch'
-review_loop_iteration: 1
+review_loop_iteration: 2
 context: ["_bmad-output/implementation-artifacts/epic-2-context.md"]
 ---
 
@@ -48,17 +48,17 @@ context: ["_bmad-output/implementation-artifacts/epic-2-context.md"]
 
 - `firebase.json` -- Configuração do codebase (para permitir Functions Node e Python coexistirem).
 - `functions-python/main.py` -- Ponto de entrada da Cloud Function `onFinalize`.
-- `functions-python/requirements.txt` -- Dependências `ezdxf`, `functions-framework`.
+- `functions-python/requirements.txt` -- Dependências: `firebase-functions`, `ezdxf`, `google-cloud-storage`.
 
 ## Tasks & Acceptance
 
 **Execution:**
 - [x] `firebase.json` -- Atualizar a array `functions` para registrar o codebase `functions-python` (garantir runtime `python311`).
-- [x] `functions-python/requirements.txt` e `functions-python/requirements-dev.txt` -- Declarar dependências básicas (`functions-framework`, `ezdxf`, `google-cloud-storage`, `pytest`).
+- [x] `functions-python/requirements.txt` e `functions-python/requirements-dev.txt` -- Declarar dependências básicas (`firebase-functions`, `ezdxf`, `google-cloud-storage` no principal; `pytest` no dev).
 - [x] `functions-python/main.py` -- Implementar a Cloud Function `processar_dxf` decorada com o gatilho Storage OnFinalize interceptando `loteamentos_drafts_uploads/`.
-- [x] `functions-python/main.py` -- Fazer download seguro garantindo fechamento de File Descriptors, usar `ezdxf.read()`, tratar erros sem engolir retries transientes, validar size/generation, e extrair o `{userId}` do path.
-- [x] `functions-python/main.py` -- Extrair blocos (incluindo tratamento para `INSERT`) e iterar sobre o modelspace agrupando polígonos/linhas por layer (separando de entidades texto), mantendo em variáveis locais (isolamento para Story 2.2).
-- [x] `functions-python/tests/` -- Criar testes unitários com pytest validando filtro de rota, DXF corrompido, arquivo sem entidades, e fluxo principal com DXF sintético.
+- [x] `functions-python/main.py` -- Fazer download seguro garantindo fechamento de File Descriptors (`try/finally`), usar `ezdxf.readfile()`, tratar erros não engolindo exceções transientes, validar size/generation, e extrair os dados. A função deve focar apenas na extração e terminar com sucesso, registrando o total extraído no log (sem chamar lógica topológica da Story 2.2b).
+- [x] `functions-python/main.py` -- Extrair blocos (incluindo tratamento correto de herança para `INSERT` em layer 0) e iterar sobre o modelspace agrupando polígonos/linhas por layer usando correspondência flexível (ex: tokens no plural), separando de entidades texto.
+- [x] `functions-python/tests/` -- Criar testes unitários com pytest validando filtro de rota, DXF corrompido, arquivo sem entidades, limites de tamanho e fluxo principal de extração de blocos/layers com DXF sintético. Assegurar chamadas corretas e mocks isolados (ex: `patch`). Adicionar `.github/workflows/ci.yml` ou um script de CI para rodar os testes, e um `conftest.py` ou `pythonpath` para resolver o `pytest`.
 
 **Acceptance Criteria:**
 - Given que um arquivo `.dxf` foi salvo no Cloud Storage no formato esperado pelo Flutter
@@ -67,47 +67,39 @@ context: ["_bmad-output/implementation-artifacts/epic-2-context.md"]
 
 ## Implementation Notes
 
+A extração pode ser feita identificando os Layers ou os tipos de Blocos correspondentes a Lotes e Quadras. O código inicial usará um mapeamento simplificado dos nomes de layers (por exemplo, layers contendo a substring 'LOTE' e 'QUADRA') ou iterará pelas polylines.
+
 ## Spec Change Log
 
 - **2026-09-26 (Loopback 1)**: Modificação do caminho do bucket alvo (`loteamentos_drafts_uploads/`) devido ao desalinhamento com o Flutter (intent_gap). Reforçada a necessidade de lidar explicitamente com blocos INSERT (`ezdxf.explode` ou equivalente), tratamento de exceções corretos (não engolir exceptions globais) e testabilidade (inclusão de `pytest`) devido a falhas capturadas no Code Review. (KEEP: Arquitetura `OnFinalize` na Gen 2 via `firebase-functions` continua válida).
+- **2026-09-26 (Loopback 2)**: Foram identificadas instruções divergentes e vazamento de escopo (bad_spec). O comando `firebase deploy --dry-run` é inválido. O comando `pytest` falhava sem PYTHONPATH. O Code Map pedia `functions-framework` (não necessário para Gen2) e `ezdxf.read()` (mas `ezdxf.readfile` é o correto para caminhos locais). Além disso, a frase "manter em memória para a próxima etapa" induziu a implementação precoce da Story 2.2b. As instruções foram corrigidas para focar exclusivamente na extração e o comando de deploy/testes foi ajustado. Evitou-se o estado de pipeline quebrado e código morto. (KEEP: A infraestrutura Python com UV, testes baseados em pytest e on_object_finalized via firebase-functions).
 
 ## Review Triage Log
 
-- `high` - O filtro de caminho em `main.py` usa `uploads/loteamentos/` mas o app envia para `loteamentos_drafts_uploads/`, impedindo o processamento real (encontrado pelo verification-gap e edge-case-hunter).
-- `high` - Arquivos com blocos (INSERT) não são tratados corretamente, o que gera extração vazia para DXFs reais (encontrado pelo edge-case-hunter e blind-hunter). O spec explicitamente pedia "extrair os blocos" na Intent.
-- `medium` - `tempfile.mkstemp` devolve um descritor de arquivo aberto que não é fechado com `os.close(fd)`, causando vazamento de fd.
-- `medium` - Acessar `entity.dxf.layer` antes do filtro de tipo pode lançar `AttributeError` em entidades sem layer.
-- `medium` - O bloco `except Exception as e:` engole todas as exceções, o que impede que erros transientes disparem um retry automático do Cloud Functions.
-- `medium` - Layers contendo tanto LOTE quanto QUADRA são processados apenas como LOTE devido ao `if/elif`.
-- `medium` - Ausência de verificação do limite de tamanho do arquivo DXF antes do processamento (OOM em arquivos muito grandes).
-- `medium` - O object pode ser refetched apenas pelo nome, ignorando o generation id do evento.
-- `medium` - `file_data.name` ou `file_data.bucket` podem ser `None` gerando `AttributeError`.
-- `medium` - Falta de testes para validar as extrações e os ramos de fluxo (NO_ENTITIES, INVALID_FILE) via pytest.
-- `low` - `TEXT` e `MTEXT` anexados na lista `lotes`, misturando strings com geometria espacial.
-- `low` - A falta da extração do `{id}` do loteamento, pois será necessário na próxima story.
-- `low` - `firebase.json` está sem a declaração do runtime `python311` e o nome do codebase difere do esperado (`python-functions` vs `functions-python`).
-- `low` - Importação não utilizada do `firestore` e importação redundante do `firebase_admin.initialize_app()` dentro de um function environment.
-- `false` - Manter as variáveis em memória e descartar no retorno significa que a Story 2.2 não tem entrada. Verificado: a Story 2.2 é uma continuação deste pipeline na mesma função Cloud, e o isolamento desta story é intencional.
-- `false` - As dependências divergem, ex. `shapely` não utilizado. Verificado: `shapely` é proposital, preparado para a Story 2.2.
-- `false` - `epic-2-context.md` substituindo o contexto. Verificado: não havia contexto anterior para este épico que precisasse de preservação.
-- `false` - O status no spec diz `in-review` mas no yaml diz `in-progress`. Verificado: este é o estado correto da máquina de estados durante o step-04.
-- `low` [patch] - `__pycache__` e `debug.py` entram no changeset, e o `.gitignore` raiz não possui regras para Python. Fix: Adicionar regras ao `.gitignore` e remover `debug.py` do index.
-- `low` [patch] - `debug.py` possui falha silenciosa com o MagicMock. Fix: O arquivo `debug.py` será removido, pois era apenas para debug local.
-- `low` [patch] - `main.py` contém prints de debug (`DEBUG: Invalid path`). Fix: Remover os prints de debug.
-- `medium` [patch] - O decorator `@storage_fn.on_object_finalized(bucket="sigo-86dd9.appspot.com")` tem o bucket fixado no código de produção e testes. Fix: Remover o argumento `bucket` para ouvir o default.
-- `medium` [patch] - `firebase.json` omite a chave `runtime: python311`. Fix: Adicionar `"runtime": "python311"` ao codebase `functions-python`.
-- `high` [patch] - INSERTs não aplicam transformação matricial (coordenadas erradas) nem tratam aninhamentos. Fix: Usar `entity.virtual_entities()` do ezdxf, que resolve as matrizes de inserção e aninhamentos de forma transparente.
-- `medium` [patch] - Sub-entidades no layer 0 (comum em blocos) são descartadas pelo filtro. Fix: Herdar o layer da entidade pai (INSERT) para entidades no layer 0 ou "BYBLOCK".
-- `medium` [patch] - Acessar `entity.dxf.name` no INSERT pode lançar `AttributeError` e causar crash. Fix: Capturar corretamente as exceções de atributo ou usar `.dxf.get('name')`.
-- `medium` [patch] - Entidades de TEXT/MTEXT são descartadas e a heurística de ambiguidades ficará sem insumo. Fix: Extrair também os textos para a memória e retornar em uma lista `textos`.
-- `medium` [patch] - Parsing de caminho inconsistente: docstring diz 3 partes, mas código tenta 4. Fix: Padronizar e corrigir o parsing de `file_name.split("/")`.
-- `medium` [patch] - `firebase-functions==0.2.0` no `requirements.txt` é obsoleto e o `pytest` não está no principal. Fix: Atualizar as versões do SDK e mover `pytest` para o dev.
-- `low` [patch] - O .venv está usando Python 3.14 ao invés do target 3.11+. Fix: O CI de deploy usará a versão da engine, para o local usaremos o `uv` forçando o python 3.11.
-- `medium` [patch] - Cobertura de testes falha em INSERTs e caminhos extremos, sem asserção forte. Fix: Melhorar `test_main.py` com asserções das listas e cenários.
-- `medium` [patch] - `extract_dxf_geometries` não captura exceções base do ezdxf (`ezdxf.DXFError`). Fix: Capturar erros ezdxf e evitar leak para o except genérico.
-- `low` [patch] - As tarefas do spec-2-1 estão desmarcadas. Fix: Marcar as checkboxes no spec.
-- `high` [patch] - `epic-2-context.md` foi inteiramente reescrito e perdeu o contexto PWA UX. Fix: Restaurar o arquivo do git e apenas concatenar (append) o contexto novo.
-- `low` [patch] - diff-spec-2-1.diff repete hunks e inclui arquivos de processo. Fix: Gerar diff mais limpo e ignorar os próprios diffs.
+
+- `high` [bad_spec] - O contexto do Épico 2 foi atualizado com numeração concorrente (Stories 2.1b/2.2b vs 2.1/2.2), criando confusão.
+- `high` [bad_spec] - O comando de verificação documentado (`firebase deploy --dry-run`) é inválido no Firebase CLI.
+- `high` [bad_spec] - O comando de verificação `cd functions-python && pytest` não funciona por ausência de PYTHONPATH (`conftest.py` ou `python -m pytest`).
+- `high` [bad_spec] - Code Map e tasks exigem `functions-framework` e `ezdxf.read()`, mas a implementação difere.
+- `high` [bad_spec] - A Story 2.1b não deveria tentar reter as geometrias "em memória para a próxima etapa" pois Cloud Functions são stateless; o handoff precisa ser mais bem definido. A lógica da Story 2.2b (`associate_lotes_to_quadras`) vazou para a 2.1b.
+- `high` [patch] - `buffer(0)` pode retornar `MultiPolygon` ou `GeometryCollection`, o que é tratado incorretamente como `Polygon` válido e quebra asserções seguintes.
+- `high` [patch] - Não há CI configurado no `.github/workflows/ci.yml` para rodar os testes da pasta `functions-python`.
+- `medium` [patch] - O bloco genérico `except Exception` força retries automáticos na Cloud Function mesmo para erros determinísticos (ex: arquivo inválido).
+- `medium` [patch] - O wiring entre `processar_dxf` e `associate_lotes_to_quadras` não é assertado nos testes (efeito observável nulo).
+- `medium` [patch] - Tokens de layers exatos ("LOTE", "QUADRA") falham ao ignorar variações comuns em plurais (ex: "LOTES").
+- `medium` [patch] - Exceções `IOError`/`DXFError` retornam listas vazias (`NO_ENTITIES`) no lugar de propagar a falha corretamente.
+- `medium` [defer] - Lotes que se sobrepõem a múltiplas quadras usam um `break` simplista na primeira combinação sem sinalizar ambiguidade. Isso deve ser tratado na Story 2.2b.
+- `low` [patch] - A checagem de limite de tamanho do arquivo pula quando `file_data.size` é falsy.
+- `low` [patch] - O replace `.replace('.dxf', '')` é case-sensitive e deixa extensões `.DXF` vazarem para o ID.
+- `low` [patch] - `os.remove` no `finally` pode causar erro se o arquivo nunca foi criado.
+- `low` [defer] - As variáveis extraídas `user_id` e `loteamento_id` não são usadas. Elas só serão usadas na persistência Firestore na Story 2.3b.
+- `low` [patch] - Import não utilizado `import re` em `main.py`.
+- `low` [patch] - Mocks globais injetados em `sys.modules` mascaram problemas de resolução.
+- `low` [defer] - Arquivos markdown (`review_fallback_prompts.md`, diffs) referenciam paths absolutos não-portáveis (`/Users/usuario/...`).
+- `low` [defer] - O `sprint-status.yaml` não reflete corretamente a máquina de estados desta story.
+- `false` - INSERT na layer 0 faz entidades sumirem sem aviso. (Refutação: Em CAD, inserir um bloco no layer "0" preserva o layer original das subentidades; ele não converte automaticamente em LOTE/QUADRA, logo o descarte está correto).
+- `false` - `firebase.json` omite entry point para Python. (Refutação: O default do Firebase Functions para Python é `main.py` caso a chave seja omitida, portanto é válido).
+- `false` - `.gitignore` muito abrangente. (Refutação: Entradas adicionadas como `build/` são padrão para Python e não afetam arquivos de processo atuais).
 
 ## Design Notes
 
@@ -116,5 +108,5 @@ A extração pode ser feita identificando os Layers ou os tipos de Blocos corres
 ## Verification
 
 **Commands:**
-- `firebase deploy --only functions:processar_dxf --dry-run` -- expected: O CLI do firebase valida as sintaxes e consegue resolver o codebase corretamente.
-- `cd functions-python && pytest` -- expected: Todos os testes locais passam, assegurando regras de extração (INSERT/lotes/quadras) e controle de fluxos de erro.
+- `cd functions-python && python -m pytest` -- expected: Todos os testes locais passam, assegurando regras de extração (INSERT/lotes/quadras) e controle de fluxos de erro.
+- `cat .github/workflows/ci.yml | grep pytest` -- expected: O comando de teste Python existe no CI.
