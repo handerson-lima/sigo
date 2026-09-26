@@ -325,3 +325,7 @@ Recorte: commits `07171a8` + `c0be5c4` vs baseline `ed53736`; 4 camadas. Veredit
 - source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
   summary: `npm run test:rules` (garantia server-side da 12.2) não roda no CI; `npm test` executa apenas `unit.cjs`.
   evidence: `.github/workflows/ci.yml:46` roda `npm test`; `test:rules` exige `firebase emulators:exec`. Infra pré-existente (retriado do review original #14).
+
+- source_spec: _bmad-output/implementation-artifacts/spec-2-2-algoritmo-espacial-point-in-polygon.md
+  summary: Algoritmo atual não trata quadras sobrepostas, indexação espacial ou entidades multi-partes (bulges/LINE soltas).
+  evidence: Tratar todos os casos de borda e otimizar para O(N log N) não é escopo para esta etapa básica de point-in-polygon.

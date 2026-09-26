@@ -6,6 +6,7 @@ import ezdxf
 from google.cloud import storage
 from firebase_functions import storage_fn, options
 from firebase_admin import initialize_app
+from geometry_utils import associate_lotes_to_quadras
 
 initialize_app()
 logger = logging.getLogger(__name__)
@@ -135,8 +136,15 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
         else:
             logger.info(f"Extracted {len(lotes)} lotes, {len(quadras)} quadras and {len(textos)} textos.")
             
-        # Variables lotes, quadras are kept in local variables as per spec, isolating for Story 2.2
-        # Future step: do point-in-polygon and firestore insertions.
+            # Story 2.2: Point-in-Polygon association
+            association_result = associate_lotes_to_quadras(lotes, quadras)
+            
+            quadras_associadas = association_result.get("quadras", [])
+            lotes_orfaos = association_result.get("lotes_orfaos", [])
+            
+            logger.info(f"Associação concluída: {len(quadras_associadas)} quadras processadas, {len(lotes_orfaos)} lotes sem quadra associada.")
+            
+        # Future step: do firestore insertions (Story 2.3b).
             
     except Exception as e:
         logger.error(f"Unhandled error processing {file_data.name}: {e}")
