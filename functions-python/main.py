@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 import logging
 import ezdxf
@@ -41,8 +42,10 @@ def extract_dxf_geometries(filepath: str):
         if (not layer_name or layer_name == "0" or layer_name == "BYBLOCK") and parent_layer:
             layer_name = parent_layer
 
-        is_lote = "LOTE" in layer_name
-        is_quadra = "QUADRA" in layer_name
+        layer_clean = layer_name.replace('_', ' ').replace('-', ' ')
+        tokens = layer_clean.split()
+        is_lote = "LOTE" in tokens
+        is_quadra = "QUADRA" in tokens
         
         etype = entity.dxftype()
         if etype in ('TEXT', 'MTEXT', 'ATTRIB', 'ATTDEF'):
@@ -52,7 +55,7 @@ def extract_dxf_geometries(filepath: str):
                 return
             if is_lote:
                 lotes.append(entity)
-            else:
+            if is_quadra:
                 quadras.append(entity)
 
     def explode_and_process(entity, parent_layer=None):

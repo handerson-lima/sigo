@@ -52,6 +52,10 @@ def synthetic_dxf(tmp_path):
     msp.add_lwpolyline([(0, 0), (10, 0), (10, 10), (0, 10)], dxfattribs={"layer": "LOTE_1"})
     # Quadra
     msp.add_lwpolyline([(0, 0), (20, 0), (20, 20), (0, 20)], dxfattribs={"layer": "QUADRA_1"})
+    # Mixed layer
+    msp.add_lwpolyline([(0, 0), (30, 0), (30, 30), (0, 30)], dxfattribs={"layer": "LOTE_E_QUADRA_1"})
+    # False positive layer
+    msp.add_lwpolyline([(0, 0), (40, 0), (40, 40), (0, 40)], dxfattribs={"layer": "LOTEAMENTO"})
     # Text
     msp.add_text("Texto Lote", dxfattribs={"layer": "LOTE_1"})
     
@@ -71,8 +75,8 @@ def synthetic_dxf(tmp_path):
 
 def test_extract_dxf_geometries_happy_path(synthetic_dxf):
     lotes, quadras, textos = extract_dxf_geometries(synthetic_dxf)
-    assert len(lotes) == 2  # one from modelspace, one from block insert (inherited layer LOTE_2)
-    assert len(quadras) == 1 # one from modelspace
+    assert len(lotes) == 3  # modelspace (LOTE_1), modelspace (LOTE_E_QUADRA_1), block insert (LOTE_2)
+    assert len(quadras) == 2 # modelspace (QUADRA_1), modelspace (LOTE_E_QUADRA_1)
     assert len(textos) == 2 # one from modelspace, one from nested block
 
 def test_extract_dxf_geometries_corrupted(tmp_path):
