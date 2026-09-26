@@ -37,9 +37,8 @@ class ObraMembersRepository {
   ObraMembersRepository(
     this._functions, {
     Future<List<ConnectivityResult>> Function()? checkConnectivity,
-    Future<dynamic> Function(Map<String, dynamic> data)? callSetMembership,
-  }) : _checkConnectivity = checkConnectivity ?? _defaultCheckConnectivity,
-       _callSetMembership = callSetMembership;
+    this._callSetMembership,
+  }) : _checkConnectivity = checkConnectivity ?? _defaultCheckConnectivity;
 
   static Future<List<ConnectivityResult>> _defaultCheckConnectivity() =>
       Connectivity().checkConnectivity();

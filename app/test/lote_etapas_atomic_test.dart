@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
-import 'package:app/src/features/etapas/domain/etapa.dart';
 import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/etapas/data/etapa_repository.dart';
 
@@ -29,7 +28,7 @@ void main() {
 
     final etapasSnapshot = await fakeFirestore.collection('etapas').get();
     expect(etapasSnapshot.docs.length, 5);
-    
+
     final expectedIds = {
       'lo1_muro',
       'lo1_cinza1',
@@ -37,7 +36,7 @@ void main() {
       'lo1_cinza3',
       'lo1_branca',
     };
-    
+
     final savedIds = etapasSnapshot.docs.map((doc) => doc.id).toSet();
     expect(savedIds, expectedIds);
   });

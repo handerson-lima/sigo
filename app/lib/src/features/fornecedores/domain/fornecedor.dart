@@ -77,8 +77,9 @@ class EnderecoFornecedor {
     if (cidade != null && cidade!.isNotEmpty) {
       partes.add(cidade! + (uf != null && uf!.isNotEmpty ? '/$uf' : ''));
     }
-    if (cep != null && cep!.isNotEmpty)
+    if (cep != null && cep!.isNotEmpty) {
       partes.add('CEP: ${FornecedorValidator.formatarCep(cep)}');
+    }
     return partes.join(' - ');
   }
 }

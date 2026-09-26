@@ -293,8 +293,9 @@ class _MovimentacaoScreenState extends ConsumerState<MovimentacaoScreen> {
                 ),
                 onChanged: (_) => setState(() {}),
                 validator: (val) {
-                  if (val == null || val.trim().isEmpty)
+                  if (val == null || val.trim().isEmpty) {
                     return 'Informe a quantidade';
+                  }
                   final int units;
                   try {
                     units = parseQuantityUnits(

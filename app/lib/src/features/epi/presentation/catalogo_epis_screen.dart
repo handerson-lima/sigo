@@ -154,11 +154,13 @@ class _CatalogoEpisScreenState extends ConsumerState<CatalogoEpisScreen> {
                     return false;
                   }
                   if (_statusFilter == 'ativos' && !epi.isActive) return false;
-                  if (_statusFilter == 'ca_vencido' && !epi.isCaVencido)
+                  if (_statusFilter == 'ca_vencido' && !epi.isCaVencido) {
                     return false;
+                  }
                   if (_statusFilter == 'ca_vencendo' &&
-                      !epi.isCaProximoVencimento(30))
+                      !epi.isCaProximoVencimento(30)) {
                     return false;
+                  }
 
                   if (query.isNotEmpty) {
                     final nMatch = epi.nome.toLowerCase().contains(query);

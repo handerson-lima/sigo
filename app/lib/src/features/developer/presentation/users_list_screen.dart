@@ -512,17 +512,21 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                         }
 
                         if (_selectedRole != null) {
-                          if (_selectedRole == 'dev' && u.globalRole != 'dev')
+                          if (_selectedRole == 'dev' && u.globalRole != 'dev') {
                             return false;
-                          if (_selectedRole == 'none' && memberships.isNotEmpty)
+                          }
+                          if (_selectedRole == 'none' &&
+                              memberships.isNotEmpty) {
                             return false;
+                          }
                           if (_selectedRole == 'owner' &&
                               !memberships.any(
                                 (m) =>
                                     m['isOwner'] == true ||
                                     m['role'] == 'owner',
-                              ))
+                              )) {
                             return false;
+                          }
                           if (_selectedRole == 'admin' &&
                               !memberships.any(
                                 (m) =>
@@ -530,8 +534,9 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                                         m['role'] == 'owner') &&
                                     (m['isAdmin'] == true ||
                                         m['role'] == 'admin'),
-                              ))
+                              )) {
                             return false;
+                          }
                           if (_selectedRole == 'member' &&
                               !memberships.any(
                                 (m) =>
@@ -539,8 +544,9 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                                         m['role'] == 'owner') &&
                                     !(m['isAdmin'] == true ||
                                         m['role'] == 'admin'),
-                              ))
+                              )) {
                             return false;
+                          }
                         }
 
                         return true;

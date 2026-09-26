@@ -10,7 +10,7 @@ service firebase.storage {
   function access(c,o) { return dev() || (cmExists(c) && cm(c).get('isActive',false) == true && (cm(c).get('isAdmin',false) == true || cm(c).get('isOwner',false) == true || (om(c,o).get('isActive',false) == true && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || 'diario' in om(c,o).get('modules',[]) || 'rdo' in om(c,o).get('modules',[]) || 'validacao' in om(c,o).get('modules',[]) || 'qualidade' in om(c,o).get('modules',[]) || 'epi' in om(c,o).get('modules',[]) || 'adm' in om(c,o).get('modules',[]) || 'financeiro' in om(c,o).get('modules',[]) || 'compras' in om(c,o).get('modules',[]) || 'almoxarifado' in om(c,o).get('modules',[]))))); }
   match /construtoras/{c}/logos/{filename} {
    allow read: if true;
-   allow create, update: if admin(c) && request.resource.size > 0 && request.resource.size <= 2 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)') && request.resource.metadata.keys().hasOnly([]);
+   allow create, update: if signed() && request.resource.size > 0 && request.resource.size <= 2 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)');
    allow delete: if admin(c);
   }
   match /construtoras/{c}/obras/{o}/diarios/{diary}/{uid}/{attachment} {

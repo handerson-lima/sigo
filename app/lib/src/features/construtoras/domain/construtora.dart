@@ -9,6 +9,8 @@ class Construtora {
   final String id;
   final String name;
   final String? cnpj;
+  final String? telefone;
+  final String? logoUrl;
   final DateTime createdAt;
   final bool isActive;
 
@@ -16,6 +18,8 @@ class Construtora {
     required this.id,
     required this.name,
     this.cnpj,
+    this.telefone,
+    this.logoUrl,
     required this.createdAt,
     this.isActive = true,
   });

@@ -1,7 +1,6 @@
 import '../../../sync/read_cache.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/app_user.dart';

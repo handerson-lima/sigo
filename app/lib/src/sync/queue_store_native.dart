@@ -85,8 +85,9 @@ Future<String> queueStore(String action, String input) async {
                 row['construtoraId'] ?? payload?['construtoraId'];
             final itemObra = row['obraId'] ?? payload?['obraId'];
             final itemAction = row['action'];
-            if (construtoraId != null && itemConstrutora != construtoraId)
+            if (construtoraId != null && itemConstrutora != construtoraId) {
               continue;
+            }
             if (obraId != null && itemObra != obraId) continue;
             if (actionFilter != null && itemAction != actionFilter) continue;
             all.add(row);

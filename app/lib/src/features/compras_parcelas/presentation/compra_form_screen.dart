@@ -230,8 +230,9 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                             border: OutlineInputBorder(),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'Informe a qtd';
+                            }
                             final n = double.tryParse(v.replaceAll(',', '.'));
                             if (n == null || n <= 0) return 'Valor > 0';
                             return null;
@@ -252,8 +253,9 @@ class _CompraFormScreenState extends ConsumerState<CompraFormScreen> {
                       prefixText: 'R\$ ',
                     ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty)
+                      if (v == null || v.trim().isEmpty) {
                         return 'Informe o valor';
+                      }
                       final c = _parseCents(v);
                       if (c <= 0) return 'Valor > 0';
                       return null;

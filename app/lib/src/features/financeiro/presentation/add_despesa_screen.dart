@@ -63,9 +63,10 @@ class _AddDespesaScreenState extends ConsumerState<AddDespesaScreen> {
       await ref.read(financeiroRepositoryProvider).createDespesa(despesa);
       if (mounted) context.pop();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -133,8 +134,9 @@ class _AddDespesaScreenState extends ConsumerState<AddDespesaScreen> {
                         .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                         .toList(),
                     onChanged: (val) {
-                      if (val != null)
+                      if (val != null) {
                         setState(() => _categoriaController.text = val);
+                      }
                     },
                   ),
                   const SizedBox(height: 16),

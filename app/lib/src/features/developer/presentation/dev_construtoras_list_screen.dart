@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../common_widgets/sigo_layout.dart';
 import '../../construtoras/domain/construtora.dart';
@@ -180,12 +184,17 @@ class _DevConstrutorasListScreenState extends State<DevConstrutorasListScreen> {
                             backgroundColor: construtora.isActive
                                 ? Colors.orange.shade100
                                 : Colors.grey.shade200,
-                            child: Icon(
-                              Icons.business,
-                              color: construtora.isActive
-                                  ? Colors.orange
-                                  : Colors.grey,
-                            ),
+                            backgroundImage: construtora.logoUrl != null
+                                ? NetworkImage(construtora.logoUrl!)
+                                : null,
+                            child: construtora.logoUrl == null
+                                ? Icon(
+                                    Icons.business,
+                                    color: construtora.isActive
+                                        ? Colors.orange
+                                        : Colors.grey,
+                                  )
+                                : null,
                           ),
                           title: Row(
                             children: [
@@ -261,22 +270,96 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
   final _nameController = TextEditingController();
   final _cnpjController = TextEditingController();
   final _ownerEmailController = TextEditingController();
+  final _telefoneController = TextEditingController();
+  final _telefoneMask = MaskTextInputFormatter(mask: '## ####-####', filter: {"#": RegExp(r'[0-9]')});
+  String? _logoUrl;
   bool _isSaving = false;
+  late final String _construtoraId;
+
+  @override
+  void initState() {
+    super.initState();
+    _construtoraId = FirebaseFirestore.instance.collection('construtoras').doc().id;
+  }
+
+  Future<void> _pickLogo() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      CroppedFile? croppedFile = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Recortar Logo',
+            toolbarColor: Colors.orange,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(
+            title: 'Recortar Logo',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+            aspectRatioPickerButtonHidden: true,
+          ),
+          WebUiSettings(
+            context: context,
+            presentStyle: WebPresentStyle.dialog,
+          ),
+        ],
+      );
+
+      if (croppedFile != null) {
+        setState(() => _isSaving = true);
+        try {
+          final bytes = await croppedFile.readAsBytes();
+          
+          final metadata = SettableMetadata(
+            contentType: 'image/jpeg',
+            customMetadata: {},
+          );
+          final storageRef = FirebaseStorage.instance.ref().child('construtoras/$_construtoraId/logos/${DateTime.now().millisecondsSinceEpoch}_logo.jpg');
+          
+          await storageRef.putData(bytes, metadata);
+          final url = await storageRef.getDownloadURL();
+          
+          setState(() {
+            _logoUrl = url;
+          });
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao fazer upload da logo: $e')));
+          }
+        } finally {
+          if (mounted) setState(() => _isSaving = false);
+        }
+      }
+    }
+  }
 
   Future<void> _save() async {
     final name = _nameController.text.trim();
+    final telefone = _telefoneController.text.trim();
     if (name.isEmpty) return;
+
+    if (telefone.isNotEmpty && telefone.length < 12) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('O telefone deve estar completo no formato ## ####-####')));
+      return;
+    }
 
     setState(() => _isSaving = true);
 
     try {
       final docRef = FirebaseFirestore.instance
           .collection('construtoras')
-          .doc();
+          .doc(_construtoraId);
       final data = {
         'id': docRef.id,
         'name': name,
         'cnpj': _cnpjController.text.trim(),
+        'telefone': telefone.isNotEmpty ? telefone : null,
+        'logoUrl': _logoUrl,
         'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
       };
@@ -310,6 +393,7 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
     _nameController.dispose();
     _cnpjController.dispose();
     _ownerEmailController.dispose();
+    _telefoneController.dispose();
     super.dispose();
   }
 
@@ -322,12 +406,35 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: _isSaving ? null : _pickLogo,
+                  child: CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.grey.shade200,
+                    backgroundImage: _logoUrl != null ? NetworkImage(_logoUrl!) : null,
+                    child: _logoUrl == null ? const Icon(Icons.add_a_photo, color: Colors.grey) : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome da Construtora',
+                    ),
+                    autofocus: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nome da Construtora',
-              ),
-              autofocus: true,
+              controller: _telefoneController,
+              inputFormatters: [_telefoneMask],
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Telefone (WhatsApp)', hintText: '84 9999-9999'),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -377,6 +484,9 @@ class _EditConstrutoraDialog extends StatefulWidget {
 class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _cnpjController;
+  late final TextEditingController _telefoneController;
+  final _telefoneMask = MaskTextInputFormatter(mask: '## ####-####', filter: {"#": RegExp(r'[0-9]')});
+  String? _logoUrl;
   late bool _isActive;
   bool _isSaving = false;
 
@@ -387,12 +497,78 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
     _cnpjController = TextEditingController(
       text: widget.construtora.cnpj ?? '',
     );
+    _telefoneController = TextEditingController(
+      text: widget.construtora.telefone ?? '',
+    );
+    _logoUrl = widget.construtora.logoUrl;
     _isActive = widget.construtora.isActive;
+  }
+
+  Future<void> _pickLogo() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      CroppedFile? croppedFile = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Recortar Logo',
+            toolbarColor: Colors.orange,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(
+            title: 'Recortar Logo',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+            aspectRatioPickerButtonHidden: true,
+          ),
+          WebUiSettings(
+            context: context,
+            presentStyle: WebPresentStyle.dialog,
+          ),
+        ],
+      );
+
+      if (croppedFile != null) {
+        setState(() => _isSaving = true);
+        try {
+          final bytes = await croppedFile.readAsBytes();
+          
+          final metadata = SettableMetadata(
+            contentType: 'image/jpeg',
+            customMetadata: {},
+          );
+          final storageRef = FirebaseStorage.instance.ref().child('construtoras/${widget.construtora.id}/logos/${DateTime.now().millisecondsSinceEpoch}_logo.jpg');
+          
+          await storageRef.putData(bytes, metadata);
+          final url = await storageRef.getDownloadURL();
+          
+          setState(() {
+            _logoUrl = url;
+          });
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao fazer upload da logo: $e')));
+          }
+        } finally {
+          if (mounted) setState(() => _isSaving = false);
+        }
+      }
+    }
   }
 
   Future<void> _save() async {
     final name = _nameController.text.trim();
+    final telefone = _telefoneController.text.trim();
     if (name.isEmpty) return;
+
+    if (telefone.isNotEmpty && telefone.length < 12) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('O telefone deve estar completo no formato ## ####-####')));
+      return;
+    }
 
     setState(() => _isSaving = true);
 
@@ -403,6 +579,8 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
       await docRef.update({
         'name': name,
         'cnpj': _cnpjController.text.trim(),
+        'telefone': telefone.isNotEmpty ? telefone : null,
+        'logoUrl': _logoUrl,
         'isActive': _isActive,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -432,6 +610,7 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
   void dispose() {
     _nameController.dispose();
     _cnpjController.dispose();
+    _telefoneController.dispose();
     super.dispose();
   }
 
@@ -444,12 +623,35 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: _isSaving ? null : _pickLogo,
+                  child: CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.grey.shade200,
+                    backgroundImage: _logoUrl != null ? NetworkImage(_logoUrl!) : null,
+                    child: _logoUrl == null ? const Icon(Icons.add_a_photo, color: Colors.grey) : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome da Construtora',
+                    ),
+                    autofocus: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nome da Construtora',
-              ),
-              autofocus: true,
+              controller: _telefoneController,
+              inputFormatters: [_telefoneMask],
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Telefone (WhatsApp)', hintText: '84 9999-9999'),
             ),
             const SizedBox(height: 16),
             TextField(

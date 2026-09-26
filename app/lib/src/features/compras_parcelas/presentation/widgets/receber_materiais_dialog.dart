@@ -188,13 +188,15 @@ class _ReceberMateriaisDialogState extends State<ReceberMateriaisDialog> {
                                   isDense: true,
                                 ),
                                 validator: (val) {
-                                  if (val == null || val.trim().isEmpty)
+                                  if (val == null || val.trim().isEmpty) {
                                     return 'Informe a quantidade';
+                                  }
                                   final numVal = double.tryParse(
                                     val.replaceAll(',', '.'),
                                   );
-                                  if (numVal == null || numVal < 0)
+                                  if (numVal == null || numVal < 0) {
                                     return 'Valor inválido';
+                                  }
                                   if (numVal > pendente) {
                                     return 'Máximo permitido para entrega: $pendente';
                                   }

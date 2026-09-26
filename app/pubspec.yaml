@@ -50,6 +50,8 @@ dependencies:
   path_provider: ^2.1.6
   path: ^1.9.1
   intl: ^0.20.3
+  mask_text_input_formatter: ^2.9.0
+  image_cropper: ^12.2.1
 
 dev_dependencies:
   flutter_test:

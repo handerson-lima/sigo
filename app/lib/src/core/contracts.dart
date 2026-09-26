@@ -74,8 +74,9 @@ int parseCurrencyToCents(dynamic value) {
   if (value == null) throw const FormatException('Valor monetário inválido');
   String text;
   if (value is num) {
-    if (!value.isFinite)
+    if (!value.isFinite) {
       throw const FormatException('Valor monetário inválido');
+    }
     text = value.toString();
   } else {
     text = value.toString().trim();

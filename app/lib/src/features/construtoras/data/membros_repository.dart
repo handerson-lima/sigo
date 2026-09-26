@@ -33,9 +33,8 @@ class MembrosRepository {
     this._firestore,
     this._functions, {
     Future<List<ConnectivityResult>> Function()? checkConnectivity,
-    Future<dynamic> Function(Map<String, dynamic> data)? callSetCargo,
-  }) : _checkConnectivity = checkConnectivity ?? _defaultCheckConnectivity,
-       _callSetCargo = callSetCargo;
+    this._callSetCargo,
+  }) : _checkConnectivity = checkConnectivity ?? _defaultCheckConnectivity;
 
   static Future<List<ConnectivityResult>> _defaultCheckConnectivity() =>
       Connectivity().checkConnectivity();
