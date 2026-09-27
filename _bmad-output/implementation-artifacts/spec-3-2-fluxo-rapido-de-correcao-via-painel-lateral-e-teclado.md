@@ -2,7 +2,7 @@
 title: 'Story 3.2: Fluxo Rápido de Correção via Painel Lateral e Teclado'
 type: 'feature'
 created: '2026-09-27'
-status: 'implemented'
+status: 'done'
 baseline_commit: 'a410f4687fccc1235d0649386ca5cf3bee782aea'
 route: 'dispatch'
 review_loop_iteration: 0
