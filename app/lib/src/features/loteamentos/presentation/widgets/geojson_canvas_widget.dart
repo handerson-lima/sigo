@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 
 class GeojsonCanvasWidget extends StatelessWidget {
   final Map<String, dynamic> geojsonData;
+  final int? selectedFeatureIndex;
+  final ValueChanged<int>? onFeatureTap;
 
   const GeojsonCanvasWidget({
     super.key,
     required this.geojsonData,
+    this.selectedFeatureIndex,
+    this.onFeatureTap,
   });
 
   @override
@@ -59,24 +63,77 @@ class GeojsonCanvasWidget extends StatelessWidget {
       }
     }
 
+    // Helper para criar paths (usado no paint e no hit-test)
+    Path createPathForFeature(Map<String, dynamic>? geometry, Offset offset) {
+      final path = Path();
+      if (geometry == null) return path;
+      final type = geometry['type'];
+      final coords = geometry['coordinates'] as List<dynamic>?;
+      if (coords == null || coords.isEmpty) return path;
+
+      void addRing(List<dynamic> ring) {
+        bool first = true;
+        for (final point in ring) {
+          final x = (point[0] as num).toDouble() + offset.dx;
+          final y = (point[1] as num).toDouble() + offset.dy;
+          if (first) {
+            path.moveTo(x, y);
+            first = false;
+          } else {
+            path.lineTo(x, y);
+          }
+        }
+        path.close();
+      }
+
+      if (type == 'Polygon') {
+        addRing(coords[0] as List<dynamic>);
+      } else if (type == 'MultiPolygon') {
+        for (final poly in coords) {
+          final polyCoords = poly as List<dynamic>;
+          if (polyCoords.isNotEmpty) {
+            addRing(polyCoords[0] as List<dynamic>);
+          }
+        }
+      }
+      return path;
+    }
+
     if (minX == double.infinity) {
       return const Center(child: Text('Canvas vazio (sem coordenadas válidas).'));
     }
 
     final width = maxX - minX;
     final height = maxY - minY;
+    final offset = Offset(-minX - width / 2, -minY - height / 2);
     
     return InteractiveViewer(
       boundaryMargin: const EdgeInsets.all(double.infinity),
       minScale: 0.1,
       maxScale: 10.0,
       constrained: false, // permite mover livremente em tela infinita
-      child: Transform.translate(
-        // Centraliza os desenhos movendo a origem baseada no centro do bbox
-        offset: Offset(-minX - width / 2, -minY - height / 2),
-        child: CustomPaint(
-          size: Size(width, height), // Tamanho original em coordenadas do mapa
-          painter: _GeojsonPainter(features: features),
+      child: GestureDetector(
+        onTapUp: (details) {
+          if (onFeatureTap == null) return;
+          final localPosition = details.localPosition;
+          for (int i = features.length - 1; i >= 0; i--) {
+            final feature = features[i];
+            final path = createPathForFeature(feature['geometry'], offset);
+            if (path.contains(localPosition)) {
+              onFeatureTap!(i);
+              return;
+            }
+          }
+          // Tap fora
+          onFeatureTap!(-1);
+        },
+        child: Transform.translate(
+          // Centraliza os desenhos movendo a origem baseada no centro do bbox
+          offset: offset,
+          child: CustomPaint(
+            size: Size(width, height), // Tamanho original em coordenadas do mapa
+            painter: _GeojsonPainter(features: features, selectedFeatureIndex: selectedFeatureIndex),
+          ),
         ),
       ),
     );
@@ -94,12 +151,15 @@ class GeojsonCanvasWidget extends StatelessWidget {
 
 class _GeojsonPainter extends CustomPainter {
   final List<dynamic> features;
+  final int? selectedFeatureIndex;
 
-  _GeojsonPainter({required this.features});
+  _GeojsonPainter({required this.features, this.selectedFeatureIndex});
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final feature in features) {
+    for (int i = 0; i < features.length; i++) {
+      final feature = features[i];
+      final isSelected = i == selectedFeatureIndex;
       final properties = feature['properties'] as Map<String, dynamic>? ?? {};
       final status = properties['status'] as String?;
       final geometry = feature['geometry'] as Map<String, dynamic>?;
@@ -132,8 +192,8 @@ class _GeojsonPainter extends CustomPainter {
         // Borda
         final strokePaint = Paint()
           ..style = PaintingStyle.stroke
-          ..color = Colors.black87
-          ..strokeWidth = 0.5; // Espessura fina
+          ..color = isSelected ? Colors.blue : Colors.black87
+          ..strokeWidth = isSelected ? 2.0 : 0.5; // Destaque visual
         
         canvas.drawPath(path, strokePaint);
       }
@@ -153,6 +213,7 @@ class _GeojsonPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GeojsonPainter oldDelegate) {
-    return true; // Simplificado para redesenhar quando o estado mudar
+    return oldDelegate.selectedFeatureIndex != selectedFeatureIndex ||
+           oldDelegate.features != features;
   }
 }

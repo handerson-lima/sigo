@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../data/loteamentos_import_repository.dart';
 import 'widgets/geojson_canvas_widget.dart';
+import 'widgets/lote_correcao_panel.dart';
 
 // O mesmo provider que escuta o draft no processamento.
 final canvasDraftStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, draftId) {
@@ -11,7 +12,7 @@ final canvasDraftStreamProvider = StreamProvider.family<Map<String, dynamic>?, S
   return repo.watchDraft(draftId);
 });
 
-class LoteamentoCanvasScreen extends ConsumerWidget {
+class LoteamentoCanvasScreen extends ConsumerStatefulWidget {
   final String construtoraId;
   final String draftId;
 
@@ -22,8 +23,15 @@ class LoteamentoCanvasScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final draftStream = ref.watch(canvasDraftStreamProvider(draftId));
+  ConsumerState<LoteamentoCanvasScreen> createState() => _LoteamentoCanvasScreenState();
+}
+
+class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen> {
+  int? _selectedFeatureIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final draftStream = ref.watch(canvasDraftStreamProvider(widget.draftId));
 
     return Scaffold(
       appBar: AppBar(
@@ -32,6 +40,36 @@ class LoteamentoCanvasScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
+        actions: draftStream.whenOrNull(
+          data: (data) {
+            if (data == null) return null;
+            final features = data['features'] as List<dynamic>? ?? [];
+            final ambiguos = features.where((f) => f['properties']?['status'] == 'ambiguo').length;
+            
+            return [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: Chip(
+                    label: Text('$ambiguos Lotes Ambíguos'),
+                    backgroundColor: ambiguos > 0 ? Colors.orange.withAlpha(153) : Colors.green.withAlpha(153),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 16.0),
+                child: FilledButton(
+                  onPressed: ambiguos == 0 ? () {
+                    // Aprovação final (stub para a proxima estoria)
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aprovação finalizada')));
+                    context.pop();
+                  } : null,
+                  child: const Text('Aprovar Definitivamente'),
+                ),
+              )
+            ];
+          },
+        ) ?? [],
       ),
       body: draftStream.when(
         data: (data) {
@@ -39,12 +77,57 @@ class LoteamentoCanvasScreen extends ConsumerWidget {
             return const Center(child: Text('Rascunho não encontrado.'));
           }
 
-          // A estrutura de loteamentos_drafts costuma ter o GeoJSON sob um campo específico ou na raiz.
-          // Assumindo que data seja o próprio GeoJSON ou que possua o campo 'features'.
-          // Se for envolto, por exemplo data['geojson'], seria necessário ajustar.
-          // Como o SPEC diz "o documento GeoJSON contendo a estrutura com as propriedades", vamos passar o objeto direto.
-          return ClipRect(
-            child: GeojsonCanvasWidget(geojsonData: data),
+          final features = data['features'] as List<dynamic>? ?? [];
+
+          return Row(
+            children: [
+              Expanded(
+                child: ClipRect(
+                  child: GeojsonCanvasWidget(
+                    geojsonData: data,
+                    selectedFeatureIndex: _selectedFeatureIndex,
+                    onFeatureTap: (index) {
+                      setState(() {
+                        if (index == -1) {
+                          _selectedFeatureIndex = null;
+                        } else {
+                          _selectedFeatureIndex = index;
+                        }
+                      });
+                    },
+                  ),
+                ),
+              ),
+              if (_selectedFeatureIndex != null && _selectedFeatureIndex! < features.length)
+                LoteCorrecaoPanel(
+                  properties: features[_selectedFeatureIndex!]['properties'] as Map<String, dynamic>? ?? {},
+                  onSave: (newName) async {
+                    try {
+                      final repo = ref.read(loteamentosImportRepositoryProvider);
+                      await repo.updateDraftFeature(
+                        widget.draftId,
+                        _selectedFeatureIndex!,
+                        {'nome': newName, 'status': 'resolvido'},
+                      );
+                      setState(() {
+                        _selectedFeatureIndex = null;
+                      });
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lote atualizado com sucesso.')));
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao atualizar lote: $e')));
+                      }
+                    }
+                  },
+                  onCancel: () {
+                    setState(() {
+                      _selectedFeatureIndex = null;
+                    });
+                  },
+                ),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

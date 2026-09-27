@@ -51,4 +51,34 @@ class LoteamentosImportRepository {
       return null;
     });
   }
+
+  /// Atualiza as propriedades de uma feature específica no rascunho
+  Future<void> updateDraftFeature(String draftId, int featureIndex, Map<String, dynamic> newProperties) async {
+    final docRef = _firestore.collection('loteamentos_drafts').doc(draftId);
+    
+    // Roda em uma transação para garantir que o array não seja sobrescrito incorretamente
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) {
+        throw Exception('Rascunho não encontrado');
+      }
+
+      final data = snapshot.data()!;
+      final features = List<dynamic>.from(data['features'] ?? []);
+      
+      if (featureIndex < 0 || featureIndex >= features.length) {
+        throw Exception('Índice da feature inválido');
+      }
+
+      final feature = Map<String, dynamic>.from(features[featureIndex] as Map);
+      final currentProperties = Map<String, dynamic>.from(feature['properties'] ?? {});
+      
+      currentProperties.addAll(newProperties);
+      feature['properties'] = currentProperties;
+      
+      features[featureIndex] = feature;
+      
+      transaction.update(docRef, {'features': features});
+    });
+  }
 }
