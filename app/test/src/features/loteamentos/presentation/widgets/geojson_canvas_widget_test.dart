@@ -75,7 +75,7 @@ void main() {
 
       // Verificamos que o CustomPainter foi instanciado
       final customPaintFinder = find.byWidgetPredicate(
-        (widget) => widget is CustomPaint && widget.painter.runtimeType.toString() == '_GeojsonPainter',
+        (widget) => widget is CustomPaint && widget.painter is GeojsonPainter,
       );
       expect(customPaintFinder, findsOneWidget);
     });
@@ -145,5 +145,52 @@ void main() {
 
       expect(find.text('Canvas vazio (sem coordenadas válidas).'), findsOneWidget);
     });
+
+    test('GeojsonPainter aplica cores corretas baseadas no status', () {
+      final features = [
+        {
+          'geometry': {'type': 'Polygon', 'coordinates': [[[0,0], [1,1]]]},
+          'properties': {'status': 'resolvido'}
+        },
+        {
+          'geometry': {'type': 'Polygon', 'coordinates': [[[0,0], [1,1]]]},
+          'properties': {'status': 'ambiguo'}
+        },
+        {
+          'geometry': {'type': 'Polygon', 'coordinates': [[[0,0], [1,1]]]},
+          'properties': {'status': 'outro'}
+        }
+      ];
+
+      final paths = [Path(), Path(), Path()];
+      final painter = GeojsonPainter(features: features, paths: paths);
+
+      final recorder = FlutterTestCanvasRecorder();
+      painter.paint(recorder, const Size(100, 100));
+
+      expect(recorder.paints.length, 6); // 3 preenchimentos + 3 bordas
+
+      // Feature 0: resolvido -> verde
+      expect(recorder.paints[0].color.toARGB32(), Colors.green.withAlpha(128).toARGB32());
+      expect(recorder.paints[0].style, PaintingStyle.fill);
+
+      // Feature 1: ambiguo -> laranja
+      expect(recorder.paints[2].color.toARGB32(), Colors.orange.withAlpha(128).toARGB32());
+      expect(recorder.paints[2].style, PaintingStyle.fill);
+
+      // Feature 2: desconhecido -> cinza
+      expect(recorder.paints[4].color.toARGB32(), Colors.grey.withAlpha(128).toARGB32());
+      expect(recorder.paints[4].style, PaintingStyle.fill);
+    });
   });
+}
+
+class FlutterTestCanvasRecorder implements Canvas {
+  final List<Paint> paints = [];
+  @override
+  void drawPath(Path path, Paint paint) {
+    paints.add(paint);
+  }
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

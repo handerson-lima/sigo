@@ -54,19 +54,27 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
 
     for (final feature in _features) {
       final geometry = feature['geometry'] as Map<String, dynamic>?;
-      if (geometry == null) continue;
+      if (geometry == null) {
+        debugPrint('Geometria inválida: geometry is null para feature');
+        continue;
+      }
 
       final type = geometry['type'];
       final coords = geometry['coordinates'] as List<dynamic>?;
-      if (coords == null || coords.isEmpty) continue;
+      if (coords == null || coords.isEmpty) {
+        debugPrint('Geometria inválida: coordinates is null or empty para feature');
+        continue;
+      }
 
       if (type == 'Polygon') {
-        processRing(coords[0] as List<dynamic>);
+        for (final ring in coords) {
+          processRing(ring as List<dynamic>);
+        }
       } else if (type == 'MultiPolygon') {
         for (final poly in coords) {
           final polyCoords = poly as List<dynamic>;
-          if (polyCoords.isNotEmpty) {
-            processRing(polyCoords[0] as List<dynamic>);
+          for (final ring in polyCoords) {
+            processRing(ring as List<dynamic>);
           }
         }
       }
@@ -107,12 +115,14 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
       }
 
       if (type == 'Polygon') {
-        addRing(coords[0] as List<dynamic>);
+        for (final ring in coords) {
+          addRing(ring as List<dynamic>);
+        }
       } else if (type == 'MultiPolygon') {
         for (final poly in coords) {
           final polyCoords = poly as List<dynamic>;
-          if (polyCoords.isNotEmpty) {
-            addRing(polyCoords[0] as List<dynamic>);
+          for (final ring in polyCoords) {
+            addRing(ring as List<dynamic>);
           }
         }
       }
@@ -146,7 +156,7 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
         },
         child: CustomPaint(
           size: Size(_width, _height), // Tamanho original exato mapeado em 0..width, 0..height
-          painter: _GeojsonPainter(
+          painter: GeojsonPainter(
             features: _features,
             paths: _cachedPaths,
             selectedFeatureIndex: widget.selectedFeatureIndex,
@@ -157,12 +167,12 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
   }
 }
 
-class _GeojsonPainter extends CustomPainter {
+class GeojsonPainter extends CustomPainter {
   final List<dynamic> features;
   final List<Path> paths;
   final int? selectedFeatureIndex;
 
-  _GeojsonPainter({
+  GeojsonPainter({
     required this.features,
     required this.paths,
     this.selectedFeatureIndex,
@@ -202,7 +212,7 @@ class _GeojsonPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _GeojsonPainter oldDelegate) {
+  bool shouldRepaint(covariant GeojsonPainter oldDelegate) {
     return oldDelegate.selectedFeatureIndex != selectedFeatureIndex ||
            oldDelegate.features != features;
   }
