@@ -1,43 +1,37 @@
-# Epic 3 Context: Módulos Core - Estoque e Gestão por Lotes
+# Epic 3 Context: Revisão e Resolução Interativa de Ambiguidades (Flutter UI)
 
 <!-- Compiled from planning artifacts. Edit freely. Regenerate with compile-epic-context if planning docs change. -->
 
 ## Goal
 
-Estabelecer a gestão granular por unidades de produção (Lotes e Setores da Obra) e o controle central de estoque e movimentações no SIGO, permitindo o acompanhamento de fases executivas, status de avanço físico e a apropriação confiável de materiais por obra e lote.
+O usuário visualiza o loteamento em um Canvas responsivo, localiza lotes problemáticos visualmente e os corrige rapidamente através do Painel Lateral utilizando atalhos de teclado, até destravar a aprovação final.
 
 ## Stories
 
-- Story 3.1: CRUD de Projetos e Lotes (Gestão de Obras e Lotes com fases e status)
-- Story 3.2: Estoque - Recebimento no Almoxarifado Central (NF e insumos)
-- Story 3.3: Estoque - Saída via requisição por Lote
-- Story 3.4: Estoque - Ajustes auditados
-- Story 3.5: Estoque - Estorno por movimentação inversa
-- Story 3.6: Estoque - Rateio de despesas e frete
-- Story 3.7: Monetário em centavos e escalas de estoque
+- Story 3.1: Canvas Interativo e Renderização Estilizada de Polígonos
+- Story 3.2: Fluxo Rápido de Correção via Painel Lateral e Teclado
+- Story 3.3: Gestão de Pendências e Gatilho de Aprovação
 
 ## Requirements & Constraints
 
-- Obras são aninhadas em construtoras (`construtoras/{cId}/obras/{oId}`) e Lotes são subcoleções da obra (`construtoras/{cId}/obras/{oId}/lotes/{lId}`).
-- Apenas membros ativos com perfil de administrador da construtora ou administrador da obra (ou dev global confiável) podem criar e atualizar obras e lotes.
-- Membros com módulo `lotes` autorizado na obra podem visualizar o mapa de lotes e seu avanço de fases.
-- Exclusão física direta de obras e lotes é estritamente bloqueada pelas Security Rules (`allow delete: if false;`).
-- Toda mutação deve ser resiliente a cenários offline e respeitar invariantes de integridade do Firestore e convenções do SIGO.
+- A persistência do rascunho em edição utiliza o banco de dados (coleção `loteamentos_drafts` no Firestore) para gravar cada ajuste unitário.
+- A aprovação final só deve ser habilitada quando não houverem mais lotes com status "ambiguo".
+- Após todas correções, o sistema atualiza o status do rascunho inteiro para "aprovado" (que dispara o processamento em background da ingestão).
+- O payload deve ser obrigatoriamente GeoJSON.
+- A renderização do GeoJSON no front-end não deve efetuar o processamento algorítmico, operando apenas sobre as marcações de status feitas pelo backend.
 
 ## Technical Decisions
 
-- Arquitetura: Flutter Web/PWA com Riverpod para gerenciamento reativo de estado e GoRouter para roteamento declarativo protegido por `AccessGuard`.
-- Modelo de Lote: ID UUID v4, nome/identificação, fase atual (`Fundação`, `Alvenaria`, `Acabamento`, `Entregue`), status (`noPrazo`, `atrasado`, `paralisado`, `concluido`) e timestamp de criação.
-- Camada de Dados: `ObraRepository` e `LoteRepository` integrados com `read_cache.dart` e tolerância a indisponibilidade de rede.
-- Testes: Testes unitários e de widget isolados com mocks leves dos providers Riverpod e repositórios.
+- Stack: Flutter Web/PWA utilizando GoRouter para navegação.
+- Estado: A gestão dos lotes em tela e do status global do arquivo de rascunho deve usar provedores locais (Riverpod) em sincronia com o backend.
 
 ## UX & Interaction Patterns
 
-- Listagem de Obras (`ObrasListScreen`): Exibição de cards de obras da construtora, métricas e ação contextual para administradores e devs criarem novas obras via modal dialog.
-- Mapa de Lotes (`LotesListScreen`): Visualização em Grid com cartões coloridos por status e FAB para novo lote.
-- Edição de Lote: Modal bottom sheet ou diálogo acionado ao tocar no card do lote para atualizar fase e status em tempo real.
-- Formulário de Novo Lote (`AddLoteScreen`): Validação rigorosa de nome não-vazio (sem aceitar apenas espaços), dropdown de fases e seleção de status.
+- **Canvas Contínuo:** Pan & Zoom para navegar na planta, exibindo lotes com cores de feedback (ambíguo=laranja com pulso, válido=neutro, corrigido=verde).
+- **Painel Lateral:** Digitação rápida do nome/número com auto-focus e atalho `ENTER` para salvar lote selecionado.
+- **Barra de Progresso:** Chip visível superior com a contagem de "X Lotes Ambíguos" restantes, controlando a liberação do botão "Aprovar Definitivamente".
 
 ## Cross-Story Dependencies
 
-- Story 3.1 é pré-requisito fundamental para as histórias 3.2 a 3.6, pois saídas de estoque (Story 3.3), apropriações e apontamentos de diário dependem de lotes válidos e ativos pertencentes à obra correspondente.
+- Depende da Epic 1 e Epic 2 para a criação inicial do documento GeoJSON rascunho contendo a propriedade "status" = "ambiguo" nos lotes irregulares.
+- Dispara a execução das functions da Epic 4 a partir da aprovação do documento.

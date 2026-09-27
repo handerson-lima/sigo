@@ -392,3 +392,10 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
   summary: Tratar limite rígido de 1 MiB de documento do Firestore para GeoJSON muito grandes.
   evidence: GeoJSON de um loteamento gigantesco pode bater o limite facilmente de 1 MiB e falhar na hora do `.set()`, necessitando compressão ou quebra do doc (A23).
+
+- source_spec: none
+  summary: Story 3.2: Fluxo Rápido de Correção via Painel Lateral e Teclado
+  evidence: Separado da Epic 3 devido ao particionamento de entregáveis múltiplos (Single Goal Standard).
+- source_spec: none
+  summary: Story 3.3: Gestão de Pendências e Gatilho de Aprovação
+  evidence: Separado da Epic 3 devido ao particionamento de entregáveis múltiplos (Single Goal Standard).

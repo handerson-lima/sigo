@@ -1,0 +1,417 @@
+diff --git a/_bmad-output/implementation-artifacts/deferred-work.md b/_bmad-output/implementation-artifacts/deferred-work.md
+index 717f811..9d8909a 100644
+--- a/_bmad-output/implementation-artifacts/deferred-work.md
++++ b/_bmad-output/implementation-artifacts/deferred-work.md
+@@ -392,3 +392,10 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
+ - source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
+   summary: Tratar limite rígido de 1 MiB de documento do Firestore para GeoJSON muito grandes.
+   evidence: GeoJSON de um loteamento gigantesco pode bater o limite facilmente de 1 MiB e falhar na hora do `.set()`, necessitando compressão ou quebra do doc (A23).
++
++- source_spec: none
++  summary: Story 3.2: Fluxo Rápido de Correção via Painel Lateral e Teclado
++  evidence: Separado da Epic 3 devido ao particionamento de entregáveis múltiplos (Single Goal Standard).
++- source_spec: none
++  summary: Story 3.3: Gestão de Pendências e Gatilho de Aprovação
++  evidence: Separado da Epic 3 devido ao particionamento de entregáveis múltiplos (Single Goal Standard).
+diff --git a/_bmad-output/implementation-artifacts/epic-3-context.md b/_bmad-output/implementation-artifacts/epic-3-context.md
+index e9ec3b9..3da349a 100644
+--- a/_bmad-output/implementation-artifacts/epic-3-context.md
++++ b/_bmad-output/implementation-artifacts/epic-3-context.md
+@@ -1,43 +1,37 @@
+-# Epic 3 Context: Módulos Core - Estoque e Gestão por Lotes
++# Epic 3 Context: Revisão e Resolução Interativa de Ambiguidades (Flutter UI)
+ 
+ <!-- Compiled from planning artifacts. Edit freely. Regenerate with compile-epic-context if planning docs change. -->
+ 
+ ## Goal
+ 
+-Estabelecer a gestão granular por unidades de produção (Lotes e Setores da Obra) e o controle central de estoque e movimentações no SIGO, permitindo o acompanhamento de fases executivas, status de avanço físico e a apropriação confiável de materiais por obra e lote.
++O usuário visualiza o loteamento em um Canvas responsivo, localiza lotes problemáticos visualmente e os corrige rapidamente através do Painel Lateral utilizando atalhos de teclado, até destravar a aprovação final.
+ 
+ ## Stories
+ 
+-- Story 3.1: CRUD de Projetos e Lotes (Gestão de Obras e Lotes com fases e status)
+-- Story 3.2: Estoque - Recebimento no Almoxarifado Central (NF e insumos)
+-- Story 3.3: Estoque - Saída via requisição por Lote
+-- Story 3.4: Estoque - Ajustes auditados
+-- Story 3.5: Estoque - Estorno por movimentação inversa
+-- Story 3.6: Estoque - Rateio de despesas e frete
+-- Story 3.7: Monetário em centavos e escalas de estoque
++- Story 3.1: Canvas Interativo e Renderização Estilizada de Polígonos
++- Story 3.2: Fluxo Rápido de Correção via Painel Lateral e Teclado
++- Story 3.3: Gestão de Pendências e Gatilho de Aprovação
+ 
+ ## Requirements & Constraints
+ 
+-- Obras são aninhadas em construtoras (`construtoras/{cId}/obras/{oId}`) e Lotes são subcoleções da obra (`construtoras/{cId}/obras/{oId}/lotes/{lId}`).
+-- Apenas membros ativos com perfil de administrador da construtora ou administrador da obra (ou dev global confiável) podem criar e atualizar obras e lotes.
+-- Membros com módulo `lotes` autorizado na obra podem visualizar o mapa de lotes e seu avanço de fases.
+-- Exclusão física direta de obras e lotes é estritamente bloqueada pelas Security Rules (`allow delete: if false;`).
+-- Toda mutação deve ser resiliente a cenários offline e respeitar invariantes de integridade do Firestore e convenções do SIGO.
++- A persistência do rascunho em edição utiliza o banco de dados (coleção `loteamentos_drafts` no Firestore) para gravar cada ajuste unitário.
++- A aprovação final só deve ser habilitada quando não houverem mais lotes com status "ambiguo".
++- Após todas correções, o sistema atualiza o status do rascunho inteiro para "aprovado" (que dispara o processamento em background da ingestão).
++- O payload deve ser obrigatoriamente GeoJSON.
++- A renderização do GeoJSON no front-end não deve efetuar o processamento algorítmico, operando apenas sobre as marcações de status feitas pelo backend.
+ 
+ ## Technical Decisions
+ 
+-- Arquitetura: Flutter Web/PWA com Riverpod para gerenciamento reativo de estado e GoRouter para roteamento declarativo protegido por `AccessGuard`.
+-- Modelo de Lote: ID UUID v4, nome/identificação, fase atual (`Fundação`, `Alvenaria`, `Acabamento`, `Entregue`), status (`noPrazo`, `atrasado`, `paralisado`, `concluido`) e timestamp de criação.
+-- Camada de Dados: `ObraRepository` e `LoteRepository` integrados com `read_cache.dart` e tolerância a indisponibilidade de rede.
+-- Testes: Testes unitários e de widget isolados com mocks leves dos providers Riverpod e repositórios.
++- Stack: Flutter Web/PWA utilizando GoRouter para navegação.
++- Estado: A gestão dos lotes em tela e do status global do arquivo de rascunho deve usar provedores locais (Riverpod) em sincronia com o backend.
+ 
+ ## UX & Interaction Patterns
+ 
+-- Listagem de Obras (`ObrasListScreen`): Exibição de cards de obras da construtora, métricas e ação contextual para administradores e devs criarem novas obras via modal dialog.
+-- Mapa de Lotes (`LotesListScreen`): Visualização em Grid com cartões coloridos por status e FAB para novo lote.
+-- Edição de Lote: Modal bottom sheet ou diálogo acionado ao tocar no card do lote para atualizar fase e status em tempo real.
+-- Formulário de Novo Lote (`AddLoteScreen`): Validação rigorosa de nome não-vazio (sem aceitar apenas espaços), dropdown de fases e seleção de status.
++- **Canvas Contínuo:** Pan & Zoom para navegar na planta, exibindo lotes com cores de feedback (ambíguo=laranja com pulso, válido=neutro, corrigido=verde).
++- **Painel Lateral:** Digitação rápida do nome/número com auto-focus e atalho `ENTER` para salvar lote selecionado.
++- **Barra de Progresso:** Chip visível superior com a contagem de "X Lotes Ambíguos" restantes, controlando a liberação do botão "Aprovar Definitivamente".
+ 
+ ## Cross-Story Dependencies
+ 
+-- Story 3.1 é pré-requisito fundamental para as histórias 3.2 a 3.6, pois saídas de estoque (Story 3.3), apropriações e apontamentos de diário dependem de lotes válidos e ativos pertencentes à obra correspondente.
++- Depende da Epic 1 e Epic 2 para a criação inicial do documento GeoJSON rascunho contendo a propriedade "status" = "ambiguo" nos lotes irregulares.
++- Dispara a execução das functions da Epic 4 a partir da aprovação do documento.
+diff --git a/_bmad-output/implementation-artifacts/spec-3-1-canvas-interativo-e-renderizacao-estilizada-de-poligonos.md b/_bmad-output/implementation-artifacts/spec-3-1-canvas-interativo-e-renderizacao-estilizada-de-poligonos.md
+new file mode 100644
+index 0000000..27fc786
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/spec-3-1-canvas-interativo-e-renderizacao-estilizada-de-poligonos.md
+@@ -0,0 +1,73 @@
++---
++title: 'Story 3.1: Canvas Interativo e Renderização Estilizada de Polígonos'
++type: 'feature'
++created: '2026-09-27'
++status: 'in-progress'
++baseline_commit: 'a4820ca3697c0875309fccc4cd290caacaca70a3'
++route: 'dispatch'
++review_loop_iteration: 0
++context:
++  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
++---
++
++<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
++
++## Intent
++
++**Problem:** O rascunho GeoJSON gerado pelo backend após o upload do DXF não pode ser visualizado pelo usuário, impedindo-o de identificar onde estão os lotes com problema (status ambíguo).
++
++**Approach:** Criar uma tela (`LoteamentoCanvasScreen`) contendo um visualizador interativo (`InteractiveViewer`) e um `CustomPaint` para desenhar os polígonos presentes no payload GeoJSON, aplicando cores distintas (neutro, laranja-alerta) com base na propriedade "status".
++
++## Boundaries & Constraints
++
++**Always:**
++- Utilizar `InteractiveViewer` nativo do Flutter para gerenciar Pan & Zoom.
++- Decodificar o payload como GeoJSON padrão, focando em `Polygon` e `MultiPolygon`.
++- Acessar o campo "status" nas propriedades da feature ("properties") para determinar a cor.
++- Inscrever a tela no documento do rascunho em `loteamentos_drafts` via repositório.
++
++**Never:**
++- Não usar pacotes de mapas reais (como `flutter_map` ou Google Maps), pois o GeoJSON pode estar fora de escala ou coordenadas terrestres locais; usar apenas coordenadas geométricas locais e independentes no Canvas.
++- Não efetuar algoritmos espaciais complexos no frontend.
++
++## I/O & Edge-Case Matrix
++
++| Scenario | Input / State | Expected Output / Behavior | Error Handling |
++|----------|--------------|---------------------------|----------------|
++| Acesso Inicial | Documento do rascunho válido com lista de Features | Canvas renderiza os polígonos centrados na tela, permitindo zoom e arraste | Mostrar estado vazio se sem features |
++| Renderização Visual | Polígono com propriedade `status: ambiguo` | O polígono correspondente é preenchido com cor de alerta (ex: laranja) | Fallback para cor neutra |
++| Geometria Inválida | GeoJSON com formato atípico (ex: falta coordinates) | O parser deve pular (skip) a Feature defeituosa sem falhar a tela inteira | Registrar erro no console |
++
++</frozen-after-approval>
++
++## Code Map
++
++- `app/lib/src/features/loteamentos/presentation/loteamento_canvas_screen.dart` -- Nova tela de revisão que recebe o `draftId` e consome o stream do rascunho.
++- `app/lib/src/features/loteamentos/presentation/widgets/geojson_canvas_widget.dart` -- Componente contendo o `InteractiveViewer` e um `CustomPainter` para desenhar a lista de Features GeoJSON.
++- `app/lib/src/routing/app_router.dart` -- Adicionar a rota para `/construtoras/:cId/loteamentos/draft/:draftId`.
++
++## Tasks & Acceptance
++
++**Execution:**
++- [ ] `app/lib/src/features/loteamentos/presentation/widgets/geojson_canvas_widget.dart` -- Criar o componente de renderização 2D (Pan, Zoom, desenho de polígonos baseado no min/max bounds para enquadramento inicial).
++- [ ] `app/lib/src/features/loteamentos/presentation/loteamento_canvas_screen.dart` -- Criar a tela que escuta o `draftStreamProvider` e fornece o payload para o widget de renderização.
++- [ ] `app/lib/src/routing/app_router.dart` -- Registrar a nova rota de rascunho (`loteamentos/draft/:draftId`).
++
++**Acceptance Criteria:**
++- Given um usuário sendo redirecionado para a tela do rascunho após o processamento, when a tela carregar, then ele deve ver os polígonos representados na tela.
++- Given o visualizador aberto, when o usuário fizer o gesto de pinça ou arrastar o mouse/dedo, then o mapa deve ampliar e mover (Pan & Zoom).
++- Given um lote retornado pelo backend com "status": "ambiguo", when renderizado no canvas, then sua cor de preenchimento deve ser laranja/amarela (diferente da cor dos lotes válidos).
++
++## Implementation Notes
++
++## Spec Change Log
++
++## Review Triage Log
++
++## Verification
++
++**Commands:**
++- `cd app && flutter analyze` -- expected: Sem erros de linting.
++
++**Manual checks (if no CLI):**
++- Rodar o app, submeter um DXF (ou mock) que gere rascunho e validar que a tela transiciona e renderiza o canvas com pan e zoom fluídos.
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index e2eb4f3..f4bffb1 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -43,8 +43,8 @@ development_status:
+   2-3-heurística-de-ambiguidades-e-persistência-do-rascunho-geojso: review
+   epic-2-retrospective: optional
+ 
+-  epic-3: backlog
+-  3-1-canvas-interativo-e-renderização-estilizada-de-polígonos: backlog
++  epic-3: in-progress
++  3-1-canvas-interativo-e-renderização-estilizada-de-polígonos: in-progress
+   3-2-fluxo-rápido-de-correção-via-painel-lateral-e-teclado: backlog
+   3-3-gestão-de-pendências-e-gatilho-de-aprovação: backlog
+   epic-3-retrospective: optional
+diff --git a/app/lib/src/features/loteamentos/presentation/loteamento_canvas_screen.dart b/app/lib/src/features/loteamentos/presentation/loteamento_canvas_screen.dart
+new file mode 100644
+index 0000000..4095203
+--- /dev/null
++++ b/app/lib/src/features/loteamentos/presentation/loteamento_canvas_screen.dart
+@@ -0,0 +1,64 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++import 'package:go_router/go_router.dart';
++
++import '../data/loteamentos_import_repository.dart';
++import 'widgets/geojson_canvas_widget.dart';
++
++// O mesmo provider que escuta o draft no processamento.
++final canvasDraftStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, draftId) {
++  final repo = ref.watch(loteamentosImportRepositoryProvider);
++  return repo.watchDraft(draftId);
++});
++
++class LoteamentoCanvasScreen extends ConsumerWidget {
++  final String construtoraId;
++  final String draftId;
++
++  const LoteamentoCanvasScreen({
++    super.key,
++    required this.construtoraId,
++    required this.draftId,
++  });
++
++  @override
++  Widget build(BuildContext context, WidgetRef ref) {
++    final draftStream = ref.watch(canvasDraftStreamProvider(draftId));
++
++    return Scaffold(
++      appBar: AppBar(
++        title: const Text('Revisão do Loteamento'),
++        leading: IconButton(
++          icon: const Icon(Icons.arrow_back),
++          onPressed: () => context.pop(),
++        ),
++      ),
++      body: draftStream.when(
++        data: (data) {
++          if (data == null) {
++            return const Center(child: Text('Rascunho não encontrado.'));
++          }
++
++          // A estrutura de loteamentos_drafts costuma ter o GeoJSON sob um campo específico ou na raiz.
++          // Assumindo que data seja o próprio GeoJSON ou que possua o campo 'features'.
++          // Se for envolto, por exemplo data['geojson'], seria necessário ajustar.
++          // Como o SPEC diz "o documento GeoJSON contendo a estrutura com as propriedades", vamos passar o objeto direto.
++          return ClipRect(
++            child: GeojsonCanvasWidget(geojsonData: data),
++          );
++        },
++        loading: () => const Center(child: CircularProgressIndicator()),
++        error: (err, stack) => Center(
++          child: Column(
++            mainAxisAlignment: MainAxisAlignment.center,
++            children: [
++              const Icon(Icons.error, color: Colors.red, size: 64),
++              const SizedBox(height: 16),
++              Text('Erro ao carregar o rascunho:\n$err', textAlign: TextAlign.center),
++            ],
++          ),
++        ),
++      ),
++    );
++  }
++}
+diff --git a/app/lib/src/features/loteamentos/presentation/widgets/geojson_canvas_widget.dart b/app/lib/src/features/loteamentos/presentation/widgets/geojson_canvas_widget.dart
+new file mode 100644
+index 0000000..bb1911f
+--- /dev/null
++++ b/app/lib/src/features/loteamentos/presentation/widgets/geojson_canvas_widget.dart
+@@ -0,0 +1,133 @@
++import 'package:flutter/material.dart';
++
++class GeojsonCanvasWidget extends StatelessWidget {
++  final Map<String, dynamic> geojsonData;
++
++  const GeojsonCanvasWidget({
++    super.key,
++    required this.geojsonData,
++  });
++
++  @override
++  Widget build(BuildContext context) {
++    // Extrai features
++    final features = geojsonData['features'] as List<dynamic>? ?? [];
++
++    if (features.isEmpty) {
++      return const Center(child: Text('Nenhuma feature encontrada.'));
++    }
++
++    // Calcula os bounds (minX, minY, maxX, maxY) para centralizar e focar
++    double minX = double.infinity;
++    double minY = double.infinity;
++    double maxX = double.negativeInfinity;
++    double maxY = double.negativeInfinity;
++
++    for (final feature in features) {
++      final geometry = feature['geometry'] as Map<String, dynamic>?;
++      if (geometry == null) continue;
++      final type = geometry['type'];
++      if (type == 'Polygon') {
++        final coords = geometry['coordinates'] as List<dynamic>?;
++        if (coords != null && coords.isNotEmpty) {
++          final ring = coords[0] as List<dynamic>;
++          for (final point in ring) {
++            final x = (point[0] as num).toDouble();
++            final y = (point[1] as num).toDouble();
++            if (x < minX) minX = x;
++            if (x > maxX) maxX = x;
++            if (y < minY) minY = y;
++            if (y > maxY) maxY = y;
++          }
++        }
++      }
++    }
++
++    if (minX == double.infinity) {
++      return const Center(child: Text('Geometria inválida.'));
++    }
++
++    final width = maxX - minX;
++    final height = maxY - minY;
++    
++    return InteractiveViewer(
++      boundaryMargin: const EdgeInsets.all(double.infinity),
++      minScale: 0.1,
++      maxScale: 10.0,
++      constrained: false, // permite mover livremente em tela infinita
++      child: Transform.translate(
++        // Centraliza os desenhos movendo a origem baseada no centro do bbox
++        offset: Offset(-minX - width / 2, -minY - height / 2),
++        child: CustomPaint(
++          size: Size(width, height), // Tamanho original em coordenadas do mapa
++          painter: _GeojsonPainter(features: features),
++        ),
++      ),
++    );
++  }
++}
++
++class _GeojsonPainter extends CustomPainter {
++  final List<dynamic> features;
++
++  _GeojsonPainter({required this.features});
++
++  @override
++  void paint(Canvas canvas, Size size) {
++    for (final feature in features) {
++      final properties = feature['properties'] as Map<String, dynamic>? ?? {};
++      final status = properties['status'] as String?;
++      final geometry = feature['geometry'] as Map<String, dynamic>?;
++
++      if (geometry == null) continue;
++      final type = geometry['type'];
++      
++      if (type == 'Polygon') {
++        final coords = geometry['coordinates'] as List<dynamic>?;
++        if (coords != null && coords.isNotEmpty) {
++          final ring = coords[0] as List<dynamic>;
++          
++          final path = Path();
++          bool first = true;
++          for (final point in ring) {
++            final x = (point[0] as num).toDouble();
++            final y = (point[1] as num).toDouble();
++            if (first) {
++              path.moveTo(x, y);
++              first = false;
++            } else {
++              path.lineTo(x, y);
++            }
++          }
++          path.close();
++
++          final paint = Paint()..style = PaintingStyle.fill;
++          if (status == 'ambiguo') {
++            paint.color = Colors.orange.withValues(alpha: 0.6);
++          } else if (status == 'aprovado' || status == 'resolvido') {
++            paint.color = Colors.green.withValues(alpha: 0.6);
++          } else {
++            paint.color = Colors.grey.withValues(alpha: 0.4);
++          }
++
++          canvas.drawPath(path, paint);
++
++          // Borda
++          final strokePaint = Paint()
++            ..style = PaintingStyle.stroke
++            ..color = Colors.black87
++            ..strokeWidth = 0.5; // Espessura fina
++          
++          // Nota: como a escala pode estar muito variada, o ideal seria que a espessura da linha não escalasse,
++          // mas como estamos usando CustomPaint simples, essa linha escalará com o zoom do InteractiveViewer.
++          canvas.drawPath(path, strokePaint);
++        }
++      }
++    }
++  }
++
++  @override
++  bool shouldRepaint(covariant _GeojsonPainter oldDelegate) {
++    return true; // Simplificado para redesenhar quando o estado mudar
++  }
++}
+diff --git a/app/lib/src/features/loteamentos/routing/loteamentos_routes.dart b/app/lib/src/features/loteamentos/routing/loteamentos_routes.dart
+index 859fa72..af0e557 100644
+--- a/app/lib/src/features/loteamentos/routing/loteamentos_routes.dart
++++ b/app/lib/src/features/loteamentos/routing/loteamentos_routes.dart
+@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
+ import '../presentation/loteamentos_list_screen.dart';
+ import '../presentation/loteamento_import_screen.dart';
+ import '../presentation/loteamento_processing_screen.dart';
++import '../presentation/loteamento_canvas_screen.dart';
+ import '../../../common_widgets/access_guard.dart';
+ import '../../quadras/routing/quadras_routes.dart';
+ 
+@@ -51,6 +52,21 @@ List<RouteBase> get loteamentosRoutes => [
+           ),
+         ],
+       ),
++      GoRoute(
++        path: 'draft/:draftId',
++        builder: (context, state) {
++          final cId = state.pathParameters['cId']!;
++          final draftId = state.pathParameters['draftId']!;
++          return AccessGuard(
++            construtoraId: cId,
++            module: 'lotes',
++            child: LoteamentoCanvasScreen(
++              construtoraId: cId,
++              draftId: draftId,
++            ),
++          );
++        },
++      ),
+       GoRoute(
+         path: ':loteamentoId',
+         redirect: (context, state) => state.uri.path == state.matchedLocation
