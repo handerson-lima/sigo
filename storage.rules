@@ -40,5 +40,11 @@ service firebase.storage {
   }
   // Legacy private objects remain readable only within authorized diary scope.
   match /construtoras/{c}/obras/{o}/diarios/{diary}/{attachment} { allow read: if access(c,o); allow write: if false; }
+
+  match /loteamentos_drafts_uploads/{uid}/{filename} {
+   allow read: if signed() && request.auth.uid == uid;
+   allow create: if signed() && request.auth.uid == uid && request.resource.size > 0 && request.resource.size <= 50 * 1024 * 1024;
+   allow update, delete: if false;
+  }
  }
 }
