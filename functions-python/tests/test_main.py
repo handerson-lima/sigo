@@ -126,9 +126,10 @@ def test_processar_dxf_valid(mock_save_draft, mock_storage_client, synthetic_dxf
     downloaded_path = mock_blob.download_to_filename.call_args[0][0]
     assert not os.path.exists(downloaded_path)
 
+@patch("main.logger")
 @patch("main.save_draft_to_firestore")
 @patch("main.storage.Client")
-def test_processar_dxf_swallows_persistence_error(mock_storage_client, mock_save_draft, synthetic_dxf):
+def test_processar_dxf_swallows_persistence_error(mock_storage_client, mock_save_draft, mock_logger, synthetic_dxf):
     from firestore_utils import DraftPersistenceError
     event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.dxf"))
 
@@ -147,6 +148,7 @@ def test_processar_dxf_swallows_persistence_error(mock_storage_client, mock_save
     # Should NOT raise, the error is swallowed
     processar_dxf(event)
     mock_save_draft.assert_called_once()
+    mock_logger.exception.assert_called_once_with("Fatal error persisting loteamentos_drafts_uploads/user/123_file.dxf")
 
 @patch("main.storage.Client")
 @patch("main.extract_dxf_geometries")

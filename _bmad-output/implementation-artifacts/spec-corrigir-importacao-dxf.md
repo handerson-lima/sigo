@@ -2,7 +2,7 @@
 title: 'Corrigir Importação de DXF'
 type: 'bugfix'
 created: '2026-09-27'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 context: []
@@ -35,9 +35,9 @@ baseline_commit: '17e994ea900bbbf5717bcb37fc9bc4423fe6b7e9'
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `functions-python/heuristics.py` -- Adicionar 'LOTE' na variável global `STOP_WORDS` -- Para que a heurística de nomenclatura ignore a palavra 'LOTE'.
-- [ ] `functions-python/main.py` -- Atualizar o bloco `except DraftPersistenceError` substituindo `logger.error` por `logger.exception` ou adicionando métricas -- Para garantir que o erro e o stack trace fiquem visíveis nos logs/alertas (não ficarmos cegos).
-- [ ] `functions-python/tests/test_main.py` -- Adicionar teste unitário simulando a leitura de um DXF e o lançamento de `DraftPersistenceError` (mockado se necessário) verificando se o log foi disparado corretamente -- Para garantir cobertura automatizada desse cenário de falha.
+- [x] `functions-python/heuristics.py` -- Adicionar 'LOTE' na variável global `STOP_WORDS` -- Para que a heurística de nomenclatura ignore a palavra 'LOTE'.
+- [x] `functions-python/main.py` -- Atualizar o bloco `except DraftPersistenceError` substituindo `logger.error` por `logger.exception` ou adicionando métricas -- Para garantir que o erro e o stack trace fiquem visíveis nos logs/alertas (não ficarmos cegos).
+- [x] `functions-python/tests/test_main.py` -- Adicionar teste unitário simulando a leitura de um DXF e o lançamento de `DraftPersistenceError` (mockado se necessário) verificando se o log foi disparado corretamente -- Para garantir cobertura automatizada desse cenário de falha.
 
 **Acceptance Criteria:**
 - Given um texto extraído do DXF contendo a palavra 'LOTE', when a heurística o processar, then a palavra 'LOTE' deve ser ignorada.
