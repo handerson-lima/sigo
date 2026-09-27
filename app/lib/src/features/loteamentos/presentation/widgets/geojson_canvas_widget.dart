@@ -25,26 +25,42 @@ class GeojsonCanvasWidget extends StatelessWidget {
 
     for (final feature in features) {
       final geometry = feature['geometry'] as Map<String, dynamic>?;
-      if (geometry == null) continue;
+      if (geometry == null) {
+        debugPrint('Geometria inválida/ausente ignorada.');
+        continue;
+      }
       final type = geometry['type'];
+      final coords = geometry['coordinates'] as List<dynamic>?;
+      if (coords == null || coords.isEmpty) {
+        debugPrint('Coordenadas vazias ignoradas no tipo $type.');
+        continue;
+      }
+
+      void processRing(List<dynamic> ring) {
+        for (final point in ring) {
+          final x = (point[0] as num).toDouble();
+          final y = (point[1] as num).toDouble();
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+
       if (type == 'Polygon') {
-        final coords = geometry['coordinates'] as List<dynamic>?;
-        if (coords != null && coords.isNotEmpty) {
-          final ring = coords[0] as List<dynamic>;
-          for (final point in ring) {
-            final x = (point[0] as num).toDouble();
-            final y = (point[1] as num).toDouble();
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
+        processRing(coords[0] as List<dynamic>);
+      } else if (type == 'MultiPolygon') {
+        for (final poly in coords) {
+          final polyCoords = poly as List<dynamic>;
+          if (polyCoords.isNotEmpty) {
+            processRing(polyCoords[0] as List<dynamic>);
           }
         }
       }
     }
 
     if (minX == double.infinity) {
-      return const Center(child: Text('Geometria inválida.'));
+      return const Center(child: Text('Canvas vazio (sem coordenadas válidas).'));
     }
 
     final width = maxX - minX;
@@ -65,6 +81,15 @@ class GeojsonCanvasWidget extends StatelessWidget {
       ),
     );
   }
+  static Color getStatusColor(String? status) {
+    if (status == 'ambiguo') {
+      return Colors.orange.withValues(alpha: 0.6);
+    } else if (status == 'aprovado' || status == 'resolvido') {
+      return Colors.green.withValues(alpha: 0.6);
+    } else {
+      return Colors.grey.withValues(alpha: 0.4);
+    }
+  }
 }
 
 class _GeojsonPainter extends CustomPainter {
@@ -81,46 +106,46 @@ class _GeojsonPainter extends CustomPainter {
 
       if (geometry == null) continue;
       final type = geometry['type'];
-      
-      if (type == 'Polygon') {
-        final coords = geometry['coordinates'] as List<dynamic>?;
-        if (coords != null && coords.isNotEmpty) {
-          final ring = coords[0] as List<dynamic>;
-          
-          final path = Path();
-          bool first = true;
-          for (final point in ring) {
-            final x = (point[0] as num).toDouble();
-            final y = (point[1] as num).toDouble();
-            if (first) {
-              path.moveTo(x, y);
-              first = false;
-            } else {
-              path.lineTo(x, y);
-            }
-          }
-          path.close();
+      final coords = geometry['coordinates'] as List<dynamic>?;
+      if (coords == null || coords.isEmpty) continue;
 
-          final paint = Paint()..style = PaintingStyle.fill;
-          if (status == 'ambiguo') {
-            paint.color = Colors.orange.withValues(alpha: 0.6);
-          } else if (status == 'aprovado' || status == 'resolvido') {
-            paint.color = Colors.green.withValues(alpha: 0.6);
+      void drawRing(List<dynamic> ring) {
+        final path = Path();
+        bool first = true;
+        for (final point in ring) {
+          final x = (point[0] as num).toDouble();
+          final y = (point[1] as num).toDouble();
+          if (first) {
+            path.moveTo(x, y);
+            first = false;
           } else {
-            paint.color = Colors.grey.withValues(alpha: 0.4);
+            path.lineTo(x, y);
           }
+        }
+        path.close();
 
-          canvas.drawPath(path, paint);
+        final paint = Paint()..style = PaintingStyle.fill;
+        paint.color = GeojsonCanvasWidget.getStatusColor(status);
 
-          // Borda
-          final strokePaint = Paint()
-            ..style = PaintingStyle.stroke
-            ..color = Colors.black87
-            ..strokeWidth = 0.5; // Espessura fina
-          
-          // Nota: como a escala pode estar muito variada, o ideal seria que a espessura da linha não escalasse,
-          // mas como estamos usando CustomPaint simples, essa linha escalará com o zoom do InteractiveViewer.
-          canvas.drawPath(path, strokePaint);
+        canvas.drawPath(path, paint);
+
+        // Borda
+        final strokePaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..color = Colors.black87
+          ..strokeWidth = 0.5; // Espessura fina
+        
+        canvas.drawPath(path, strokePaint);
+      }
+
+      if (type == 'Polygon') {
+        drawRing(coords[0] as List<dynamic>);
+      } else if (type == 'MultiPolygon') {
+        for (final poly in coords) {
+          final polyCoords = poly as List<dynamic>;
+          if (polyCoords.isNotEmpty) {
+            drawRing(polyCoords[0] as List<dynamic>);
+          }
         }
       }
     }

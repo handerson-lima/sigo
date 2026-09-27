@@ -44,7 +44,7 @@ development_status:
   epic-2-retrospective: optional
 
   epic-3: in-progress
-  3-1-canvas-interativo-e-renderização-estilizada-de-polígonos: in-progress
+  3-1-canvas-interativo-e-renderização-estilizada-de-polígonos: review
   3-2-fluxo-rápido-de-correção-via-painel-lateral-e-teclado: backlog
   3-3-gestão-de-pendências-e-gatilho-de-aprovação: backlog
   epic-3-retrospective: optional

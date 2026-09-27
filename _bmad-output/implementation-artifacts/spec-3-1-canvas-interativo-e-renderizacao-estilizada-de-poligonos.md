@@ -2,7 +2,7 @@
 title: 'Story 3.1: Canvas Interativo e Renderização Estilizada de Polígonos'
 type: 'feature'
 created: '2026-09-27'
-status: 'in-progress'
+status: 'done'
 baseline_commit: 'a4820ca3697c0875309fccc4cd290caacaca70a3'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -63,6 +63,13 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+- **false**: Achados do `blind-hunter` e `edge-case-hunter` avaliaram os próprios prompts de instrução ao invés do código em si. Rejeitados por não se aplicarem ao diff.
+- **medium** (patch): Status→cor do polígono não é verificado. Evidência: `geojson_canvas_widget_test.dart` não checa as cores aplicadas pelo painter.
+- **medium** (patch): Wiring da tela do rascunho sem teste. Evidência: `LoteamentoCanvasScreen` não tem testes unitários garantindo o consumo de `canvasDraftStreamProvider`.
+- **high** (patch): MultiPolygon não é tratado. Evidência: `geojson_canvas_widget.dart` faz hardcode em `type == 'Polygon'` e ignora outros.
+- **low** (patch): Lotes órfãos/sem coordenada caem em "Geometria inválida". Evidência: Quando bounds não são calculados, a tela falha ao invés de ficar vazia.
+- **low** (patch): Geometria defeituosa ignorada sem log. Evidência: Falta o `debugPrint` exigido na matriz da spec quando ocorre skip.
 
 ## Verification
 

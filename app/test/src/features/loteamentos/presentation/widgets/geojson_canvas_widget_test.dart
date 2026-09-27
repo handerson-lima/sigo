@@ -79,5 +79,37 @@ void main() {
       );
       expect(customPaintFinder, findsOneWidget);
     });
+
+    test('getStatusColor mapeia corretamente os status', () {
+      expect(GeojsonCanvasWidget.getStatusColor('ambiguo'), Colors.orange.withValues(alpha: 0.6));
+      expect(GeojsonCanvasWidget.getStatusColor('aprovado'), Colors.green.withValues(alpha: 0.6));
+      expect(GeojsonCanvasWidget.getStatusColor('resolvido'), Colors.green.withValues(alpha: 0.6));
+      expect(GeojsonCanvasWidget.getStatusColor('desconhecido'), Colors.grey.withValues(alpha: 0.4));
+      expect(GeojsonCanvasWidget.getStatusColor(null), Colors.grey.withValues(alpha: 0.4));
+    });
+
+    testWidgets('renderiza canvas vazio quando nao ha coordenadas validas (Feature sem rings)', (tester) async {
+      final data = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Polygon',
+              'coordinates': [] // Lista vazia
+            },
+            'properties': {'status': 'ambiguo'}
+          }
+        ]
+      };
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: GeojsonCanvasWidget(geojsonData: data),
+        ),
+      ));
+
+      expect(find.text('Canvas vazio (sem coordenadas válidas).'), findsOneWidget);
+    });
   });
 }
