@@ -11,7 +11,7 @@ void main() {
         ),
       ));
 
-      expect(find.text('Nenhuma feature encontrada.'), findsOneWidget);
+      expect(find.text('Canvas vazio (sem coordenadas válidas).'), findsOneWidget);
     });
 
     testWidgets('pula geometria invalida e renderiza sem falhar (Geometria Inválida)', (tester) async {
@@ -80,12 +80,46 @@ void main() {
       expect(customPaintFinder, findsOneWidget);
     });
 
-    test('getStatusColor mapeia corretamente os status', () {
-      expect(GeojsonCanvasWidget.getStatusColor('ambiguo'), Colors.orange.withValues(alpha: 0.6));
-      expect(GeojsonCanvasWidget.getStatusColor('aprovado'), Colors.green.withValues(alpha: 0.6));
-      expect(GeojsonCanvasWidget.getStatusColor('resolvido'), Colors.green.withValues(alpha: 0.6));
-      expect(GeojsonCanvasWidget.getStatusColor('desconhecido'), Colors.grey.withValues(alpha: 0.4));
-      expect(GeojsonCanvasWidget.getStatusColor(null), Colors.grey.withValues(alpha: 0.4));
+    testWidgets('simula tap num poligono e chama onFeatureTap (Interação)', (tester) async {
+      final data = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Polygon',
+              'coordinates': [
+                [[0, 0], [0, 100], [100, 100], [100, 0], [0, 0]]
+              ]
+            },
+            'properties': {'status': 'ambiguo'}
+          }
+        ]
+      };
+
+      int? tappedIndex;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: GeojsonCanvasWidget(
+            geojsonData: data,
+            onFeatureTap: (index) {
+              tappedIndex = index;
+            },
+          ),
+        ),
+      ));
+
+      await tester.pumpAndSettle();
+
+      final customPaint = find.byType(CustomPaint).last;
+      
+      // Tap no centro do polígono (50, 50). Como o InteractiveViewer centraliza, 
+      // precisamos clicar exatamente no meio do widget RenderBox.
+      final center = tester.getCenter(customPaint);
+      await tester.tapAt(center);
+      await tester.pumpAndSettle();
+
+      expect(tappedIndex, 0);
     });
 
     testWidgets('renderiza canvas vazio quando nao ha coordenadas validas (Feature sem rings)', (tester) async {

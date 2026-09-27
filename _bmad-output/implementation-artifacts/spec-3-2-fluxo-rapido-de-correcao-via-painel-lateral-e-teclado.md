@@ -2,7 +2,7 @@
 title: 'Story 3.2: Fluxo Rápido de Correção via Painel Lateral e Teclado'
 type: 'feature'
 created: '2026-09-27'
-status: 'in-review'
+status: 'implemented'
 baseline_commit: 'a410f4687fccc1235d0649386ca5cf3bee782aea'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -61,6 +61,20 @@ context:
 - [x] `app/lib/src/features/loteamentos/presentation/widgets/geojson_canvas_widget.dart` -- Envolver `CustomPaint` num `GestureDetector` e usar `Path.contains` no `onTapUp` para calcular qual feature foi tocada. Passar índice ou ID de volta. Renderizar contorno de seleção se uma feature estiver ativa.
 - [x] `app/lib/src/features/loteamentos/presentation/widgets/lote_correcao_panel.dart` -- Criar form reativo que requisite foco ao iniciar (usando `FocusScope`) e detecte teclado (onFieldSubmitted).
 - [x] `app/lib/src/features/loteamentos/presentation/loteamento_canvas_screen.dart` -- Alterar layout para alocar painel à direita quando houver seleção. Implementar contador reativo e habilitar botão de Aprovação.
+
+## Review Triage Log
+- `medium` - patch: `setState` called without `mounted` check in `onSave` inside `LoteamentoCanvasScreen`.
+- `false` - patch: "InteractiveViewer repaints continuously" is false, but caching paths in `GeojsonCanvasWidget` state avoids reallocation on hit-test and paint, improving UX.
+- `low` - patch: Type cast hazard in `LoteamentoCanvasScreen` ambiguity count. Needs explicit map cast.
+- `low` - patch: Empty submission in `LoteCorrecaoPanel` fails silently. Add validation.
+- `low` - patch: `didUpdateWidget` in `LoteCorrecaoPanel` resets cursor. Use `TextSelection.collapsed`.
+- `defer` - defer: Polygon holes not supported. Known limitation for this MVP phase.
+- `low` - patch: Array changes between selection and save. ID usage is ideal, but GeoJSON might not have IDs. For now, add a defensive bound check or type cast.
+- `high` - patch: Hit-Testing and Rendering Bounds bug. The `offset` translates coordinates to negative space, rendering half of the polygons outside the `CustomPaint` layout box, making them un-clickable. Paths must be translated by `-minX, -minY` to fit perfectly into `Size(width, height)`.
+- `low` - patch: Missing repository test for draft feature update transaction.
+- `low` - patch: Missing interaction test for polygon tap detection.
+- `low` - patch: Missing test for ambiguous count and approval button state.
+
 
 **Acceptance Criteria:**
 - Given o Canvas renderizado com lotes ambíguos, when o usuário clica num polígono laranja, then o painel lateral deve ser exibido focado automaticamente no campo de nome.

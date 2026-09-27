@@ -70,6 +70,9 @@ class LoteamentosImportRepository {
         throw Exception('Índice da feature inválido');
       }
 
+      if (features[featureIndex] is! Map) {
+        throw Exception('Feature at index $featureIndex is not a valid Map.');
+      }
       final feature = Map<String, dynamic>.from(features[featureIndex] as Map);
       final currentProperties = Map<String, dynamic>.from(feature['properties'] ?? {});
       

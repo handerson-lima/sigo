@@ -44,7 +44,12 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
           data: (data) {
             if (data == null) return null;
             final features = data['features'] as List<dynamic>? ?? [];
-            final ambiguos = features.where((f) => f['properties']?['status'] == 'ambiguo').length;
+            final ambiguos = features.where((f) {
+              if (f is! Map<String, dynamic>) return false;
+              final props = f['properties'];
+              if (props is! Map<String, dynamic>) return false;
+              return props['status'] == 'ambiguo';
+            }).length;
             
             return [
               Center(
@@ -109,12 +114,11 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
                         _selectedFeatureIndex!,
                         {'nome': newName, 'status': 'resolvido'},
                       );
+                      if (!context.mounted) return;
                       setState(() {
                         _selectedFeatureIndex = null;
                       });
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lote atualizado com sucesso.')));
-                      }
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lote atualizado com sucesso.')));
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao atualizar lote: $e')));

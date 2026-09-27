@@ -34,7 +34,11 @@ class _LoteCorrecaoPanelState extends State<LoteCorrecaoPanel> {
   void didUpdateWidget(covariant LoteCorrecaoPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.properties != widget.properties) {
-      _nameController.text = widget.properties['nome'] as String? ?? '';
+      final newText = widget.properties['nome'] as String? ?? '';
+      _nameController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newText.length),
+      );
       _focusNode.requestFocus();
     }
   }
@@ -48,9 +52,13 @@ class _LoteCorrecaoPanelState extends State<LoteCorrecaoPanel> {
 
   void _submit() {
     final value = _nameController.text.trim();
-    if (value.isNotEmpty) {
-      widget.onSave(value);
+    if (value.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('O nome/número do lote é obrigatório.')),
+      );
+      return;
     }
+    widget.onSave(value);
   }
 
   @override

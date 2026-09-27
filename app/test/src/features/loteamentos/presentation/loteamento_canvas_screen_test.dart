@@ -65,5 +65,68 @@ void main() {
 
       expect(find.textContaining('Falha no banco'), findsOneWidget);
     });
+    testWidgets('Aprovar button is disabled when there are ambiguous features', (tester) async {
+      final mockData = {
+        'type': 'FeatureCollection',
+        'features': [
+          {'type': 'Feature', 'properties': {'status': 'ambiguo'}},
+          {'type': 'Feature', 'properties': {'status': 'resolvido'}},
+        ]
+      };
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            canvasDraftStreamProvider.overrideWith((ref, id) {
+              return Stream.value(mockData);
+            }),
+          ],
+          child: const MaterialApp(
+            home: LoteamentoCanvasScreen(construtoraId: 'const-1', draftId: 'test-123'),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 Lotes Ambíguos'), findsOneWidget);
+      
+      final buttonFinder = find.widgetWithText(FilledButton, 'Aprovar Definitivamente');
+      expect(buttonFinder, findsOneWidget);
+      final button = tester.widget<FilledButton>(buttonFinder);
+      expect(button.onPressed, isNull, reason: 'O botão deve estar desabilitado');
+    });
+
+    testWidgets('Aprovar button is enabled when there are no ambiguous features', (tester) async {
+      final mockData = {
+        'type': 'FeatureCollection',
+        'features': [
+          {'type': 'Feature', 'properties': {'status': 'resolvido'}},
+          {'type': 'Feature', 'properties': {'status': 'resolvido'}},
+        ]
+      };
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            canvasDraftStreamProvider.overrideWith((ref, id) {
+              return Stream.value(mockData);
+            }),
+          ],
+          child: const MaterialApp(
+            home: LoteamentoCanvasScreen(construtoraId: 'const-1', draftId: 'test-123'),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('0 Lotes Ambíguos'), findsOneWidget);
+      
+      final buttonFinder = find.widgetWithText(FilledButton, 'Aprovar Definitivamente');
+      expect(buttonFinder, findsOneWidget);
+      final button = tester.widget<FilledButton>(buttonFinder);
+      expect(button.onPressed, isNotNull, reason: 'O botão deve estar habilitado');
+    });
   });
 }

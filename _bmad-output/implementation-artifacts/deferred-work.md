@@ -399,3 +399,7 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 - source_spec: none
   summary: Story 3.3: Gestão de Pendências e Gatilho de Aprovação
   evidence: Separado da Epic 3 devido ao particionamento de entregáveis múltiplos (Single Goal Standard).
+
+- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-3-2-fluxo-rapido-de-correcao-via-painel-lateral-e-teclado.md`
+  summary: Suporte para renderização de buracos (inner rings) em polígonos GeoJSON no canvas.
+  evidence: A função createPathForFeature lê exclusivamente coords[0], preenchendo os buracos com a cor principal e os tornando clicáveis indevidamente.
