@@ -93,6 +93,7 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
     final offset = Offset(-minX, -minY);
     _cachedPaths = _features.map((feature) {
       final path = Path();
+      path.fillType = PathFillType.evenOdd;
       final geometry = feature['geometry'] as Map<String, dynamic>?;
       if (geometry == null) return path;
       final type = geometry['type'];
@@ -130,11 +131,25 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
     }).toList();
   }
 
+  List<int> _getDrawOrder() {
+    List<int> order = List.generate(_features.length, (i) => i);
+    order.sort((a, b) {
+      final tipoA = _features[a]['properties']?['tipo'] ?? '';
+      final tipoB = _features[b]['properties']?['tipo'] ?? '';
+      if (tipoA == 'quadra' && tipoB != 'quadra') return -1;
+      if (tipoA != 'quadra' && tipoB == 'quadra') return 1;
+      return a.compareTo(b);
+    });
+    return order;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_width == 0 && _height == 0) {
       return const Center(child: Text('Canvas vazio (sem coordenadas válidas).'));
     }
+
+    final drawOrder = _getDrawOrder();
 
     return InteractiveViewer(
       boundaryMargin: const EdgeInsets.all(double.infinity),
@@ -145,7 +160,7 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
         onTapUp: (details) {
           if (widget.onFeatureTap == null) return;
           final localPosition = details.localPosition;
-          for (int i = _cachedPaths.length - 1; i >= 0; i--) {
+          for (int i in drawOrder.reversed) {
             if (_cachedPaths[i].contains(localPosition)) {
               widget.onFeatureTap!(i);
               return;
@@ -159,6 +174,7 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
           painter: GeojsonPainter(
             features: _features,
             paths: _cachedPaths,
+            drawOrder: drawOrder,
             selectedFeatureIndex: widget.selectedFeatureIndex,
           ),
         ),
@@ -170,17 +186,19 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
 class GeojsonPainter extends CustomPainter {
   final List<dynamic> features;
   final List<Path> paths;
+  final List<int> drawOrder;
   final int? selectedFeatureIndex;
 
   GeojsonPainter({
     required this.features,
     required this.paths,
+    required this.drawOrder,
     this.selectedFeatureIndex,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (int i = 0; i < features.length; i++) {
+    for (int i in drawOrder) {
       final feature = features[i];
       final path = paths[i];
       final isSelected = i == selectedFeatureIndex;
@@ -214,6 +232,7 @@ class GeojsonPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant GeojsonPainter oldDelegate) {
     return oldDelegate.selectedFeatureIndex != selectedFeatureIndex ||
-           oldDelegate.features != features;
+           oldDelegate.features != features ||
+           oldDelegate.drawOrder != drawOrder;
   }
 }

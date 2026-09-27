@@ -89,7 +89,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('1 Lotes Ambíguos'), findsOneWidget);
+      expect(find.text('1 Pendências'), findsOneWidget);
       
       final buttonFinder = find.widgetWithText(FilledButton, 'Aprovar Definitivamente');
       expect(buttonFinder, findsOneWidget);
@@ -121,7 +121,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('0 Lotes Ambíguos'), findsOneWidget);
+      expect(find.text('0 Pendências'), findsOneWidget);
       
       final buttonFinder = find.widgetWithText(FilledButton, 'Aprovar Definitivamente');
       expect(buttonFinder, findsOneWidget);

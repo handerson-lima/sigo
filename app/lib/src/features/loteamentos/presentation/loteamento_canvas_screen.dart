@@ -57,7 +57,7 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
                 child: Padding(
                   padding: const EdgeInsets.only(right: 16.0),
                   child: Chip(
-                    label: Text('$ambiguos Lotes Ambíguos'),
+                    label: Text('$ambiguos Pendências'),
                     backgroundColor: ambiguos > 0 ? Colors.orange.withAlpha(153) : Colors.green.withAlpha(153),
                   ),
                 ),

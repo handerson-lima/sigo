@@ -10,7 +10,7 @@ def test_ezdxf_entity_to_polygon_lwpolyline():
     msp = doc.modelspace()
     entity = msp.add_lwpolyline([(0, 0), (10, 0), (10, 10), (0, 10)])
     
-    poly = ezdxf_entity_to_polygon(entity)
+    poly, _ = ezdxf_entity_to_polygon(entity)
     assert isinstance(poly, Polygon)
     assert poly.area == 100
     assert poly.is_valid
@@ -20,7 +20,7 @@ def test_ezdxf_entity_to_polygon_polyline():
     msp = doc.modelspace()
     entity = msp.add_polyline2d([(0, 0), (10, 0), (10, 10), (0, 10)])
     
-    poly = ezdxf_entity_to_polygon(entity)
+    poly, _ = ezdxf_entity_to_polygon(entity)
     assert isinstance(poly, Polygon)
     assert poly.area == 100
     assert poly.is_valid
@@ -31,7 +31,7 @@ def test_ezdxf_entity_to_polygon_triangle():
     # 3 points -> triangle
     entity = msp.add_lwpolyline([(0, 0), (10, 0), (0, 10)])
     
-    poly = ezdxf_entity_to_polygon(entity)
+    poly, _ = ezdxf_entity_to_polygon(entity)
     assert isinstance(poly, Polygon)
     assert poly.area == 50
     assert poly.is_valid
@@ -41,7 +41,7 @@ def test_ezdxf_entity_to_polygon_not_enough_points():
     msp = doc.modelspace()
     entity = msp.add_lwpolyline([(0, 0), (10, 0)])
     
-    poly = ezdxf_entity_to_polygon(entity)
+    poly, _ = ezdxf_entity_to_polygon(entity)
     assert poly is None
 
 def test_ezdxf_entity_to_polygon_buffer_fix():
@@ -50,7 +50,7 @@ def test_ezdxf_entity_to_polygon_buffer_fix():
     # Bowtie shape -> invalid polygon
     entity = msp.add_lwpolyline([(0, 0), (10, 10), (10, 0), (0, 10)])
     
-    poly = ezdxf_entity_to_polygon(entity)
+    poly, _ = ezdxf_entity_to_polygon(entity)
     # buffer(0) on a bowtie results in a MultiPolygon, then we take the largest part
     assert poly is not None
     assert poly.is_valid
@@ -82,3 +82,31 @@ def test_associate_lotes_to_quadras_overlapping():
     # Should pick q2 because it has a smaller area
     assert association['quadras'][q2] == [l1]
     assert association['quadras'][q1] == []
+
+
+def test_repaired_quadras_preserve_all_components_and_associations():
+    msp = ezdxf.new().modelspace()
+    q = msp.add_lwpolyline([(0,0),(4,0),(4,4),(0,4),(0,0),(6,0),(7,0),(7,1),(6,1),(6,0),(0,0)])
+    lotes = [msp.add_lwpolyline(points) for points in [
+        [(1,1),(2,1),(2,2),(1,2)],
+        [(6.1,.1),(6.9,.1),(6.9,.9),(6.1,.9)],
+    ]]
+    result = associate_lotes_to_quadras(lotes, [q])
+    assert result['quadra_polygons'][q].area == 17
+    assert result['quadra_polygons'][q].geom_type == 'MultiPolygon'
+    assert result['quadras'][q] == lotes
+    assert result['lotes_orfaos'] == []
+    assert result['quadras_reparadas'] == {q}
+
+
+def test_single_polygon_repair_requires_review_and_empty_is_ignored(caplog):
+    msp = ezdxf.new().modelspace()
+    q = msp.add_lwpolyline([(0,0),(10,10),(10,0),(0,10)])
+    empty = msp.add_lwpolyline([(20,0),(21,0),(22,0)])
+    orphan = msp.add_lwpolyline([(20,0),(21,0),(21,1),(20,1)])
+    result = associate_lotes_to_quadras([orphan], [q, empty])
+    assert result['quadra_polygons'][q].geom_type == 'Polygon'
+    assert result['quadras_reparadas'] == {q}
+    assert empty not in result['quadra_polygons']
+    assert result['lotes_orfaos'] == [orphan]
+    assert 'ignored' in caplog.text

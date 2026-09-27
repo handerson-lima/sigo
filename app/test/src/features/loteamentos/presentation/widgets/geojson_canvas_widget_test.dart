@@ -163,7 +163,7 @@ void main() {
       ];
 
       final paths = [Path(), Path(), Path()];
-      final painter = GeojsonPainter(features: features, paths: paths);
+      final painter = GeojsonPainter(features: features, paths: paths, drawOrder: [0, 1, 2]);
 
       final recorder = FlutterTestCanvasRecorder();
       painter.paint(recorder, const Size(100, 100));

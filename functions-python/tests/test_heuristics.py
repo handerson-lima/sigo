@@ -224,3 +224,19 @@ def test_build_geojson_zero_origin():
     assert feature["properties"]["nome"] == "12"
     assert feature["properties"]["status"] == "valido"
 
+
+
+def test_repaired_quadra_and_multipart_lote_preserve_holes_and_parts():
+    from shapely.geometry import MultiPolygon, shape
+    q, lote = MockDXFPoly(), MockDXFPoly()
+    geometry = MultiPolygon([
+        Polygon([(0,0),(4,0),(4,4),(0,4)], [[(1,1),(2,1),(2,2),(1,2)]]),
+        Polygon([(6,0),(7,0),(7,1),(6,1)]),
+    ])
+    association = {'quadras': {q: [lote]}, 'lotes_orfaos': [], 'quadras_reparadas': {q}}
+    result = build_geojson(association, [MockDXFText('Q 1', 3, 3)], {q: geometry}, {lote: geometry})
+    assert len(result['features']) == 2
+    for feature in result['features']:
+        assert shape(feature['geometry']).equals(geometry)
+    quadra = next(f for f in result['features'] if f['properties']['tipo'] == 'quadra')
+    assert quadra['properties'] == {'tipo': 'quadra', 'nome': 'Q 1', 'status': 'ambiguo', 'geometria_reparada': True}

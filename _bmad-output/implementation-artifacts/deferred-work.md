@@ -409,3 +409,8 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 - source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-3-3-gestao-de-pendencias-e-gatilho-de-aprovacao.md`
   summary: Mover o código da aprovação do onClick do widget para a lógica de negócio (Controller/Notifier)
   evidence: Requisito arquitetural menor (low); deixado para a futura melhoria se o fluxo ficar mais complexo.
+
+
+## Deferred from: code review of spec-2-2-algoritmo-espacial-point-in-polygon (2026-09-27)
+
+- **Média — Empate entre quadras sobrepostas de mesma área:** em `9a3d8e1`, `functions-python/geometry_utils.py:115-121`, `min(...area)` escolhe a primeira quadra; inversão da entrada muda o destino do lote. Mantido o adiamento já registrado no Group 4 da spec (política de sobreposição fora do escopo); definir desempate ou representação de ambiguidade antes de implementar. Reproduzido nesta revisão e ainda presente em HEAD.

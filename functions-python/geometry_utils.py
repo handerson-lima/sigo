@@ -31,42 +31,48 @@ def ezdxf_entity_to_polygon(entity):
     """
     pts = get_points_from_entity(entity)
     if not pts:
-        return None
+        return None, False
 
     # Needs at least 3 points to form a polygon (e.g. triangle)
     if len(pts) < 3:
         logger.debug(f"Entity has less than 3 points, ignoring.")
-        return None
+        return None, False
 
     # Close the polygon if not closed
     if pts[0] != pts[-1]:
         pts.append(pts[0])
 
+    was_repaired = False
     try:
         poly = Polygon(pts)
     except Exception as e:
         logger.warning(f"Error creating Polygon: {e}")
-        return None
+        return None, False
 
     if not poly.is_valid:
         logger.debug(f"Invalid geometry detected, attempting buffer(0) fix.")
+        was_repaired = True
         try:
             poly = poly.buffer(0)
-            # buffer(0) could result in MultiPolygon or GeometryCollection
             if isinstance(poly, MultiPolygon):
-                if len(poly.geoms) > 0:
-                    # Take the largest polygon part
-                    poly = max(poly.geoms, key=lambda a: a.area)
-                else:
+                if len(poly.geoms) == 0:
                     poly = None
-            if poly is None or poly.is_empty or not isinstance(poly, Polygon):
+            if poly is not None and not isinstance(poly, Polygon) and not isinstance(poly, MultiPolygon):
+                from shapely.geometry import GeometryCollection
+                if isinstance(poly, GeometryCollection):
+                    polys = [geom for geom in poly.geoms if isinstance(geom, Polygon)]
+                    if polys:
+                        poly = MultiPolygon(polys)
+                    else:
+                        poly = None
+            if poly is None or poly.is_empty or not (isinstance(poly, Polygon) or isinstance(poly, MultiPolygon)):
                 logger.warning(f"Geometry remains invalid or empty after buffer(0).")
-                return None
+                return None, False
         except Exception as e:
             logger.warning(f"buffer(0) fix failed: {e}")
-            return None
+            return None, False
 
-    return poly
+    return poly, was_repaired
 
 def associate_lotes_to_quadras(lotes, quadras):
     """
@@ -79,17 +85,20 @@ def associate_lotes_to_quadras(lotes, quadras):
     """
     # Pre-compute valid polygons for quadras
     quadra_polygons = {}
+    quadras_reparadas = set()
     for q in quadras:
-        poly = ezdxf_entity_to_polygon(q)
+        poly, was_repaired = ezdxf_entity_to_polygon(q)
         if poly is not None:
             quadra_polygons[q] = poly
+            if was_repaired:
+                quadras_reparadas.add(q)
         else:
             logger.warning("Quadra converted to None or invalid polygon, will be ignored.")
             
     # We also need lote polygons for further processing
     lote_polygons = {}
     for lote in lotes:
-        poly = ezdxf_entity_to_polygon(lote)
+        poly, _ = ezdxf_entity_to_polygon(lote)
         if poly is not None:
             lote_polygons[lote] = poly
 
@@ -97,7 +106,8 @@ def associate_lotes_to_quadras(lotes, quadras):
         'quadras': {q: [] for q in quadras},
         'lotes_orfaos': [],
         'quadra_polygons': quadra_polygons,
-        'lote_polygons': lote_polygons
+        'lote_polygons': lote_polygons,
+        'quadras_reparadas': quadras_reparadas
     }
     
     # Associate lotes

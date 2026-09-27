@@ -33,7 +33,7 @@ def extract_text(entity):
     pt = None
     try:
         if entity.dxftype() == 'TEXT':
-            if hasattr(entity.dxf, 'align_point') and (entity.dxf.align_point.x != 0 or entity.dxf.align_point.y != 0):
+            if hasattr(entity.dxf, 'align_point') and entity.dxf.align_point is not None and (entity.dxf.align_point.x != 0 or entity.dxf.align_point.y != 0):
                 pt = entity.dxf.align_point
             else:
                 pt = entity.dxf.insert
@@ -52,6 +52,22 @@ def build_geojson(association, textos, quadra_polygons, lote_polygons):
             parsed_texts.append((val, Point(pt.x, pt.y)))
 
     features = []
+
+    def serialize_geometry(geom):
+        if geom.geom_type == 'Polygon':
+            coords = [[[pt[0], pt[1]] for pt in geom.exterior.coords]]
+            for interior in geom.interiors:
+                coords.append([[pt[0], pt[1]] for pt in interior.coords])
+            return {"type": "Polygon", "coordinates": coords}
+        elif geom.geom_type == 'MultiPolygon':
+            mp_coords = []
+            for p in geom.geoms:
+                coords = [[[pt[0], pt[1]] for pt in p.exterior.coords]]
+                for interior in p.interiors:
+                    coords.append([[pt[0], pt[1]] for pt in interior.coords])
+                mp_coords.append(coords)
+            return {"type": "MultiPolygon", "coordinates": mp_coords}
+        return {"type": "Polygon", "coordinates": []}
 
     def process_lote(lote_entity, q_entity=None):
         poly = lote_polygons.get(lote_entity)
@@ -110,17 +126,9 @@ def build_geojson(association, textos, quadra_polygons, lote_polygons):
                     if len(q_candidates) == 1:
                         quadra_nome = q_candidates[0]
 
-        # Fix GeoJSON array of arrays
-        coords = [[[pt[0], pt[1]] for pt in poly.exterior.coords]]
-        for interior in poly.interiors:
-            coords.append([[pt[0], pt[1]] for pt in interior.coords])
-
         feature = {
             "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": coords
-            },
+            "geometry": serialize_geometry(poly),
             "properties": {
                 "tipo": "lote",
                 "nome": nome,
@@ -140,6 +148,33 @@ def build_geojson(association, textos, quadra_polygons, lote_polygons):
         f = process_lote(lote, None)
         if f:
             features.append(f)
+            
+    quadras_reparadas = association.get('quadras_reparadas', set())
+    for q_entity in quadras_reparadas:
+        poly = quadra_polygons.get(q_entity)
+        if poly is None or poly.is_empty:
+            continue
+        quadra_nome = ""
+        q_candidates = []
+        for val, pt in parsed_texts:
+            if poly.covers(pt):
+                if QUADRA_REGEX.match(val) or val == "Q":
+                    q_candidates.append(val)
+        if q_candidates:
+            if len(q_candidates) == 1:
+                quadra_nome = q_candidates[0]
+        
+        feature = {
+            "type": "Feature",
+            "geometry": serialize_geometry(poly),
+            "properties": {
+                "tipo": "quadra",
+                "nome": quadra_nome,
+                "status": "ambiguo",
+                "geometria_reparada": True
+            }
+        }
+        features.append(feature)
 
     geojson = {
         "type": "FeatureCollection",

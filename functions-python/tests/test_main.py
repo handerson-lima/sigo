@@ -354,3 +354,30 @@ def test_extract_dxf_geometries_nested_insert_without_parent_layer(tmp_path):
     lotes, quadras, textos = extract_dxf_geometries(str(filepath))
     assert lotes == []
     assert quadras == []
+
+
+@patch('main.storage.Client')
+@patch('main.save_draft_to_firestore')
+def test_processar_dxf_repaired_quadra_full_geometry(mock_save, mock_storage, tmp_path):
+    import shutil
+    from shapely.geometry import shape
+    doc = ezdxf.new()
+    msp = doc.modelspace()
+    msp.add_lwpolyline([(0,0),(4,0),(4,4),(0,4),(0,0),(6,0),(7,0),(7,1),(6,1),(6,0),(0,0)], dxfattribs={'layer': 'QUADRAS'})
+    for x, y, size, name in [(1,1,1,'1'), (6.1,.1,.8,'2')]:
+        msp.add_lwpolyline([(x,y),(x+size,y),(x+size,y+size),(x,y+size)], dxfattribs={'layer': 'LOTES'})
+        msp.add_text(name, dxfattribs={'insert': (x+.1,y+.1)})
+    msp.add_text('Q 1', dxfattribs={'insert': (3,3)})
+    path = tmp_path / 'repaired.dxf'
+    doc.saveas(path)
+    mock_storage.return_value.bucket.return_value.blob.return_value.download_to_filename.side_effect = lambda filename, **kw: shutil.copy(path, filename)
+    processar_dxf(MockCloudEvent(MockStorageObjectData(name='loteamentos_drafts_uploads/user/repaired.dxf')))
+    features = mock_save.call_args.args[1]['features']
+    lotes = [f for f in features if f['properties']['tipo'] == 'lote']
+    quadras = [f for f in features if f['properties']['tipo'] == 'quadra']
+    assert len(quadras) == 1
+    assert shape(quadras[0]['geometry']).area == 17
+    assert quadras[0]['properties']['status'] == 'ambiguo'
+    assert len(lotes) == 2
+    assert all(f['properties']['quadra'] == 'Q 1' for f in lotes)
+    assert all(f['properties']['status'] == 'valido' for f in lotes)

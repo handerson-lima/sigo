@@ -1,41 +1,44 @@
-# SIGO — acompanhamento reconciliado com o código em 2026-09-15
-# generated: 09-14-2026 16:15
-# project: obras
-# tracking_system: file-system
-# IDs históricos preservados; docs/stories não existe no workspace atual.
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
 
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-14-2026 16:15
-last_updated: 09-27-2026
+last_updated: 09-27-2026 17:46
 project: obras
 project_key: SIGO
 tracking_system: file-system
-story_location: "docs/task.md"
-
-# review = código encontrado, aceite ainda pendente; não autoriza novas correções.
-# backlog = não concluído; itens legados devem usar o escopo documental atualizado.
-approval:
-  planning_update: requested_by_user
-  preserve_global_dev: confirmed_by_user
-  correction_plan: approved_by_user
-  proposal: "docs/plano-de-correcao-2026-09-15.md"
-  production_deployment: not_authorized_by_this_plan
-
-observed_baseline:
-  evidence_date: 2026-09-15
-  flutter_analyze: "No issues found! (exit code 0)"
-  functions_typecheck: "tsc --noEmit passou (exit code 0)"
-  flutter_test: "13/13 All tests passed! (exit code 0)"
-  functions_test: "4/4 pass (exit code 0)"
-  commit: "c456de9"
-  validation_document: "docs/validacao-c0-c6.md"
-  production_state: "não consultado"
-  note: "C0–C6 implementados e validados localmente; sem deploy de produção."
-
+story_location: docs/task.md
 development_status:
-  epic-1: in-progress
+  epic-1: done
   1-1-componente-de-upload-de-arquivo-dxf: done
   1-2-listener-de-processamento-e-sala-de-espera-animação: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: in-progress
   2-1-gatilho-onfinalize-e-extração-de-geometria-bruta: done
@@ -54,34 +57,8 @@ development_status:
   4-2-inserção-flat-via-firestore-batch-writes: backlog
   4-3-exclusão-final-do-rascunho-temporário-limpeza: backlog
   epic-4-retrospective: optional
-legacy_scope_mapping:
-  "1-4-subcolecao-members": "construtoras/{cId}/obras/{oId}/members/{uid}"
-  "1-5-descoberta-obras": "Validar queries atuais de construtora_members e members"
-  "2-11-executar-autorizacao": "C1: exceção dev global confiável preservada"
-  "3-2-estoque-recebimento": "Backlog: compra/NF completa; entrada simples já tem
-    código"
-  "3-3-estoque-saida": "Parcial: saída central existe; C4 estabiliza; custos completos
-    são futuros"
-  "5-3-modulo-adm": "Financeiro básico existe; documentação e visão 360 continuam
-    backlog"
 
-additional_observed_features:
-  dev_panel: "implementado e estabilizado via C1 (dev_roles/{uid})"
-  central_inventory: "implementado e estabilizado via C4 (comandos transacionais)"
-  expenses: "implementado e estabilizado via C3 (centavos e Timestamp)"
-  daily_reports: "implementado e estabilizado via C5 (IndexedDB e fila offline)"
-
-correction_backlog:
-  C0-validacao-inventario: done
-  C1-autorizacao-dev: done
-  C2-arquivos: done
-  C3-financeiro: done
-  C4-estoque: done
-  C5-diario-pwa: done
-  C6-aceite-integrado: done
-
-execution_order: [C0, C1, C2, C3, C4, C5, C6]
-
+# Action items committed during retrospectives (section created by the retrospective workflow)
 action_items:
   - epic: 0
     action: "C0-C6 concluidos e validados localmente (docs/validacao-c0-c6.md)."
@@ -397,3 +374,63 @@ action_items:
     owner: "maranduteam"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-24.md"
+  - id: epic-1-retro-item-1-dxf-size-limit
+    epic: 1
+    action: Implementar limite máximo de tamanho de arquivo no DXF antes/durante
+      o upload no Firebase Storage para prevenir estouro.
+    owner: dev (Amelia)
+    status: open
+    ref: _bmad-output/implementation-artifacts/epic-1-import-retro-2026-09-26.md
+  - id: epic-1-retro-item-2-draft-route
+    epic: 1
+    action: Garantir que o Epic 3 e a Story do Canvas de Revisão implementem
+      corretamente a rota de draft, caso contrário os usuários sofrerão 404 no
+      final do upload.
+    owner: maranduteam
+    status: open
+    ref: _bmad-output/implementation-artifacts/epic-1-import-retro-2026-09-26.md
+approval:
+  planning_update: requested_by_user
+  preserve_global_dev: confirmed_by_user
+  correction_plan: approved_by_user
+  proposal: "docs/plano-de-correcao-2026-09-15.md"
+  production_deployment: not_authorized_by_this_plan
+
+observed_baseline:
+  evidence_date: 2026-09-15
+  flutter_analyze: "No issues found! (exit code 0)"
+  functions_typecheck: "tsc --noEmit passou (exit code 0)"
+  flutter_test: "13/13 All tests passed! (exit code 0)"
+  functions_test: "4/4 pass (exit code 0)"
+  commit: "c456de9"
+  validation_document: "docs/validacao-c0-c6.md"
+  production_state: "não consultado"
+  note: "C0–C6 implementados e validados localmente; sem deploy de produção."
+
+legacy_scope_mapping:
+  "1-4-subcolecao-members": "construtoras/{cId}/obras/{oId}/members/{uid}"
+  "1-5-descoberta-obras": "Validar queries atuais de construtora_members e members"
+  "2-11-executar-autorizacao": "C1: exceção dev global confiável preservada"
+  "3-2-estoque-recebimento": "Backlog: compra/NF completa; entrada simples já tem
+    código"
+  "3-3-estoque-saida": "Parcial: saída central existe; C4 estabiliza; custos completos
+    são futuros"
+  "5-3-modulo-adm": "Financeiro básico existe; documentação e visão 360 continuam
+    backlog"
+
+additional_observed_features:
+  dev_panel: "implementado e estabilizado via C1 (dev_roles/{uid})"
+  central_inventory: "implementado e estabilizado via C4 (comandos transacionais)"
+  expenses: "implementado e estabilizado via C3 (centavos e Timestamp)"
+  daily_reports: "implementado e estabilizado via C5 (IndexedDB e fila offline)"
+
+correction_backlog:
+  C0-validacao-inventario: done
+  C1-autorizacao-dev: done
+  C2-arquivos: done
+  C3-financeiro: done
+  C4-estoque: done
+  C5-diario-pwa: done
+  C6-aceite-integrado: done
+
+execution_order: [C0, C1, C2, C3, C4, C5, C6]

@@ -64,6 +64,9 @@ class _LoteCorrecaoPanelState extends State<LoteCorrecaoPanel> {
   @override
   Widget build(BuildContext context) {
     final status = widget.properties['status'] as String? ?? 'desconhecido';
+    final tipo = widget.properties['tipo'] as String? ?? 'lote';
+    final isQuadra = tipo == 'quadra';
+    final isReparada = widget.properties['geometria_reparada'] == true;
 
     return Container(
       width: 300,
@@ -75,9 +78,11 @@ class _LoteCorrecaoPanelState extends State<LoteCorrecaoPanel> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Corrigir Lote',
-                style: Theme.of(context).textTheme.titleLarge,
+              Expanded(
+                child: Text(
+                  isQuadra ? 'Confirmar Quadra' : 'Corrigir Lote',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.close),
@@ -87,26 +92,41 @@ class _LoteCorrecaoPanelState extends State<LoteCorrecaoPanel> {
           ),
           const SizedBox(height: 16),
           Text('Status atual: $status', style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _nameController,
-            focusNode: _focusNode,
-            decoration: const InputDecoration(
-              labelText: 'Nome/Número do Lote',
-              border: OutlineInputBorder(),
-              helperText: 'Pressione ENTER para salvar',
+          if (isQuadra && isReparada) ...[
+            const SizedBox(height: 16),
+            const Text('A geometria desta quadra precisou ser recuperada. Por favor, verifique visualmente se as partes no canvas estão corretas e confirme.', style: TextStyle(color: Colors.orange)),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  widget.onSave(widget.properties['nome'] as String? ?? '');
+                },
+                child: const Text('Confirmar Geometria'),
+              ),
             ),
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _submit,
-              child: const Text('Salvar'),
+          ] else ...[
+            const SizedBox(height: 16),
+            TextField(
+              controller: _nameController,
+              focusNode: _focusNode,
+              decoration: const InputDecoration(
+                labelText: 'Nome/Número do Lote',
+                border: OutlineInputBorder(),
+                helperText: 'Pressione ENTER para salvar',
+              ),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
             ),
-          ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _submit,
+                child: const Text('Salvar'),
+              ),
+            ),
+          ],
         ],
       ),
     );
