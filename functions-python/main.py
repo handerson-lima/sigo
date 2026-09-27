@@ -12,22 +12,32 @@ logger = logging.getLogger(__name__)
 # Max file size: 50MB
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024
 
+
+def _inherit_layer(layer_name: str, parent_layer):
+    """Entidades/INSERTs em layer '0' ou 'BYBLOCK' assumem o layer da referência pai."""
+    if (not layer_name or layer_name == "0" or layer_name == "BYBLOCK") and parent_layer:
+        return parent_layer
+    return layer_name
+
+
 def extract_dxf_geometries(filepath: str):
     """
     Reads DXF and extracts Lotes, Quadras, and Texts from modelspace and blocks (INSERTs).
+
+    Returns ``(lotes, quadras, textos)`` for a readable DXF (lists may be empty when the
+    file has no matching entities), or ``None`` when the file is not a valid/readable DXF.
+    The ``None`` signal lets the caller distinguish INVALID_FILE from NO_ENTITIES.
     """
     try:
         doc = ezdxf.readfile(filepath)
-    except Exception as e:
-        # ezdxf exceptions are broad, catch Exception and check if it's DXFStructureError etc
-        # But we log and raise to not swallow silently if it's transient, actually if it's a corrupted file we should return empty
-        # If it's IOError we might raise it
-        if isinstance(e, (IOError, OSError)):
-            # If it's not a DXF file (e.g. text file), ezdxf raises IOError/OSError
-            logger.error(f"Corrupted or invalid DXF file (IOError): {e}")
-            return [], [], []
-        logger.error(f"Corrupted or invalid DXF file: {e}")
-        return [], [], []
+    except (OSError, ezdxf.DXFError) as e:
+        # Invalid/corrupt input (deterministic): log and stop gracefully without
+        # crashing the handler. Returning None distinguishes INVALID_FILE from
+        # NO_ENTITIES (valid DXF, no matching entities) and avoids retrying a
+        # deterministic failure. Unexpected errors are not caught here so they
+        # propagate instead of being silently swallowed.
+        logger.error(f"INVALID_FILE: cannot read DXF {filepath}: {e}")
+        return None
 
     msp = doc.modelspace()
     lotes = []
@@ -41,10 +51,8 @@ def extract_dxf_geometries(filepath: str):
         except AttributeError:
             pass
 
-        # Se a entidade for layer 0 ou faltante, e estiver dentro de um bloco, ELA HERDA a cor/layer do bloco pai (se não explicitamente forçado no BYBLOCK)
-        # Na verdade, em ezdxf, entidades no bloco com layer '0' devem assumir o layer da referência (INSERT)
-        if (not layer_name or layer_name == "0" or layer_name == "BYBLOCK") and parent_layer:
-            layer_name = parent_layer
+        # Entidades de bloco no layer '0'/'BYBLOCK' assumem o layer da referência (INSERT)
+        layer_name = _inherit_layer(layer_name, parent_layer)
 
         layer_clean = layer_name.replace('_', ' ').replace('-', ' ')
         tokens = layer_clean.split()
@@ -66,12 +74,14 @@ def extract_dxf_geometries(filepath: str):
 
     def explode_and_process(entity, parent_layer=None):
         if entity.dxftype() == 'INSERT':
-            # Herda layer do INSERT
+            # INSERT em layer 0/BYBLOCK herda do layer do ancestral
             try:
                 layer_to_pass = str(entity.dxf.layer).upper()
             except AttributeError:
-                layer_to_pass = parent_layer
-                
+                layer_to_pass = ""
+
+            layer_to_pass = _inherit_layer(layer_to_pass, parent_layer)
+
             try:
                 for v_entity in entity.virtual_entities():
                     explode_and_process(v_entity, parent_layer=layer_to_pass)
@@ -96,13 +106,13 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     Path expected: loteamentos_drafts_uploads/{userId}/{timestamp}_{filename}.dxf
     """
     file_data = event.data
-    print(f"DEBUG: Processing {getattr(file_data, 'name', 'NO_NAME')}")
+    logger.debug(f"Processing {getattr(file_data, 'name', 'NO_NAME')}")
 
     if not file_data.name:
         return
-        
+
     if not file_data.bucket:
-        print("DEBUG: no bucket")
+        logger.debug("No bucket specified")
         return
 
     # Filter route
@@ -125,11 +135,15 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
             logger.error(f"Invalid file size format: {file_data.size}")
             return
     else:
-        print("DEBUG: no size")
+        logger.debug("No size specified")
         logger.error(f"File {file_data.name} has no size specified.")
         return
 
-    print("DEBUG: passed all checks, calling storage.Client")
+    if not file_data.generation:
+        logger.error(f"File {file_data.name} has no generation specified.")
+        return
+
+    logger.debug("Passed all checks, calling storage.Client")
 
     storage_client = storage.Client()
     bucket = storage_client.bucket(file_data.bucket)
@@ -140,12 +154,16 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
         blob.download_to_filename(temp_local_filename)
         logger.info(f"Downloaded {file_data.name} to {temp_local_filename}")
 
-        lotes, quadras, textos = extract_dxf_geometries(temp_local_filename)
-        
-        if not lotes and not quadras:
-            logger.warning(f"File {file_data.name} contained no Lote or Quadra entities.")
+        result = extract_dxf_geometries(temp_local_filename)
+
+        if result is None:
+            logger.error(f"File {file_data.name} is not a valid DXF (INVALID_FILE); skipping.")
         else:
-            logger.info(f"Extracted {len(lotes)} lotes, {len(quadras)} quadras and {len(textos)} textos.")
+            lotes, quadras, textos = result
+            if not lotes and not quadras:
+                logger.warning(f"File {file_data.name} contained no Lote or Quadra entities (NO_ENTITIES).")
+            else:
+                logger.info(f"Extracted {len(lotes)} lotes, {len(quadras)} quadras and {len(textos)} textos.")
             
     except (IOError, OSError) as e:
         logger.error(f"Transient error processing {file_data.name}: {e}")

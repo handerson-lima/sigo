@@ -84,7 +84,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+functions-python/lib/
 lib64/
 parts/
 sdist/

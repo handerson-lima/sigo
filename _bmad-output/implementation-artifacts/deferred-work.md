@@ -325,3 +325,43 @@ Recorte: commits `07171a8` + `c0be5c4` vs baseline `ed53736`; 4 camadas. Veredit
 - source_spec: `_bmad-output/implementation-artifacts/spec-12-2-ocultar-construtoras-inativas-na-listagem.md`
   summary: `npm run test:rules` (garantia server-side da 12.2) não roda no CI; `npm test` executa apenas `unit.cjs`.
   evidence: `.github/workflows/ci.yml:46` roda `npm test`; `test:rules` exige `firebase emulators:exec`. Infra pré-existente (retriado do review original #14).
+
+## Deferred from: code review of spec-2-1-gatilho-extracao (2026-09-27)
+
+Recorte: `2b0f467..HEAD` restrito a `functions-python/`, `firebase.json`, `.github/workflows/ci.yml`, `.gitignore`; 4 camadas. 1 decision-needed, 7 patch, 7 defer, 3 rejeitados.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
+  summary: `conftest.py` mocka namespaces inteiros (`google`, `firebase_functions`, `firebase_admin`) em `sys.modules`, mascarando erros reais de import/resolução.
+  evidence: `functions-python/tests/conftest.py:9-24`; correção exige harness maior; sem defeito de produção demonstrado.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
+  summary: `requirements.txt` sem versões fixas (`>=`) enquanto `requirements-dev.txt` fixa.
+  evidence: `functions-python/requirements.txt:1-4`; higiene de reprodutibilidade, sem regressão demonstrada.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
+  summary: Filtro de rota valida só prefixo + extensão, sem checar o formato `{userId}/{timestamp}_{filename}` do spec:24.
+  evidence: `functions-python/main.py:108-115`; formato será consumido na Story 2.3, não exigido pelos ACs desta story.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
+  summary: `MAX_FILE_SIZE_BYTES = 50MB` com `memory=MB_512`, sem `timeout_sec` nem guarda de complexidade.
+  evidence: `functions-python/main.py:13,89-92`; maybe-false unverified; assentaria com evidência de OOM/truncamento em DXF real de ~50MB.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
+  summary: `firebase.json` ignora só `__pycache__`, sem `**/__pycache__`/`*.pyc` nem exclusão de `tests/`/dev requirements.
+  evidence: `firebase.json:25-32`; bloat de bundle no deploy, sem impacto funcional.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
+  summary: `extract_dxf_geometries` sem anotação de retorno e devolvendo entidades ezdxf cruas, sem contrato serializável para a Story 2.2.
+  evidence: `functions-python/main.py:15,86`; interface entre stories, definida apenas na 2.2.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
+  summary: `except Exception ... raise` genérico força retry em erros possivelmente determinísticos.
+  evidence: `functions-python/main.py:153-155`; semântica de retry do Cloud Functions; avaliar taxonomia de erro junto com o patch de exceções.
+
+## Deferred from: re-review of spec-2-1-gatilho-extracao (2026-09-27)
+
+Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `.gitignore`); 4 camadas. 1 decision-needed, 7 patch, 3 defer, 3 rejeitados.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
+  summary: Falta teste de propagação de exceção inesperada fora de `(IOError, OSError, DXFError)` em `extract_dxf_geometries`.
+  evidence: `functions-python/main.py:21`; caminho hipotético/defensivo; adicionar junto ao teste do ramo `DXFError` quando for tocado.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
+  summary: `.gitignore` escopado para `functions-python/lib/` deixa `lib/` aninhado (ex.: `pip install -t lib`) sem proteção.
+  evidence: `.gitignore:87`; sem impacto no Flutter; a alternativa estreita `!app/lib/` pode ser adotada se necessário.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
+  summary: `StopIteration` de DXF truncado pode escapar da tupla de exceções e forçar retry.
+  evidence: `functions-python/main.py:21`; maybe-false unverified; assentaria com teste alimentando DXF truncado e observando o tipo de exceção real do ezdxf.

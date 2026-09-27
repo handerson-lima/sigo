@@ -67,7 +67,7 @@ context: ["_bmad-output/implementation-artifacts/epic-2-context.md"]
 
 ## Implementation Notes
 
-A extração pode ser feita identificando os Layers ou os tipos de Blocos correspondentes a Lotes e Quadras. O código inicial usará um mapeamento simplificado dos nomes de layers (por exemplo, layers contendo a substring 'LOTE' e 'QUADRA') ou iterará pelas polylines.
+A extração é feita identificando os Layers correspondentes a Lotes e Quadras. A correspondência usa tokens do nome do layer (separados por espaço, `_` ou `-`), casando `LOTE`/`LOTES` e `QUADRA`/`QUADRAS`; a entidade de uma camada combinada (ex.: `LOTE_E_QUADRA`) é classificada em ambas as listas.
 
 ## Spec Change Log
 
@@ -103,10 +103,63 @@ A extração pode ser feita identificando os Layers ou os tipos de Blocos corres
 
 ## Design Notes
 
-A extração pode ser feita identificando os Layers ou os tipos de Blocos correspondentes a Lotes e Quadras. O código inicial usará um mapeamento simplificado dos nomes de layers (por exemplo, layers contendo a substring 'LOTE' e 'QUADRA') ou iterará pelas polylines.
+A extração é feita identificando os Layers correspondentes a Lotes e Quadras. A correspondência usa tokens do nome do layer (separados por espaço, `_` ou `-`), casando `LOTE`/`LOTES` e `QUADRA`/`QUADRAS`; a entidade de uma camada combinada (ex.: `LOTE_E_QUADRA`) é classificada em ambas as listas.
 
 ## Verification
 
 **Commands:**
 - `cd functions-python && python -m pytest` -- expected: Todos os testes locais passam, assegurando regras de extração (INSERT/lotes/quadras) e controle de fluxos de erro.
 - `cat .github/workflows/ci.yml | grep pytest` -- expected: O comando de teste Python existe no CI.
+
+### Review Findings (2026-09-27)
+
+Diff: `2b0f467..HEAD` restrito a `functions-python/`, `firebase.json`, `.github/workflows/ci.yml`, `.gitignore`. 4 camadas.
+
+- [x] [Review][Decision] (resolvido: manter token exato; Notes da spec reconciliadas e teste de camada combinada adicionado) Estratégia de classificação de layers (token exato vs substring vs camadas combinadas) — `main.py:49-65` casa tokens exatos `LOTE(S)`/`QUADRA(S)` separados por `_`/`-`; as Design/Implementation Notes da spec (linhas 70/106) pedem correspondência por substring `'LOTE'`/`'QUADRA'`. Camadas como `LOTE_E_QUADRA` são adicionadas às duas listas; `LOTE.1`, `LOTE/QUADRA`, `SUBLOTE`, `LOTEAMENTO` não têm regra definida nem teste. Decidir a convenção: substring vs token e o tratamento de camadas combinadas.
+- [x] [Review][Patch] `.gitignore:87` `lib/` ignora `app/lib/` (fontes Dart novas) [`.gitignore:87`] — verificado com `git check-ignore -v app/lib/new_feature.dart` → casa `.gitignore:87:lib/`. Escopar para `functions-python/lib/` ou remover.
+- [x] [Review][Patch] `extract_dxf_geometries` engole todas as exceções retornando vazio, tornando DXF corrompido/`IOError` indistinguível de `NO_ENTITIES` e sem retry [`functions-python/main.py:19-30`] — contradiz spec:59/74 e o `medium` do Triage Log; testes cristalizam o comportamento (`test_extract_dxf_geometries_ioerror`). Propagar `IOError`/`OSError`; reservar listas vazias para "sem entidades".
+- [x] [Review][Patch] INSERT aninhado em layer 0 não herda o layer do ancestral [`functions-python/main.py:67-81`] — quando o INSERT interno está em layer `"0"`, `layer_to_pass` fica `"0"` e as sub-entidades não são classificadas. Herdar `parent_layer` quando o layer do INSERT for `0`/`BYBLOCK`; recursão aninhada também não tem teste.
+- [x] [Review][Patch] Sem teste para `NO_ENTITIES` (DXF válido sem LOTE/QUADRA) [`functions-python/tests/test_main.py`] — cenário explícito da I/O & Edge-Case Matrix; os testes só atingem vazio por caminho de exceção.
+- [x] [Review][Patch] `generation` não validado apesar da task "validar size/generation" [`functions-python/main.py:136`] — `bucket.blob(..., generation=file_data.generation)` sem guard; geração ausente pode baixar versão errada. Espelhar o tratamento de `size`.
+- [x] [Review][Patch] `print("DEBUG: ...")` em produção em vez de Cloud Logging [`functions-python/main.py:99,105,128,132`] — substituir por `logger`.
+- [x] [Review][Patch] Lacunas de cobertura em `processar_dxf` [`functions-python/tests/test_main.py`] — sem casos para `size` falsy/não-numérico, event fields malformados (`name=None`/`bucket=None`), limpeza do temp/fd e asserção do caminho do temp passado a `extract_dxf_geometries`/`download_to_filename`.
+
+Achados `defer`:
+
+- [x] [Review][Defer] `conftest.py` substitui namespaces inteiros (`google`, `firebase_functions`, `firebase_admin`) por `MagicMock` em `sys.modules`, mascarando erros reais de import/resolução [`functions-python/tests/conftest.py:9-24`] — deferred: infraestrutura de teste; correção exige harness maior, sem defeito de produção demonstrado.
+- [x] [Review][Defer] `requirements.txt` não fixa versões (`>=`) enquanto `requirements-dev.txt` fixa [`functions-python/requirements.txt`] — deferred: higiene de reprodutibilidade, sem regressão demonstrada.
+- [x] [Review][Defer] Filtro de rota valida só prefixo + extensão, sem checar o formato `{userId}/{timestamp}_{filename}` [spec:24] [`functions-python/main.py:108-115`] — deferred: formato será consumido na Story 2.3, não exigido pelos ACs desta.
+- [x] [Review][Defer] `MAX_FILE_SIZE_BYTES = 50MB` com `memory=MB_512` e sem `timeout_sec` nem guarda de complexidade [`functions-python/main.py:13,89-92`] — deferred: maybe-false (não demonstrado); assentaria com evidência de OOM/truncamento em DXF real de ~50MB.
+- [x] [Review][Defer] `firebase.json` ignora só `__pycache__`, sem `**/__pycache__`/`*.pyc` nem exclusão de `tests/`/dev requirements [`firebase.json:25-32`] — deferred: bloat de bundle no deploy, sem impacto funcional.
+- [x] [Review][Defer] `extract_dxf_geometries` sem anotação de retorno e devolvendo entidades ezdxf cruas, sem contrato serializável para a Story 2.2 [`functions-python/main.py:15,86`] — deferred: interface entre stories, definida apenas na 2.2.
+- [x] [Review][Defer] `except Exception ... raise` genérico força retry em erros possivelmente determinísticos [`functions-python/main.py:153-155`] — deferred: semântica de retry do Cloud Functions; avaliar taxonomia de erro junto com o patch de exceções.
+
+Rejeitados (apêndice):
+
+- `false` — CI `cache: pip` sem `cache-dependency-path`: o default do `actions/setup-python` cobre `**/requirements.txt`, então a dependência é encontrada.
+- `false` — `event.data` `None`/`size` não-str-int: `data` sempre presente em `on_object_finalized`; `size` real é int e o caso ausente já é tratado. Inputs inviáveis na prática.
+- `low` — `BYBLOCK` tratado como layer em `main.py:46`: sentinel de cor/tipo, não ocorre como nome de layer; comportamento inofensivo.
+
+### Review Findings — Re-review (2026-09-27)
+
+Diff: delta de correções (`git diff HEAD` restrito a `functions-python/`, `.gitignore`). 4 camadas. Suíte: 14 testes passam.
+
+- [x] [Review][Decision] (resolvido: manter catch `(OSError, DXFError)`; `extract` retorna `None` para INVALID_FILE e listas vazias para NO_ENTITIES; logs distintos) Semântica de erro de `extract_dxf_geometries`: arquivo inválido (determinístico, sem retry) vs transiente (propaga/retry) vs `NO_ENTITIES` [`functions-python/main.py:21-26,148-149`] — o `except (IOError, OSError, ezdxf.DXFError)` retorna `([], [], [])`, então `INVALID_FILE` e `NO_ENTITIES` só se distinguem por log e um `IOError` transiente nunca chega ao retry; o comentário chama `IOError/OSError` de "deterministic" (impreciso, e `UnicodeDecodeError`/erros fora da tupla escapam para retry). Decidir a taxonomia: manter + documentar, propagar `IOError/OSError`, ou introduzir exceção de domínio `InvalidDxfError`.
+- [x] [Review][Patch] Sem teste para o ramo `ezdxf.DXFError` (DXF estruturalmente inválido) [`functions-python/tests/test_main.py`] — os testes de erro usam texto puro/arquivo inexistente, que levantam `OSError`; o ramo `DXFError` fica sem cobertura (verificado: remover `ezdxf.DXFError` da tupla não quebra a suíte).
+- [x] [Review][Patch] Sem asserção de que `generation` é repassado ao blob [`functions-python/tests/test_main.py`] — `test_processar_dxf_valid` não faz `mock_bucket.blob.assert_called_once_with(..., generation=...)`; a correção do guard de `generation` pode regredir silenciosamente.
+- [x] [Review][Patch] Sem teste do caminho de falha de `blob.download_to_filename` nem da limpeza de fd/temp sob exceção [`functions-python/tests/test_main.py`] — os `raise` de `main.py:153-158` e o `finally` não são exercitados.
+- [x] [Review][Patch] Lógica de herança de layer duplicada em `process_entity` e `explode_and_process` [`functions-python/main.py:42-43,71-72`] — o mesmo teste `not layer/layer=="0"/BYBLOCK → parent_layer` existe em dois pontos e pode divergir; extrair helper.
+- [x] [Review][Patch] Testes de borda ausentes [`functions-python/tests/test_main.py`] — `size` exatamente igual a `MAX_FILE_SIZE_BYTES`, caminho `.DXF` maiúsculo, INSERT em `BYBLOCK`, e caso negativo/profundo de aninhamento (inner em `LOTES`, outer em `0`).
+- [x] [Review][Patch] Fixture `synthetic_dxf` não usada em `test_processar_dxf_valid` (extração mockada) — remover o parâmetro para não escrever DXF real sem efeito.
+
+Achados `defer`:
+
+- [x] [Review][Defer] Cobertura de propagação de exceção inesperada fora de `(IOError, OSError, DXFError)` [`functions-python/main.py:21`] — deferred: comportamento defensivo e caminho hipotético; registrar teste junto ao ramo `DXFError` quando for tocado.
+- [x] [Review][Defer] `.gitignore` escopado para `functions-python/lib/` deixa `lib/` aninhado (ex.: `pip install -t lib`) sem proteção [`/.gitignore:87`] — deferred: sem impacto no Flutter; alternativa `!app/lib/` mais estreita se houver necessidade.
+- [x] [Review][Defer] `StopIteration` de DXF truncado pode escapar da tupla e forçar retry [`functions-python/main.py:21`] — deferred: maybe-false; assentaria com teste alimentando DXF truncado e observando o tipo de exceção do ezdxf.
+
+Rejeitados (re-review):
+
+- `low` — condição `not layer_to_pass` "morta" em `main.py:71`: guarda defensiva e inofensiva; o valor só é vazio em caso patológico já coberto pela intenção.
+- `low` — ausência de telemetria/dead-letter no caminho de `generation` ausente: já loga `logger.error` e retorna; telemetria além do escopo desta story.
+- `false` — exigência de trocar o nível de log de `INVALID_FILE` para "aviso": a coluna Error Handling da própria matriz pede "Log de Erro", então `logger.error` está correto.
