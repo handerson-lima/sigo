@@ -189,8 +189,8 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     except (IOError, OSError) as e:
         logger.error(f"Transient error processing {file_data.name}: {e}")
         raise
-    except DraftPersistenceError as e:
-        logger.error(f"Fatal error persisting {file_data.name}: {e}")
+    except DraftPersistenceError:
+        logger.exception(f"Fatal error persisting {file_data.name}")
         # Sem raise para evitar loop infinito de poison messages do DXF para o Firestore
     except Exception as e:
         logger.error(f"Unhandled error processing {file_data.name}: {e}")

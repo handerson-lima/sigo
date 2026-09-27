@@ -4,7 +4,7 @@ from shapely.geometry import Point
 
 logger = logging.getLogger(__name__)
 
-STOP_WORDS = {"ÁREA", "AREA", "CASA", "LOTES", "QUADRA", "Q", "RUA", "AV", "AVENIDA"}
+STOP_WORDS = {"ÁREA", "AREA", "CASA", "LOTES", "LOTE", "QUADRA", "Q", "RUA", "AV", "AVENIDA"}
 # Dimensões ex: 15x30, 15.5X30, 15x30.2
 DIMENSION_REGEX = re.compile(r'^\d+([.,]\d+)?\s*[xX]\s*\d+([.,]\d+)?\s*(m|cm|M|CM)?$')
 # Quadra explícita ex: Q 1, QUADRA 1
