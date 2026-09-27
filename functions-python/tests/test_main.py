@@ -90,8 +90,8 @@ def test_processar_dxf_too_large(mock_storage_client):
     mock_storage_client.assert_not_called()
 
 @patch("main.storage.Client")
-@patch("main.extract_dxf_geometries")
-def test_processar_dxf_valid(mock_extract, mock_storage_client):
+@patch("main.save_draft_to_firestore")
+def test_processar_dxf_valid(mock_save_draft, mock_storage_client, synthetic_dxf):
     event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.dxf"))
 
     mock_bucket = MagicMock()
@@ -99,7 +99,11 @@ def test_processar_dxf_valid(mock_extract, mock_storage_client):
     mock_storage_client.return_value.bucket.return_value = mock_bucket
     mock_bucket.blob.return_value = mock_blob
 
-    mock_extract.return_value = (["l1"], ["q1"], ["t1"])
+    def mock_download(filename, **kwargs):
+        import shutil
+        shutil.copy(synthetic_dxf, filename)
+
+    mock_blob.download_to_filename.side_effect = mock_download
 
     processar_dxf(event)
 
@@ -108,10 +112,41 @@ def test_processar_dxf_valid(mock_extract, mock_storage_client):
         "loteamentos_drafts_uploads/user/123_file.dxf", generation="12345"
     )
     mock_blob.download_to_filename.assert_called_once()
+    
+    mock_save_draft.assert_called_once()
+    args, _ = mock_save_draft.call_args
+    assert args[0] == "user/123_file.dxf"  # draft_id
+    
+    geojson = args[1]
+    assert geojson["type"] == "FeatureCollection"
+    # synthetic_dxf tem 2 lotes e 1 texto "Texto Lote" e 1 quadra
+    assert len(geojson["features"]) == 2
+
+    # Assert cleanup
     downloaded_path = mock_blob.download_to_filename.call_args[0][0]
-    assert downloaded_path.endswith(".dxf")
-    mock_extract.assert_called_once_with(downloaded_path)
     assert not os.path.exists(downloaded_path)
+
+@patch("main.save_draft_to_firestore")
+@patch("main.storage.Client")
+def test_processar_dxf_swallows_persistence_error(mock_storage_client, mock_save_draft, synthetic_dxf):
+    from firestore_utils import DraftPersistenceError
+    event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.dxf"))
+
+    mock_bucket = MagicMock()
+    mock_blob = MagicMock()
+    mock_storage_client.return_value.bucket.return_value = mock_bucket
+    mock_bucket.blob.return_value = mock_blob
+
+    def mock_download(filename, **kwargs):
+        import shutil
+        shutil.copy(synthetic_dxf, filename)
+
+    mock_blob.download_to_filename.side_effect = mock_download
+    mock_save_draft.side_effect = DraftPersistenceError("Poison message")
+
+    # Should NOT raise, the error is swallowed
+    processar_dxf(event)
+    mock_save_draft.assert_called_once()
 
 @patch("main.storage.Client")
 @patch("main.extract_dxf_geometries")

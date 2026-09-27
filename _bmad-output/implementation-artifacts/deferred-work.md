@@ -68,10 +68,10 @@ Nenhuma migração, publicação ou alteração de dados de produção foi execu
 
 ## Deferred from: review of spec-0-1-registrar-decisoes.md (2026-09-21)
 
-- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-0-1-registrar-decisoes.md`
+- source_spec: `_bmad-output/implementation-artifacts/spec-0-1-registrar-decisoes.md`
   summary: Template de reprovação e guarda anti-duplicata para Aceite em docs/task.md
   evidence: edge findings mostram reexecução anexando headings duplicados e sem template de reprovação; low, fora do intent transcricional
-- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-0-1-registrar-decisoes.md`
+- source_spec: `_bmad-output/implementation-artifacts/spec-0-1-registrar-decisoes.md`
   summary: Checagem de concorrência em last_updated do sprint-status.yaml
   evidence: maybe-false unverified medium; sem evidência de perda, mas escrita sem merge check; o que assentaria: ler timestamp base antes de escrever e retry em mismatch
 
@@ -365,3 +365,30 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-gatilho-extracao.md`
   summary: `StopIteration` de DXF truncado pode escapar da tupla de exceções e forçar retry.
   evidence: `functions-python/main.py:21`; maybe-false unverified; assentaria com teste alimentando DXF truncado e observando o tipo de exceção real do ezdxf.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
+  summary: Textos exatamente na fronteira de lotes vizinhos podem ser atribuídos a ambos, criando duplicidades.
+  evidence: A heurística usa `poly.covers` ou `poly.contains`, permitindo que um ponto compartilhado seja coberto por polígonos múltiplos sem desempate exclusivo.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
+  summary: Não há gravação de status de erro ou progresso caso a Cloud Function falhe na persistência do rascunho.
+  evidence: O app cliente fica esperando infinitamente. Fora do escopo da história 2.3, mas afeta a UX e idempotência.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
+  summary: A mudança na ordem de inserção dos lotes órfãos em relation a lotes que falham na conversão não está testada nem amarrada a um contrato.
+  evidence: O front-end atualmente não depende de ordem; caso venha a depender (por ex., na lista de exibição para revisão), as features misturarão de forma imprevisível.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
+  summary: Formatações inline nativas de MTEXT (ex.: `\A1;`) não são limpas e viram texto bruto.
+  evidence: `str(entity.text)` em MTEXT preserva tags de formatação complexa. Requer parsing de MTEXT do ezdxf.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
+  summary: O limite de documento de 1 MiB do Firestore não tem proteção.
+  evidence: Plantas enormes com milhares de polígonos causarão falha rígida de escrita no backend e loops infinitos no listener web.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
+  summary: GeoJSON emitido pode não respeitar as convenções de sentido/ordem de enrolamento do RFC 7946.
+  evidence: O exterior e interiors extraídos diretamente do DXF preservam a geometria raw, sem garantia de CCW (counter-clockwise) pro exterior.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
+  summary: Gravação de status de falha (status = error) no Firestore em caso de poison messages para liberar o listener client.
+  evidence: A Cloud Function apenas loga o erro e descarta a mensagem fatal para evitar retries. O app web/mobile fica girando eternamente (A6).
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
+  summary: Definir contrato e garantir ordenação determinística de lotes órfãos.
+  evidence: A lista `lotes_orfaos` preenche misturada dependendo de falhas geométricas na extração vs ausência espacial de quadra (A10).
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md`
+  summary: Tratar limite rígido de 1 MiB de documento do Firestore para GeoJSON muito grandes.
+  evidence: GeoJSON de um loteamento gigantesco pode bater o limite facilmente de 1 MiB e falhar na hora do `.set()`, necessitando compressão ou quebra do doc (A23).

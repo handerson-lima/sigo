@@ -1,0 +1,453 @@
+diff --git a/_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md b/_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md
+new file mode 100644
+index 0000000..1b744bd
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/spec-2-3-heuristica-de-ambiguidades-e-persistencia-do-rascunho-geojson.md
+@@ -0,0 +1,74 @@
++---
++title: 'Story 2.3: Heurística de Ambiguidades e Persistência do Rascunho (GeoJSON)'
++type: 'feature'
++created: '2026-09-27'
++status: 'in-progress'
++baseline_commit: '48dfcdc8e623de5696dc6d1cc4adc371dd17a248'
++route: 'dispatch'
++review_loop_iteration: 0
++context: ["_bmad-output/implementation-artifacts/epic-2-context.md"]
++---
++
++<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
++
++## Intent
++
++**Problem:** O backend já extrai a geometria de lotes e quadras de arquivos DXF e mapeia seus relacionamentos espaciais, porém as entidades de texto ainda não estão associadas, não há marcação visual para intervenção do usuário, e os dados não estão sendo gravados em um rascunho persistente.
++**Approach:** Criar um módulo de heurística que faça a correspondência espacial dos `textos` extraídos com os polígonos correspondentes. Lotes com falha de identificação (múltiplos textos, textos inválidos, ou sem texto) receberão status de `ambiguo`. Todo o resultado deve ser serializado em um `GeoJSON` estrito e salvo na coleção `loteamentos_drafts` no Firestore para o front-end consumir.
++
++## Boundaries & Constraints
++
++**Always:**
++- Salvar um único documento na coleção `loteamentos_drafts` tendo como `ID` do documento o exato `uniqueFilename` do arquivo no Cloud Storage (garantindo que o front-end escute o ID correto).
++- Atribuir `"status": "ambiguo"` a qualquer Lote que tenha 0 ou >1 identificadores candidatos após a filtragem de palavras, ou que a heurística detecte como mal formado.
++- O payload de saída para o Firestore deve seguir rigorosamente a especificação `GeoJSON` (FeatureCollection de Features Polygon).
++- Cada Feature no GeoJSON deve conter a extensão de propriedades: `tipo` ("quadra" ou "lote"), `nome` (string, se resolvido) e `status` ("valido" ou "ambiguo"). Lotes órfãos devem receber `status: ambiguo`.
++
++**Never:**
++- Não salvar múltiplos documentos. O rascunho inteiro de um loteamento deve caber no documento GeoJSON de draft.
++- Não manter Lotes órfãos como "válidos". Sem uma Quadra associada, a hierarquia falha e requer revisão manual.
++
++**Decisions:**
++- Heurística de Filtragem: Filtrar palavras chave conhecidas de forma hardcoded (ex: "Área", "Casa"). Menos restritivo que regex.
++- Estrutura do GeoJSON: Omitir as geometrias de Quadras no GeoJSON final. O nome da quadra será injetado diretamente nas propriedades de cada Lote para reduzir o payload.
++
++## I/O & Edge-Case Matrix
++
++| Scenario | Input / State | Expected Output / Behavior | Error Handling |
++|----------|--------------|---------------------------|----------------|
++| HAPPY_PATH | Lote com exato 1 texto legível dentro de seu polígono e sem match em stop words. | Lote ganha propriedade `"nome": "<texto>"`, `"status": "valido"`. | N/A |
++| MULTIPLE_TEXTS | Lote tem textos "LOTE 1" e "15x30" em seu interior. A heurística filtra "15x30". Sobra apenas 1. | Lote ganha `"nome": "LOTE 1"`, `"status": "valido"`. | N/A |
++| AMBIGUOUS_TEXT | Lote com múltiplos textos válidos ou zero textos. | Lote ganha `"nome": ""`, `"status": "ambiguo"`. | N/A |
++| ORPHAN_LOTE | Lote que o algoritmo anterior definiu como órfão (sem quadra). | Lote vai pro GeoJSON com `"status": "ambiguo"`, exigindo revisão. | N/A |
++
++</frozen-after-approval>
++
++
++## Code Map
++
++- `functions-python/main.py` -- Deve importar o novo módulo de heurística, transformar `association` e `textos` em GeoJSON e salvar com firebase_admin.
++- `functions-python/heuristics.py` -- Novo arquivo para o algoritmo de pareamento texto-polígono (testes de intersecção/cobertura) e montagem do dicionário de propriedades de cada Feature.
++- `functions-python/firestore_utils.py` -- Novo arquivo para isolar a gravação no `loteamentos_drafts/{uniqueFilename}` do Firestore.
++
++## Tasks & Acceptance
++
++**Execution:**
++- [ ] `functions-python/heuristics.py` -- Criar funções para parear Textos com Polígonos de Lote e aplicar a filtragem heurística para definir `status` e `nome`. Converter dados estruturados para FeatureCollection GeoJSON.
++- [ ] `functions-python/firestore_utils.py` -- Criar função que salva o dicionário GeoJSON no Firestore na coleção `loteamentos_drafts`.
++- [ ] `functions-python/main.py` -- Integrar `heuristics.py` e `firestore_utils.py` ao fluxo de `processar_dxf`. O ID do doc será baseado em `temp_local_filename` ou em um extrato de `file_data.name` (que contém o ID no storage).
++- [ ] `functions-python/tests/` -- Escrever testes unitários verificando a conversão para GeoJSON e a lógica de atribuição "ambíguo".
++
++**Acceptance Criteria:**
++- Given Lotes e Quadras estruturados espacialmente e Textos extraídos do DXF, when a heurística for aplicada, then o GeoJSON final deve marcar como "ambiguo" os lotes cujo nome não pôde ser claramente identificado (0 ou mais de 1 texto válido candidato).
++- Given um arquivo processado com sucesso, when o GeoJSON for finalizado, then ele deve ser persistido como um único documento no Firestore na coleção `loteamentos_drafts` utilizando o ID do arquivo original enviado pela UI.
++
++## Implementation Notes
++
++## Spec Change Log
++
++## Review Triage Log
++
++## Verification
++
++**Commands:**
++- `cd functions-python && pytest tests/` -- expected: Testes da heurística passam com sucesso (cobertura dos casos órfãos, textos múltiplos e lixo).
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 8a19703..96f9326 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -40,7 +40,7 @@ development_status:
+   epic-2: in-progress
+   2-1-gatilho-onfinalize-e-extração-de-geometria-bruta: done
+   2-2-algoritmo-espacial-point-in-polygon: review
+-  2-3-heurística-de-ambiguidades-e-persistência-do-rascunho-geojso: backlog
++  2-3-heurística-de-ambiguidades-e-persistência-do-rascunho-geojso: in-progress
+   epic-2-retrospective: optional
+ 
+   epic-3: backlog
+diff --git a/functions-python/firestore_utils.py b/functions-python/firestore_utils.py
+new file mode 100644
+index 0000000..c478bd3
+--- /dev/null
++++ b/functions-python/firestore_utils.py
+@@ -0,0 +1,17 @@
++import logging
++from firebase_admin import firestore
++
++logger = logging.getLogger(__name__)
++
++def save_draft_to_firestore(draft_id: str, geojson: dict):
++    """
++    Salva o rascunho GeoJSON no Firestore na coleção loteamentos_drafts.
++    """
++    try:
++        db = firestore.client()
++        doc_ref = db.collection('loteamentos_drafts').document(draft_id)
++        doc_ref.set(geojson)
++        logger.info(f"Draft saved successfully to loteamentos_drafts/{draft_id}")
++    except Exception as e:
++        logger.error(f"Error saving draft {draft_id} to Firestore: {e}")
++        raise
+diff --git a/functions-python/geometry_utils.py b/functions-python/geometry_utils.py
+index 2c50ad4..ed352f3 100644
+--- a/functions-python/geometry_utils.py
++++ b/functions-python/geometry_utils.py
+@@ -75,11 +75,6 @@ def associate_lotes_to_quadras(lotes, quadras):
+       - 'quadras': dict mapping quadra entity to a list of contained lote entities
+       - 'lotes_orfaos': list of lote entities that do not belong to any quadra
+     """
+-    association = {
+-        'quadras': {q: [] for q in quadras},
+-        'lotes_orfaos': []
+-    }
+-    
+     # Pre-compute valid polygons for quadras
+     quadra_polygons = {}
+     for q in quadras:
+@@ -88,15 +83,23 @@ def associate_lotes_to_quadras(lotes, quadras):
+             quadra_polygons[q] = poly
+         else:
+             logger.warning("Quadra converted to None or invalid polygon, will be ignored.")
+-            
+-    # Associate lotes
++
++    # We also need lote polygons for further processing
++    lote_polygons = {}
+     for lote in lotes:
+-        lote_poly = ezdxf_entity_to_polygon(lote)
+-        if lote_poly is None:
+-            logger.warning("Lote converted to None, adding to orphans.")
+-            association['lotes_orfaos'].append(lote)
+-            continue
+-            
++        poly = ezdxf_entity_to_polygon(lote)
++        if poly is not None:
++            lote_polygons[lote] = poly
++
++    association = {
++        'quadras': {q: [] for q in quadras},
++        'lotes_orfaos': [],
++        'quadra_polygons': quadra_polygons,
++        'lote_polygons': lote_polygons
++    }
++    
++    # Associate lotes
++    for lote, lote_poly in lote_polygons.items():
+         try:
+             rep_point = lote_poly.representative_point()
+         except ShapelyError:
+@@ -119,4 +122,10 @@ def associate_lotes_to_quadras(lotes, quadras):
+             if len(matched_quadras) > 1:
+                 logger.info("Lote belongs to multiple quadras. Ambiguity resolved by choosing the smallest quadra.")
+ 
++    # Lotes that failed to convert to polygon are also orphans
++    for lote in lotes:
++        if lote not in lote_polygons:
++            logger.warning("Lote converted to None, adding to orphans.")
++            association['lotes_orfaos'].append(lote)
++
+     return association
+diff --git a/functions-python/heuristics.py b/functions-python/heuristics.py
+new file mode 100644
+index 0000000..1db907b
+--- /dev/null
++++ b/functions-python/heuristics.py
+@@ -0,0 +1,126 @@
++import logging
++from shapely.geometry import Point
++
++logger = logging.getLogger(__name__)
++
++STOP_WORDS = ["ÁREA", "AREA", "CASA", "LOTES", "QUADRA", "Q", "RUA", "AV", "AVENIDA"]
++
++def extract_text(entity):
++    """Extrai texto e ponto de inserção de uma entidade ezdxf (TEXT/MTEXT)."""
++    text = ""
++    try:
++        text = str(entity.dxf.text).upper().strip()
++    except AttributeError:
++        # Some entities like ATTRIB or ATTDEF might store text differently
++        pass
++    
++    # Try MTEXT
++    if not text and hasattr(entity, 'text'):
++        text = str(entity.text).upper().strip()
++
++    pt = None
++    try:
++        # Typically insert
++        pt = entity.dxf.insert
++    except AttributeError:
++        pass
++
++    return text, pt
++
++def build_geojson(association, textos, quadra_polygons, lote_polygons):
++    """
++    Constrói um FeatureCollection GeoJSON omitindo Quadras.
++    `association` tem o formato {'quadras': {q_entity: [lote_entities]}, 'lotes_orfaos': [lote_entities]}
++    `textos` é uma lista de ezdxf text entities.
++    `quadra_polygons` mapping q_entity -> shapely Polygon
++    `lote_polygons` mapping lote_entity -> shapely Polygon
++    """
++    
++    # Pre-parse texts
++    parsed_texts = []
++    for txt in textos:
++        val, pt = extract_text(txt)
++        if val and pt:
++            parsed_texts.append((val, Point(pt.x, pt.y)))
++
++    features = []
++
++    def process_lote(lote_entity, q_entity=None):
++        poly = lote_polygons.get(lote_entity)
++        if not poly:
++            return None
++        
++        # Encontra textos contidos no polígono
++        candidates = []
++        for val, pt in parsed_texts:
++            if poly.covers(pt) or poly.contains(pt):
++                # Filtra stop words
++                if val not in STOP_WORDS and not any(sw in val.split() for sw in STOP_WORDS):
++                    candidates.append(val)
++        
++        # Heurística de status
++        status = "ambiguo"
++        nome = ""
++        if len(candidates) == 1:
++            status = "valido"
++            nome = candidates[0]
++        
++        # Se for órfão
++        if q_entity is None:
++            status = "ambiguo"
++        
++        # Quadra name
++        quadra_nome = ""
++        if q_entity is not None:
++            # We could do heuristic on quadra texts too, but for now we just label it with entity handle or see if we find a text
++            # For simplicity, if we need quadra name we try to find it
++            quadra_poly = quadra_polygons.get(q_entity)
++            if quadra_poly:
++                q_candidates = []
++                for val, pt in parsed_texts:
++                    # check if it covers, but texts for quadra might be outside lotes
++                    if quadra_poly.covers(pt):
++                        # crude heuristic: if it has "Q" or "QUADRA"
++                        if "Q" in val or "QUADRA" in val:
++                            q_candidates.append(val)
++                if q_candidates:
++                    quadra_nome = q_candidates[0]
++
++        # Converte Polygon to GeoJSON coordinates
++        # poly.exterior.coords is a sequence of (x,y)
++        coords = [list(poly.exterior.coords)]
++        for interior in poly.interiors:
++            coords.append(list(interior.coords))
++
++        feature = {
++            "type": "Feature",
++            "geometry": {
++                "type": "Polygon",
++                "coordinates": coords
++            },
++            "properties": {
++                "tipo": "lote",
++                "nome": nome,
++                "status": status,
++                "quadra": quadra_nome
++            }
++        }
++        return feature
++
++    for q_entity, lote_list in association['quadras'].items():
++        for lote in lote_list:
++            f = process_lote(lote, q_entity)
++            if f:
++                features.append(f)
++                
++    for lote in association['lotes_orfaos']:
++        f = process_lote(lote, None)
++        if f:
++            features.append(f)
++
++    geojson = {
++        "type": "FeatureCollection",
++        "features": features
++    }
++    return geojson
++
+diff --git a/functions-python/main.py b/functions-python/main.py
+index c63cbb7..677ff91 100644
+--- a/functions-python/main.py
++++ b/functions-python/main.py
+@@ -172,10 +172,26 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
+                 logger.info(f"Extracted {len(lotes)} lotes, {len(quadras)} quadras and {len(textos)} textos.")
+                 logger.info(f"Associated {associated_count} lotes to quadras. {orphans_count} lotes are orphans.")
+                 
+-                # The 'association' and 'textos' variables are kept in memory here.
+-                # In Story 2.3b, they will be transformed into GeoJSON and saved to Firestore.
+-                _ = association
+-                _ = textos
++                # Import new modules
++                from heuristics import build_geojson
++                from firestore_utils import save_draft_to_firestore
++
++                geojson = build_geojson(
++                    association, 
++                    textos, 
++                    association['quadra_polygons'], 
++                    association['lote_polygons']
++                )
++
++                # Extract the unique filename from the storage path
++                # Path format: loteamentos_drafts_uploads/{userId}/{uniqueFilename}.dxf
++                # Example: loteamentos_drafts_uploads/user123/1630000000_planta.dxf
++                draft_id = file_data.name.split('/')[-1]
++                # Remove .dxf extension if necessary, but spec 1.1 UI uses the full filename with .dxf as ID?
++                # Actually, the dart code uses the uniqueFilename as is: `return uniqueFilename;`
++                
++                save_draft_to_firestore(draft_id, geojson)
++                logger.info(f"Processamento concluído. Rascunho {draft_id} salvo com sucesso.")
+             
+     except (IOError, OSError) as e:
+         logger.error(f"Transient error processing {file_data.name}: {e}")
+diff --git a/functions-python/tests/test_heuristics.py b/functions-python/tests/test_heuristics.py
+new file mode 100644
+index 0000000..59c3d2f
+--- /dev/null
++++ b/functions-python/tests/test_heuristics.py
+@@ -0,0 +1,105 @@
++import pytest
++from shapely.geometry import Polygon
++from heuristics import extract_text, build_geojson
++
++class MockDXFText:
++    def __init__(self, text, x, y, is_mtext=False):
++        self._text = text
++        self.x = x
++        self.y = y
++        self.is_mtext = is_mtext
++
++    def dxftype(self):
++        return 'MTEXT' if self.is_mtext else 'TEXT'
++
++    @property
++    def dxf(self):
++        return self
++
++    @property
++    def text(self):
++        return self._text
++
++    @property
++    def insert(self):
++        class Pt:
++            def __init__(self, x, y):
++                self.x = x
++                self.y = y
++        return Pt(self.x, self.y)
++
++class MockDXFPoly:
++    pass
++
++def test_extract_text():
++    t1 = MockDXFText("Lote 1", 10, 10)
++    text, pt = extract_text(t1)
++    assert text == "LOTE 1"
++    assert pt.x == 10 and pt.y == 10
++
++def test_build_geojson_happy_path():
++    lote_entity = MockDXFPoly()
++    quadra_entity = MockDXFPoly()
++    
++    lote_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
++    quadra_poly = Polygon([(-5, -5), (15, -5), (15, 15), (-5, 15), (-5, -5)])
++
++    association = {
++        'quadras': {quadra_entity: [lote_entity]},
++        'lotes_orfaos': [],
++        'quadra_polygons': {quadra_entity: quadra_poly},
++        'lote_polygons': {lote_entity: lote_poly}
++    }
++    
++    # Texto dentro do lote
++    textos = [MockDXFText("12", 5, 5)]
++
++    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
++    
++    assert geojson["type"] == "FeatureCollection"
++    assert len(geojson["features"]) == 1
++    
++    feature = geojson["features"][0]
++    assert feature["properties"]["tipo"] == "lote"
++    assert feature["properties"]["nome"] == "12"
++    assert feature["properties"]["status"] == "valido"
++
++def test_build_geojson_ambiguous_multiple_texts():
++    lote_entity = MockDXFPoly()
++    lote_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
++
++    quadra_entity = MockDXFPoly()
++    quadra_poly = Polygon([(-5, -5), (15, -5), (15, 15), (-5, 15), (-5, -5)])
++
++    association = {
++        'quadras': {quadra_entity: [lote_entity]},
++        'lotes_orfaos': [],
++        'quadra_polygons': {quadra_entity: quadra_poly},
++        'lote_polygons': {lote_entity: lote_poly}
++    }
++    
++    # Textos dentro do lote: um deles é stop word "CASA"
++    textos = [MockDXFText("12", 5, 5), MockDXFText("CASA", 6, 6)]
++
++    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
++    feature = geojson["features"][0]
++    # "CASA" deve ser filtrado. Resta "12", então é válido.
++    assert feature["properties"]["nome"] == "12"
++    assert feature["properties"]["status"] == "valido"
++
++def test_build_geojson_orphan():
++    lote_entity = MockDXFPoly()
++    lote_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
++
++    association = {
++        'quadras': {},
++        'lotes_orfaos': [lote_entity],
++        'quadra_polygons': {},
++        'lote_polygons': {lote_entity: lote_poly}
++    }
++    
++    textos = [MockDXFText("15", 5, 5)]
++    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
++    feature = geojson["features"][0]
++    assert feature["properties"]["status"] == "ambiguo"
++

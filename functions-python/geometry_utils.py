@@ -74,12 +74,9 @@ def associate_lotes_to_quadras(lotes, quadras):
     Returns a dictionary with:
       - 'quadras': dict mapping quadra entity to a list of contained lote entities
       - 'lotes_orfaos': list of lote entities that do not belong to any quadra
+      - 'quadra_polygons': dict mapping quadra entity to Shapely Polygon
+      - 'lote_polygons': dict mapping lote entity to Shapely Polygon
     """
-    association = {
-        'quadras': {q: [] for q in quadras},
-        'lotes_orfaos': []
-    }
-    
     # Pre-compute valid polygons for quadras
     quadra_polygons = {}
     for q in quadras:
@@ -89,13 +86,22 @@ def associate_lotes_to_quadras(lotes, quadras):
         else:
             logger.warning("Quadra converted to None or invalid polygon, will be ignored.")
             
-    # Associate lotes
+    # We also need lote polygons for further processing
+    lote_polygons = {}
     for lote in lotes:
-        lote_poly = ezdxf_entity_to_polygon(lote)
-        if lote_poly is None:
-            logger.warning("Lote converted to None, adding to orphans.")
-            association['lotes_orfaos'].append(lote)
-            continue
+        poly = ezdxf_entity_to_polygon(lote)
+        if poly is not None:
+            lote_polygons[lote] = poly
+
+    association = {
+        'quadras': {q: [] for q in quadras},
+        'lotes_orfaos': [],
+        'quadra_polygons': quadra_polygons,
+        'lote_polygons': lote_polygons
+    }
+    
+    # Associate lotes
+    for lote, lote_poly in lote_polygons.items():
             
         try:
             rep_point = lote_poly.representative_point()
@@ -118,5 +124,11 @@ def associate_lotes_to_quadras(lotes, quadras):
             
             if len(matched_quadras) > 1:
                 logger.info("Lote belongs to multiple quadras. Ambiguity resolved by choosing the smallest quadra.")
+
+    # Lotes that failed to convert to polygon are also orphans
+    for lote in lotes:
+        if lote not in lote_polygons:
+            logger.warning("Lote converted to None, adding to orphans.")
+            association['lotes_orfaos'].append(lote)
 
     return association

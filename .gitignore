@@ -103,3 +103,6 @@ ENV/
 env.bak/
 venv.bak/
 .pytest_cache/
+_bmad-output/implementation-artifacts/diff_*.patch
+_bmad-output/implementation-artifacts/*hunter*prompt.txt
+_bmad-output/implementation-artifacts/*gap_prompt.txt

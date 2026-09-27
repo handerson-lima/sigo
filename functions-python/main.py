@@ -9,6 +9,10 @@ from firebase_admin import initialize_app
 initialize_app()
 logger = logging.getLogger(__name__)
 
+from geometry_utils import associate_lotes_to_quadras
+from heuristics import build_geojson
+from firestore_utils import save_draft_to_firestore, DraftPersistenceError
+
 # Max file size: 50MB
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024
 
@@ -163,7 +167,6 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
             if not lotes and not quadras:
                 logger.warning(f"File {file_data.name} contained no Lote or Quadra entities (NO_ENTITIES).")
             else:
-                from geometry_utils import associate_lotes_to_quadras
                 association = associate_lotes_to_quadras(lotes, quadras)
                 
                 # Log association results
@@ -172,14 +175,23 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
                 logger.info(f"Extracted {len(lotes)} lotes, {len(quadras)} quadras and {len(textos)} textos.")
                 logger.info(f"Associated {associated_count} lotes to quadras. {orphans_count} lotes are orphans.")
                 
-                # The 'association' and 'textos' variables are kept in memory here.
-                # In Story 2.3b, they will be transformed into GeoJSON and saved to Firestore.
-                _ = association
-                _ = textos
+                geojson = build_geojson(
+                    association, 
+                    textos, 
+                    association['quadra_polygons'], 
+                    association['lote_polygons']
+                )
+
+                draft_id = file_data.name.replace('loteamentos_drafts_uploads/', '')
+                save_draft_to_firestore(draft_id, geojson)
+                logger.info(f"Processamento concluído. Rascunho {draft_id} salvo com sucesso.")
             
     except (IOError, OSError) as e:
         logger.error(f"Transient error processing {file_data.name}: {e}")
         raise
+    except DraftPersistenceError as e:
+        logger.error(f"Fatal error persisting {file_data.name}: {e}")
+        # Sem raise para evitar loop infinito de poison messages do DXF para o Firestore
     except Exception as e:
         logger.error(f"Unhandled error processing {file_data.name}: {e}")
         raise
