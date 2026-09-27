@@ -46,7 +46,7 @@ development_status:
   epic-3: in-progress
   3-1-canvas-interativo-e-renderização-estilizada-de-polígonos: review
   3-2-fluxo-rápido-de-correção-via-painel-lateral-e-teclado: backlog
-  3-3-gestão-de-pendências-e-gatilho-de-aprovação: backlog
+  3-3-gestão-de-pendências-e-gatilho-de-aprovação: review
   epic-3-retrospective: optional
 
   epic-4: backlog

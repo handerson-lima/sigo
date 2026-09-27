@@ -403,3 +403,9 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 - source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-3-2-fluxo-rapido-de-correcao-via-painel-lateral-e-teclado.md`
   summary: Suporte para renderização de buracos (inner rings) em polígonos GeoJSON no canvas.
   evidence: A função createPathForFeature lê exclusivamente coords[0], preenchendo os buracos com a cor principal e os tornando clicáveis indevidamente.
+- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-3-3-gestao-de-pendencias-e-gatilho-de-aprovacao.md`
+  summary: Registrar campos de auditoria (ex. updatedAt) no documento do rascunho ao realizar a aprovação.
+  evidence: O método `approveDraft` atualmente atualiza apenas o `status`. Outros requisitos de rastreabilidade podem ser necessários no futuro.
+- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-3-3-gestao-de-pendencias-e-gatilho-de-aprovacao.md`
+  summary: Mover o código da aprovação do onClick do widget para a lógica de negócio (Controller/Notifier)
+  evidence: Requisito arquitetural menor (low); deixado para a futura melhoria se o fluxo ficar mais complexo.

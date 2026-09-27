@@ -84,4 +84,10 @@ class LoteamentosImportRepository {
       transaction.update(docRef, {'features': features});
     });
   }
+
+  /// Atualiza o status do rascunho inteiro para aprovado
+  Future<void> approveDraft(String draftId) async {
+    final docRef = _firestore.collection('loteamentos_drafts').doc(draftId);
+    await docRef.update({'status': 'aprovado'});
+  }
 }

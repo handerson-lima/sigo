@@ -28,6 +28,7 @@ class LoteamentoCanvasScreen extends ConsumerStatefulWidget {
 
 class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen> {
   int? _selectedFeatureIndex;
+  bool _isApproving = false;
 
   @override
   Widget build(BuildContext context) {
@@ -64,12 +65,31 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
               Padding(
                 padding: const EdgeInsets.only(right: 16.0),
                 child: FilledButton(
-                  onPressed: ambiguos == 0 ? () {
-                    // Aprovação final (stub para a proxima estoria)
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aprovação finalizada')));
-                    context.pop();
+                  onPressed: (ambiguos == 0 && !_isApproving) ? () async {
+                    setState(() => _isApproving = true);
+                    try {
+                      final repo = ref.read(loteamentosImportRepositoryProvider);
+                      await repo.approveDraft(widget.draftId);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rascunho aprovado com sucesso! Processamento iniciado.')));
+                      context.pop();
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao aprovar rascunho: $e')));
+                      }
+                    } finally {
+                      if (context.mounted) {
+                        setState(() => _isApproving = false);
+                      }
+                    }
                   } : null,
-                  child: const Text('Aprovar Definitivamente'),
+                  child: _isApproving 
+                      ? const SizedBox(
+                          width: 20, 
+                          height: 20, 
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
+                        )
+                      : const Text('Aprovar Definitivamente'),
                 ),
               )
             ];
