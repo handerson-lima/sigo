@@ -39,7 +39,7 @@ development_status:
 
   epic-2: in-progress
   2-1-gatilho-onfinalize-e-extração-de-geometria-bruta: done
-  2-2-algoritmo-espacial-point-in-polygon: backlog
+  2-2-algoritmo-espacial-point-in-polygon: review
   2-3-heurística-de-ambiguidades-e-persistência-do-rascunho-geojso: backlog
   epic-2-retrospective: optional
 

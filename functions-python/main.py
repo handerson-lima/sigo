@@ -163,7 +163,19 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
             if not lotes and not quadras:
                 logger.warning(f"File {file_data.name} contained no Lote or Quadra entities (NO_ENTITIES).")
             else:
+                from geometry_utils import associate_lotes_to_quadras
+                association = associate_lotes_to_quadras(lotes, quadras)
+                
+                # Log association results
+                associated_count = sum(len(l) for l in association['quadras'].values())
+                orphans_count = len(association['lotes_orfaos'])
                 logger.info(f"Extracted {len(lotes)} lotes, {len(quadras)} quadras and {len(textos)} textos.")
+                logger.info(f"Associated {associated_count} lotes to quadras. {orphans_count} lotes are orphans.")
+                
+                # The 'association' and 'textos' variables are kept in memory here.
+                # In Story 2.3b, they will be transformed into GeoJSON and saved to Firestore.
+                _ = association
+                _ = textos
             
     except (IOError, OSError) as e:
         logger.error(f"Transient error processing {file_data.name}: {e}")
