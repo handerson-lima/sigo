@@ -32,7 +32,7 @@ class _LoteamentoImportScreenState
       if (user == null) throw Exception('Usuário não autenticado');
 
       final repo = ref.read(loteamentosImportRepositoryProvider);
-      final draftId = await repo.uploadDxf(
+      final draftId = await repo.uploadFile(
         userId: user.uid,
         construtoraId: widget.construtoraId,
         fileBytes: bytes,
@@ -56,7 +56,7 @@ class _LoteamentoImportScreenState
   Future<void> _pickFile() async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['dxf'],
+      allowedExtensions: ['dxf', 'pdf'],
     );
 
     if (result.isNotEmpty) {
@@ -69,7 +69,7 @@ class _LoteamentoImportScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Importar Loteamento (DXF)')),
+      appBar: AppBar(title: const Text('Importar Loteamento (DXF ou PDF)')),
       body: Center(
         child: isUploading
             ? const Column(
@@ -107,16 +107,16 @@ class _LoteamentoImportScreenState
                         setState(() => isHighlighted = false);
                         final name = await dropzoneController.getFilename(ev);
                         final bytes = await dropzoneController.getFileData(ev);
-                        if (!name.toLowerCase().endsWith('.dxf')) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Por favor, envie um arquivo .dxf',
-                                ),
+                        if (!context.mounted) return;
+                        if (!name.toLowerCase().endsWith('.dxf') &&
+                            !name.toLowerCase().endsWith('.pdf')) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Por favor, envie um arquivo .dxf ou .pdf',
                               ),
-                            );
-                          }
+                            ),
+                          );
                           return;
                         }
                         await _uploadFileBytes(bytes, name);
@@ -133,7 +133,7 @@ class _LoteamentoImportScreenState
                           ),
                           const SizedBox(height: 16),
                           const Text(
-                            'Arraste e solte o arquivo .dxf aqui',
+                            'Arraste um .dxf ou PDF experimental aqui',
                             style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
                           const SizedBox(height: 16),

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 from geometry_utils import associate_lotes_to_quadras
 from heuristics import build_geojson
+from pdf_extraction import PdfExtractionError, extract_pdf_geojson
 from firestore_utils import (
     DraftPersistenceError,
     consolidate_approved_draft,
@@ -223,8 +224,9 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
         logger.info(f"Ignoring file outside loteamentos_drafts_uploads: {file_data.name}")
         return
 
-    if not file_data.name.lower().endswith('.dxf'):
-        logger.info(f"Ignoring non-dxf file: {file_data.name}")
+    file_name_lower = file_data.name.lower()
+    if not (file_name_lower.endswith('.dxf') or file_name_lower.endswith('.pdf')):
+        logger.info(f"Ignoring unsupported file: {file_data.name}")
         return
 
     # Size check
@@ -252,10 +254,26 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     bucket = storage_client.bucket(file_data.bucket)
     blob = bucket.blob(file_data.name, generation=file_data.generation)
 
-    fd, temp_local_filename = tempfile.mkstemp(suffix=".dxf")
+    is_pdf = file_name_lower.endswith('.pdf')
+    fd, temp_local_filename = tempfile.mkstemp(suffix='.pdf' if is_pdf else '.dxf')
     try:
         blob.download_to_filename(temp_local_filename)
         logger.info(f"Downloaded {file_data.name} to {temp_local_filename}")
+
+        if is_pdf:
+            geojson = extract_pdf_geojson(temp_local_filename)
+            draft_id = file_data.name.split('/')[-1]
+            save_draft_to_firestore(
+                draft_id,
+                geojson,
+                {**_upload_metadata(file_data), 'sourceFormat': 'pdf_experimental'},
+            )
+            logger.info(
+                'PDF experimental concluído. Rascunho %s salvo com %s lotes.',
+                draft_id,
+                len(geojson['features']),
+            )
+            return
 
         result = extract_dxf_geometries(temp_local_filename)
 
@@ -291,6 +309,8 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     except DraftPersistenceError:
         logger.exception(f"Fatal error persisting {file_data.name}")
         # Sem raise para evitar loop infinito de poison messages do DXF para o Firestore
+    except PdfExtractionError as error:
+        logger.error('PDF_EXPERIMENTAL_INVALID: %s', error)
     except Exception as e:
         logger.error(f"Unhandled error processing {file_data.name}: {e}")
         raise

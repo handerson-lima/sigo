@@ -10,7 +10,8 @@ class FakeFirebaseStorage extends Fake implements FirebaseStorage {}
 
 class _RecordingUploadTask extends Fake implements UploadTask {
   @override
-  Future<T> then<T>(FutureOr<T> Function(TaskSnapshot) onValue, {
+  Future<T> then<T>(
+    FutureOr<T> Function(TaskSnapshot) onValue, {
     Function? onError,
   }) => Future<T>.value(onValue(FakeTaskSnapshot()));
 }
@@ -114,6 +115,18 @@ void main() {
       );
     });
 
+    test(
+      'aceita PDF e preserva seu nome base para o rascunho experimental',
+      () {
+        expect(
+          LoteamentosImportRepository.loteamentoNameFromFilename(
+            '00-LOTEAMENTO_HR_R13A_CLUSTER_A_QUADRAS_E_LOTES_R2013.pdf',
+          ),
+          '00-LOTEAMENTO_HR_R13A_CLUSTER_A_QUADRAS_E_LOTES_R2013',
+        );
+      },
+    );
+
     test('rejeita nome DXF sem base utilizável antes do upload', () {
       expect(
         LoteamentosImportRepository.loteamentoNameFromFilename('.dxf'),
@@ -145,19 +158,43 @@ void main() {
       });
     });
 
-    test('aprovação sempre registra uma nova solicitação de consolidação', () async {
-      final draft = fakeFirestore.collection('loteamentos_drafts').doc('draft-1');
-      await draft.set({'status': 'pendente'});
+    test('envia PDF com content type apropriado', () async {
+      final storage = _RecordingFirebaseStorage();
+      final repo = LoteamentosImportRepository(fakeFirestore, storage);
 
-      await repository.approveDraft('draft-1');
-      final firstRequest = (await draft.get()).data()?['consolidationRequestId'];
-      await repository.approveDraft('draft-1');
-      final data = (await draft.get()).data();
+      await repo.uploadFile(
+        userId: 'user-1',
+        construtoraId: 'construtora-1',
+        fileBytes: Uint8List.fromList([1, 2]),
+        filename: 'Loteamento A.pdf',
+      );
 
-      expect(data?['status'], 'aprovado');
-      expect(firstRequest, isA<String>());
-      expect(data?['consolidationRequestId'], isA<String>());
-      expect(data?['consolidationRequestId'], isNot(firstRequest));
+      expect(storage.reference.metadata?.contentType, 'application/pdf');
+      expect(
+        storage.reference.metadata?.customMetadata?['loteamentoName'],
+        'Loteamento A',
+      );
     });
+
+    test(
+      'aprovação sempre registra uma nova solicitação de consolidação',
+      () async {
+        final draft = fakeFirestore
+            .collection('loteamentos_drafts')
+            .doc('draft-1');
+        await draft.set({'status': 'pendente'});
+
+        await repository.approveDraft('draft-1');
+        final firstRequest = (await draft.get())
+            .data()?['consolidationRequestId'];
+        await repository.approveDraft('draft-1');
+        final data = (await draft.get()).data();
+
+        expect(data?['status'], 'aprovado');
+        expect(firstRequest, isA<String>());
+        expect(data?['consolidationRequestId'], isA<String>());
+        expect(data?['consolidationRequestId'], isNot(firstRequest));
+      },
+    );
   });
 }

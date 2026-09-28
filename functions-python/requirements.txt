@@ -3,3 +3,6 @@ firebase-admin>=6.5.0
 ezdxf>=1.1.4
 google-cloud-storage>=2.18.2
 shapely>=2.0.0
+PyMuPDF>=1.24.0
+opencv-python-headless>=4.10.0
+pytesseract>=0.3.13
