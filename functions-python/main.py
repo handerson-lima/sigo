@@ -202,7 +202,8 @@ def extract_dxf_geometries(filepath: str):
 
 @storage_fn.on_object_finalized(
     region="us-east1",
-    memory=options.MemoryOption.MB_512
+    # A rasterização integral de plantas PDF pode ultrapassar 512 MiB.
+    memory=options.MemoryOption.GB_1
 )
 def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     """
@@ -311,6 +312,15 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
         # Sem raise para evitar loop infinito de poison messages do DXF para o Firestore
     except PdfExtractionError as error:
         logger.error('PDF_EXPERIMENTAL_INVALID: %s', error)
+        # Persiste o resultado terminal para que a tela não fique aguardando um
+        # documento que nunca existirá.
+        draft_id = file_data.name.split('/')[-1]
+        save_draft_to_firestore(
+            draft_id,
+            {'type': 'FeatureCollection', 'features': []},
+            {**_upload_metadata(file_data), 'status': 'erro',
+             'sourceFormat': 'pdf_experimental', 'processingError': str(error)},
+        )
     except Exception as e:
         logger.error(f"Unhandled error processing {file_data.name}: {e}")
         raise

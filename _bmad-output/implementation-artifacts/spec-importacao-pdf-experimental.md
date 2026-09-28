@@ -2,7 +2,7 @@
 title: 'Importação experimental de loteamento por PDF'
 type: 'feature'
 created: '2026-09-28'
-status: 'in-progress'
+status: 'in-review'
 route: 'dispatch'
 review_loop_iteration: 0
 context: []
@@ -47,9 +47,9 @@ baseline_commit: 'f4081b4aad784ade28e02de80d2688881722d1b0'
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `app/lib/src/features/loteamentos/presentation/loteamento_import_screen.dart` e `app/lib/src/features/loteamentos/data/loteamentos_import_repository.dart` -- permitir seleção/drop de PDF experimental, metadados corretos e nome-base, sem alterar a rota DXF.
-- [ ] `functions-python/main.py`, novo extrator PDF e `functions-python/requirements.txt` -- reconhecer PDF, extrair paths/textos quando disponíveis ou aplicar OCR/vetorização de imagem, gerar o mesmo GeoJSON e salvar um rascunho somente quando houver lotes utilizáveis.
-- [ ] `functions-python/tests/test_main.py` e testes Flutter de repositório -- cobrir PDF válido, PDF sem geometria aproveitável, validação de extensão/tipo e regressão de DXF.
+- [x] `app/lib/src/features/loteamentos/presentation/loteamento_import_screen.dart` e `app/lib/src/features/loteamentos/data/loteamentos_import_repository.dart` -- permitir seleção/drop de PDF experimental, metadados corretos e nome-base, sem alterar a rota DXF.
+- [x] `functions-python/main.py`, novo extrator PDF e `functions-python/requirements.txt` -- reconhecer PDF, extrair paths/textos quando disponíveis ou aplicar OCR/vetorização de imagem, gerar o mesmo GeoJSON e salvar um rascunho somente quando houver lotes utilizáveis.
+- [x] `functions-python/tests/test_main.py` e testes Flutter de repositório -- cobrir PDF válido, PDF sem geometria aproveitável, validação de extensão/tipo e regressão de DXF.
 
 **Acceptance Criteria:**
 - Given uma planta PDF dentro do limite, inclusive exportada como imagem como o anexo, when o usuário selecionar o arquivo na tela de importação, then o sistema criará um rascunho pendente e abrirá a revisão sem publicar quadras ou lotes.
@@ -60,6 +60,7 @@ baseline_commit: 'f4081b4aad784ade28e02de80d2688881722d1b0'
 ## Implementation Notes
 
 - A inspeção inicial do anexo mostrou uma página de planta exportada pelo Autodesk Viewer e um recurso de imagem. A extração deve preferir paths/textos reais, usar OCR/vetorização quando necessário e nunca inferir precisão CAD a partir da prévia visual.
+- O anexo foi confirmado como rasterizado (uma imagem de 3508×2086, sem paths técnicos). A vetorização identificou células fechadas e mantém todo resultado como `ambiguo`; a imagem não é usada como fonte de precisão CAD. `apt.txt` instala o binário Tesseract no build da função para o OCR opcional.
 
 ## Spec Change Log
 

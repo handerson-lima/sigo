@@ -14,6 +14,7 @@ from main import (
     firestore,
     processar_dxf,
 )
+from pdf_extraction import PdfExtractionError
 
 class MockCloudEvent:
     def __init__(self, data):
@@ -287,6 +288,61 @@ def test_processar_dxf_too_large(mock_storage_client):
     ))
     processar_dxf(event)
     mock_storage_client.assert_not_called()
+
+
+@patch("main.storage.Client")
+def test_processar_pdf_too_large(mock_storage_client):
+    event = MockCloudEvent(MockStorageObjectData(
+        name="loteamentos_drafts_uploads/user/123_file.pdf",
+        size=str(51 * 1024 * 1024),
+    ))
+
+    processar_dxf(event)
+
+    mock_storage_client.assert_not_called()
+
+
+@patch("main.storage.Client")
+@patch("main.save_draft_to_firestore")
+@patch("main.extract_pdf_geojson")
+def test_processar_pdf_valid(mock_extract, mock_save_draft, mock_storage_client):
+    event = MockCloudEvent(MockStorageObjectData(
+        name="loteamentos_drafts_uploads/user/123_file.pdf",
+        metadata={'construtoraId': 'construtora-1', 'loteamentoName': 'Loteamento PDF'},
+    ))
+    mock_extract.return_value = {'type': 'FeatureCollection', 'features': [{'type': 'Feature'}]}
+    mock_storage_client.return_value.bucket.return_value.blob.return_value = MagicMock()
+
+    processar_dxf(event)
+
+    mock_extract.assert_called_once()
+    mock_save_draft.assert_called_once_with(
+        '123_file.pdf',
+        mock_extract.return_value,
+        {
+            'construtoraId': 'construtora-1',
+            'loteamentoName': 'Loteamento PDF',
+            'status': 'pendente',
+            'sourceFormat': 'pdf_experimental',
+        },
+    )
+
+
+@patch("main.storage.Client")
+@patch("main.save_draft_to_firestore")
+@patch("main.extract_pdf_geojson", side_effect=PdfExtractionError('sem contornos'))
+def test_processar_pdf_without_contours_persists_terminal_error(mock_extract, mock_save_draft, mock_storage_client):
+    event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.pdf"))
+    mock_storage_client.return_value.bucket.return_value.blob.return_value = MagicMock()
+
+    processar_dxf(event)
+
+    mock_extract.assert_called_once()
+    mock_save_draft.assert_called_once()
+    _, geojson, metadata = mock_save_draft.call_args.args
+    assert geojson['features'] == []
+    assert metadata['status'] == 'erro'
+    assert metadata['processingError'] == 'sem contornos'
 
 @patch("main.storage.Client")
 @patch("main.save_draft_to_firestore")

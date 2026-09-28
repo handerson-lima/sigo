@@ -49,6 +49,19 @@ class _LoteamentoProcessingScreenState extends ConsumerState<LoteamentoProcessin
               );
             }
 
+            if (data['status'] == 'erro') {
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error, color: Colors.red, size: 64),
+                  const SizedBox(height: 16),
+                  Text('Não foi possível extrair a geometria:\n${data['processingError'] ?? 'erro desconhecido'}', textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  ElevatedButton(onPressed: () => context.pop(), child: const Text('Voltar')),
+                ],
+              );
+            }
+
             // Quando houver data, redireciona automaticamente
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
