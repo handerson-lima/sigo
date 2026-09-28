@@ -241,7 +241,7 @@ void main() {
       expect(button.onPressed, isNotNull);
     });
 
-    testWidgets('permite aprovação para elementos sem pendência', (
+    testWidgets('bloqueia aprovação sem lote', (
       tester,
     ) async {
       for (final properties in [
@@ -271,11 +271,11 @@ void main() {
         final button = tester.widget<FilledButton>(
           find.widgetWithText(FilledButton, 'Aprovar Definitivamente'),
         );
-        expect(button.onPressed, isNotNull);
+        expect(button.onPressed, isNull);
       }
     });
 
-    testWidgets('permite aprovação de rascunho sem pendências', (
+    testWidgets('bloqueia aprovação de rascunho apenas com quadras', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -304,7 +304,7 @@ void main() {
       final button = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Aprovar Definitivamente'),
       );
-      expect(button.onPressed, isNotNull);
+      expect(button.onPressed, isNull);
     });
 
     testWidgets('aprova, informa a consolidação e navega para a lista', (

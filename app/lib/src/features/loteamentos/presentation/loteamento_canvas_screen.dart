@@ -55,6 +55,11 @@ class _LoteamentoCanvasScreenState
                   if (props is! Map<String, dynamic>) return false;
                   return props['status'] == 'ambiguo';
                 }).length;
+                final possuiLote = features.any((f) {
+                  if (f is! Map<String, dynamic>) return false;
+                  final props = f['properties'];
+                  return props is Map<String, dynamic> && props['tipo'] == 'lote';
+                });
                 return [
                   Center(
                     child: Padding(
@@ -71,7 +76,7 @@ class _LoteamentoCanvasScreenState
                     padding: const EdgeInsets.only(right: 16.0),
                     child: FilledButton(
                       onPressed:
-                          (ambiguos == 0 && !_isApproving)
+                          (ambiguos == 0 && possuiLote && !_isApproving)
                           ? () async {
                               setState(() => _isApproving = true);
                               try {
