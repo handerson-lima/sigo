@@ -100,7 +100,9 @@ class ConstrutorasListScreen extends ConsumerWidget {
                             )
                           else
                             Container(
-                              color: Theme.of(context).colorScheme.surfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
                               child: const Center(
                                 child: Icon(
                                   Icons.business,
@@ -126,10 +128,11 @@ class ConstrutorasListScreen extends ConsumerWidget {
                             bottom: 16,
                             child: Text(
                               construtora.name,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),

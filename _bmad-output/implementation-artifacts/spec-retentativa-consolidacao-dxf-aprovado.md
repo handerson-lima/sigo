@@ -2,7 +2,7 @@
 title: 'Permitir retentativa da consolidação de loteamento DXF aprovado'
 type: 'bugfix'
 created: '2026-09-28'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 context: []
@@ -46,10 +46,10 @@ baseline_commit: '42468bd2af8d1be56fc09c715ce586f573ae5109'
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `app/lib/src/features/loteamentos/data/loteamentos_import_repository.dart` -- gravar, junto ao status aprovado, um valor de solicitação de consolidação que mude a cada confirmação; isso permite a retentativa sem manipular o status do rascunho.
-- [ ] `functions-python/main.py` -- disparar a consolidação de um draft aprovado somente quando houver uma solicitação nova, ignorar reentregas da mesma solicitação, registrar execução e persistir uma marca de conclusão somente depois de êxito.
-- [ ] `functions-python/tests/test_main.py` e testes Flutter pertinentes -- validar primeira aprovação, retentativa de draft já aprovado, reentrega idêntica e propagação de erro sem falsa conclusão.
-- [ ] Publicação -- fazer deploy da função Firestore atualizada após os testes, pois o gatilho é uma dependência externa da criação de Quadras.
+- [x] `app/lib/src/features/loteamentos/data/loteamentos_import_repository.dart` -- gravar, junto ao status aprovado, um valor de solicitação de consolidação que mude a cada confirmação; isso permite a retentativa sem manipular o status do rascunho.
+- [x] `functions-python/main.py` -- disparar a consolidação de um draft aprovado somente quando houver uma solicitação nova, ignorar reentregas da mesma solicitação, registrar execução e persistir uma marca de conclusão somente depois de êxito.
+- [x] `functions-python/tests/test_main.py` e testes Flutter pertinentes -- validar primeira aprovação, retentativa de draft já aprovado, reentrega idêntica e propagação de erro sem falsa conclusão.
+- [x] Publicação -- fazer deploy da função Firestore atualizada após os testes, pois o gatilho é uma dependência externa da criação de Quadras.
 
 **Acceptance Criteria:**
 - Given um draft aprovado cuja criação final não ocorreu, when o usuário confirma a aprovação novamente, then o backend recebe uma solicitação nova e cria o loteamento, suas quadras e seus lotes sem exigir um novo upload.
@@ -61,9 +61,21 @@ baseline_commit: '42468bd2af8d1be56fc09c715ce586f573ae5109'
 
 O Firebase usado pelo Flutter e pela função é `sigo-c2eb2`. A função publicada está ativa, mas os logs posteriores à aprovação não exibem execução da consolidação. O contrato será estendido com uma solicitação explícita, em vez de depender implicitamente de uma única mudança de status.
 
+- `approveDraft` agora emite `consolidationRequestId` criptograficamente imprevisível a cada confirmação.
+- O gatilho reivindica a solicitação por transação, cria dados finais por IDs determinísticos e marca somente o request concluído; ao falhar, libera a reivindicação sem apagar o draft.
+- Verificado localmente: 45 testes Python e 15 testes Flutter passaram; `git diff --check` não reportou falhas.
+- Publicado em `sigo-c2eb2`: `consolidar_loteamento_aprovado` ficou `ACTIVE` com hash `cf1b5724e96a09e6d139b974783bba3c32e19fc4`.
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+- medium / patch — Entregas concorrentes não tinham teste direto da reserva/liberação transacional; foram adicionados fakes que exercitam o claim, a liberação e a conclusão condicional.
+- medium / patch — Uma falha ou término entre o claim e o `except` poderia manter a solicitação presa; o claim agora expira após 120 segundos, permitindo que a política Eventarc tente novamente.
+- medium / patch — Uma conclusão antiga poderia remover o processamento de uma solicitação nova; a conclusão é transacional e só altera o rascunho enquanto conserva o claim correspondente.
+- medium / rejected — A materialização usa o snapshot do evento e `set` determinístico; editar features depois de aprovar não é um caminho disponível na tela, e preservar edições posteriores em documentos finais é uma política diferente da retentativa solicitada.
+- high / patch — O servidor exigia `resolvido` enquanto a tela aceita qualquer lote não ambíguo; a validação do servidor agora só bloqueia `ambiguo`, em conformidade com a UI.
+- medium / patch — A publicação era necessária para o ajuste afetar produção; a função foi publicada e confirmada como `ACTIVE` com hash `cf1b5724e96a09e6d139b974783bba3c32e19fc4`.
 
 ## Design Notes
 

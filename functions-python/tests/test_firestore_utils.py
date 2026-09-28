@@ -191,6 +191,27 @@ def test_consolidate_infers_missing_quadra_feature_from_lote_reference():
     assert lote['quadraId'] == quadra['id']
 
 
+def test_consolidate_groups_lotes_without_quadra_label_in_default_quadra():
+    db = FakeDb()
+    draft = approved_draft()
+    draft['features'] = [
+        {'properties': {'tipo': 'lote', 'nome': 'L 1', 'quadra': '', 'status': 'valido'}},
+        {'properties': {'tipo': 'lote', 'nome': 'L 2', 'status': 'valido'}},
+    ]
+
+    consolidate_approved_draft('draft-1', draft, db)
+
+    documents = {
+        reference.path: document
+        for commit in db.commits
+        for reference, document in commit
+    }
+    quadra = next(document for path, document in documents.items() if path.startswith('quadras/'))
+    assert quadra['name'] == 'Quadra sem identificação'
+    assert documents['lotes/draft-1--lote--0']['quadraId'] == quadra['id']
+    assert documents['lotes/draft-1--lote--1']['quadraId'] == quadra['id']
+
+
 @pytest.mark.parametrize('features', [
     [{'properties': {'tipo': 'rua', 'nome': 'Rua 1'}}],
     [{'properties': {'tipo': 'quadra', 'nome': 'Q 1'}}],
@@ -212,7 +233,7 @@ def test_consolidate_rejects_lote_not_resolvido_before_commits():
     draft = approved_draft()
     draft['features'][1]['properties']['status'] = 'ambiguo'
 
-    with pytest.raises(ValueError, match='não está resolvido'):
+    with pytest.raises(ValueError, match='está ambíguo'):
         consolidate_approved_draft('draft-1', draft, db)
 
     assert db.commits == []
