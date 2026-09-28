@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -116,6 +117,13 @@ class LoteamentosImportRepository {
   /// Atualiza o status do rascunho inteiro para aprovado
   Future<void> approveDraft(String draftId) async {
     final docRef = _firestore.collection('loteamentos_drafts').doc(draftId);
-    await docRef.update({'status': 'aprovado'});
+    final requestId =
+        '${DateTime.now().toUtc().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
+    await docRef.update({
+      'status': 'aprovado',
+      // Cada confirmação cria uma solicitação distinta, inclusive quando o
+      // rascunho já está aprovado e precisa ser consolidado novamente.
+      'consolidationRequestId': requestId,
+    });
   }
 }

@@ -122,7 +122,7 @@ def approved_draft(lote_count=1):
     }
 
 
-def test_consolidate_creates_final_hierarchy_and_deletes_draft():
+def test_consolidate_creates_final_hierarchy_and_retains_draft_for_retry_tracking():
     db = FakeDb()
     consolidate_approved_draft('draft-1', approved_draft(), db)
 
@@ -136,7 +136,7 @@ def test_consolidate_creates_final_hierarchy_and_deletes_draft():
     assert documents['lotes/draft-1--lote--1']['construtoraId'] == 'construtora-1'
     assert documents['lotes/draft-1--lote--1']['loteamentoId'] == 'draft-1--loteamento'
     assert documents['lotes/draft-1--lote--1']['quadraId'] == 'draft-1--quadra--0'
-    assert db.collection('loteamentos_drafts').document('draft-1').deleted
+    assert not db.collection('loteamentos_drafts').document('draft-1').deleted
 
 
 def test_consolidate_is_idempotent_for_repeated_event():
@@ -158,7 +158,7 @@ def test_consolidate_splits_writes_at_firestore_batch_limit():
     consolidate_approved_draft('draft-1', approved_draft(lote_count=1000), db)
 
     assert [len(commit) for commit in db.commits] == [500, 500, 2]
-    assert db.collection('loteamentos_drafts').document('draft-1').deleted
+    assert not db.collection('loteamentos_drafts').document('draft-1').deleted
 
 
 def test_consolidate_does_not_delete_draft_after_partial_batch_failure():

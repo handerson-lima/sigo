@@ -34,21 +34,51 @@ class MockApprovalEvent:
 
 
 @patch('main.consolidate_approved_draft')
-def test_consolidar_loteamento_aprovado_only_runs_on_status_transition(mock_consolidate):
-    event = MockApprovalEvent({'status': 'pendente'}, {'status': 'aprovado'})
+@patch('main.firestore.client')
+def test_consolidar_loteamento_aprovado_processes_new_request_and_marks_completion(mock_client, mock_consolidate):
+    event = MockApprovalEvent(
+        {'status': 'pendente'},
+        {'status': 'aprovado', 'consolidationRequestId': 'request-1'},
+    )
     consolidar_loteamento_aprovado(event)
-    mock_consolidate.assert_called_once_with('draft-1', {'status': 'aprovado'})
+    mock_consolidate.assert_called_once_with('draft-1', {
+        'status': 'aprovado', 'consolidationRequestId': 'request-1',
+    })
+    mock_client.return_value.collection.return_value.document.return_value.update.assert_called_once_with({
+        'consolidationCompletedRequestId': 'request-1',
+    })
 
-    consolidar_loteamento_aprovado(MockApprovalEvent({'status': 'aprovado'}, {'status': 'aprovado'}))
+    consolidar_loteamento_aprovado(MockApprovalEvent(
+        {'status': 'aprovado', 'consolidationRequestId': 'request-1'},
+        {'status': 'aprovado', 'consolidationRequestId': 'request-1'},
+    ))
     consolidar_loteamento_aprovado(MockApprovalEvent({'status': 'pendente'}, {'status': 'pendente'}))
     assert mock_consolidate.call_count == 1
 
 
 @patch('main.consolidate_approved_draft', side_effect=RuntimeError('batch failed'))
-def test_consolidar_loteamento_aprovado_propagates_materialization_failure(mock_consolidate):
+@patch('main.firestore.client')
+def test_consolidar_loteamento_aprovado_propagates_failure_without_marking_completion(mock_client, mock_consolidate):
     with pytest.raises(RuntimeError, match='batch failed'):
-        consolidar_loteamento_aprovado(MockApprovalEvent({'status': 'pendente'}, {'status': 'aprovado'}))
+        consolidar_loteamento_aprovado(MockApprovalEvent(
+            {'status': 'pendente'},
+            {'status': 'aprovado', 'consolidationRequestId': 'request-1'},
+        ))
     mock_consolidate.assert_called_once()
+    mock_client.return_value.collection.return_value.document.return_value.update.assert_not_called()
+
+
+@patch('main.consolidate_approved_draft')
+@patch('main.firestore.client')
+def test_consolidar_loteamento_aprovado_retries_approved_draft_with_new_request(mock_client, mock_consolidate):
+    consolidar_loteamento_aprovado(MockApprovalEvent(
+        {'status': 'aprovado', 'consolidationRequestId': 'request-1'},
+        {'status': 'aprovado', 'consolidationRequestId': 'request-2'},
+    ))
+    mock_consolidate.assert_called_once()
+    mock_client.return_value.collection.return_value.document.return_value.update.assert_called_once_with({
+        'consolidationCompletedRequestId': 'request-2',
+    })
 
 
 def test_consolidar_loteamento_aprovado_enables_event_retry():

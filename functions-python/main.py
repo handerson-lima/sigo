@@ -13,7 +13,7 @@ import logging
 import ezdxf
 from google.cloud import storage
 from firebase_functions import firestore_fn, storage_fn, options
-from firebase_admin import initialize_app
+from firebase_admin import initialize_app, firestore
 
 initialize_app()
 logger = logging.getLogger(__name__)
@@ -236,21 +236,40 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     region='us-east1',
 )
 def consolidar_loteamento_aprovado(event: firestore_fn.Event[firestore_fn.Change]):
-    """Consolidate a draft exactly when its status changes to ``aprovado``."""
+    """Consolida apenas uma solicitação nova de um rascunho aprovado."""
     before = event.data.before.to_dict() if event.data.before else None
     after = event.data.after.to_dict() if event.data.after else None
     if not after or after.get('status') != 'aprovado':
+        logger.info('Ignoring consolidation event: draft is not approved')
         return
-    if before and before.get('status') == 'aprovado':
+
+    request_id = after.get('consolidationRequestId')
+    previous_request_id = before.get('consolidationRequestId') if before else None
+    completed_request_id = after.get('consolidationCompletedRequestId')
+    if not request_id:
+        logger.info('Ignoring consolidation event: approved draft has no request id')
+        return
+    if request_id == previous_request_id:
+        logger.info('Ignoring duplicate consolidation request %s', request_id)
+        return
+    if request_id == completed_request_id:
+        logger.info('Ignoring completed consolidation request %s', request_id)
         return
 
     draft_id = event.params['draft_id']
-    logger.info('Starting consolidation for draft %s', draft_id)
+    logger.info('Starting consolidation request %s for draft %s', request_id, draft_id)
     try:
         consolidate_approved_draft(draft_id, after)
-        logger.info('Consolidation completed for draft %s', draft_id)
+        firestore.client().collection('loteamentos_drafts').document(draft_id).update({
+            'consolidationCompletedRequestId': request_id,
+        })
+        logger.info('Consolidation request %s completed for draft %s', request_id, draft_id)
     except Exception:
-        logger.exception('Consolidation failed for draft %s; draft retained for retry', draft_id)
+        logger.exception(
+            'Consolidation request %s failed for draft %s; draft retained for retry',
+            request_id,
+            draft_id,
+        )
         raise
 
 

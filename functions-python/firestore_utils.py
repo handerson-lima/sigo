@@ -54,7 +54,9 @@ def consolidate_approved_draft(draft_id: str, draft: dict, db=None) -> None:
     """Materialize an approved GeoJSON draft using deterministic document IDs.
 
     Every write uses ``set`` so a CloudEvent retry converges on the same final
-    documents.  The draft is deleted only after every write batch succeeds.
+    documents. The approval trigger records completion on the retained draft
+    only after every write batch succeeds, so a new request can retry a failed
+    or missed event without recreating final documents.
     """
     construtora_id = _value(draft, 'construtoraId')
     loteamento_name = _value(draft, 'loteamentoName')
@@ -150,7 +152,4 @@ def consolidate_approved_draft(draft_id: str, draft: dict, db=None) -> None:
             batch.set(reference, document)
         batch.commit()
 
-    # Deliberately outside the write batches: a failed materialization never
-    # removes the retry source.
-    db.collection('loteamentos_drafts').document(draft_id).delete()
-    logger.info('Draft %s consolidated: %d final documents', draft_id, len(writes))
+    logger.info('Draft %s materialized: %d final documents', draft_id, len(writes))

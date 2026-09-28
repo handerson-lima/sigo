@@ -144,5 +144,20 @@ void main() {
         'loteamentoName': 'Loteamento A',
       });
     });
+
+    test('aprovação sempre registra uma nova solicitação de consolidação', () async {
+      final draft = fakeFirestore.collection('loteamentos_drafts').doc('draft-1');
+      await draft.set({'status': 'pendente'});
+
+      await repository.approveDraft('draft-1');
+      final firstRequest = (await draft.get()).data()?['consolidationRequestId'];
+      await repository.approveDraft('draft-1');
+      final data = (await draft.get()).data();
+
+      expect(data?['status'], 'aprovado');
+      expect(firstRequest, isA<String>());
+      expect(data?['consolidationRequestId'], isA<String>());
+      expect(data?['consolidationRequestId'], isNot(firstRequest));
+    });
   });
 }
