@@ -7,10 +7,11 @@ import 'widgets/geojson_canvas_widget.dart';
 import 'widgets/lote_correcao_panel.dart';
 
 // O mesmo provider que escuta o draft no processamento.
-final canvasDraftStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, draftId) {
-  final repo = ref.watch(loteamentosImportRepositoryProvider);
-  return repo.watchDraft(draftId);
-});
+final canvasDraftStreamProvider =
+    StreamProvider.family<Map<String, dynamic>?, String>((ref, draftId) {
+      final repo = ref.watch(loteamentosImportRepositoryProvider);
+      return repo.watchDraft(draftId);
+    });
 
 class LoteamentoCanvasScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -23,10 +24,12 @@ class LoteamentoCanvasScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<LoteamentoCanvasScreen> createState() => _LoteamentoCanvasScreenState();
+  ConsumerState<LoteamentoCanvasScreen> createState() =>
+      _LoteamentoCanvasScreenState();
 }
 
-class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen> {
+class _LoteamentoCanvasScreenState
+    extends ConsumerState<LoteamentoCanvasScreen> {
   int? _selectedFeatureIndex;
   bool _isApproving = false;
 
@@ -41,60 +44,85 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        actions: draftStream.whenOrNull(
-          data: (data) {
-            if (data == null) return null;
-            final features = data['features'] as List<dynamic>? ?? [];
-            final ambiguos = features.where((f) {
-              if (f is! Map<String, dynamic>) return false;
-              final props = f['properties'];
-              if (props is! Map<String, dynamic>) return false;
-              return props['status'] == 'ambiguo';
-            }).length;
-            
-            return [
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  child: Chip(
-                    label: Text('$ambiguos Pendências'),
-                    backgroundColor: ambiguos > 0 ? Colors.orange.withAlpha(153) : Colors.green.withAlpha(153),
+        actions:
+            draftStream.whenOrNull(
+              data: (data) {
+                if (data == null) return null;
+                final features = data['features'] as List<dynamic>? ?? [];
+                final ambiguos = features.where((f) {
+                  if (f is! Map<String, dynamic>) return false;
+                  final props = f['properties'];
+                  if (props is! Map<String, dynamic>) return false;
+                  return props['status'] == 'ambiguo';
+                }).length;
+                return [
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 16.0),
+                      child: Chip(
+                        label: Text('$ambiguos Pendências'),
+                        backgroundColor: ambiguos > 0
+                            ? Colors.orange.withAlpha(153)
+                            : Colors.green.withAlpha(153),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 16.0),
-                child: FilledButton(
-                  onPressed: (ambiguos == 0 && !_isApproving) ? () async {
-                    setState(() => _isApproving = true);
-                    try {
-                      final repo = ref.read(loteamentosImportRepositoryProvider);
-                      await repo.approveDraft(widget.draftId);
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rascunho aprovado com sucesso! Processamento iniciado.')));
-                      context.pop();
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao aprovar rascunho: $e')));
-                      }
-                    } finally {
-                      if (context.mounted) {
-                        setState(() => _isApproving = false);
-                      }
-                    }
-                  } : null,
-                  child: _isApproving 
-                      ? const SizedBox(
-                          width: 20, 
-                          height: 20, 
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
-                        )
-                      : const Text('Aprovar Definitivamente'),
-                ),
-              )
-            ];
-          },
-        ) ?? [],
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0),
+                    child: FilledButton(
+                      onPressed:
+                          (ambiguos == 0 && !_isApproving)
+                          ? () async {
+                              setState(() => _isApproving = true);
+                              try {
+                                final repo = ref.read(
+                                  loteamentosImportRepositoryProvider,
+                                );
+                                await repo.approveDraft(widget.draftId);
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Consolidação iniciada. O loteamento aparecerá na lista ao concluir.',
+                                    ),
+                                  ),
+                                );
+                                context.go(
+                                  '/construtoras/${widget.construtoraId}/loteamentos',
+                                );
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Erro ao aprovar rascunho: $e',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } finally {
+                                if (context.mounted) {
+                                  setState(() => _isApproving = false);
+                                }
+                              }
+                            }
+                          : null,
+                      child: _isApproving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Aprovar Definitivamente'),
+                    ),
+                  ),
+                ];
+              },
+            ) ??
+            [],
       ),
       body: draftStream.when(
         data: (data) {
@@ -123,12 +151,18 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
                   ),
                 ),
               ),
-              if (_selectedFeatureIndex != null && _selectedFeatureIndex! < features.length)
+              if (_selectedFeatureIndex != null &&
+                  _selectedFeatureIndex! < features.length)
                 LoteCorrecaoPanel(
-                  properties: features[_selectedFeatureIndex!]['properties'] as Map<String, dynamic>? ?? {},
+                  properties:
+                      features[_selectedFeatureIndex!]['properties']
+                          as Map<String, dynamic>? ??
+                      {},
                   onSave: (newName) async {
                     try {
-                      final repo = ref.read(loteamentosImportRepositoryProvider);
+                      final repo = ref.read(
+                        loteamentosImportRepositoryProvider,
+                      );
                       await repo.updateDraftFeature(
                         widget.draftId,
                         _selectedFeatureIndex!,
@@ -138,10 +172,16 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
                       setState(() {
                         _selectedFeatureIndex = null;
                       });
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lote atualizado com sucesso.')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Lote atualizado com sucesso.'),
+                        ),
+                      );
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao atualizar lote: $e')));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Erro ao atualizar lote: $e')),
+                        );
                       }
                     }
                   },
@@ -161,7 +201,10 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
             children: [
               const Icon(Icons.error, color: Colors.red, size: 64),
               const SizedBox(height: 16),
-              Text('Erro ao carregar o rascunho:\n$err', textAlign: TextAlign.center),
+              Text(
+                'Erro ao carregar o rascunho:\n$err',
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),

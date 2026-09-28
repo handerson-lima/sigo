@@ -4,18 +4,55 @@ import os
 from unittest.mock import patch, MagicMock
 
 # The conftest.py already sets up the sys.path, so we can import directly
-from main import extract_dxf_geometries, processar_dxf
+from main import consolidar_loteamento_aprovado, extract_dxf_geometries, processar_dxf
 
 class MockCloudEvent:
     def __init__(self, data):
         self.data = data
 
 class MockStorageObjectData:
-    def __init__(self, name, bucket="sigo-86dd9.appspot.com", size="1024", generation="12345"):
+    def __init__(self, name, bucket="sigo-86dd9.appspot.com", size="1024", generation="12345", metadata=None):
         self.name = name
         self.bucket = bucket
         self.size = size
         self.generation = generation
+        self.metadata = metadata or {'construtoraId': 'construtora-1', 'loteamentoName': 'arquivo'}
+
+
+class MockSnapshot:
+    def __init__(self, data):
+        self._data = data
+
+    def to_dict(self):
+        return self._data
+
+
+class MockApprovalEvent:
+    def __init__(self, before, after, draft_id='draft-1'):
+        self.data = MagicMock(before=MockSnapshot(before), after=MockSnapshot(after))
+        self.params = {'draft_id': draft_id}
+
+
+@patch('main.consolidate_approved_draft')
+def test_consolidar_loteamento_aprovado_only_runs_on_status_transition(mock_consolidate):
+    event = MockApprovalEvent({'status': 'pendente'}, {'status': 'aprovado'})
+    consolidar_loteamento_aprovado(event)
+    mock_consolidate.assert_called_once_with('draft-1', {'status': 'aprovado'})
+
+    consolidar_loteamento_aprovado(MockApprovalEvent({'status': 'aprovado'}, {'status': 'aprovado'}))
+    consolidar_loteamento_aprovado(MockApprovalEvent({'status': 'pendente'}, {'status': 'pendente'}))
+    assert mock_consolidate.call_count == 1
+
+
+@patch('main.consolidate_approved_draft', side_effect=RuntimeError('batch failed'))
+def test_consolidar_loteamento_aprovado_propagates_materialization_failure(mock_consolidate):
+    with pytest.raises(RuntimeError, match='batch failed'):
+        consolidar_loteamento_aprovado(MockApprovalEvent({'status': 'pendente'}, {'status': 'aprovado'}))
+    mock_consolidate.assert_called_once()
+
+
+def test_consolidar_loteamento_aprovado_enables_event_retry():
+    assert consolidar_loteamento_aprovado.__firebase_endpoint__.eventTrigger['retry'] is True
 
 @pytest.fixture
 def synthetic_dxf(tmp_path):
@@ -115,12 +152,17 @@ def test_processar_dxf_valid(mock_save_draft, mock_storage_client, synthetic_dxf
     
     mock_save_draft.assert_called_once()
     args, _ = mock_save_draft.call_args
-    assert args[0] == "user/123_file.dxf"  # draft_id
+    assert args[0] == "123_file.dxf"  # mesmo ID retornado ao cliente no upload
     
     geojson = args[1]
     assert geojson["type"] == "FeatureCollection"
     # synthetic_dxf tem 2 lotes e 1 texto "Texto Lote" e 1 quadra
     assert len(geojson["features"]) == 2
+    assert args[2] == {
+        'construtoraId': 'construtora-1',
+        'loteamentoName': 'arquivo',
+        'status': 'pendente',
+    }
 
     # Assert cleanup
     downloaded_path = mock_blob.download_to_filename.call_args[0][0]

@@ -1,14 +1,16 @@
 import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final loteamentosImportRepositoryProvider = Provider<LoteamentosImportRepository>((ref) {
-  return LoteamentosImportRepository(
-    FirebaseFirestore.instance,
-    FirebaseStorage.instance,
-  );
-});
+final loteamentosImportRepositoryProvider =
+    Provider<LoteamentosImportRepository>((ref) {
+      return LoteamentosImportRepository(
+        FirebaseFirestore.instance,
+        FirebaseStorage.instance,
+      );
+    });
 
 class LoteamentosImportRepository {
   final FirebaseFirestore _firestore;
@@ -20,9 +22,14 @@ class LoteamentosImportRepository {
   /// Retorna o identificador gerado que pode ser usado como ID do rascunho
   Future<String> uploadDxf({
     required String userId,
+    required String construtoraId,
     required Uint8List fileBytes,
     required String filename,
   }) async {
+    final loteamentoName = loteamentoNameFromFilename(filename);
+    if (loteamentoName == null) {
+      throw ArgumentError.value(filename, 'filename', 'Nome de arquivo DXF inválido');
+    }
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     // O arquivo é salvo com um prefixo único
     final uniqueFilename = '${timestamp}_$filename';
@@ -31,11 +38,26 @@ class LoteamentosImportRepository {
 
     await ref.putData(
       fileBytes,
-      SettableMetadata(contentType: 'application/dxf'),
+      SettableMetadata(
+        contentType: 'application/dxf',
+        customMetadata: {
+          'construtoraId': construtoraId,
+          'loteamentoName': loteamentoName,
+        },
+      ),
     );
-    
+
     // Retorna o identificador único para escutar no Firestore
     return uniqueFilename;
+  }
+
+  static String? loteamentoNameFromFilename(String filename) {
+    final lastDot = filename.lastIndexOf('.');
+    if (lastDot <= 0 || filename.substring(lastDot).toLowerCase() != '.dxf') {
+      return null;
+    }
+    final name = filename.substring(0, lastDot).trim();
+    return name.isEmpty ? null : name;
   }
 
   /// Escuta a criação/atualização do rascunho na coleção loteamentos_drafts
@@ -45,17 +67,21 @@ class LoteamentosImportRepository {
         .doc(draftId)
         .snapshots()
         .map((snapshot) {
-      if (snapshot.exists) {
-        return snapshot.data();
-      }
-      return null;
-    });
+          if (snapshot.exists) {
+            return snapshot.data();
+          }
+          return null;
+        });
   }
 
   /// Atualiza as propriedades de uma feature específica no rascunho
-  Future<void> updateDraftFeature(String draftId, int featureIndex, Map<String, dynamic> newProperties) async {
+  Future<void> updateDraftFeature(
+    String draftId,
+    int featureIndex,
+    Map<String, dynamic> newProperties,
+  ) async {
     final docRef = _firestore.collection('loteamentos_drafts').doc(draftId);
-    
+
     // Roda em uma transação para garantir que o array não seja sobrescrito incorretamente
     await _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
@@ -65,7 +91,7 @@ class LoteamentosImportRepository {
 
       final data = snapshot.data()!;
       final features = List<dynamic>.from(data['features'] ?? []);
-      
+
       if (featureIndex < 0 || featureIndex >= features.length) {
         throw Exception('Índice da feature inválido');
       }
@@ -74,13 +100,15 @@ class LoteamentosImportRepository {
         throw Exception('Feature at index $featureIndex is not a valid Map.');
       }
       final feature = Map<String, dynamic>.from(features[featureIndex] as Map);
-      final currentProperties = Map<String, dynamic>.from(feature['properties'] ?? {});
-      
+      final currentProperties = Map<String, dynamic>.from(
+        feature['properties'] ?? {},
+      );
+
       currentProperties.addAll(newProperties);
       feature['properties'] = currentProperties;
-      
+
       features[featureIndex] = feature;
-      
+
       transaction.update(docRef, {'features': features});
     });
   }

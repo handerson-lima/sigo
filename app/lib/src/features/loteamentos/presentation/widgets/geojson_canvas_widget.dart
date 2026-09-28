@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 class GeojsonCanvasWidget extends StatefulWidget {
@@ -21,6 +22,20 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
   double _width = 0;
   double _height = 0;
   List<dynamic> _features = [];
+
+  Map<String, dynamic>? _geometryOf(dynamic feature) {
+    if (feature is! Map) return null;
+    final rawGeometry = feature['geometry'];
+    if (rawGeometry is Map<String, dynamic>) return rawGeometry;
+    if (rawGeometry is! String) return null;
+    try {
+      final decoded = jsonDecode(rawGeometry);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } on FormatException {
+      debugPrint('Geometria inválida: JSON malformado');
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -53,7 +68,7 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
     }
 
     for (final feature in _features) {
-      final geometry = feature['geometry'] as Map<String, dynamic>?;
+      final geometry = _geometryOf(feature);
       if (geometry == null) {
         debugPrint('Geometria inválida: geometry is null para feature');
         continue;
@@ -94,7 +109,7 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
     _cachedPaths = _features.map((feature) {
       final path = Path();
       path.fillType = PathFillType.evenOdd;
-      final geometry = feature['geometry'] as Map<String, dynamic>?;
+      final geometry = _geometryOf(feature);
       if (geometry == null) return path;
       final type = geometry['type'];
       final coords = geometry['coordinates'] as List<dynamic>?;

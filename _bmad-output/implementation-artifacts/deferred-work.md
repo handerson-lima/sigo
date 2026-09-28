@@ -414,3 +414,12 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 ## Deferred from: code review of spec-2-2-algoritmo-espacial-point-in-polygon (2026-09-27)
 
 - **Média — Empate entre quadras sobrepostas de mesma área:** em `9a3d8e1`, `functions-python/geometry_utils.py:115-121`, `min(...area)` escolhe a primeira quadra; inversão da entrada muda o destino do lote. Mantido o adiamento já registrado no Group 4 da spec (política de sobreposição fora do escopo); definir desempate ou representação de ambiguidade antes de implementar. Reproduzido nesta revisão e ainda presente em HEAD.
+- source_spec: `_bmad-output/implementation-artifacts/spec-consolidar-loteamento-dxf-aprovado.md`
+  summary: Tornar reentregas do evento de Storage seguras contra recriação de rascunho já revisado.
+  evidence: Um retry do upload pode executar `set` com o GeoJSON original; é comportamento anterior que requer política explícita de versionamento.
+- source_spec: `_bmad-output/implementation-artifacts/spec-consolidar-loteamento-dxf-aprovado.md`
+  summary: Auditar autorização entre o metadado de construtora do upload e a identidade do usuário.
+  evidence: A associação confiável depende das regras de Storage/Firestore e da relação usuário-construtora, que não foi validada nesta alteração.
+- source_spec: `_bmad-output/implementation-artifacts/spec-consolidar-loteamento-dxf-aprovado.md`
+  summary: Confirmar no manifesto de deploy a compatibilidade do retry do trigger Firestore com a versão instalada.
+  evidence: O endpoint configura retry pelo manifesto interno; o deploy real precisa confirmar que a versão de firebase-functions o preserva.

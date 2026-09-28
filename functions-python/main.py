@@ -12,7 +12,7 @@ import tempfile
 import logging
 import ezdxf
 from google.cloud import storage
-from firebase_functions import storage_fn, options
+from firebase_functions import firestore_fn, storage_fn, options
 from firebase_admin import initialize_app
 
 initialize_app()
@@ -20,10 +20,28 @@ logger = logging.getLogger(__name__)
 
 from geometry_utils import associate_lotes_to_quadras
 from heuristics import build_geojson
-from firestore_utils import save_draft_to_firestore, DraftPersistenceError
+from firestore_utils import (
+    DraftPersistenceError,
+    consolidate_approved_draft,
+    save_draft_to_firestore,
+)
 
 # Max file size: 50MB
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024
+
+
+def _upload_metadata(file_data):
+    """Extract the information needed after the Storage event has finished."""
+    metadata = getattr(file_data, 'metadata', None) or {}
+    construtora_id = metadata.get('construtoraId') if isinstance(metadata, dict) else None
+    loteamento_name = metadata.get('loteamentoName') if isinstance(metadata, dict) else None
+    if not construtora_id or not loteamento_name:
+        raise DraftPersistenceError('Upload sem construtoraId ou loteamentoName')
+    return {
+        'construtoraId': construtora_id,
+        'loteamentoName': loteamento_name,
+        'status': 'pendente',
+    }
 
 
 def _inherit_layer(layer_name: str, parent_layer):
@@ -70,9 +88,9 @@ def extract_dxf_geometries(filepath: str):
         layer_clean = layer_name.replace('_', ' ').replace('-', ' ')
         tokens = layer_clean.split()
         
-        # Match flexível para incluir plurais
-        is_lote = any(tok in ("LOTE", "LOTES") for tok in tokens)
-        is_quadra = any(tok in ("QUADRA", "QUADRAS") for tok in tokens)
+        # Match flexível usando substring
+        is_lote = "LOTE" in layer_name
+        is_quadra = "QUADRA" in layer_name
         
         etype = entity.dxftype()
         if etype in ('TEXT', 'MTEXT', 'ATTRIB', 'ATTDEF'):
@@ -191,8 +209,8 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
                     association['lote_polygons']
                 )
 
-                draft_id = file_data.name.replace('loteamentos_drafts_uploads/', '')
-                save_draft_to_firestore(draft_id, geojson)
+                draft_id = file_data.name.split('/')[-1]
+                save_draft_to_firestore(draft_id, geojson, _upload_metadata(file_data))
                 logger.info(f"Processamento concluído. Rascunho {draft_id} salvo com sucesso.")
             
     except (IOError, OSError) as e:
@@ -211,3 +229,32 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
                 os.remove(temp_local_filename)
             except OSError as e:
                 logger.warning(f"Failed to remove temp file {temp_local_filename}: {e}")
+
+
+@firestore_fn.on_document_updated(
+    document='loteamentos_drafts/{draft_id}',
+    region='us-east1',
+)
+def consolidar_loteamento_aprovado(event: firestore_fn.Event[firestore_fn.Change]):
+    """Consolidate a draft exactly when its status changes to ``aprovado``."""
+    before = event.data.before.to_dict() if event.data.before else None
+    after = event.data.after.to_dict() if event.data.after else None
+    if not after or after.get('status') != 'aprovado':
+        return
+    if before and before.get('status') == 'aprovado':
+        return
+
+    draft_id = event.params['draft_id']
+    logger.info('Starting consolidation for draft %s', draft_id)
+    try:
+        consolidate_approved_draft(draft_id, after)
+        logger.info('Consolidation completed for draft %s', draft_id)
+    except Exception:
+        logger.exception('Consolidation failed for draft %s; draft retained for retry', draft_id)
+        raise
+
+
+# firebase-functions-python 0.6 still publishes Firestore triggers with retry
+# disabled and exposes no public retry option. The deployment manifest is the
+# supported discovery contract, so opt this event trigger into redelivery.
+consolidar_loteamento_aprovado.__firebase_endpoint__.eventTrigger['retry'] = True

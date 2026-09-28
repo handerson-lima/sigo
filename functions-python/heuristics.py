@@ -1,5 +1,6 @@
 import logging
 import re
+import json
 from shapely.geometry import Point
 
 logger = logging.getLogger(__name__)
@@ -128,7 +129,7 @@ def build_geojson(association, textos, quadra_polygons, lote_polygons):
 
         feature = {
             "type": "Feature",
-            "geometry": serialize_geometry(poly),
+            "geometry": json.dumps(serialize_geometry(poly)),
             "properties": {
                 "tipo": "lote",
                 "nome": nome,

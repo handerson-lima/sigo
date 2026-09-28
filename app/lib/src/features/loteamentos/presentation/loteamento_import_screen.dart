@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dropzone/flutter_dropzone.dart';
@@ -11,16 +12,15 @@ import '../data/loteamentos_import_repository.dart';
 class LoteamentoImportScreen extends ConsumerStatefulWidget {
   final String construtoraId;
 
-  const LoteamentoImportScreen({
-    super.key,
-    required this.construtoraId,
-  });
+  const LoteamentoImportScreen({super.key, required this.construtoraId});
 
   @override
-  ConsumerState<LoteamentoImportScreen> createState() => _LoteamentoImportScreenState();
+  ConsumerState<LoteamentoImportScreen> createState() =>
+      _LoteamentoImportScreenState();
 }
 
-class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen> {
+class _LoteamentoImportScreenState
+    extends ConsumerState<LoteamentoImportScreen> {
   late DropzoneViewController dropzoneController;
   bool isHighlighted = false;
   bool isUploading = false;
@@ -34,18 +34,20 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
       final repo = ref.read(loteamentosImportRepositoryProvider);
       final draftId = await repo.uploadDxf(
         userId: user.uid,
+        construtoraId: widget.construtoraId,
         fileBytes: bytes,
         filename: name,
       );
 
       if (mounted) {
-        context.go('/construtoras/${widget.construtoraId}/loteamentos/import/processing/$draftId');
+        context.go(
+          '/construtoras/${widget.construtoraId}/loteamentos/import/processing/$draftId',
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro no upload: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro no upload: $e')));
         setState(() => isUploading = false);
       }
     }
@@ -67,9 +69,7 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Importar Loteamento (DXF)'),
-      ),
+      appBar: AppBar(title: const Text('Importar Loteamento (DXF)')),
       body: Center(
         child: isUploading
             ? const Column(
@@ -84,7 +84,9 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
                 width: 600,
                 height: 400,
                 decoration: BoxDecoration(
-                  color: isHighlighted ? Colors.blue.withValues(alpha: 0.1) : Colors.grey[100],
+                  color: isHighlighted
+                      ? Colors.blue.withValues(alpha: 0.1)
+                      : Colors.grey[100],
                   border: Border.all(
                     color: isHighlighted ? Colors.blue : Colors.grey,
                     width: 2,
@@ -97,7 +99,8 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
                     DropzoneView(
                       operation: DragOperation.copy,
                       cursor: CursorType.grab,
-                      onCreated: (controller) => dropzoneController = controller,
+                      onCreated: (controller) =>
+                          dropzoneController = controller,
                       onHover: () => setState(() => isHighlighted = true),
                       onLeave: () => setState(() => isHighlighted = false),
                       onDropFile: (dynamic ev) async {
@@ -107,7 +110,11 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
                         if (!name.toLowerCase().endsWith('.dxf')) {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Por favor, envie um arquivo .dxf')),
+                              const SnackBar(
+                                content: Text(
+                                  'Por favor, envie um arquivo .dxf',
+                                ),
+                              ),
                             );
                           }
                           return;
@@ -119,7 +126,11 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.cloud_upload, size: 80, color: Colors.grey),
+                          const Icon(
+                            Icons.cloud_upload,
+                            size: 80,
+                            color: Colors.grey,
+                          ),
                           const SizedBox(height: 16),
                           const Text(
                             'Arraste e solte o arquivo .dxf aqui',
