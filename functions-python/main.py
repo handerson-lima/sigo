@@ -1,4 +1,13 @@
 import os
+import json
+
+# Ensure FIREBASE_CONFIG is set during local deploy discovery to avoid metadata timeouts
+if "FIREBASE_CONFIG" not in os.environ:
+    os.environ["FIREBASE_CONFIG"] = json.dumps({
+        "projectId": "sigo-c2eb2",
+        "storageBucket": "sigo-c2eb2.firebasestorage.app"
+    })
+
 import tempfile
 import logging
 import ezdxf
@@ -101,7 +110,7 @@ def extract_dxf_geometries(filepath: str):
 
 
 @storage_fn.on_object_finalized(
-    region="us-central1",
+    region="us-east1",
     memory=options.MemoryOption.MB_512
 )
 def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
