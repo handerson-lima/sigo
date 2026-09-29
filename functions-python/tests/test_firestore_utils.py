@@ -55,6 +55,7 @@ def test_save_draft_success(mock_client):
 
     mock_db.collection.assert_called_once_with('loteamentos_drafts')
     mock_collection.document.assert_called_once_with('test_id')
+    mock_doc.set.assert_called_once()
 
     payload = mock_doc.set.call_args.args[0]
     assert isinstance(payload['features'][0]['geometry'], str)

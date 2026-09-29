@@ -193,6 +193,27 @@ void main() {
       expect(find.text('Canvas vazio (sem coordenadas válidas).'), findsOneWidget);
     });
 
+    testWidgets('ignora geometry String com coordinates invalido (Malformed Geometry)', (tester) async {
+      final data = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'geometry': '{"type":"Polygon","coordinates":"not-a-list"}',
+            'properties': {'status': 'ambiguo'}
+          }
+        ]
+      };
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: GeojsonCanvasWidget(geojsonData: data),
+        ),
+      ));
+
+      expect(find.text('Canvas vazio (sem coordenadas válidas).'), findsOneWidget);
+    });
+
     test('GeojsonPainter aplica cores corretas baseadas no status', () {
       final features = [
         {

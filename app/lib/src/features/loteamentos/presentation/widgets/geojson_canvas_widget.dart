@@ -83,11 +83,14 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
       }
 
       final type = geometry['type'];
-      final coords = geometry['coordinates'] as List<dynamic>?;
-      if (coords == null || coords.isEmpty) {
-        debugPrint('Geometria inválida: coordinates is null or empty para feature');
+      final rawCoords = geometry['coordinates'];
+      if (rawCoords is! List || rawCoords.isEmpty) {
+        debugPrint(
+          'Geometria inválida: coordinates ausente, não-lista ou vazia para feature',
+        );
         continue;
       }
+      final coords = rawCoords;
 
       if (type == 'Polygon') {
         for (final ring in coords) {
@@ -120,8 +123,14 @@ class _GeojsonCanvasWidgetState extends State<GeojsonCanvasWidget> {
       final geometry = _geometryOf(feature);
       if (geometry == null) return path;
       final type = geometry['type'];
-      final coords = geometry['coordinates'] as List<dynamic>?;
-      if (coords == null || coords.isEmpty) return path;
+      final rawCoords = geometry['coordinates'];
+      if (rawCoords is! List || rawCoords.isEmpty) {
+        debugPrint(
+          'Geometria inválida: coordinates ausente, não-lista ou vazia para feature',
+        );
+        return path;
+      }
+      final coords = rawCoords;
 
       void addRing(List<dynamic> ring) {
         bool first = true;

@@ -2,7 +2,7 @@
 title: 'Corrigir persistência do rascunho DXF no Firestore'
 type: 'bugfix'
 created: '2026-09-29'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: 'a401542f21071ee4b63c6c2cbb43a8e4ff1a4c08'
@@ -48,12 +48,12 @@ context: []
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `functions-python/firestore_utils.py` -- serializar `geometry` de cada feature para String antes de `set` -- elimina arrays aninhados no documento.
-- [ ] `functions-python/tests/test_firestore_utils.py` -- assertar geometry serializada e ausência de arrays aninhadas no payload -- trava a regressão sem emulador.
-- [ ] `functions-python/tests_integration/test_draft_persistence.py` -- teste real com emulador Firestore: gravar `build_geojson` e reler o documento -- prova a correção fim a fim.
-- [ ] `app/lib/src/features/loteamentos/presentation/widgets/geojson_canvas_widget.dart` -- helper `_geometryOf` aceitando String/Map -- renderiza o contrato serializado.
-- [ ] `app/test/src/features/loteamentos/presentation/widgets/geojson_canvas_widget_test.dart` -- caso com geometry String -- cobre a desserialização.
-- [ ] `functions/package.json` + `.github/workflows/ci.yml` -- script/job `test:draft-persistence` -- executa o teste de integração no CI.
+- [x] `functions-python/firestore_utils.py` -- serializar `geometry` de cada feature para String antes de `set` -- elimina arrays aninhados no documento.
+- [x] `functions-python/tests/test_firestore_utils.py` -- assertar geometry serializada e ausência de arrays aninhadas no payload -- trava a regressão sem emulador.
+- [x] `functions-python/tests_integration/test_draft_persistence.py` -- teste real com emulador Firestore: gravar `build_geojson` e reler o documento -- prova a correção fim a fim.
+- [x] `app/lib/src/features/loteamentos/presentation/widgets/geojson_canvas_widget.dart` -- helper `_geometryOf` aceitando String/Map -- renderiza o contrato serializado.
+- [x] `app/test/src/features/loteamentos/presentation/widgets/geojson_canvas_widget_test.dart` -- caso com geometry String -- cobre a desserialização.
+- [x] `functions/package.json` + `.github/workflows/ci.yml` -- script/job `test:draft-persistence` -- executa o teste de integração no CI.
 
 **Acceptance Criteria:**
 - Given o DXF de referência processado, when o rascunho é salvo, then o documento existe em `loteamentos_drafts` e o canvas renderiza os lotes.
@@ -65,6 +65,23 @@ context: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+- BH1 `properties`/`metadata` com arrays aninhados reintroduzindo 400 — **false**. `build_geojson` só emite escalares em `properties` (`tipo`/`nome`/`status`/`quadra`/`geometria_reparada`) e `_upload_metadata` só devolve `construtoraId`/`loteamentoName` + strings; nenhum caminho produz array aninhado fora de `geometry`.
+- BH2 `ensure_ascii=False` divergindo do assert `json.dumps(geometry)` — **false**. A geometria real só contém `"Polygon"`/`"MultiPolygon"` e números, então `ensure_ascii` não muda a saída; o teste não pode divergir com dados reais.
+- BH3/ECH3/ECH7 cast `geometry['coordinates'] as List` estoura com geometria String decodificada porém de schema inválido — **low** → patch. O caminho String é novo e a matriz MALFORMED_GEOMETRY promete ignorar/logar geometria inválida; hoje só cobre JSON sintaticamente inválido.
+- BH4 falta teste do ramo "String decodifica para não-objeto" — **false**. O ramo está implementado e logado (`geojson_canvas_widget.dart:50`); verificação (`verification-gap`) não apontou lacuna e não há comportamento incorreto.
+- BH5 `MultiPolygon` sem cobertura ponta a ponta — **false**. É lacuna de cobertura; `serialize_geometry` e o canvas tratam o tipo e nenhum comportamento incorreto foi demonstrado.
+- BH6 teste de integração sem teardown/ID fixo — **false**. `save_draft_to_firestore` usa `set()` (sobrescreve), então não há acúmulo nem estado residual entre execuções.
+- BH7 `google.auth` importado sem constar em requirements — **low** → patch. Import depende de dependência transitiva do `firebase-admin`; declarar explicitamente evita quebra futura.
+- BH8 `_has_nested_array` duplicado em dois arquivos de teste — **false**. Sem prejuízo concreto; a deduplicação entre pacotes de teste com conftests distintos seria complexidade além de correção direta.
+- BH9 sem guarda de que o teste aponta para o emulador — **false**. `conftest.py` garante `FIRESTORE_EMULATOR_HOST` via `setdefault` e o projeto é `demo-sigo`; `firestore.client()` sempre resolve para o emulador.
+- BH10 spec com seções placeholder — rejeitado. O conserto seria editar a spec deste build; não é um defeito de código.
+- BH11 job de CI sem cache de pip — **false**. Só impacto de velocidade, sem falha funcional; adicionar cache é complexidade além de correção direta.
+- ECH1 `Map<String, dynamic>.from` estoura com chaves não-String — **false**. Firestore, `jsonDecode` e `build_geojson` produzem sempre mapas de chave String; cenário não alcançável.
+- ECH2 `_getDrawOrder` estoura com feature não-Map — **false**. Código pré-existente e inalcançável: `build_geojson` só emite features Map.
+- ECH4 geometria nem dict nem String deixada sem serializar — **false**. `build_geojson` sempre emite geometria dict (Map).
+- ECH5 `features` tupla não serializada — **false**. `build_geojson` sempre emite `features` como list.
+- ECH6 assert `set` chamado exatamente uma vez removido — **low** → patch. A reescrita trocou `assert_called_once_with` por inspeção de payload; chamadas `set` duplicadas deixariam de ser detectadas.
 
 ## Design Notes
 
