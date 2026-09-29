@@ -435,3 +435,9 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 - source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-loteamento.md`
   summary: Reconciliar o teste 8.3 de storage rules com a regra de logos vigente (`signed()`, sem exigir metadata vazia).
   evidence: O commit `3eb4a43` afrouxou `construtoras/{c}/logos` para `signed()`; o teste 8.3 ainda espera `admin(c)` + `metadata.hasOnly([])` e falha. Pré-existente, fora do escopo do DXF; a decisão de restrição é de segurança e precisa de dono.
+
+## Deferred from: split de spec-importacao-dxf-ponta-a-ponta (2026-09-29)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-ponta-a-ponta.md`
+  summary: Melhorar a heurística de associação de nomes do DXF para reduzir features ambíguas.
+  evidence: Dividida da spec de importação ponta a ponta por exceder o teto de 1600 tokens. No DXF de referência, 278 de 279 features ficam `ambiguo` porque cotas (`16.00`), áreas (`16,00M²`) e nomes de rua viram candidatos a nome de lote; decisão do usuário: abordagem conservadora (filtrar cota/área/rua e priorizar um inteiro curto) acrescida do uso da cor ACI como sinal lote×quadra.

@@ -1,14 +1,24 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+typedef ConsolidationRequester = Future<void> Function(String draftId);
 
 final loteamentosImportRepositoryProvider =
     Provider<LoteamentosImportRepository>((ref) {
       return LoteamentosImportRepository(
         FirebaseFirestore.instance,
         FirebaseStorage.instance,
+        requestConsolidation: (draftId) async {
+          final callable = FirebaseFunctions.instanceFor(
+            region: 'us-east1',
+          ).httpsCallable('consolidar_loteamento_manual');
+          await callable.call({'draftId': draftId});
+        },
       );
     });
 
@@ -16,7 +26,15 @@ class LoteamentosImportRepository {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
 
-  LoteamentosImportRepository(this._firestore, this._storage);
+  /// Seam injetável para o retry manual da consolidação. No app é ligado à
+  /// callable `consolidar_loteamento_manual`; nos testes pode ser substituído.
+  final ConsolidationRequester? requestConsolidation;
+
+  LoteamentosImportRepository(
+    this._firestore,
+    this._storage, {
+    this.requestConsolidation,
+  });
 
   /// Realiza o upload do arquivo DXF para o Cloud Storage.
   /// Retorna o identificador gerado que pode ser usado como ID do rascunho
@@ -135,9 +153,24 @@ class LoteamentosImportRepository {
     });
   }
 
-  /// Atualiza o status do rascunho inteiro para aprovado
+  /// Atualiza o status do rascunho inteiro para aprovado e registra a
+  /// solicitação de consolidação consumida pelo backend.
   Future<void> approveDraft(String draftId) async {
     final docRef = _firestore.collection('loteamentos_drafts').doc(draftId);
-    await docRef.update({'status': 'aprovado'});
+    final requestId =
+        '${DateTime.now().toUtc().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
+    await docRef.update({
+      'status': 'aprovado',
+      // Cada confirmação cria uma solicitação distinta, inclusive quando o
+      // rascunho já está aprovado e precisa ser consolidado novamente.
+      'consolidationRequestId': requestId,
+    });
+    // Retry manual do design: se o gatilho não disparar, a callable consolida.
+    // Uma falha aqui não bloqueia a aprovação já persistida.
+    try {
+      await requestConsolidation?.call(draftId);
+    } catch (_) {
+      // Ignorado de propósito: a consolidação permanece recuperável.
+    }
   }
 }

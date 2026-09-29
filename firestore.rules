@@ -265,6 +265,17 @@ match /construtoras/{c} {
        && request.resource.data.etapaId == resource.data.etapaId;
      allow delete: if admin(resource.data.construtoraId);
    }
+
+   // Rascunhos de importação DXF: o membro ativo da construtora do rascunho
+   // revisa as features e aprova; criação e exclusão são exclusivas do backend.
+   match /loteamentos_drafts/{draft_id} {
+     allow read: if member(resource.data.construtoraId);
+     allow update: if member(resource.data.construtoraId)
+       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+         ['features', 'status', 'consolidationRequestId', 'updatedAt']
+       );
+     allow create, delete: if false;
+   }
   match /{path=**}/construtora_members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
   match /{path=**}/members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
   match /{path=**}/movimentacoes/{id} { allow read: if dev() || signed(); }

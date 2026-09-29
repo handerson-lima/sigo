@@ -10,7 +10,7 @@ import json
 from firebase_admin import firestore
 from shapely.geometry import Polygon
 
-from firestore_utils import save_draft_to_firestore
+from firestore_utils import consolidate_approved_draft, save_draft_to_firestore
 from heuristics import build_geojson
 
 DRAFT_ID = 'integration-draft-dxf'
@@ -138,3 +138,44 @@ def test_correction_round_trip_keeps_geometry_serialized():
     assert corrected_feature['properties']['nome'] == 'Lote 1A'
     assert corrected_feature['properties']['status'] == 'resolvido'
     assert not _has_nested_array(corrected)
+
+
+def test_consolidation_materializes_top_level_documents_with_string_timestamps():
+    geojson = _build_reference_geojson()
+    save_draft_to_firestore(
+        DRAFT_ID,
+        geojson,
+        {
+            'construtoraId': 'construtora-1',
+            'loteamentoName': 'arquivo',
+            'status': 'aprovado',
+        },
+    )
+
+    draft = _read_draft(DRAFT_ID)
+    consolidate_approved_draft(DRAFT_ID, draft)
+
+    db = firestore.client()
+    loteamento_id = f'{DRAFT_ID}--loteamento'
+    loteamento = db.collection('loteamentos').document(loteamento_id).get().to_dict()
+    assert loteamento['construtoraId'] == 'construtora-1'
+    assert loteamento['name'] == 'arquivo'
+    # O app faz DateTime.parse no campo, então a consolidação grava String ISO.
+    assert isinstance(loteamento['createdAt'], str)
+    assert isinstance(loteamento['updatedAt'], str)
+
+    quadras = list(
+        db.collection('quadras').where('loteamentoId', '==', loteamento_id).stream()
+    )
+    lotes = list(
+        db.collection('lotes').where('loteamentoId', '==', loteamento_id).stream()
+    )
+    assert quadras and lotes
+
+    quadra = quadras[0].to_dict()
+    lote = lotes[0].to_dict()
+    assert quadra['construtoraId'] == 'construtora-1'
+    assert lote['construtoraId'] == 'construtora-1'
+    assert lote['quadraId'] == quadra['id']
+    assert lote['name']
+    json.loads(lote['geometry'])

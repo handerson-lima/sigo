@@ -220,6 +220,18 @@ before(async () => {
     isPendingSync: false
   });
 
+  // 9. Rascunhos de importação DXF (loteamentos_drafts)
+  batch.set(db.doc('loteamentos_drafts/draft_const_a'), {
+    construtoraId: 'const_a',
+    status: 'pendente',
+    features: []
+  });
+  batch.set(db.doc('loteamentos_drafts/draft_const_b'), {
+    construtoraId: 'const_b',
+    status: 'pendente',
+    features: []
+  });
+
   await batch.commit();
 });
 
@@ -634,4 +646,51 @@ test('8.3 Upload de logo: admin aceita; não-admin, tipo inválido e metadata pr
     contentType: 'image/jpeg',
     customMetadata: { processed: 'true' }
   }));
+});
+
+// ==========================================
+// 9. RASCUNHOS DE IMPORTAÇÃO DXF (loteamentos_drafts)
+// ==========================================
+test('9.1 Rascunho de importação: membro da construtora lê/atualiza; create/delete e non-membro negados', async () => {
+  const rhFs = testEnv.authenticatedContext('rh_user').firestore();
+
+  // Membro ativo da construtora do rascunho lê e aprova.
+  await assertSucceeds(getDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a')));
+  await assertSucceeds(updateDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a'), {
+    status: 'aprovado',
+    consolidationRequestId: 'request-1'
+  }));
+
+  // Membro inativo e usuário de outra construtora não leem.
+  const inactiveFs = testEnv.authenticatedContext('inactive_user').firestore();
+  await assertFails(getDoc(doc(inactiveFs, 'loteamentos_drafts/draft_const_a')));
+  const outsiderFs = testEnv.authenticatedContext('outsider_user').firestore();
+  await assertFails(getDoc(doc(outsiderFs, 'loteamentos_drafts/draft_const_a')));
+
+  // Cross-tenant: membro de const_a não lê o rascunho de const_b.
+  await assertFails(getDoc(doc(rhFs, 'loteamentos_drafts/draft_const_b')));
+
+  // Criação e exclusão são exclusivas do backend.
+  await assertFails(setDoc(doc(rhFs, 'loteamentos_drafts/draft_novo'), {
+    construtoraId: 'const_a',
+    status: 'pendente'
+  }));
+  await assertFails(deleteDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a')));
+
+  // Não é possível mover o rascunho para outra construtora.
+  await assertFails(updateDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a'), {
+    construtoraId: 'const_b'
+  }));
+
+  // Não é possível forjar campos internos da consolidação.
+  await assertFails(updateDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a'), {
+    consolidationCompletedRequestId: 'forjado'
+  }));
+  await assertFails(updateDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a'), {
+    loteamentoName: 'forjado'
+  }));
+
+  // Dev mantém acesso global.
+  const devFs = testEnv.authenticatedContext('dev_user').firestore();
+  await assertSucceeds(getDoc(doc(devFs, 'loteamentos_drafts/draft_const_a')));
 });

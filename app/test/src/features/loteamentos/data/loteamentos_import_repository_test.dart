@@ -197,7 +197,7 @@ void main() {
       expect(storage.path, isNull);
     });
 
-    test('aprovação marca o rascunho como aprovado', () async {
+    test('aprovação marca o rascunho e grava uma solicitação de consolidação', () async {
       final draft = fakeFirestore
           .collection('loteamentos_drafts')
           .doc('draft-1');
@@ -207,7 +207,57 @@ void main() {
 
       final data = (await draft.get()).data();
       expect(data?['status'], 'aprovado');
-      expect(data?.containsKey('consolidationRequestId'), isFalse);
+      expect(data?['consolidationRequestId'], isA<String>());
+      expect((data?['consolidationRequestId'] as String).isNotEmpty, isTrue);
+    });
+
+    test('cada aprovação gera uma solicitação de consolidação nova', () async {
+      final draft = fakeFirestore
+          .collection('loteamentos_drafts')
+          .doc('draft-1');
+      await draft.set({'status': 'aprovado'});
+
+      await repository.approveDraft('draft-1');
+      final first = (await draft.get()).data()?['consolidationRequestId'];
+      await repository.approveDraft('draft-1');
+      final second = (await draft.get()).data()?['consolidationRequestId'];
+
+      expect(first, isA<String>());
+      expect(second, isA<String>());
+      expect(second, isNot(first));
+    });
+
+    test('aprovação dispara o retry manual da consolidação', () async {
+      final draft = fakeFirestore
+          .collection('loteamentos_drafts')
+          .doc('draft-1');
+      await draft.set({'status': 'pendente'});
+      final requested = <String>[];
+      final repo = LoteamentosImportRepository(
+        fakeFirestore,
+        fakeStorage,
+        requestConsolidation: (draftId) async => requested.add(draftId),
+      );
+
+      await repo.approveDraft('draft-1');
+
+      expect(requested, ['draft-1']);
+    });
+
+    test('falha no retry manual não bloqueia a aprovação', () async {
+      final draft = fakeFirestore
+          .collection('loteamentos_drafts')
+          .doc('draft-1');
+      await draft.set({'status': 'pendente'});
+      final repo = LoteamentosImportRepository(
+        fakeFirestore,
+        fakeStorage,
+        requestConsolidation: (_) async => throw Exception('callable offline'),
+      );
+
+      await repo.approveDraft('draft-1');
+
+      expect((await draft.get()).data()?['status'], 'aprovado');
     });
   });
 }
