@@ -63,7 +63,7 @@ context:
 - [x] `app/test/src/features/loteamentos/data/loteamentos_import_repository_test.dart` (+ tela) -- atualizar expectativas e cobrir a solicitação sem quebrar as guardas de aprovação.
 - [x] `firestore.rules` -- adicionar `match /loteamentos_drafts/{draft_id}` (read/update do membro ativo da construtora; create/delete negados) -- destrava o cliente.
 - [x] `firebase.json` -- `predeploy` para buildar o codebase `functions` -- evita deploy de `lib/` ausente.
-- [ ] Publicação -- `firebase deploy --only functions,firestore:rules --project sigo-c2eb2` -- operação irreversível; requer confirmação humana no momento.
+- [x] Publicação -- `firebase deploy --only functions,firestore:rules --project sigo-c2eb2` -- publicada em 2026-09-29 (funções `processar_dxf`, `consolidar_loteamento_aprovado`, `consolidar_loteamento_manual` e rules).
 
 **Acceptance Criteria:**
 - Given o DXF de referência, when o membro aprova, then o loteamento, suas quadras e seus lotes aparecem nas telas finais carregadas pelos providers existentes.
@@ -80,6 +80,7 @@ context:
 - O app nunca cria rascunhos diretamente; a regra só precisa de `read`/`update`.
 - 2026-09-29 (implementação): o DXF de referência não traz rótulos de quadra reconhecíveis, então todo lote chega ao rascunho com `quadra:''` e o agrupamento por nome (comportamento revertido) não materializava quadra alguma. A consolidação passou a resolver a quadra do lote por contenção espacial nos polígonos `tipo:'quadra'` do rascunho e, quando não há contenção, por uma quadra determinística `{draft_id}--quadra--geral` (`Geral`), garantindo `lote.quadraId` preenchido para os providers existentes. IDs de quadras nomeadas (`--ref--hash`) e de features (`--quadra--{i}`) permanecem como na spec.
 - 2026-09-29 (implementação): o gatilho Firestore publica `eventTrigger['retry'] = True` via `__firebase_endpoint__` porque `firebase-functions-python` 0.6 não expõe opção pública de retry (verificado no pacote real).
+- 2026-09-29 (deploy): `firebase deploy --only functions,firestore:rules --project sigo-c2eb2` concluído. O predeploy `npm --prefix` falhava sob o CLI (npm 11 lendo `stdin`); trocado por invocação direta do `tsc`. Adicionado `serviceAccountKey.json` ao `ignore` do codebase `default` para não subir a credencial no source.
 
 ## Spec Change Log
 
