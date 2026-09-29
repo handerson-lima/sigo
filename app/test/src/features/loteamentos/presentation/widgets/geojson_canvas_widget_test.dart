@@ -146,6 +146,53 @@ void main() {
       expect(find.text('Canvas vazio (sem coordenadas válidas).'), findsOneWidget);
     });
 
+    testWidgets('renderiza poligonos quando geometry vem como String JSON (contrato serializado)', (tester) async {
+      final data = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'geometry':
+                '{"type":"Polygon","coordinates":[[[0,0],[0,10],[10,10],[10,0],[0,0]]]}',
+            'properties': {'status': 'ambiguo'}
+          }
+        ]
+      };
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: GeojsonCanvasWidget(geojsonData: data),
+        ),
+      ));
+
+      expect(find.byType(InteractiveViewer), findsOneWidget);
+      final customPaintFinder = find.byWidgetPredicate(
+        (widget) => widget is CustomPaint && widget.painter is GeojsonPainter,
+      );
+      expect(customPaintFinder, findsOneWidget);
+    });
+
+    testWidgets('ignora geometry String invalida e nao falha (Malformed Geometry)', (tester) async {
+      final data = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'geometry': '{invalid json',
+            'properties': {'status': 'ambiguo'}
+          }
+        ]
+      };
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: GeojsonCanvasWidget(geojsonData: data),
+        ),
+      ));
+
+      expect(find.text('Canvas vazio (sem coordenadas válidas).'), findsOneWidget);
+    });
+
     test('GeojsonPainter aplica cores corretas baseadas no status', () {
       final features = [
         {

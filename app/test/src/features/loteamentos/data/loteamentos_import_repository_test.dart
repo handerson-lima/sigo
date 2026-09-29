@@ -79,6 +79,37 @@ void main() {
       expect((features[1] as Map)['properties']['nome'], 'Lote 2');
     });
 
+    test('updateDraftFeature preserva geometry serializada como String', () async {
+      final draftRef = fakeFirestore
+          .collection('loteamentos_drafts')
+          .doc('draft-serialized');
+      const geometry =
+          '{"type":"Polygon","coordinates":[[[0,0],[0,10],[10,10],[0,0]]]}';
+      await draftRef.set({
+        'features': [
+          {
+            'type': 'Feature',
+            'geometry': geometry,
+            'properties': {'nome': '', 'status': 'ambiguo'},
+          },
+        ],
+      });
+
+      await repository.updateDraftFeature(
+        'draft-serialized',
+        0,
+        {'nome': 'Lote 1A', 'status': 'resolvido'},
+      );
+
+      final features =
+          (await draftRef.get()).data()!['features'] as List<dynamic>;
+      final feature = features[0] as Map;
+      expect(feature['geometry'], isA<String>());
+      expect(feature['geometry'], geometry);
+      expect(feature['properties']['nome'], 'Lote 1A');
+      expect(feature['properties']['status'], 'resolvido');
+    });
+
     test('updateDraftFeature throws on invalid index', () async {
       final draftId = 'draft123';
       final draftRef = fakeFirestore.collection('loteamentos_drafts').doc(draftId);
