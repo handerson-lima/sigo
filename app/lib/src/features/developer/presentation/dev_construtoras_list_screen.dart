@@ -272,10 +272,7 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
   final _cnpjController = TextEditingController();
   final _ownerEmailController = TextEditingController();
   final _telefoneController = TextEditingController();
-  final _telefoneMask = MaskTextInputFormatter(
-    mask: '## ####-####',
-    filter: {"#": RegExp(r'[0-9]')},
-  );
+  final _telefoneMask = MaskTextInputFormatter(mask: '## ####-####', filter: {"#": RegExp(r'[0-9]')});
   String? _logoUrl;
   bool _isSaving = false;
   late final String _construtoraId;
@@ -283,10 +280,7 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
   @override
   void initState() {
     super.initState();
-    _construtoraId = FirebaseFirestore.instance
-        .collection('construtoras')
-        .doc()
-        .id;
+    _construtoraId = FirebaseFirestore.instance.collection('construtoras').doc().id;
   }
 
   Future<void> _pickLogo() async {
@@ -310,7 +304,10 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
             resetAspectRatioEnabled: false,
             aspectRatioPickerButtonHidden: true,
           ),
-          WebUiSettings(context: context, presentStyle: WebPresentStyle.dialog),
+          WebUiSettings(
+            context: context,
+            presentStyle: WebPresentStyle.dialog,
+          ),
         ],
       );
 
@@ -318,26 +315,22 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
         setState(() => _isSaving = true);
         try {
           final bytes = await croppedFile.readAsBytes();
-
+          
           final metadata = SettableMetadata(
             contentType: 'image/jpeg',
             customMetadata: {},
           );
-          final storageRef = FirebaseStorage.instance.ref().child(
-            'construtoras/$_construtoraId/logos/${DateTime.now().millisecondsSinceEpoch}_logo.jpg',
-          );
-
+          final storageRef = FirebaseStorage.instance.ref().child('construtoras/$_construtoraId/logos/${DateTime.now().millisecondsSinceEpoch}_logo.jpg');
+          
           await storageRef.putData(bytes, metadata);
           final url = await storageRef.getDownloadURL();
-
+          
           setState(() {
             _logoUrl = url;
           });
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Erro ao fazer upload da logo: $e')),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao fazer upload da logo: $e')));
           }
         } finally {
           if (mounted) setState(() => _isSaving = false);
@@ -352,13 +345,7 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
     if (name.isEmpty) return;
 
     if (telefone.isNotEmpty && telefone.length < 12) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'O telefone deve estar completo no formato ## ####-####',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('O telefone deve estar completo no formato ## ####-####')));
       return;
     }
 
@@ -394,10 +381,9 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Erro: $e')));
-      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -428,12 +414,8 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
                   child: CircleAvatar(
                     radius: 30,
                     backgroundColor: Colors.grey.shade200,
-                    backgroundImage: _logoUrl != null
-                        ? NetworkImage(_logoUrl!)
-                        : null,
-                    child: _logoUrl == null
-                        ? const Icon(Icons.add_a_photo, color: Colors.grey)
-                        : null,
+                    backgroundImage: _logoUrl != null ? NetworkImage(_logoUrl!) : null,
+                    child: _logoUrl == null ? const Icon(Icons.add_a_photo, color: Colors.grey) : null,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -457,10 +439,7 @@ class _AddConstrutoraDialogState extends State<_AddConstrutoraDialog> {
               controller: _telefoneController,
               inputFormatters: [_telefoneMask],
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Telefone (WhatsApp)',
-                hintText: '84 9999-9999',
-              ),
+              decoration: const InputDecoration(labelText: 'Telefone (WhatsApp)', hintText: '84 9999-9999'),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -510,10 +489,7 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _cnpjController;
   late final TextEditingController _telefoneController;
-  final _telefoneMask = MaskTextInputFormatter(
-    mask: '## ####-####',
-    filter: {"#": RegExp(r'[0-9]')},
-  );
+  final _telefoneMask = MaskTextInputFormatter(mask: '## ####-####', filter: {"#": RegExp(r'[0-9]')});
   String? _logoUrl;
   late bool _isActive;
   late final bool _isActiveInicial;
@@ -555,7 +531,10 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
             resetAspectRatioEnabled: false,
             aspectRatioPickerButtonHidden: true,
           ),
-          WebUiSettings(context: context, presentStyle: WebPresentStyle.dialog),
+          WebUiSettings(
+            context: context,
+            presentStyle: WebPresentStyle.dialog,
+          ),
         ],
       );
 
@@ -563,26 +542,22 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
         setState(() => _isSaving = true);
         try {
           final bytes = await croppedFile.readAsBytes();
-
+          
           final metadata = SettableMetadata(
             contentType: 'image/jpeg',
             customMetadata: {},
           );
-          final storageRef = FirebaseStorage.instance.ref().child(
-            'construtoras/${widget.construtora.id}/logos/${DateTime.now().millisecondsSinceEpoch}_logo.jpg',
-          );
-
+          final storageRef = FirebaseStorage.instance.ref().child('construtoras/${widget.construtora.id}/logos/${DateTime.now().millisecondsSinceEpoch}_logo.jpg');
+          
           await storageRef.putData(bytes, metadata);
           final url = await storageRef.getDownloadURL();
-
+          
           setState(() {
             _logoUrl = url;
           });
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Erro ao fazer upload da logo: $e')),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao fazer upload da logo: $e')));
           }
         } finally {
           if (mounted) setState(() => _isSaving = false);
@@ -597,13 +572,7 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
     if (name.isEmpty) return;
 
     if (telefone.isNotEmpty && telefone.length < 12) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'O telefone deve estar completo no formato ## ####-####',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('O telefone deve estar completo no formato ## ####-####')));
       return;
     }
 
@@ -638,10 +607,9 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Erro: $e')));
-      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -671,12 +639,8 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
                   child: CircleAvatar(
                     radius: 30,
                     backgroundColor: Colors.grey.shade200,
-                    backgroundImage: _logoUrl != null
-                        ? NetworkImage(_logoUrl!)
-                        : null,
-                    child: _logoUrl == null
-                        ? const Icon(Icons.add_a_photo, color: Colors.grey)
-                        : null,
+                    backgroundImage: _logoUrl != null ? NetworkImage(_logoUrl!) : null,
+                    child: _logoUrl == null ? const Icon(Icons.add_a_photo, color: Colors.grey) : null,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -701,10 +665,7 @@ class _EditConstrutoraDialogState extends State<_EditConstrutoraDialog> {
               controller: _telefoneController,
               inputFormatters: [_telefoneMask],
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Telefone (WhatsApp)',
-                hintText: '84 9999-9999',
-              ),
+              decoration: const InputDecoration(labelText: 'Telefone (WhatsApp)', hintText: '84 9999-9999'),
             ),
             const SizedBox(height: 16),
             SwitchListTile(

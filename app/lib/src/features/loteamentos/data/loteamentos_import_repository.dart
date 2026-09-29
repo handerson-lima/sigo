@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,24 +10,14 @@ final loteamentosImportRepositoryProvider =
       return LoteamentosImportRepository(
         FirebaseFirestore.instance,
         FirebaseStorage.instance,
-        requestConsolidation: (draftId) async {
-          await FirebaseFunctions.instanceFor(region: 'us-east1')
-              .httpsCallable('consolidar_loteamento_manual')
-              .call(<String, dynamic>{'draftId': draftId});
-        },
       );
     });
 
 class LoteamentosImportRepository {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
-  final Future<void> Function(String draftId)? requestConsolidation;
 
-  LoteamentosImportRepository(
-    this._firestore,
-    this._storage, {
-    this.requestConsolidation,
-  });
+  LoteamentosImportRepository(this._firestore, this._storage);
 
   /// Realiza o upload do arquivo DWF para o Cloud Storage.
   /// Retorna o identificador gerado que pode ser usado como ID do rascunho
@@ -151,13 +140,12 @@ class LoteamentosImportRepository {
   Future<void> approveDraft(String draftId) async {
     final docRef = _firestore.collection('loteamentos_drafts').doc(draftId);
     final requestId =
-        '${DateTime.now().toUtc().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 31)}';
+        '${DateTime.now().toUtc().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
     await docRef.update({
       'status': 'aprovado',
       // Cada confirmação cria uma solicitação distinta, inclusive quando o
       // rascunho já está aprovado e precisa ser consolidado novamente.
       'consolidationRequestId': requestId,
     });
-    await requestConsolidation?.call(draftId);
   }
 }

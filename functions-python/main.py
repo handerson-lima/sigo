@@ -10,9 +10,8 @@ if "FIREBASE_CONFIG" not in os.environ:
 
 import tempfile
 import logging
-import time
 from google.cloud import storage
-from firebase_functions import firestore_fn, storage_fn, https_fn
+from firebase_functions import firestore_fn, storage_fn
 from firebase_admin import initialize_app, firestore
 
 initialize_app()
@@ -27,77 +26,6 @@ from firestore_utils import (
 
 # Max file size: 50MB
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024
-CONSOLIDATION_CLAIM_TTL_SECONDS = 120
-
-
-def _claim_consolidation_request(draft_id: str, request_id: str) -> bool:
-    """Atomically reserve a request so concurrent event deliveries do no work twice."""
-    db = firestore.client()
-    draft_ref = db.collection('loteamentos_drafts').document(draft_id)
-    transaction = db.transaction()
-
-    @firestore.transactional
-    def claim(transaction):
-        snapshot = draft_ref.get(transaction=transaction)
-        draft = snapshot.to_dict() if snapshot.exists else None
-        if not draft or draft.get('consolidationRequestId') != request_id:
-            return False
-        if draft.get('consolidationCompletedRequestId') == request_id:
-            return False
-        if draft.get('consolidationProcessingRequestId') == request_id:
-            started_at = draft.get('consolidationProcessingStartedAt')
-            if isinstance(started_at, (int, float)) and (
-                time.time() - started_at < CONSOLIDATION_CLAIM_TTL_SECONDS
-            ):
-                return False
-        transaction.update(draft_ref, {
-            'consolidationProcessingRequestId': request_id,
-            'consolidationProcessingStartedAt': time.time(),
-        })
-        return True
-
-    return claim(transaction)
-
-
-def _release_consolidation_request(draft_id: str, request_id: str) -> None:
-    """Release a failed claim without clearing a newer request's claim."""
-    db = firestore.client()
-    draft_ref = db.collection('loteamentos_drafts').document(draft_id)
-    transaction = db.transaction()
-
-    @firestore.transactional
-    def release(transaction):
-        snapshot = draft_ref.get(transaction=transaction)
-        draft = snapshot.to_dict() if snapshot.exists else None
-        if draft and draft.get('consolidationProcessingRequestId') == request_id:
-            transaction.update(draft_ref, {
-                'consolidationProcessingRequestId': firestore.DELETE_FIELD,
-                'consolidationProcessingStartedAt': firestore.DELETE_FIELD,
-            })
-
-    release(transaction)
-
-
-def _complete_consolidation_request(draft_id: str, request_id: str) -> bool:
-    """Mark completion only while this request still owns the active claim."""
-    db = firestore.client()
-    draft_ref = db.collection('loteamentos_drafts').document(draft_id)
-    transaction = db.transaction()
-
-    @firestore.transactional
-    def complete(transaction):
-        snapshot = draft_ref.get(transaction=transaction)
-        draft = snapshot.to_dict() if snapshot.exists else None
-        if not draft or draft.get('consolidationProcessingRequestId') != request_id:
-            return False
-        transaction.update(draft_ref, {
-            'consolidationCompletedRequestId': request_id,
-            'consolidationProcessingRequestId': firestore.DELETE_FIELD,
-            'consolidationProcessingStartedAt': firestore.DELETE_FIELD,
-        })
-        return True
-
-    return complete(transaction)
 
 
 def _upload_metadata(file_data):
@@ -216,82 +144,33 @@ def consolidar_loteamento_aprovado(event: firestore_fn.Event[firestore_fn.Change
         return
 
     request_id = after.get('consolidationRequestId')
+    previous_request_id = before.get('consolidationRequestId') if before else None
     completed_request_id = after.get('consolidationCompletedRequestId')
     if not request_id:
         logger.info('Ignoring consolidation event: approved draft has no request id')
+        return
+    if request_id == previous_request_id:
+        logger.info('Ignoring duplicate consolidation request %s', request_id)
         return
     if request_id == completed_request_id:
         logger.info('Ignoring completed consolidation request %s', request_id)
         return
 
     draft_id = event.params['draft_id']
-    if not _claim_consolidation_request(draft_id, request_id):
-        logger.info('Ignoring already claimed consolidation request %s', request_id)
-        return
-
     logger.info('Starting consolidation request %s for draft %s', request_id, draft_id)
     try:
         consolidate_approved_draft(draft_id, after)
-        if _complete_consolidation_request(draft_id, request_id):
-            logger.info('Consolidation request %s completed for draft %s', request_id, draft_id)
-        else:
-            logger.info('Consolidation request %s completion ignored for draft %s', request_id, draft_id)
+        firestore.client().collection('loteamentos_drafts').document(draft_id).update({
+            'consolidationCompletedRequestId': request_id,
+        })
+        logger.info('Consolidation request %s completed for draft %s', request_id, draft_id)
     except Exception:
         logger.exception(
             'Consolidation request %s failed for draft %s; draft retained for retry',
             request_id,
             draft_id,
         )
-        _release_consolidation_request(draft_id, request_id)
         raise
-
-
-@https_fn.on_call(region='us-east1')
-def consolidar_loteamento_manual(request: https_fn.CallableRequest):
-    """Consolida explicitamente o draft aprovado sem depender do Eventarc."""
-    data = request.data if isinstance(request.data, dict) else {}
-    draft_id = data.get('draftId')
-    if not isinstance(draft_id, str) or not draft_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            'draftId é obrigatório.',
-        )
-
-    draft_ref = firestore.client().collection('loteamentos_drafts').document(draft_id)
-    snapshot = draft_ref.get()
-    draft = snapshot.to_dict() if snapshot.exists else None
-    if not draft:
-        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.NOT_FOUND, 'Rascunho não encontrado.')
-    if draft.get('status') != 'aprovado':
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.FAILED_PRECONDITION,
-            'O rascunho precisa estar aprovado.',
-        )
-
-    request_id = draft.get('consolidationRequestId')
-    if not request_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.FAILED_PRECONDITION,
-            'Solicitação de consolidação ausente.',
-        )
-    if draft.get('consolidationCompletedRequestId') == request_id:
-        return {'status': 'already_completed'}
-    if not _claim_consolidation_request(draft_id, request_id):
-        return {'status': 'already_processing'}
-
-    try:
-        consolidate_approved_draft(draft_id, draft)
-        if not _complete_consolidation_request(draft_id, request_id):
-            raise RuntimeError('A solicitação de consolidação perdeu sua reserva.')
-        logger.info('Manual consolidation request %s completed for draft %s', request_id, draft_id)
-        return {'status': 'completed'}
-    except Exception as error:
-        _release_consolidation_request(draft_id, request_id)
-        logger.exception('Manual consolidation failed for draft %s', draft_id)
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INTERNAL,
-            'Não foi possível consolidar o loteamento.',
-        ) from error
 
 
 # firebase-functions-python 0.6 still publishes Firestore triggers with retry

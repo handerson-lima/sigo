@@ -45,14 +45,6 @@ def _value(properties: Any, key: str) -> str:
     return value.strip()
 
 
-def _quadra_name(properties: Any) -> str:
-    """Keep approved lots materializable when the DXF has no quadra label."""
-    value = properties.get('quadra') if isinstance(properties, dict) else None
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    return 'Quadra sem identificação'
-
-
 def _chunks(items: list[tuple[Any, dict]], size: int = MAX_BATCH_OPERATIONS) -> Iterable[list[tuple[Any, dict]]]:
     for start in range(0, len(items), size):
         yield items[start:start + size]
@@ -91,8 +83,9 @@ def consolidate_approved_draft(draft_id: str, draft: dict, db=None) -> None:
             quadras.append((index, name))
         elif feature_type == 'lote':
             _value(properties, 'nome')
-            if properties.get('status') == 'ambiguo':
-                raise ValueError(f'Lote no índice {index} está ambíguo')
+            _value(properties, 'quadra')
+            if properties.get('status') != 'resolvido':
+                raise ValueError(f'Lote no índice {index} não está resolvido')
             lotes.append((index, properties))
         else:
             raise ValueError(f"Tipo de feature inválido no índice {index}: {feature_type!r}")
@@ -103,7 +96,7 @@ def consolidate_approved_draft(draft_id: str, draft: dict, db=None) -> None:
     # Drafts usuais trazem a referência da quadra em cada lote, mas podem não
     # conter uma feature de quadra. Crie essas quadras de forma estável também.
     for _, properties in lotes:
-        quadra_name = _quadra_name(properties)
+        quadra_name = _value(properties, 'quadra')
         if quadra_name not in quadras_by_name:
             name_hash = hashlib.sha256(quadra_name.encode('utf-8')).hexdigest()[:16]
             quadras_by_name[quadra_name] = f'{draft_id}--quadra--ref--{name_hash}'
@@ -137,7 +130,7 @@ def consolidate_approved_draft(draft_id: str, draft: dict, db=None) -> None:
         ))
 
     for index, properties in lotes:
-        quadra_name = _quadra_name(properties)
+        quadra_name = _value(properties, 'quadra')
         quadra_id = quadras_by_name.get(quadra_name)
         lote_id = f'{draft_id}--lote--{index}'
         writes.append((

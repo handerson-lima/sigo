@@ -200,49 +200,50 @@ void main() {
       },
     );
 
-    testWidgets(
-      'permite aprovação sem campos auxiliares quando não há pendências',
-      (tester) async {
-        final mockData = {
-          'type': 'FeatureCollection',
-          'features': [
-            {
-              'type': 'Feature',
-              'properties': {
-                'tipo': 'lote',
-                'status': 'resolvido',
-                'nome': '',
-                'quadra': '',
-              },
+    testWidgets('permite aprovação sem campos auxiliares quando não há pendências', (
+      tester,
+    ) async {
+      final mockData = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'properties': {
+              'tipo': 'lote',
+              'status': 'resolvido',
+              'nome': '',
+              'quadra': '',
             },
-          ],
-        };
+          },
+        ],
+      };
 
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              canvasDraftStreamProvider.overrideWith(
-                (ref, id) => Stream.value(mockData),
-              ),
-            ],
-            child: const MaterialApp(
-              home: LoteamentoCanvasScreen(
-                construtoraId: 'const-1',
-                draftId: 'test-123',
-              ),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            canvasDraftStreamProvider.overrideWith(
+              (ref, id) => Stream.value(mockData),
+            ),
+          ],
+          child: const MaterialApp(
+            home: LoteamentoCanvasScreen(
+              construtoraId: 'const-1',
+              draftId: 'test-123',
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        final button = tester.widget<FilledButton>(
-          find.widgetWithText(FilledButton, 'Aprovar Definitivamente'),
-        );
-        expect(button.onPressed, isNotNull);
-      },
-    );
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Aprovar Definitivamente'),
+      );
+      expect(button.onPressed, isNotNull);
+    });
 
-    testWidgets('bloqueia aprovação sem lote', (tester) async {
+    testWidgets('bloqueia aprovação sem lote', (
+      tester,
+    ) async {
       for (final properties in [
         {'tipo': 'quadra', 'nome': ''},
         {'tipo': 'rua', 'nome': 'Rua 1'},
@@ -315,14 +316,14 @@ void main() {
         routes: [
           GoRoute(
             path: '/revisao',
-            builder: (_, _) => const LoteamentoCanvasScreen(
+            builder: (_, __) => const LoteamentoCanvasScreen(
               construtoraId: 'const-1',
               draftId: 'draft-1',
             ),
           ),
           GoRoute(
             path: '/construtoras/:id/loteamentos',
-            builder: (_, _) =>
+            builder: (_, __) =>
                 const Scaffold(body: Text('Lista de loteamentos')),
           ),
         ],
