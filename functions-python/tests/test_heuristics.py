@@ -96,35 +96,194 @@ def test_build_geojson_ambiguous_multiple_texts():
     assert feature["properties"]["nome"] == "12"
     assert feature["properties"]["status"] == "valido"
 
-def test_build_geojson_ambiguous_zero_or_multiple_valid_texts():
+def _single_lote_association(lote_poly):
+    lote_entity = MockDXFPoly()
+    quadra_entity = MockDXFPoly()
+    quadra_poly = Polygon([(-5, -5), (15, -5), (15, 15), (-5, 15), (-5, -5)])
+    return {
+        'quadras': {quadra_entity: [lote_entity]},
+        'lotes_orfaos': [],
+        'quadra_polygons': {quadra_entity: quadra_poly},
+        'lote_polygons': {lote_entity: lote_poly},
+    }
+
+
+def test_build_geojson_single_inteiro_com_texto_nao_lote_e_valido():
+    # SINGLE_INTEIRO: exatamente 1 inteiro + rótulo que não é nome de lote.
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText("12", 5, 5), MockDXFText("LOTE 1", 6, 6)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["nome"] == "12"
+    assert feature["properties"]["status"] == "valido"
+
+
+def test_build_geojson_multi_inteiros_escolhe_o_mais_proximo():
+    # MULTI_INTEIROS: o inteiro mais próximo do representante do polígono vence.
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText("12", 4.9, 5.1), MockDXFText("13", 9, 9), MockDXFText("Q-04", 1, 1)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["nome"] == "12"
+    assert feature["properties"]["status"] == "valido"
+
+
+def test_build_geojson_multi_inteiros_com_empate_mantem_ambiguo():
+    # NEAR_TIE: distâncias praticamente iguais não permitem escolher com margem de 5%.
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText("12", 4, 5), MockDXFText("13", 6, 5)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["status"] == "ambiguo"
+    assert feature["properties"]["nome"] == ""
+
+
+def test_build_geojson_margem_abaixo_de_5_mantem_ambiguo():
+    # ~2,9% de margem relativa: abaixo dos 5% exigidos -> permanece ambíguo.
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText("12", 4, 5), MockDXFText("13", 3.970134, 5)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["status"] == "ambiguo"
+    assert feature["properties"]["nome"] == ""
+
+
+def test_build_geojson_margem_acima_de_5_escolhe_o_mais_proximo():
+    # ~10% de margem relativa: acima dos 5% exigidos -> valida o mais próximo.
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText("12", 4, 5), MockDXFText("13", 3.888889, 5)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["nome"] == "12"
+    assert feature["properties"]["status"] == "valido"
+
+
+def test_build_geojson_inteiro_vence_rotulo_composto():
+    # Um único inteiro vence um rótulo composto que contém número (ex.: "LOTE 12").
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText("13", 4.9, 5.1), MockDXFText("LOTE 12", 6, 6)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["nome"] == "13"
+    assert feature["properties"]["status"] == "valido"
+
+
+def test_build_geojson_numero_com_pontuacao_e_reconhecido():
+    # "12." tem a pontuação de extremidade normalizada e é reconhecido como inteiro.
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText("12.", 5, 5)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["nome"] == "12"
+    assert feature["properties"]["status"] == "valido"
+
+
+def test_build_geojson_candidato_unico_nao_inteiro_nao_vira_nome():
+    # "nunca inventar": um candidato único sem inteiro permanece ambíguo.
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText("GALERIA", 5, 5)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["status"] == "ambiguo"
+    assert feature["properties"]["nome"] == ""
+
+
+def test_build_geojson_orfao_com_numero_mantem_ambiguo_e_sem_nome():
+    lote_entity = MockDXFPoly()
+    lote_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
+    association = {
+        'quadras': {},
+        'lotes_orfaos': [lote_entity],
+        'quadra_polygons': {},
+        'lote_polygons': {lote_entity: lote_poly},
+    }
+    textos = [MockDXFText("15", 5, 5)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["status"] == "ambiguo"
+    assert feature["properties"]["nome"] == ""
+
+
+def test_build_geojson_dois_lotes_na_mesma_quadra():
     lote_entity1 = MockDXFPoly()
     lote_poly1 = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
-
     lote_entity2 = MockDXFPoly()
     lote_poly2 = Polygon([(20, 0), (30, 0), (30, 10), (20, 10), (20, 0)])
-
     quadra_entity = MockDXFPoly()
-    quadra_poly = Polygon([(-5, -5), (40, -5), (40, 40), (-5, 40), (-5, -5)])
-
+    quadra_poly = Polygon([(-5, -5), (35, -5), (35, 15), (-5, 15), (-5, -5)])
     association = {
         'quadras': {quadra_entity: [lote_entity1, lote_entity2]},
         'lotes_orfaos': [],
         'quadra_polygons': {quadra_entity: quadra_poly},
-        'lote_polygons': {lote_entity1: lote_poly1, lote_entity2: lote_poly2}
+        'lote_polygons': {lote_entity1: lote_poly1, lote_entity2: lote_poly2},
     }
-    
-    # Lote 1 tem dois candidatos válidos
-    textos = [MockDXFText("12", 5, 5), MockDXFText("LOTE 1", 6, 6)]
-    # Lote 2 tem zero candidatos válidos
-    
+    textos = [MockDXFText("12", 5, 5), MockDXFText("20", 25, 5)]
+
     geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
     f1 = next(f for f in geojson["features"] if f["geometry"]["coordinates"][0][0][0] == 0)
     f2 = next(f for f in geojson["features"] if f["geometry"]["coordinates"][0][0][0] == 20)
 
-    assert f1["properties"]["status"] == "ambiguo"
-    assert f1["properties"]["nome"] == ""
-    assert f2["properties"]["status"] == "ambiguo"
-    assert f2["properties"]["nome"] == ""
+    assert f1["properties"]["nome"] == "12"
+    assert f1["properties"]["status"] == "valido"
+    assert f2["properties"]["nome"] == "20"
+    assert f2["properties"]["status"] == "valido"
+
+
+def test_build_geojson_descarta_tokens_que_nao_sao_nome_de_lote():
+    # NONLOT_TOKEN: quadra, área, decimal e rua/área não viram nome de lote.
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [
+        MockDXFText("Q-04", 2, 2),
+        MockDXFText("152,00M²", 3, 3),
+        MockDXFText("16.00", 4, 4),
+        MockDXFText("RUA DAS FLORES", 6, 6),
+        MockDXFText("ÁREA VERDE", 7, 7),
+    ]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["status"] == "ambiguo"
+    assert feature["properties"]["nome"] == ""
+
+
+def test_build_geojson_e_deterministico():
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText("12", 4.9, 5.1), MockDXFText("13", 9, 9)]
+
+    first = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    second = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+
+    assert first == second
+
+
+def test_build_geojson_zero_texto_mantem_ambiguo():
+    # ZERO_TEXTO: lote sem texto coberto permanece ambíguo e sem nome.
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+
+    geojson = build_geojson(association, [], association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["status"] == "ambiguo"
+    assert feature["properties"]["nome"] == ""
 
 
 def test_build_geojson_orphan():
@@ -159,28 +318,15 @@ def test_build_geojson_orphan_without_polygon():
     assert feature["geometry"]["coordinates"] == []
 
 def test_build_geojson_punctuation_cleaning():
-    lote_entity = MockDXFPoly()
-    lote_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
-
-    association = {
-        'quadras': {},
-        'lotes_orfaos': [lote_entity],
-        'quadra_polygons': {},
-        'lote_polygons': {lote_entity: lote_poly}
-    }
-    
-    # "AV." deve ser limpado e reconhecido como stopword
+    # "AV." deve ser descartado; resta apenas o inteiro "12".
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
     textos = [MockDXFText("12", 5, 5), MockDXFText("AV.", 6, 6)]
+
     geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
     feature = geojson["features"][0]
-    
-    # É um lote órfão então o status final é ambiguo (regra de quadra)
-    # Mas se formos verificar apenas candidatos, se "AV." virasse candidato, teríamos dois
-    # Vamos verificar se "AV." foi descartado fazendo-o ter nome vazio (ambiguo por 2 cand)
-    # ou nome = "12" (valido por 1 cand antes da checagem de orfao)
-    # Wait, lote órfão sempre tem status "ambiguo".
-    # Em orfãos, a regra len(candidates) == 1 ainda preenche o "nome".
+
     assert feature["properties"]["nome"] == "12"
+    assert feature["properties"]["status"] == "valido"
 
 def test_build_geojson_deduplication():
     lote_entity = MockDXFPoly()

@@ -47,14 +47,13 @@ def test_extract_reference_dxf_gera_lotes_revisaveis():
 def test_extract_reference_dxf_associa_textos_aos_lotes():
     geojson = extract_dxf_geojson(FIXTURE)
 
-    # O fixture sem cotas associa o número do lote como nome confiável em 145
-    # parcelas; as demais ficam ambíguas para revisão humana.
-    validos = [
-        f['properties']['nome']
-        for f in geojson['features']
-        if f['properties']['tipo'] == 'lote' and f['properties']['status'] == 'valido'
-    ]
-    assert len(validos) == 145
+    # O fixture sem cotas associa o número do lote como nome confiável em 245
+    # parcelas; as demais ficam ambíguas para revisão humana (26 no total).
+    lotes = [f for f in geojson['features'] if f['properties']['tipo'] == 'lote']
+    validos = [f['properties']['nome'] for f in lotes if f['properties']['status'] == 'valido']
+    ambiguos = [f for f in lotes if f['properties']['status'] == 'ambiguo']
+    assert len(validos) == 245
+    assert len(ambiguos) <= 35
     assert '101' in validos
 
 

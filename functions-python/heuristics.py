@@ -9,6 +9,78 @@ STOP_WORDS = {"ÁREA", "AREA", "CASA", "LOTES", "LOTE", "QUADRA", "Q", "RUA", "A
 DIMENSION_REGEX = re.compile(r'^\d+([.,]\d+)?\s*[xX]\s*\d+([.,]\d+)?\s*(m|cm|M|CM)?$')
 # Quadra explícita ex: Q 1, QUADRA 1, Q-04, Q.04
 QUADRA_REGEX = re.compile(r'^(Q|QUADRA)[\s.\-]*[0-9A-Z]+$')
+# Área em metros quadrados ex: M², 152,00M², M2 (ancorado, não casa M20/M2A)
+AREA_REGEX = re.compile(r'^\d*[,.]?\d*\s*M\s*[²2]$')
+# Decimais isolados ex: 16.00, 1.488,00, 152,00
+DECIMAL_REGEX = re.compile(r'^\d+([.,]\d+)+$')
+# Nome de lote puro (inteiro) ex: 12, 101
+INTEGER_REGEX = re.compile(r'^\d+$')
+# Termos que nunca nomeiam lote (rua/área/institucional)
+NON_LOTE_TERMS = {
+    "ÁREA", "AREA", "RUA", "AV", "AVENIDA", "ESTRADA", "TRAVESSA", "ALAMEDA",
+    "RODOVIA", "CALÇADA", "PRAÇA", "VILA", "INSTITUCIONAL", "LAGOA",
+    "INFILTRAÇÃO", "INFILTRACAO", "VERDE", "RESERVA", "FAIXA", "APP", "JARDIM",
+}
+# Margem relativa mínima (5%) para escolher o inteiro mais próximo do polígono.
+MARGEM_PROXIMIDADE = 0.05
+
+
+def _contains_word(value, term):
+    """Casa o termo como palavra inteira, evitando acertos por substring."""
+    return term in re.split(r'[^0-9A-ZÀ-Ü]+', value)
+
+
+def _is_lote_name_candidate(value):
+    """Indica se um texto coberto pelo polígono pode nomear o lote."""
+    if not value:
+        return False
+    if DIMENSION_REGEX.match(value):
+        return False
+    if DECIMAL_REGEX.match(value):
+        return False
+    if AREA_REGEX.match(value):
+        return False
+    if QUADRA_REGEX.match(value) or value.strip('.,') == "Q":
+        return False
+    if value.strip('.,') in STOP_WORDS:
+        return False
+    if not re.search(r'[0-9A-ZÀ-Ü]', value):
+        return False
+    if any(_contains_word(value, term) for term in NON_LOTE_TERMS):
+        return False
+    return True
+
+
+def _select_nome(candidates, poly):
+    """Escolhe ``(nome, valido)`` para um lote a partir dos textos cobertos.
+
+    Apenas inteiros nomeiam lotes (com pontuação de extremidade normalizada). Com
+    dois ou mais inteiros, escolhe o mais próximo do ``representative_point`` do
+    polígono se estiver estritamente mais perto que o segundo colocado por ao
+    menos ``MARGEM_PROXIMIDADE``; caso contrário mantém o lote sem nome (ambíguo).
+    Um candidato único que não seja inteiro nunca vira nome.
+    """
+    inteiros = {}
+    for value, point in candidates:
+        normalizado = value.strip('.,;:')
+        if INTEGER_REGEX.match(normalizado):
+            inteiros.setdefault(normalizado, point)
+
+    if len(inteiros) >= 2:
+        representative = poly.representative_point()
+        ordenados = sorted(inteiros.items(), key=lambda item: representative.distance(item[1]))
+        distancia_1 = representative.distance(ordenados[0][1])
+        distancia_2 = representative.distance(ordenados[1][1])
+        if distancia_2 <= 0:
+            return "", False
+        if (distancia_2 - distancia_1) / distancia_2 >= MARGEM_PROXIMIDADE:
+            return ordenados[0][0], True
+        return "", False
+
+    if len(inteiros) == 1:
+        return next(iter(inteiros)), True
+
+    return "", False
 
 def extract_text(entity):
     """Extrai texto e ponto de inserção de uma entidade ezdxf (TEXT/MTEXT)."""
@@ -90,29 +162,16 @@ def build_geojson(association, textos, quadra_polygons, lote_polygons):
         
         candidates = []
         for val, pt in parsed_texts:
-            if poly.covers(pt):
-                # Filtra regex de dimensão
-                if DIMENSION_REGEX.match(val):
-                    continue
-                
-                # Check entire word (optionally stripping trailing punctuation)
-                if val.strip('.,') in STOP_WORDS:
-                    continue
+            if poly.covers(pt) and _is_lote_name_candidate(val):
+                candidates.append((val, pt))
 
-                candidates.append(val)
-        
-        # Deduplicate
-        candidates = list(dict.fromkeys(candidates))
-        
-        status = "ambiguo"
-        nome = ""
-        if len(candidates) == 1:
-            status = "valido"
-            nome = candidates[0]
-        
+        nome, escolhido = _select_nome(candidates, poly)
+        status = "valido" if escolhido else "ambiguo"
+
         if q_entity is None:
             status = "ambiguo"
-        
+            nome = ""
+
         quadra_nome = ""
         if q_entity is not None:
             quadra_poly = quadra_polygons.get(q_entity)

@@ -58,7 +58,7 @@ def _build_reference_geojson():
     }
     geojson = build_geojson(
         association,
-        [_MockDxfText('Q 1', 5, 5)],
+        [_MockDxfText('12', 5, 5), _MockDxfText('Q 1', 5, 5)],
         association['quadra_polygons'],
         association['lote_polygons'],
     )
