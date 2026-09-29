@@ -2,7 +2,7 @@
 title: 'Importação de loteamento por DXF'
 type: 'refactor'
 created: '2026-09-29'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 baseline_commit: 'a0a75fb16157bd52f365ecb9e21991e54b731c40'
 review_loop_iteration: 0
@@ -54,13 +54,13 @@ context: []
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `functions-python/dxf_extraction.py` -- criar extrator com `ezdxf`: explodir `INSERT`/blocos herdando layer, fechar `LWPOLYLINE`, classificar lote/quadra, associar MTEXT e devolver GeoJSON no contrato do rascunho, com erro de domínio terminal.
-- [ ] `functions-python/main.py` -- renomear gatilho para DXF, validar `.dxf`, chamar o novo extrator e gravar `sourceFormat:'dxf'`.
-- [ ] `functions-python/tests/` -- cobrir rota/extensão/tamanho/temp/erros no gatilho e extração no fixture real e em DXF sintéticos.
-- [ ] `functions-python/dwf_extraction.py`, `functions-python/tests/test_dwf_extraction.py` e referências a `DWF_CONVERTER_COMMAND` -- remover (DXF substitui DWF).
-- [ ] `storage.rules` -- aceitar `application/dxf` e `.*\.dxf` (case-insensitive), mantendo size/auth.
-- [ ] UI Flutter (`loteamento_import_screen.dart`, `loteamentos_import_repository.dart`) e testes -- aceitar `.dxf`, MIME DXF, texts/título e mensagens.
-- [ ] `functions-python/requirements.txt` -- remover dependências exclusivas de DWF/PDF/OCR quando não usadas pelo caminho DXF.
+- [x] `functions-python/dxf_extraction.py` -- criar extrator com `ezdxf`: explodir `INSERT`/blocos herdando layer, fechar `LWPOLYLINE`, classificar lote/quadra, associar MTEXT e devolver GeoJSON no contrato do rascunho, com erro de domínio terminal.
+- [x] `functions-python/main.py` -- renomear gatilho para DXF, validar `.dxf`, chamar o novo extrator e gravar `sourceFormat:'dxf'`.
+- [x] `functions-python/tests/` -- cobrir rota/extensão/tamanho/temp/erros no gatilho e extração no fixture real e em DXF sintéticos.
+- [x] `functions-python/dwf_extraction.py`, `functions-python/tests/test_dwf_extraction.py` e referências a `DWF_CONVERTER_COMMAND` -- remover (DXF substitui DWF).
+- [x] `storage.rules` -- aceitar `application/dxf` e `.*\.dxf` (case-insensitive), mantendo size/auth.
+- [x] UI Flutter (`loteamento_import_screen.dart`, `loteamentos_import_repository.dart`) e testes -- aceitar `.dxf`, MIME DXF, texts/título e mensagens.
+- [x] `functions-python/requirements.txt` -- remover dependências exclusivas de DWF/PDF/OCR quando não usadas pelo caminho DXF.
 
 **Acceptance Criteria:**
 - Given o DXF de referência, when enviado e processado, then gera rascunho revisável com lotes/quadras/textos que o canvas renderiza e permite aprovar.
@@ -69,9 +69,31 @@ context: []
 
 ## Implementation Notes
 
+- `dxf_extraction.extract_dxf_geojson` reproduz o contrato terminal de `dwf_extraction`: `DxfExtractionError` (subclasse de `ValueError`) vira rascunho `status:'erro'` com `processingError`.
+- Classificação: primeiro tokens de layer (`LOTE`/`QUADRA`); quando todos os elementos estão no layer `0`, decide por geometria — um polígono é quadra se contém outra parcela com área `>= 10 m²` e `<= 50%` da sua; o restante (área `>= 10 m²`) é lote. `HATCH`, `LINE` e `ARC` são ignorados; `INSERT` é explodido herdando o layer da referência.
+- O caminho PDF/OCR experimental foi preservado: a spec substitui apenas o DWF, então `pdf_extraction.py`, `tests/test_pdf_extraction.py`, `apt.txt` e as dependências `PyMuPDF`/`opencv-python-headless`/`pytesseract` seguem em uso e não foram removidos.
+- O nome dos lotes depende das heurísticas existentes (`heuristics.build_geojson`). No DXF de referência muitos MTEXT de cota/área caem dentro do lote e levam o rascunho a `status:'ambiguo'` (revisão humana), comportamento previsto na matriz `AMBIGUOUS`; nenhuma heurística foi alterada por estar fora do escopo da spec.
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+- BH1 (requirements.txt sem alteração com tarefa `[x]`) — `false` — a tarefa é condicional ("quando não usadas pelo caminho DXF"); as deps `PyMuPDF`/`opencv`/`pytesseract` seguem usadas pelo caminho PDF preservado, então não há o que remover.
+- BH2 (`Never: aceitar PDF` vs caminho PDF preservado) — `false` — o fluxo de loteamento aceita somente `.dxf` e rejeita o resto (testado no repositório e no gatilho); `pdf_extraction.py` é caminho experimental separado, não alcançável por essa importação.
+- BH3 (spec DWF antiga não marcada como superada) — `false` — `spec-importacao-dwf-loteamento.md` é registro histórico; a nova spec é a autoridade e o código não contém mais DWF.
+- BH4 ("caminho A" indefinido no Code Map) — `low` — real, porém documental; rejeitado porque a correção editaria esta spec.
+- BH5 + EC1 + VG-other (classificação por layer descarta parcelas sem token) — `medium` — verificado: `_layer_classification` retorna cedo assim que existe entidade com token e `_classify` ignora as demais; DXF com `QUADRA` + lote no layer `0` falha terminal, descartando lote válido. Rota: `patch`.
+- BH6 (match por substring: `LOTE` casa `LOTEAMENTO`) — `low` — rejeitado: cenário não demonstrado no fixture (tudo no layer `0`) e a correção (tokenização) adiciona complexidade.
+- BH7 + EC3 (`_flatten` sobrescreve layer explícito do filho) — `medium` — verificado: `child.dxf.layer = layer` aplica o layer do `INSERT` a todo filho, apagando layer próprio e impedindo classificação por token. Rota: `patch`.
+- BH8 (áreas assumem metros, sem checar `$INSUNITS`) — `maybe-false` — a unidade do fixture é metros; não se demonstrou upload real em mm/cm. Rota: `defer` (severidade `medium` não verificada; settle: testar DXF em mm ou checar `$INSUNITS` de uploads reais).
+- BH9 (`build_geojson` só emite feature quadra para reparadas) — `false` — reuso obrigatório pela spec e contrato já consumido pelo canvas; quadras válidas são expostas via `quadra` no lote, e features `tipo:'quadra'` existem para reparadas.
+- BH10 (removidos limites de bytes/entidades do extrator) — `maybe-false` — upload limitado a 50 MB e `MAX_INSERT_DEPTH` limita recursão; não se demonstrou DXF adversário que estoure. Rota: `defer` (severidade `medium` não verificada; settle: medir tempo/memória com DXF de 50 MB).
+- BH11 (bulge/curvas ignorados por `get_points_from_entity`) — `low` — comportamento pré-existente de `geometry_utils`, não introduzido aqui. Rota: `defer`.
+- BH12 (spec sem evidência das verificações) — `low` — rejeitado: a correção editaria esta spec; as verificações são registradas no fluxo.
+- BH13 + VG2 (assertivas de teste fracas: herança de INSERT e associação de textos) — `low` — verificado: `test_extract_herda_layer_do_insert` passa por fallback geométrico e o teste de textos só exige `>=1` nome. Rota: `patch` (reforçar assertivas; correção direta).
+- EC2 (`covers(rep_point)` em sobreposição parcial) — `low` — rejeitado: não demonstrado com parcelas reais (lotes não se sobrepõem) e trocar por `contains` alteraria a semântica sem ganho comprovado.
+- EC4/EC5 (`_upload_metadata` pode lançar `DraftPersistenceError` dentro do handler de `DxfExtractionError`) — `medium` — real, mas pré-existente (mesma estrutura no código DWF, inalterada pelo diff). Rota: `defer`.
+- VG1 (regra de `storage.rules` sem teste; suíte de rules fora do CI) — `patch` — verificado pelo revisor: nenhum teste exercitava `loteamentos_drafts_uploads`. Foi adicionado o caso 7.4 (aceita `application/dxf`+`.dxf`/`.DXF`; nega `application/x-dwf`/`.dwf`, MIME/ext divergentes e uid estranho), que passa sob `npm run test:rules`. A ligação de `test:rules` ao CI foi para `defer` por esbarrar na falha pré-existente 8.3 (regra de logos).
 
 ## Design Notes
 

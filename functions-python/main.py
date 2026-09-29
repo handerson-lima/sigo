@@ -17,7 +17,7 @@ from firebase_admin import initialize_app
 initialize_app()
 logger = logging.getLogger(__name__)
 
-from dwf_extraction import DwfExtractionError, extract_dwf_geojson
+from dxf_extraction import DxfExtractionError, extract_dxf_geojson
 from firestore_utils import (
     DraftPersistenceError,
     save_draft_to_firestore,
@@ -42,10 +42,10 @@ def _upload_metadata(file_data):
 
 
 @storage_fn.on_object_finalized(region="us-east1")
-def processar_dwf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
+def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     """
     Background Cloud Function to be triggered by Cloud Storage.
-    Path expected: loteamentos_drafts_uploads/{userId}/{timestamp}_{filename}.dwf
+    Path expected: loteamentos_drafts_uploads/{userId}/{timestamp}_{filename}.dxf
     """
     file_data = event.data
     logger.debug(f"Processing {getattr(file_data, 'name', 'NO_NAME')}")
@@ -63,7 +63,7 @@ def processar_dwf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
         return
 
     file_name_lower = file_data.name.lower()
-    if not file_name_lower.endswith('.dwf'):
+    if not file_name_lower.endswith('.dxf'):
         logger.info(f"Ignoring unsupported file: {file_data.name}")
         return
 
@@ -92,16 +92,16 @@ def processar_dwf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     bucket = storage_client.bucket(file_data.bucket)
     blob = bucket.blob(file_data.name, generation=file_data.generation)
 
-    fd, temp_local_filename = tempfile.mkstemp(suffix='.dwf')
+    fd, temp_local_filename = tempfile.mkstemp(suffix='.dxf')
     try:
         blob.download_to_filename(temp_local_filename)
         logger.info(f"Downloaded {file_data.name} to {temp_local_filename}")
-        geojson = extract_dwf_geojson(temp_local_filename)
+        geojson = extract_dxf_geojson(temp_local_filename)
         draft_id = file_data.name.split('/')[-1]
         save_draft_to_firestore(
-            draft_id, geojson, {**_upload_metadata(file_data), 'sourceFormat': 'dwf'},
+            draft_id, geojson, {**_upload_metadata(file_data), 'sourceFormat': 'dxf'},
         )
-        logger.info(f"Processamento DWF concluído. Rascunho {draft_id} salvo com sucesso.")
+        logger.info(f"Processamento DXF concluído. Rascunho {draft_id} salvo com sucesso.")
             
     except (IOError, OSError) as e:
         logger.error(f"Transient error processing {file_data.name}: {e}")
@@ -109,14 +109,14 @@ def processar_dwf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     except DraftPersistenceError:
         logger.exception(f"Fatal error persisting {file_data.name}")
         # Sem raise para evitar loop infinito de poison messages do DXF para o Firestore
-    except DwfExtractionError as error:
-        logger.error('DWF_INVALID: %s', error)
+    except DxfExtractionError as error:
+        logger.error('DXF_INVALID: %s', error)
         draft_id = file_data.name.split('/')[-1]
         save_draft_to_firestore(
             draft_id,
             {'type': 'FeatureCollection', 'features': []},
             {**_upload_metadata(file_data), 'status': 'erro',
-             'sourceFormat': 'dwf', 'processingError': str(error)},
+             'sourceFormat': 'dxf', 'processingError': str(error)},
         )
     except Exception as e:
         logger.error(f"Unhandled error processing {file_data.name}: {e}")

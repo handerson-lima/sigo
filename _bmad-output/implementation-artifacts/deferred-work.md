@@ -414,3 +414,24 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 ## Deferred from: code review of spec-2-2-algoritmo-espacial-point-in-polygon (2026-09-27)
 
 - **Média — Empate entre quadras sobrepostas de mesma área:** em `9a3d8e1`, `functions-python/geometry_utils.py:115-121`, `min(...area)` escolhe a primeira quadra; inversão da entrada muda o destino do lote. Mantido o adiamento já registrado no Group 4 da spec (política de sobreposição fora do escopo); definir desempate ou representação de ambiguidade antes de implementar. Reproduzido nesta revisão e ainda presente em HEAD.
+
+## Deferred from: code review of spec-importacao-dxf-loteamento (2026-09-29)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-loteamento.md`
+  summary: Normalizar unidades (`$INSUNITS`) antes de aplicar `MIN_LOTE_AREA`/`QUADRA_AREA_RATIO` na classificação DXF.
+  evidence: O extrator assume metros; um DXF em mm/cm/pés faz símbolos gráficos passarem o limite de 10 u² e virarem lotes. Não demonstrado com upload real fora de metros (severidade média não verificada); settle testando DXF em mm ou checando `$INSUNITS` dos uploads reais.
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-loteamento.md`
+  summary: Reintroduzir limite de entidades/bytes no extrator DXF (o extrator DWF tinha `MAX_DWF_UNCOMPRESSED_BYTES`/`MAX_GEOJSON_OUTPUT_BYTES`).
+  evidence: `MAX_INSERT_DEPTH` limita recursão mas não o total de entidades; upload limitado a 50 MB ainda pode gerar DXF adversário custoso. Não demonstrado (severidade média não verificada); settle medindo tempo/memória com DXF de 50 MB.
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-loteamento.md`
+  summary: Tratar `DraftPersistenceError` de `_upload_metadata` dentro do handler de `DxfExtractionError` em `functions-python/main.py`.
+  evidence: `_upload_metadata(file_data)` pode lançar quando o upload não tem `construtoraId`/`loteamentoName`; no ramo de erro de extração ele escapa e provoca retry em vez de gravar o rascunho `status:'erro'`. Pré-existente (mesma estrutura no código DWF), não introduzido por esta spec.
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-loteamento.md`
+  summary: Considerar tesselação de `bulge`/arcos em `geometry_utils.get_points_from_entity` para contornos curvos.
+  evidence: `LWPOLYLINE` com bulge vira corda e `ARC`/`SPLINE`/`ELLIPSE` são descartados; comportamento pré-existente de `geometry_utils`, não introduzido por esta spec.
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-loteamento.md`
+  summary: Executar `npm run test:rules` no CI (a suíte de storage rules não roda em nenhum workflow).
+  evidence: `.github/workflows/ci.yml` roda apenas `npm test` (`unit.cjs`); os casos de `storage.rules` (incluindo o novo 7.4 de `loteamentos_drafts_uploads`) só rodam manualmente. Bloqueado por uma falha pré-existente em 8.3 (ver item abaixo).
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-loteamento.md`
+  summary: Reconciliar o teste 8.3 de storage rules com a regra de logos vigente (`signed()`, sem exigir metadata vazia).
+  evidence: O commit `3eb4a43` afrouxou `construtoras/{c}/logos` para `signed()`; o teste 8.3 ainda espera `admin(c)` + `metadata.hasOnly([])` e falha. Pré-existente, fora do escopo do DXF; a decisão de restrição é de segurança e precisa de dono.

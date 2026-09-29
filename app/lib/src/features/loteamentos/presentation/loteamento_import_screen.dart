@@ -55,7 +55,7 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
   Future<void> _pickFile() async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['dwf'],
+      allowedExtensions: ['dxf'],
     );
 
     if (result.isNotEmpty) {
@@ -68,7 +68,7 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Importar Loteamento (DWF)')),
+      appBar: AppBar(title: const Text('Importar Loteamento (DXF)')),
       body: Center(
         child: isUploading
             ? const Column(
@@ -104,11 +104,11 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
                         final name = await dropzoneController.getFilename(ev);
                         final bytes = await dropzoneController.getFileData(ev);
                         if (!context.mounted) return;
-                        if (!name.toLowerCase().endsWith('.dwf')) {
+                        if (!name.toLowerCase().endsWith('.dxf')) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Por favor, envie um arquivo .dwf',
+                                'Por favor, envie um arquivo .dxf',
                               ),
                             ),
                           );
@@ -124,7 +124,7 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
                           const Icon(Icons.cloud_upload, size: 80, color: Colors.grey),
                           const SizedBox(height: 16),
                           const Text(
-                            'Arraste um arquivo .dwf aqui',
+                            'Arraste um arquivo .dxf aqui',
                             style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
                           const SizedBox(height: 16),

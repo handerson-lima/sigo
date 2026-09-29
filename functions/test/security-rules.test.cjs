@@ -545,6 +545,47 @@ test('7.3 Storage garante imutabilidade: update e delete bloqueados', async () =
   await assertFails(deleteObject(targetRef));
 });
 
+test('7.4 Importação de loteamento aceita apenas DXF em loteamentos_drafts_uploads', async () => {
+  const memberStorage = testEnv.authenticatedContext('diary_user').storage('gs://demo-sigo.appspot.com');
+  const dxfBytes = Buffer.from('0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nEOF\n');
+
+  // DXF válido: MIME e extensão corretos no diretório do próprio uid
+  await assertSucceeds(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/1_arquivo.dxf'),
+    dxfBytes,
+    { contentType: 'application/dxf' }
+  ));
+
+  // Extensão maiúscula continua aceita
+  await assertSucceeds(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/2_arquivo.DXF'),
+    dxfBytes,
+    { contentType: 'application/dxf' }
+  ));
+
+  // Formato antigo DWF rejeitado (MIME e extensão)
+  await assertFails(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/3_arquivo.dwf'),
+    dxfBytes,
+    { contentType: 'application/x-dwf' }
+  ));
+
+  // MIME DXF com extensão não-DXF também é rejeitado
+  await assertFails(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/4_arquivo.pdf'),
+    dxfBytes,
+    { contentType: 'application/dxf' }
+  ));
+
+  // Não é possível escrever no diretório de outro uid
+  const outsiderStorage = testEnv.authenticatedContext('outsider_user').storage('gs://demo-sigo.appspot.com');
+  await assertFails(uploadBytes(
+    ref(outsiderStorage, 'loteamentos_drafts_uploads/diary_user/5_invasao.dxf'),
+    dxfBytes,
+    { contentType: 'application/dxf' }
+  ));
+});
+
 // ==========================================
 // 8. LOGOS DA CONSTRUTORA (Story 3)
 // ==========================================

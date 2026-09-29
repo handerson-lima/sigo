@@ -36,12 +36,12 @@ class DxfExtractionError(ValueError):
 
 
 def _effective_layer(entity, inherited_layer: str) -> str:
-    """Aplica a herança de layer: entidades no layer ``0`` seguem o INSERT."""
+    """Aplica a herança de layer: entidades em ``0``/``BYBLOCK`` seguem o INSERT."""
     try:
         layer = entity.dxf.layer
     except Exception:  # pragma: no cover - entidades sem DXF attribs
         layer = None
-    if not layer or layer == '0':
+    if not layer or layer == '0' or str(layer).upper() == 'BYBLOCK':
         return inherited_layer
     return layer
 
@@ -59,34 +59,25 @@ def _flatten(container, inherited_layer: str = '0', depth: int = 0):
             except Exception as error:  # pragma: no cover - bloco corrompido
                 logger.warning("Falha ao explodir bloco %s: %s", entity.dxf.name, error)
                 continue
-            for child in children:
-                try:
-                    child.dxf.layer = layer
-                except Exception:  # pragma: no cover
-                    pass
+            # Não sobrescrevemos child.dxf.layer: a herança é resolvida por
+            # ``_effective_layer``, preservando layers explícitos do bloco.
             yield from _flatten(children, layer, depth + 1)
         else:
             yield entity, layer
 
 
-def _layer_classification(poly_entities):
-    """Classifica por tokens de layer quando existirem; senão devolve ``None``."""
-    tagged = []
-    for entity, layer in poly_entities:
-        upper = (layer or '').upper()
-        if QUADRA_LAYER_TOKEN in upper:
-            tagged.append((entity, 'quadra'))
-        elif LOTE_LAYER_TOKEN in upper:
-            tagged.append((entity, 'lote'))
-    if not tagged:
-        return None
-    lotes = [entity for entity, tipo in tagged if tipo == 'lote']
-    quadras = [entity for entity, tipo in tagged if tipo == 'quadra']
-    return lotes, quadras
+def _layer_tag(layer):
+    """Devolve ``'lote'``/``'quadra'`` a partir do token do layer, ou ``None``."""
+    upper = (layer or '').upper()
+    if QUADRA_LAYER_TOKEN in upper:
+        return 'quadra'
+    if LOTE_LAYER_TOKEN in upper:
+        return 'lote'
+    return None
 
 
 def _geometry_classification(poly_entities):
-    """Classifica por área e contenção quando todos estão no layer ``0``."""
+    """Classifica por área e contenção."""
     polygons = {}
     for entity, _ in poly_entities:
         polygon, _ = ezdxf_entity_to_polygon(entity)
@@ -115,10 +106,24 @@ def _geometry_classification(poly_entities):
 
 
 def _classify(poly_entities):
-    classified = _layer_classification(poly_entities)
-    if classified is None:
+    """Combina classificação por token de layer com o resto por geometria."""
+    if not any(_layer_tag(layer) for _, layer in poly_entities):
         return _geometry_classification(poly_entities)
-    return classified
+
+    lotes = []
+    quadras = []
+    untagged = []
+    for entity, layer in poly_entities:
+        tag = _layer_tag(layer)
+        if tag == 'quadra':
+            quadras.append(entity)
+        elif tag == 'lote':
+            lotes.append(entity)
+        else:
+            untagged.append((entity, layer))
+
+    untagged_lotes, untagged_quadras = _geometry_classification(untagged)
+    return lotes + untagged_lotes, quadras + untagged_quadras
 
 
 def _read_document(filepath):

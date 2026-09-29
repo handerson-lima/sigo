@@ -92,10 +92,10 @@ void main() {
       );
     });
 
-    test('preserva o nome base do DWF para o rascunho', () {
+    test('preserva o nome base do DXF para o rascunho', () {
       expect(
         LoteamentosImportRepository.loteamentoNameFromFilename(
-          'LOTEAMENTO_HR_R13A-Model.dwf',
+          'LOTEAMENTO_HR_R13A-Model.dxf',
         ),
         'LOTEAMENTO_HR_R13A-Model',
       );
@@ -108,12 +108,20 @@ void main() {
           LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.pdf'),
           isNull,
         );
+        expect(
+          LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.dwf'),
+          isNull,
+        );
+        expect(
+          LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.dwg'),
+          isNull,
+        );
       },
     );
 
-    test('rejeita nome DWF sem base utilizável antes do upload', () {
+    test('rejeita nome DXF sem base utilizável antes do upload', () {
       expect(
-        LoteamentosImportRepository.loteamentoNameFromFilename('.dwf'),
+        LoteamentosImportRepository.loteamentoNameFromFilename('.dxf'),
         isNull,
       );
       expect(
@@ -126,16 +134,16 @@ void main() {
       final storage = _RecordingFirebaseStorage();
       final repo = LoteamentosImportRepository(fakeFirestore, storage);
 
-      final draftId = await repo.uploadDwf(
+      final draftId = await repo.uploadDxf(
         userId: 'user-1',
         construtoraId: 'construtora-1',
         fileBytes: Uint8List.fromList([1, 2]),
-        filename: 'Loteamento A.dwf',
+        filename: 'Loteamento A.dxf',
       );
 
       expect(storage.path, 'loteamentos_drafts_uploads/user-1/$draftId');
       expect(storage.reference.bytes, Uint8List.fromList([1, 2]));
-      expect(storage.reference.metadata?.contentType, 'application/x-dwf');
+      expect(storage.reference.metadata?.contentType, 'application/dxf');
       expect(storage.reference.metadata?.customMetadata, {
         'construtoraId': 'construtora-1',
         'loteamentoName': 'Loteamento A',
