@@ -7,11 +7,10 @@ import 'widgets/geojson_canvas_widget.dart';
 import 'widgets/lote_correcao_panel.dart';
 
 // O mesmo provider que escuta o draft no processamento.
-final canvasDraftStreamProvider =
-    StreamProvider.family<Map<String, dynamic>?, String>((ref, draftId) {
-      final repo = ref.watch(loteamentosImportRepositoryProvider);
-      return repo.watchDraft(draftId);
-    });
+final canvasDraftStreamProvider = StreamProvider.family<Map<String, dynamic>?, String>((ref, draftId) {
+  final repo = ref.watch(loteamentosImportRepositoryProvider);
+  return repo.watchDraft(draftId);
+});
 
 class LoteamentoCanvasScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -24,12 +23,10 @@ class LoteamentoCanvasScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<LoteamentoCanvasScreen> createState() =>
-      _LoteamentoCanvasScreenState();
+  ConsumerState<LoteamentoCanvasScreen> createState() => _LoteamentoCanvasScreenState();
 }
 
-class _LoteamentoCanvasScreenState
-    extends ConsumerState<LoteamentoCanvasScreen> {
+class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen> {
   int? _selectedFeatureIndex;
   bool _isApproving = false;
 
@@ -87,9 +84,7 @@ class _LoteamentoCanvasScreenState
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text(
-                                      'Consolidação iniciada. O loteamento aparecerá na lista ao concluir.',
-                                    ),
+                                    content: Text('Rascunho aprovado.'),
                                   ),
                                 );
                                 context.go(
@@ -156,18 +151,12 @@ class _LoteamentoCanvasScreenState
                   ),
                 ),
               ),
-              if (_selectedFeatureIndex != null &&
-                  _selectedFeatureIndex! < features.length)
+              if (_selectedFeatureIndex != null && _selectedFeatureIndex! < features.length)
                 LoteCorrecaoPanel(
-                  properties:
-                      features[_selectedFeatureIndex!]['properties']
-                          as Map<String, dynamic>? ??
-                      {},
+                  properties: features[_selectedFeatureIndex!]['properties'] as Map<String, dynamic>? ?? {},
                   onSave: (newName) async {
                     try {
-                      final repo = ref.read(
-                        loteamentosImportRepositoryProvider,
-                      );
+                      final repo = ref.read(loteamentosImportRepositoryProvider);
                       await repo.updateDraftFeature(
                         widget.draftId,
                         _selectedFeatureIndex!,
@@ -177,16 +166,10 @@ class _LoteamentoCanvasScreenState
                       setState(() {
                         _selectedFeatureIndex = null;
                       });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Lote atualizado com sucesso.'),
-                        ),
-                      );
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lote atualizado com sucesso.')));
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Erro ao atualizar lote: $e')),
-                        );
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao atualizar lote: $e')));
                       }
                     }
                   },
@@ -206,10 +189,7 @@ class _LoteamentoCanvasScreenState
             children: [
               const Icon(Icons.error, color: Colors.red, size: 64),
               const SizedBox(height: 16),
-              Text(
-                'Erro ao carregar o rascunho:\n$err',
-                textAlign: TextAlign.center,
-              ),
+              Text('Erro ao carregar o rascunho:\n$err', textAlign: TextAlign.center),
             ],
           ),
         ),

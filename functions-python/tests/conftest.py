@@ -1,6 +1,5 @@
 import os
 import sys
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 # Adiciona o diretório raiz do projeto ao sys.path para importar main.py
@@ -20,14 +19,6 @@ def mock_decorator(*args, **kwargs):
         return func
     return decorator
 
-
-def mock_firestore_decorator(*args, **kwargs):
-    def decorator(func):
-        func.__firebase_endpoint__ = SimpleNamespace(eventTrigger={'retry': False})
-        return func
-    return decorator
-
 mock_ff.storage_fn.on_object_finalized = mock_decorator
-mock_ff.firestore_fn.on_document_updated = mock_firestore_decorator
 sys.modules['firebase_functions'] = mock_ff
 sys.modules['firebase_admin'] = MagicMock()

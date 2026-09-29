@@ -307,9 +307,7 @@ void main() {
       expect(button.onPressed, isNull);
     });
 
-    testWidgets('aprova, informa a consolidação e navega para a lista', (
-      tester,
-    ) async {
+    testWidgets('aprova e navega para a lista', (tester) async {
       final repository = _ApprovingRepository();
       final router = GoRouter(
         initialLocation: '/revisao',
@@ -362,12 +360,7 @@ void main() {
       await tester.pump();
 
       expect(repository.approvedDraftId, 'draft-1');
-      expect(
-        find.text(
-          'Consolidação iniciada. O loteamento aparecerá na lista ao concluir.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Rascunho aprovado.'), findsOneWidget);
       expect(
         router.routeInformationProvider.value.uri.path,
         '/construtoras/const-1/loteamentos',

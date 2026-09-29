@@ -11,8 +11,8 @@ if "FIREBASE_CONFIG" not in os.environ:
 import tempfile
 import logging
 from google.cloud import storage
-from firebase_functions import firestore_fn, storage_fn
-from firebase_admin import initialize_app, firestore
+from firebase_functions import storage_fn
+from firebase_admin import initialize_app
 
 initialize_app()
 logger = logging.getLogger(__name__)
@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 from dwf_extraction import DwfExtractionError, extract_dwf_geojson
 from firestore_utils import (
     DraftPersistenceError,
-    consolidate_approved_draft,
     save_draft_to_firestore,
 )
 
@@ -129,51 +128,3 @@ def processar_dwf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
                 os.remove(temp_local_filename)
             except OSError as e:
                 logger.warning(f"Failed to remove temp file {temp_local_filename}: {e}")
-
-
-@firestore_fn.on_document_updated(
-    document='loteamentos_drafts/{draft_id}',
-    region='us-east1',
-)
-def consolidar_loteamento_aprovado(event: firestore_fn.Event[firestore_fn.Change]):
-    """Consolida apenas uma solicitação nova de um rascunho aprovado."""
-    before = event.data.before.to_dict() if event.data.before else None
-    after = event.data.after.to_dict() if event.data.after else None
-    if not after or after.get('status') != 'aprovado':
-        logger.info('Ignoring consolidation event: draft is not approved')
-        return
-
-    request_id = after.get('consolidationRequestId')
-    previous_request_id = before.get('consolidationRequestId') if before else None
-    completed_request_id = after.get('consolidationCompletedRequestId')
-    if not request_id:
-        logger.info('Ignoring consolidation event: approved draft has no request id')
-        return
-    if request_id == previous_request_id:
-        logger.info('Ignoring duplicate consolidation request %s', request_id)
-        return
-    if request_id == completed_request_id:
-        logger.info('Ignoring completed consolidation request %s', request_id)
-        return
-
-    draft_id = event.params['draft_id']
-    logger.info('Starting consolidation request %s for draft %s', request_id, draft_id)
-    try:
-        consolidate_approved_draft(draft_id, after)
-        firestore.client().collection('loteamentos_drafts').document(draft_id).update({
-            'consolidationCompletedRequestId': request_id,
-        })
-        logger.info('Consolidation request %s completed for draft %s', request_id, draft_id)
-    except Exception:
-        logger.exception(
-            'Consolidation request %s failed for draft %s; draft retained for retry',
-            request_id,
-            draft_id,
-        )
-        raise
-
-
-# firebase-functions-python 0.6 still publishes Firestore triggers with retry
-# disabled and exposes no public retry option. The deployment manifest is the
-# supported discovery contract, so opt this event trigger into redelivery.
-consolidar_loteamento_aprovado.__firebase_endpoint__.eventTrigger['retry'] = True

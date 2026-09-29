@@ -47,22 +47,6 @@ void main() {
       expect(find.byType(CustomPaint), findsWidgets);
     });
 
-    testWidgets('ignora string JSON de geometria malformada', (tester) async {
-      await tester.pumpWidget(const MaterialApp(
-        home: Scaffold(
-          body: GeojsonCanvasWidget(
-            geojsonData: {
-              'features': [
-                {'geometry': '{invalido', 'properties': {}}
-              ],
-            },
-          ),
-        ),
-      ));
-
-      expect(find.text('Canvas vazio (sem coordenadas válidas).'), findsOneWidget);
-    });
-
     testWidgets('renderiza poligonos com sucesso no canvas (Acesso Inicial / Renderização Visual)', (tester) async {
       final data = {
         'type': 'FeatureCollection',

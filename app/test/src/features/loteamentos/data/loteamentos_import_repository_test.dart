@@ -53,52 +53,38 @@ void main() {
       repository = LoteamentosImportRepository(fakeFirestore, fakeStorage);
     });
 
-    test(
-      'updateDraftFeature safely merges properties inside a transaction',
-      () async {
-        // Configurar dados de teste
-        final draftId = 'draft123';
-        final draftRef = fakeFirestore
-            .collection('loteamentos_drafts')
-            .doc(draftId);
-        await draftRef.set({
-          'features': [
-            {
-              'type': 'Feature',
-              'properties': {'nome': 'Lote 1', 'status': 'ambiguo'},
-            },
-            {
-              'type': 'Feature',
-              'properties': {'nome': 'Lote 2', 'status': 'resolvido'},
-            },
-          ],
-        });
+    test('updateDraftFeature safely merges properties inside a transaction', () async {
+      // Configurar dados de teste
+      final draftId = 'draft123';
+      final draftRef = fakeFirestore.collection('loteamentos_drafts').doc(draftId);
+      await draftRef.set({
+        'features': [
+          {'type': 'Feature', 'properties': {'nome': 'Lote 1', 'status': 'ambiguo'}},
+          {'type': 'Feature', 'properties': {'nome': 'Lote 2', 'status': 'resolvido'}},
+        ],
+      });
 
-        // Executar a transação
-        await repository.updateDraftFeature(draftId, 0, {
-          'nome': 'Lote 1A',
-          'status': 'resolvido',
-        });
+      // Executar a transação
+      await repository.updateDraftFeature(draftId, 0, {'nome': 'Lote 1A', 'status': 'resolvido'});
 
-        // Validar os resultados
-        final snapshot = await draftRef.get();
-        final data = snapshot.data();
-        expect(data, isNotNull);
-        final features = data!['features'] as List<dynamic>;
-        expect(features.length, 2);
-        expect((features[0] as Map)['properties']['nome'], 'Lote 1A');
-        expect((features[0] as Map)['properties']['status'], 'resolvido');
-        // Garante que o outro elemento não foi modificado
-        expect((features[1] as Map)['properties']['nome'], 'Lote 2');
-      },
-    );
+      // Validar os resultados
+      final snapshot = await draftRef.get();
+      final data = snapshot.data();
+      expect(data, isNotNull);
+      final features = data!['features'] as List<dynamic>;
+      expect(features.length, 2);
+      expect((features[0] as Map)['properties']['nome'], 'Lote 1A');
+      expect((features[0] as Map)['properties']['status'], 'resolvido');
+      // Garante que o outro elemento não foi modificado
+      expect((features[1] as Map)['properties']['nome'], 'Lote 2');
+    });
 
     test('updateDraftFeature throws on invalid index', () async {
       final draftId = 'draft123';
-      final draftRef = fakeFirestore
-          .collection('loteamentos_drafts')
-          .doc(draftId);
-      await draftRef.set({'features': []});
+      final draftRef = fakeFirestore.collection('loteamentos_drafts').doc(draftId);
+      await draftRef.set({
+        'features': [],
+      });
 
       expect(
         () => repository.updateDraftFeature(draftId, 0, {'nome': 'Lote'}),
@@ -106,7 +92,7 @@ void main() {
       );
     });
 
-    test('preserva o nome base do DWF para a consolidação', () {
+    test('preserva o nome base do DWF para o rascunho', () {
       expect(
         LoteamentosImportRepository.loteamentoNameFromFilename(
           'LOTEAMENTO_HR_R13A-Model.dwf',
@@ -136,7 +122,7 @@ void main() {
       );
     });
 
-    test('envia caminho e metadados necessários à consolidação', () async {
+    test('envia caminho e metadados necessários ao rascunho', () async {
       final storage = _RecordingFirebaseStorage();
       final repo = LoteamentosImportRepository(fakeFirestore, storage);
 
@@ -172,25 +158,17 @@ void main() {
       expect(storage.path, isNull);
     });
 
-    test(
-      'aprovação sempre registra uma nova solicitação de consolidação',
-      () async {
-        final draft = fakeFirestore
-            .collection('loteamentos_drafts')
-            .doc('draft-1');
-        await draft.set({'status': 'pendente'});
+    test('aprovação marca o rascunho como aprovado', () async {
+      final draft = fakeFirestore
+          .collection('loteamentos_drafts')
+          .doc('draft-1');
+      await draft.set({'status': 'pendente'});
 
-        await repository.approveDraft('draft-1');
-        final firstRequest = (await draft.get())
-            .data()?['consolidationRequestId'];
-        await repository.approveDraft('draft-1');
-        final data = (await draft.get()).data();
+      await repository.approveDraft('draft-1');
 
-        expect(data?['status'], 'aprovado');
-        expect(firstRequest, isA<String>());
-        expect(data?['consolidationRequestId'], isA<String>());
-        expect(data?['consolidationRequestId'], isNot(firstRequest));
-      },
-    );
+      final data = (await draft.get()).data();
+      expect(data?['status'], 'aprovado');
+      expect(data?.containsKey('consolidationRequestId'), isFalse);
+    });
   });
 }
