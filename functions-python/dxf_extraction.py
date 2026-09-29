@@ -1,0 +1,165 @@
+"""Extração nativa de loteamentos a partir de arquivos DXF.
+
+O DXF é o formato de referência do produto. O extrator explodes os blocos
+(``INSERT``) herdando o layer, interpreta ``LWPOLYLINE``/``POLYLINE`` como
+parcelas, classifica lote × quadra (primeiro por tokens de layer, depois por
+geometria) e associa os textos ``TEXT``/``MTEXT`` para montar o mesmo contrato
+GeoJSON revisável consumido pelo canvas.
+"""
+from __future__ import annotations
+
+import logging
+import os
+
+import ezdxf
+
+from geometry_utils import associate_lotes_to_quadras, ezdxf_entity_to_polygon
+from heuristics import build_geojson
+
+logger = logging.getLogger(__name__)
+
+POLYLINE_TYPES = ('LWPOLYLINE', 'POLYLINE')
+TEXT_TYPES = ('TEXT', 'MTEXT')
+MAX_INSERT_DEPTH = 12
+
+LOTE_LAYER_TOKEN = 'LOTE'
+QUADRA_LAYER_TOKEN = 'QUADRA'
+
+# Parcelas abaixo disso são símbolos gráficos (cotas/marcações), não lotes.
+MIN_LOTE_AREA = 10.0
+# Um polígono só é quadra quando contém uma parcela substancialmente menor.
+QUADRA_AREA_RATIO = 0.5
+
+
+class DxfExtractionError(ValueError):
+    """Falha determinística que deve deixar o rascunho em estado terminal."""
+
+
+def _effective_layer(entity, inherited_layer: str) -> str:
+    """Aplica a herança de layer: entidades no layer ``0`` seguem o INSERT."""
+    try:
+        layer = entity.dxf.layer
+    except Exception:  # pragma: no cover - entidades sem DXF attribs
+        layer = None
+    if not layer or layer == '0':
+        return inherited_layer
+    return layer
+
+
+def _flatten(container, inherited_layer: str = '0', depth: int = 0):
+    """Percorre a entidade explodindo ``INSERT`` recursivamente."""
+    for entity in container:
+        layer = _effective_layer(entity, inherited_layer)
+        if entity.dxftype() == 'INSERT':
+            if depth >= MAX_INSERT_DEPTH:
+                logger.warning("INSERT aninhado além do limite de profundidade.")
+                continue
+            try:
+                children = list(entity.virtual_entities())
+            except Exception as error:  # pragma: no cover - bloco corrompido
+                logger.warning("Falha ao explodir bloco %s: %s", entity.dxf.name, error)
+                continue
+            for child in children:
+                try:
+                    child.dxf.layer = layer
+                except Exception:  # pragma: no cover
+                    pass
+            yield from _flatten(children, layer, depth + 1)
+        else:
+            yield entity, layer
+
+
+def _layer_classification(poly_entities):
+    """Classifica por tokens de layer quando existirem; senão devolve ``None``."""
+    tagged = []
+    for entity, layer in poly_entities:
+        upper = (layer or '').upper()
+        if QUADRA_LAYER_TOKEN in upper:
+            tagged.append((entity, 'quadra'))
+        elif LOTE_LAYER_TOKEN in upper:
+            tagged.append((entity, 'lote'))
+    if not tagged:
+        return None
+    lotes = [entity for entity, tipo in tagged if tipo == 'lote']
+    quadras = [entity for entity, tipo in tagged if tipo == 'quadra']
+    return lotes, quadras
+
+
+def _geometry_classification(poly_entities):
+    """Classifica por área e contenção quando todos estão no layer ``0``."""
+    polygons = {}
+    for entity, _ in poly_entities:
+        polygon, _ = ezdxf_entity_to_polygon(entity)
+        if polygon is None or polygon.is_empty or polygon.area <= 0:
+            continue
+        polygons[entity] = polygon
+
+    quadras = []
+    lotes = []
+    for entity, polygon in polygons.items():
+        contains_lote = False
+        for other, other_polygon in polygons.items():
+            if other is entity:
+                continue
+            if (
+                MIN_LOTE_AREA <= other_polygon.area <= polygon.area * QUADRA_AREA_RATIO
+                and polygon.covers(other_polygon.representative_point())
+            ):
+                contains_lote = True
+                break
+        if contains_lote:
+            quadras.append(entity)
+        elif polygon.area >= MIN_LOTE_AREA:
+            lotes.append(entity)
+    return lotes, quadras
+
+
+def _classify(poly_entities):
+    classified = _layer_classification(poly_entities)
+    if classified is None:
+        return _geometry_classification(poly_entities)
+    return classified
+
+
+def _read_document(filepath):
+    filepath = os.fspath(filepath)
+    if not filepath or not os.path.exists(filepath):
+        raise DxfExtractionError('Arquivo DXF não encontrado.')
+    if os.path.getsize(filepath) == 0:
+        raise DxfExtractionError('O arquivo DXF está vazio.')
+    if not filepath.lower().endswith('.dxf'):
+        raise DxfExtractionError('O arquivo enviado não é um DXF.')
+    try:
+        return ezdxf.readfile(filepath)
+    except (OSError, ValueError, ezdxf.DXFError, UnicodeDecodeError) as error:
+        raise DxfExtractionError(f'Não foi possível ler o DXF: {error}') from error
+
+
+def extract_dxf_geojson(filepath: str) -> dict:
+    """Lê um DXF e devolve um FeatureCollection revisável (lotes/quadras/textos)."""
+    document = _read_document(filepath)
+
+    flat = list(_flatten(document.modelspace()))
+    poly_entities = [(entity, layer) for entity, layer in flat
+                     if entity.dxftype() in POLYLINE_TYPES]
+    text_entities = [entity for entity, _ in flat if entity.dxftype() in TEXT_TYPES]
+
+    if not poly_entities:
+        raise DxfExtractionError('O DXF não possui contornos utilizáveis para loteamento.')
+
+    lotes, quadras = _classify(poly_entities)
+    if not lotes:
+        raise DxfExtractionError('O DXF não possui contornos utilizáveis para loteamento.')
+
+    association = associate_lotes_to_quadras(lotes, quadras)
+    geojson = build_geojson(
+        association, text_entities,
+        association['quadra_polygons'], association['lote_polygons'],
+    )
+
+    if not any(
+        feature.get('properties', {}).get('tipo') == 'lote'
+        for feature in geojson.get('features', [])
+    ):
+        raise DxfExtractionError('O DXF não possui contornos utilizáveis para loteamento.')
+    return geojson
