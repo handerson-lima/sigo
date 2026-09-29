@@ -2,7 +2,7 @@
 title: 'Importação exclusiva de loteamento por DWF'
 type: 'feature'
 created: '2026-09-28'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 context: []
@@ -69,6 +69,20 @@ baseline_commit: 'f1961dddf700ef53f143c27cfcb29661fce418af'
 - 2026-09-28: implementação DWF concluída; o conversor externo é configurado por `DWF_CONVERTER_COMMAND` e deve preencher `{input}` e `{output}`.
 
 ## Review Triage Log
+
+- false — A revisão alegou que UI, repositório, gatilho e regras não foram alterados; o diff contém mudanças nesses quatro pontos, restringindo extensão, MIME e rota a DWF.
+- medium / patch — Um `Polygon` com coordenadas vazias é aceito; isso pode criar rascunho inválido. Validar anéis, fechamento e pares numéricos antes de persistir.
+- medium / patch — O manifesto apenas contém a string W2D, sem confirmar o recurso ZIP apontado. Validar o `href` do recurso `application/x-w2d` contra as entradas do pacote.
+- medium / patch — Um ZIP compacto pode declarar descompressão excessiva. Rejeitar pacote cuja soma descompactada exceda um limite seguro antes de ler o manifesto.
+- medium / patch — Placeholder inválido em `DWF_CONVERTER_COMMAND` escapa como exceção genérica e pode gerar retries. Convertê-lo em `DwfExtractionError` terminal.
+- medium / patch — O `stderr` integral do conversor pode vazar detalhes e exceder o documento Firestore. Descartar a saída do processo e usar erro genérico rastreável.
+- medium / patch — Capturar stdout/stderr sem limite permite consumo excessivo de memória. Executar o conversor com ambas as saídas descartadas.
+- false — A integração não fixa fornecedor/credencial porque a decisão aprovada permite conversor compatível configurado no backend; `DWF_CONVERTER_COMMAND` é o contrato operacional, e sua ausência já produz erro terminal seguro.
+- low / patch — A suíte não protege a estrutura do manifesto real. Adicionar teste que valide o DWF de referência versionado.
+- medium / patch — Faltam casos de geometria inválida; cobrir anéis vazios, não numéricos e não fechados para impedir GeoJSON aprovável inválido.
+- medium / carried patch — A saída com coordenadas vazias permanece sem validação; mesmo defeito de geometria inválida, coberto pela correção e testes acima.
+- medium / carried patch — Template de conversor vazio ou com placeholder inválido não é normalizado; mesma correção de configuração terminal acima.
+- medium / carried patch — Limite descompactado do ZIP é ausente; mesma correção de defesa contra pacote expansível acima.
 
 ## Design Notes
 
