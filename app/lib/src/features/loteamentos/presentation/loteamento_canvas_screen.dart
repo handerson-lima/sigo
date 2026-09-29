@@ -30,6 +30,54 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
   int? _selectedFeatureIndex;
   bool _isApproving = false;
 
+  /// Aprova o rascunho. Quando há pendências ou lotes sem nome, pede
+  /// confirmação avisando quantos seguirão sem nome (corrigíveis depois).
+  Future<void> _approve(int lotesSemNome, int ambiguos) async {
+    if (ambiguos > 0 || lotesSemNome > 0) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Aprovar com pendências?'),
+          content: Text(
+            '$lotesSemNome lote(s) seguirão sem nome e poderão ser corrigidos depois.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Aprovar'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    setState(() => _isApproving = true);
+    try {
+      final repo = ref.read(loteamentosImportRepositoryProvider);
+      await repo.approveDraft(widget.draftId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Rascunho aprovado.')));
+      context.go('/construtoras/${widget.construtoraId}/loteamentos');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao aprovar rascunho: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isApproving = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final draftStream = ref.watch(canvasDraftStreamProvider(widget.draftId));
@@ -57,6 +105,18 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
                   final props = f['properties'];
                   return props is Map<String, dynamic> && props['tipo'] == 'lote';
                 });
+                // Lotes ambíguos ou ainda sem nome são materializados com
+                // `name: ''` e podem ser corrigidos depois, sem novo upload.
+                final lotesSemNome = features.where((f) {
+                  if (f is! Map<String, dynamic>) return false;
+                  final props = f['properties'];
+                  if (props is! Map<String, dynamic> || props['tipo'] != 'lote') {
+                    return false;
+                  }
+                  final semNome =
+                      (props['nome'] as String? ?? '').trim().isEmpty;
+                  return semNome || props['status'] == 'ambiguo';
+                }).length;
                 return [
                   Center(
                     child: Padding(
@@ -72,40 +132,8 @@ class _LoteamentoCanvasScreenState extends ConsumerState<LoteamentoCanvasScreen>
                   Padding(
                     padding: const EdgeInsets.only(right: 16.0),
                     child: FilledButton(
-                      onPressed:
-                          (ambiguos == 0 && possuiLote && !_isApproving)
-                          ? () async {
-                              setState(() => _isApproving = true);
-                              try {
-                                final repo = ref.read(
-                                  loteamentosImportRepositoryProvider,
-                                );
-                                await repo.approveDraft(widget.draftId);
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Rascunho aprovado.'),
-                                  ),
-                                );
-                                context.go(
-                                  '/construtoras/${widget.construtoraId}/loteamentos',
-                                );
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Erro ao aprovar rascunho: $e',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } finally {
-                                if (context.mounted) {
-                                  setState(() => _isApproving = false);
-                                }
-                              }
-                            }
+                      onPressed: (possuiLote && !_isApproving)
+                          ? () => _approve(lotesSemNome, ambiguos)
                           : null,
                       child: _isApproving
                           ? const SizedBox(

@@ -139,7 +139,8 @@ def _polygon_from_geometry(geometry):
     return polygon
 
 
-def _quadra_name(properties: dict) -> str:
+def _feature_name(properties: dict) -> str:
+    """Nome opcional da feature, normalizado para String (vazio quando ausente)."""
     name = properties.get('nome')
     return name.strip() if isinstance(name, str) else ''
 
@@ -174,9 +175,14 @@ def consolidate_approved_draft(draft_id: str, draft: dict, db=None) -> None:
     rascunho é preservado (nunca apagado) para permitir nova tentativa.
 
     A quadra de cada lote vem primeiro da propriedade ``quadra``; quando o
-    extrator não reconhece um rótulo de quadra (caso do DXF de referência),
-    usa a contenção espacial nos polígonos de quadra e, por fim, uma quadra
-    ``Geral`` estável para que todo lote tenha FK preenchida.
+    extrator não reconhece um rótulo de quadra, usa a contenção espacial nos
+    polígonos de quadra e, por fim, uma quadra ``Geral`` estável para que todo
+    lote tenha FK preenchida.
+
+    Quadras com o mesmo nome são mescladas em um único ``quadra_id`` canônico
+    (o da primeira ocorrência); quadras sem nome são aceitas. Lotes ambíguos ou
+    sem nome são materializados com ``name: ''``, pois a revisão do nome pode
+    acontecer depois da aprovação sem novo upload.
     """
     construtora_id = _value(draft, 'construtoraId')
     loteamento_name = _value(draft, 'loteamentoName')
@@ -196,18 +202,20 @@ def consolidate_approved_draft(draft_id: str, draft: dict, db=None) -> None:
         geometry = _parse_geometry(feature)
         feature_type = properties.get('tipo')
         if feature_type == 'quadra':
-            name = _quadra_name(properties)
+            name = _feature_name(properties)
             if name and name in quadras_by_name:
-                raise ValueError(f'Nome de quadra duplicado: {name}')
+                logger.info(
+                    'Quadra %r duplicada no índice %d mesclada em %s',
+                    name, index, quadras_by_name[name],
+                )
+                continue
             quadra_id = f'{draft_id}--quadra--{index}'
             if name:
                 quadras_by_name[name] = quadra_id
             quadra_features.append((quadra_id, name, _polygon_from_geometry(geometry), geometry))
         elif feature_type == 'lote':
-            _value(properties, 'nome')
-            # O canvas só bloqueia a aprovação enquanto há pendência ('ambiguo').
-            if properties.get('status') == 'ambiguo':
-                raise ValueError(f'Lote no índice {index} está ambíguo')
+            # Lote ambíguo ou sem nome é materializado com ``name: ''``: a
+            # aprovação destrava o fluxo e a correção do nome fica para depois.
             lotes.append((index, properties, geometry, _polygon_from_geometry(geometry)))
         else:
             raise ValueError(f"Tipo de feature inválido no índice {index}: {feature_type!r}")
@@ -263,7 +271,13 @@ def consolidate_approved_draft(draft_id: str, draft: dict, db=None) -> None:
                 'construtoraId': construtora_id,
                 'loteamentoId': loteamento_id,
                 'quadraId': quadra_id,
-                'name': _value(properties, 'nome'),
+                # Nome tentativo de lote ambíguo não é confiável: materializa
+                # vazio para não inventar identificação (corrigível depois).
+                'name': (
+                    ''
+                    if properties.get('status') == 'ambiguo'
+                    else _feature_name(properties)
+                ),
                 'createdAt': now,
                 'updatedAt': now,
                 **_geometry_document(geometry),

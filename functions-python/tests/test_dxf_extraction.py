@@ -5,7 +5,7 @@ import pytest
 
 from dxf_extraction import DxfExtractionError, extract_dxf_geojson
 
-FIXTURE = os.path.join(os.path.dirname(__file__), '..', '..', 'dwg_dxf', '00a-LOTEAMENTO_HR_R13A-Model.dxf')
+FIXTURE = os.path.join(os.path.dirname(__file__), '..', '..', 'dwg_dxf', '00a-LOTEAMENTO_HR_R13A-Model_SEM_COTAS.dxf')
 
 
 def _save(doc, path):
@@ -47,14 +47,28 @@ def test_extract_reference_dxf_gera_lotes_revisaveis():
 def test_extract_reference_dxf_associa_textos_aos_lotes():
     geojson = extract_dxf_geojson(FIXTURE)
 
-    # O MTEXT '16.00' é o único que as heurísticas (congeladas) associam como
-    # nome confiável de um lote dentro de quadra; uma regressão aqui o derruba.
+    # O fixture sem cotas associa o número do lote como nome confiável em 145
+    # parcelas; as demais ficam ambíguas para revisão humana.
     validos = [
         f['properties']['nome']
         for f in geojson['features']
         if f['properties']['tipo'] == 'lote' and f['properties']['status'] == 'valido'
     ]
-    assert validos == ['16.00']
+    assert len(validos) == 145
+    assert '101' in validos
+
+
+def test_extract_reference_dxf_reconhece_rotulos_de_quadra_com_hifen():
+    geojson = extract_dxf_geojson(FIXTURE)
+
+    lotes = [f for f in geojson['features'] if f['properties']['tipo'] == 'lote']
+    quadras = {
+        f['properties']['quadra']
+        for f in lotes
+        if (f['properties'].get('quadra') or '').strip()
+    }
+    assert 'Q-04' in quadras
+    assert len(quadras) == 22
 
 
 def test_extract_classifica_por_tokens_de_layer(tmp_path):

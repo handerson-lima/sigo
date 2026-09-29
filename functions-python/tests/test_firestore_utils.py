@@ -315,13 +315,39 @@ def test_consolidate_accepts_valido_lote_status():
     assert 'lotes/draft-1--lote--0' in _documents(db)
 
 
-def test_consolidate_rejects_ambiguous_lote_without_writing():
+def test_consolidate_materializes_ambiguous_lote_with_empty_name():
     db = _FakeDb()
-    with pytest.raises(ValueError, match='ambíguo'):
-        consolidate_approved_draft(
-            'draft-1', _approved_draft(lote_status='ambiguo'), db=db,
-        )
-    assert db.commits == []
+    draft = _approved_draft(lote_status='ambiguo')
+    draft['features'][0]['properties']['nome'] = ''
+    consolidate_approved_draft('draft-1', draft, db=db)
+
+    documents = _documents(db)
+    lote = documents['lotes/draft-1--lote--0']
+    assert lote['name'] == ''
+    expected_hash = hashlib.sha256('Q 1'.encode('utf-8')).hexdigest()[:16]
+    assert lote['quadraId'] == f'draft-1--quadra--ref--{expected_hash}'
+
+
+def test_consolidate_ignores_tentative_name_of_ambiguous_lote():
+    db = _FakeDb()
+    draft = _approved_draft(lote_status='ambiguo')
+    draft['features'][0]['properties']['nome'] = 'ESTRADA CARROÇÁVEL'
+    consolidate_approved_draft('draft-1', draft, db=db)
+
+    documents = _documents(db)
+    lote = documents['lotes/draft-1--lote--0']
+    assert lote['name'] == ''
+    expected_hash = hashlib.sha256('Q 1'.encode('utf-8')).hexdigest()[:16]
+    assert lote['quadraId'] == f'draft-1--quadra--ref--{expected_hash}'
+
+
+def test_consolidate_materializes_lote_without_nome_property():
+    db = _FakeDb()
+    draft = _approved_draft()
+    del draft['features'][0]['properties']['nome']
+    consolidate_approved_draft('draft-1', draft, db=db)
+
+    assert _documents(db)['lotes/draft-1--lote--0']['name'] == ''
 
 
 def test_consolidate_rejects_draft_without_lotes():
@@ -411,3 +437,23 @@ def test_consolidate_allows_quadra_feature_without_name():
 
     documents = _documents(db)
     assert documents['quadras/draft-1--quadra--0']['name'] == ''
+
+
+def test_consolidate_merges_duplicate_quadra_names_into_one_document():
+    db = _FakeDb()
+    draft = _approved_draft()
+    duplicate = {
+        'properties': {'tipo': 'quadra', 'nome': 'Q 1'},
+        'geometry': GEOMETRY,
+    }
+    draft['features'].insert(0, dict(duplicate))
+    draft['features'].insert(1, dict(duplicate))
+    consolidate_approved_draft('draft-1', draft, db=db)
+
+    documents = _documents(db)
+    quadra_paths = [p for p in documents if p.startswith('quadras/')]
+    assert len(quadra_paths) == 1
+    quadra = documents[quadra_paths[0]]
+    assert quadra['name'] == 'Q 1'
+    # O lote (deslocado para o índice 2) aponta para a quadra canônica.
+    assert documents['lotes/draft-1--lote--2']['quadraId'] == quadra['id']

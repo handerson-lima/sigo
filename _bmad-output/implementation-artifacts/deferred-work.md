@@ -441,3 +441,12 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 - source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-ponta-a-ponta.md`
   summary: Melhorar a heurística de associação de nomes do DXF para reduzir features ambíguas.
   evidence: Dividida da spec de importação ponta a ponta por exceder o teto de 1600 tokens. No DXF de referência, 278 de 279 features ficam `ambiguo` porque cotas (`16.00`), áreas (`16,00M²`) e nomes de rua viram candidatos a nome de lote; decisão do usuário: abordagem conservadora (filtrar cota/área/rua e priorizar um inteiro curto) acrescida do uso da cor ACI como sinal lote×quadra.
+
+## Deferred from: code review of spec-aprovacao-dxf-com-ambiguos (2026-09-29)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-aprovacao-dxf-com-ambiguos.md`
+  summary: Associar a quadra `Q-19` no fixture `SEM_COTAS` (rótulo existe, mas nenhum lote recebe `quadra:'Q-19'`).
+  evidence: O rótulo `Q-19` casa `QUADRA_REGEX` e existe no DXF, mas o ponto cai num polígono classificado como lote (`_geometry_classification`/`associate_lotes_to_quadras` em `functions-python/dxf_extraction.py` e `geometry_utils.py`), então 244/271 lotes cobrem 22 quadras (Q-01…Q-22) e não Q-23. Corrigir exige alterar a classificação geométrica, vetado pelo intent desta spec ("não alterar a geometria extraída"); settle: melhorar a classificação lote × quadra quando o polígono contém um rótulo `Q-xx`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-aprovacao-dxf-com-ambiguos.md`
+  summary: Mesclar ou eliminar as quadras de nome vazio na consolidação.
+  evidence: O fixture produz 2 features `tipo:'quadra'` sem nome, que viram 2 documentos distintos (mais `Geral`); a spec exigia apenas não abortar, mas a tela de quadras exibirá entradas sem nome. Decisão de produto pendente.

@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 STOP_WORDS = {"ÁREA", "AREA", "CASA", "LOTES", "LOTE", "QUADRA", "Q", "RUA", "AV", "AVENIDA"}
 # Dimensões ex: 15x30, 15.5X30, 15x30.2
 DIMENSION_REGEX = re.compile(r'^\d+([.,]\d+)?\s*[xX]\s*\d+([.,]\d+)?\s*(m|cm|M|CM)?$')
-# Quadra explícita ex: Q 1, QUADRA 1
-QUADRA_REGEX = re.compile(r'^(Q|QUADRA)[\s\.]*[0-9A-Z]+$')
+# Quadra explícita ex: Q 1, QUADRA 1, Q-04, Q.04
+QUADRA_REGEX = re.compile(r'^(Q|QUADRA)[\s.\-]*[0-9A-Z]+$')
 
 def extract_text(entity):
     """Extrai texto e ponto de inserção de uma entidade ezdxf (TEXT/MTEXT)."""

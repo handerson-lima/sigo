@@ -226,6 +226,30 @@ def test_build_geojson_zero_origin():
 
 
 
+def test_build_geojson_reconhece_quadra_com_hifen():
+    lote_entity = MockDXFPoly()
+    lote_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
+
+    quadra_entity = MockDXFPoly()
+    quadra_poly = Polygon([(-5, -5), (15, -5), (15, 15), (-5, 15), (-5, -5)])
+
+    association = {
+        'quadras': {quadra_entity: [lote_entity]},
+        'lotes_orfaos': [],
+        'quadra_polygons': {quadra_entity: quadra_poly},
+        'lote_polygons': {lote_entity: lote_poly}
+    }
+
+    # O rótulo Q-04 (hífen) fica fora do lote, mas dentro da quadra.
+    textos = [MockDXFText("12", 5, 5), MockDXFText("Q-04", -2, -2)]
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson["features"][0]
+
+    assert feature["properties"]["quadra"] == "Q-04"
+    assert feature["properties"]["nome"] == "12"
+    assert feature["properties"]["status"] == "valido"
+
+
 def test_repaired_quadra_and_multipart_lote_preserve_holes_and_parts():
     from shapely.geometry import MultiPolygon, shape
     q, lote = MockDXFPoly(), MockDXFPoly()

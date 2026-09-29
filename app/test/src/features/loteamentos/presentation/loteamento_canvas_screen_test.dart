@@ -98,18 +98,40 @@ void main() {
       expect(find.textContaining('Falha no banco'), findsOneWidget);
     });
     testWidgets(
-      'Aprovar button is disabled when there are ambiguous features',
+      'aprova rascunho com lotes ambíguos após confirmação',
       (tester) async {
+        final repository = _ApprovingRepository();
+        final router = GoRouter(
+          initialLocation: '/revisao',
+          routes: [
+            GoRoute(
+              path: '/revisao',
+              builder: (_, _) => const LoteamentoCanvasScreen(
+                construtoraId: 'const-1',
+                draftId: 'draft-1',
+              ),
+            ),
+            GoRoute(
+              path: '/construtoras/:id/loteamentos',
+              builder: (_, _) =>
+                  const Scaffold(body: Text('Lista de loteamentos')),
+            ),
+          ],
+        );
         final mockData = {
           'type': 'FeatureCollection',
           'features': [
             {
               'type': 'Feature',
-              'properties': {'status': 'ambiguo'},
+              'properties': {'tipo': 'lote', 'status': 'ambiguo', 'nome': ''},
             },
             {
               'type': 'Feature',
-              'properties': {'status': 'resolvido'},
+              'properties': {
+                'tipo': 'lote',
+                'status': 'resolvido',
+                'nome': 'L 1',
+              },
             },
           ],
         };
@@ -117,19 +139,16 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              canvasDraftStreamProvider.overrideWith((ref, id) {
-                return Stream.value(mockData);
-              }),
-            ],
-            child: const MaterialApp(
-              home: LoteamentoCanvasScreen(
-                construtoraId: 'const-1',
-                draftId: 'test-123',
+              loteamentosImportRepositoryProvider.overrideWithValue(
+                repository,
               ),
-            ),
+              canvasDraftStreamProvider.overrideWith(
+                (ref, id) => Stream.value(mockData),
+              ),
+            ],
+            child: MaterialApp.router(routerConfig: router),
           ),
         );
-
         await tester.pumpAndSettle();
 
         expect(find.text('1 Pendências'), findsOneWidget);
@@ -138,15 +157,71 @@ void main() {
           FilledButton,
           'Aprovar Definitivamente',
         );
-        expect(buttonFinder, findsOneWidget);
         final button = tester.widget<FilledButton>(buttonFinder);
         expect(
           button.onPressed,
-          isNull,
-          reason: 'O botão deve estar desabilitado',
+          isNotNull,
+          reason: 'Ambiguidade não deve mais bloquear a aprovação',
+        );
+
+        await tester.tap(buttonFinder);
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('1 lote'), findsOneWidget);
+        expect(repository.approvedDraftId, isNull);
+
+        await tester.tap(find.widgetWithText(FilledButton, 'Aprovar'));
+        await tester.pumpAndSettle();
+
+        expect(repository.approvedDraftId, 'draft-1');
+        expect(
+          router.routeInformationProvider.value.uri.path,
+          '/construtoras/const-1/loteamentos',
         );
       },
     );
+
+    testWidgets('cancelar a confirmação não aprova o rascunho', (
+      tester,
+    ) async {
+      final repository = _ApprovingRepository();
+      final mockData = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'properties': {'tipo': 'lote', 'status': 'ambiguo', 'nome': ''},
+          },
+        ],
+      };
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            loteamentosImportRepositoryProvider.overrideWithValue(repository),
+            canvasDraftStreamProvider.overrideWith(
+              (ref, id) => Stream.value(mockData),
+            ),
+          ],
+          child: const MaterialApp(
+            home: LoteamentoCanvasScreen(
+              construtoraId: 'const-1',
+              draftId: 'draft-1',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Aprovar Definitivamente'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(repository.approvedDraftId, isNull);
+    });
 
     testWidgets(
       'Aprovar button is enabled when there are no ambiguous features',
@@ -200,9 +275,27 @@ void main() {
       },
     );
 
-    testWidgets('permite aprovação sem campos auxiliares quando não há pendências', (
+    testWidgets('pede confirmação para lote resolvido sem nome e aprova', (
       tester,
     ) async {
+      final repository = _ApprovingRepository();
+      final router = GoRouter(
+        initialLocation: '/revisao',
+        routes: [
+          GoRoute(
+            path: '/revisao',
+            builder: (_, _) => const LoteamentoCanvasScreen(
+              construtoraId: 'const-1',
+              draftId: 'draft-1',
+            ),
+          ),
+          GoRoute(
+            path: '/construtoras/:id/loteamentos',
+            builder: (_, _) =>
+                const Scaffold(body: Text('Lista de loteamentos')),
+          ),
+        ],
+      );
       final mockData = {
         'type': 'FeatureCollection',
         'features': [
@@ -221,6 +314,56 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            loteamentosImportRepositoryProvider.overrideWithValue(repository),
+            canvasDraftStreamProvider.overrideWith(
+              (ref, id) => Stream.value(mockData),
+            ),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('0 Pendências'), findsOneWidget);
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Aprovar Definitivamente'),
+      );
+      expect(button.onPressed, isNotNull);
+
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Aprovar Definitivamente'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('1 lote'), findsOneWidget);
+      expect(repository.approvedDraftId, isNull);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Aprovar'));
+      await tester.pumpAndSettle();
+      expect(repository.approvedDraftId, 'draft-1');
+    });
+
+    testWidgets('confirma lote ambíguo mesmo com nome tentativo', (
+      tester,
+    ) async {
+      final repository = _ApprovingRepository();
+      final mockData = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'properties': {
+              'tipo': 'lote',
+              'status': 'ambiguo',
+              'nome': 'ESTRADA CARROÇÁVEL',
+            },
+          },
+        ],
+      };
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            loteamentosImportRepositoryProvider.overrideWithValue(repository),
             canvasDraftStreamProvider.overrideWith(
               (ref, id) => Stream.value(mockData),
             ),
@@ -228,17 +371,22 @@ void main() {
           child: const MaterialApp(
             home: LoteamentoCanvasScreen(
               construtoraId: 'const-1',
-              draftId: 'test-123',
+              draftId: 'draft-1',
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      final button = tester.widget<FilledButton>(
+      await tester.tap(
         find.widgetWithText(FilledButton, 'Aprovar Definitivamente'),
       );
-      expect(button.onPressed, isNotNull);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 lote'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
+      await tester.pumpAndSettle();
+      expect(repository.approvedDraftId, isNull);
     });
 
     testWidgets('bloqueia aprovação sem lote', (
@@ -314,14 +462,14 @@ void main() {
         routes: [
           GoRoute(
             path: '/revisao',
-            builder: (_, __) => const LoteamentoCanvasScreen(
+            builder: (_, _) => const LoteamentoCanvasScreen(
               construtoraId: 'const-1',
               draftId: 'draft-1',
             ),
           ),
           GoRoute(
             path: '/construtoras/:id/loteamentos',
-            builder: (_, __) =>
+            builder: (_, _) =>
                 const Scaffold(body: Text('Lista de loteamentos')),
           ),
         ],
