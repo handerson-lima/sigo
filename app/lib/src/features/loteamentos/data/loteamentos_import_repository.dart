@@ -30,9 +30,9 @@ class LoteamentosImportRepository {
     this.requestConsolidation,
   });
 
-  /// Realiza o upload do arquivo DXF para o Cloud Storage
+  /// Realiza o upload do arquivo DWF para o Cloud Storage.
   /// Retorna o identificador gerado que pode ser usado como ID do rascunho
-  Future<String> uploadDxf({
+  Future<String> uploadDwf({
     required String userId,
     required String construtoraId,
     required Uint8List fileBytes,
@@ -46,7 +46,7 @@ class LoteamentosImportRepository {
     );
   }
 
-  /// Envia um DXF ou um PDF experimental para criar um rascunho revisável.
+  /// Envia exclusivamente um DWF para criar um rascunho revisável.
   Future<String> uploadFile({
     required String userId,
     required String construtoraId,
@@ -58,7 +58,7 @@ class LoteamentosImportRepository {
       throw ArgumentError.value(
         filename,
         'filename',
-        'Envie um arquivo DXF ou PDF válido',
+        'Envie um arquivo DWF válido',
       );
     }
     final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -70,9 +70,7 @@ class LoteamentosImportRepository {
     await ref.putData(
       fileBytes,
       SettableMetadata(
-        contentType: filename.toLowerCase().endsWith('.pdf')
-            ? 'application/pdf'
-            : 'application/dxf',
+        contentType: 'application/x-dwf',
         customMetadata: {
           'construtoraId': construtoraId,
           'loteamentoName': loteamentoName,
@@ -88,8 +86,7 @@ class LoteamentosImportRepository {
     final lastDot = filename.lastIndexOf('.');
     if (lastDot <= 0 ||
         !const {
-          '.dxf',
-          '.pdf',
+          '.dwf',
         }.contains(filename.substring(lastDot).toLowerCase())) {
       return null;
     }

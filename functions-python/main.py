@@ -11,17 +11,14 @@ if "FIREBASE_CONFIG" not in os.environ:
 import tempfile
 import logging
 import time
-import ezdxf
 from google.cloud import storage
-from firebase_functions import firestore_fn, storage_fn, https_fn, options
+from firebase_functions import firestore_fn, storage_fn, https_fn
 from firebase_admin import initialize_app, firestore
 
 initialize_app()
 logger = logging.getLogger(__name__)
 
-from geometry_utils import associate_lotes_to_quadras
-from heuristics import build_geojson
-from pdf_extraction import PdfExtractionError, extract_pdf_geojson
+from dwf_extraction import DwfExtractionError, extract_dwf_geojson
 from firestore_utils import (
     DraftPersistenceError,
     consolidate_approved_draft,
@@ -117,98 +114,11 @@ def _upload_metadata(file_data):
     }
 
 
-def _inherit_layer(layer_name: str, parent_layer):
-    """Entidades/INSERTs em layer '0' ou 'BYBLOCK' assumem o layer da referência pai."""
-    if (not layer_name or layer_name == "0" or layer_name == "BYBLOCK") and parent_layer:
-        return parent_layer
-    return layer_name
-
-
-def extract_dxf_geometries(filepath: str):
-    """
-    Reads DXF and extracts Lotes, Quadras, and Texts from modelspace and blocks (INSERTs).
-
-    Returns ``(lotes, quadras, textos)`` for a readable DXF (lists may be empty when the
-    file has no matching entities), or ``None`` when the file is not a valid/readable DXF.
-    The ``None`` signal lets the caller distinguish INVALID_FILE from NO_ENTITIES.
-    """
-    try:
-        doc = ezdxf.readfile(filepath)
-    except (OSError, ezdxf.DXFError) as e:
-        # Invalid/corrupt input (deterministic): log and stop gracefully without
-        # crashing the handler. Returning None distinguishes INVALID_FILE from
-        # NO_ENTITIES (valid DXF, no matching entities) and avoids retrying a
-        # deterministic failure. Unexpected errors are not caught here so they
-        # propagate instead of being silently swallowed.
-        logger.error(f"INVALID_FILE: cannot read DXF {filepath}: {e}")
-        return None
-
-    msp = doc.modelspace()
-    lotes = []
-    quadras = []
-    textos = []
-
-    def process_entity(entity, parent_layer=None):
-        layer_name = ""
-        try:
-            layer_name = str(entity.dxf.layer).upper()
-        except AttributeError:
-            pass
-
-        # Entidades de bloco no layer '0'/'BYBLOCK' assumem o layer da referência (INSERT)
-        layer_name = _inherit_layer(layer_name, parent_layer)
-
-        layer_clean = layer_name.replace('_', ' ').replace('-', ' ')
-        tokens = layer_clean.split()
-        
-        # Match flexível usando substring
-        is_lote = "LOTE" in layer_name
-        is_quadra = "QUADRA" in layer_name
-        
-        etype = entity.dxftype()
-        if etype in ('TEXT', 'MTEXT', 'ATTRIB', 'ATTDEF'):
-            textos.append(entity)
-        else:
-            if not (is_lote or is_quadra):
-                return
-            if is_lote:
-                lotes.append(entity)
-            if is_quadra:
-                quadras.append(entity)
-
-    def explode_and_process(entity, parent_layer=None):
-        if entity.dxftype() == 'INSERT':
-            # INSERT em layer 0/BYBLOCK herda do layer do ancestral
-            try:
-                layer_to_pass = str(entity.dxf.layer).upper()
-            except AttributeError:
-                layer_to_pass = ""
-
-            layer_to_pass = _inherit_layer(layer_to_pass, parent_layer)
-
-            try:
-                for v_entity in entity.virtual_entities():
-                    explode_and_process(v_entity, parent_layer=layer_to_pass)
-            except Exception as e:
-                logger.warning(f"Failed to explode INSERT: {e}")
-        else:
-            process_entity(entity, parent_layer)
-
-    for entity in msp:
-        explode_and_process(entity)
-
-    return lotes, quadras, textos
-
-
-@storage_fn.on_object_finalized(
-    region="us-east1",
-    # A rasterização integral de plantas PDF pode ultrapassar 512 MiB.
-    memory=options.MemoryOption.GB_1
-)
-def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
+@storage_fn.on_object_finalized(region="us-east1")
+def processar_dwf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     """
     Background Cloud Function to be triggered by Cloud Storage.
-    Path expected: loteamentos_drafts_uploads/{userId}/{timestamp}_{filename}.dxf
+    Path expected: loteamentos_drafts_uploads/{userId}/{timestamp}_{filename}.dwf
     """
     file_data = event.data
     logger.debug(f"Processing {getattr(file_data, 'name', 'NO_NAME')}")
@@ -226,7 +136,7 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
         return
 
     file_name_lower = file_data.name.lower()
-    if not (file_name_lower.endswith('.dxf') or file_name_lower.endswith('.pdf')):
+    if not file_name_lower.endswith('.dwf'):
         logger.info(f"Ignoring unsupported file: {file_data.name}")
         return
 
@@ -255,54 +165,16 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     bucket = storage_client.bucket(file_data.bucket)
     blob = bucket.blob(file_data.name, generation=file_data.generation)
 
-    is_pdf = file_name_lower.endswith('.pdf')
-    fd, temp_local_filename = tempfile.mkstemp(suffix='.pdf' if is_pdf else '.dxf')
+    fd, temp_local_filename = tempfile.mkstemp(suffix='.dwf')
     try:
         blob.download_to_filename(temp_local_filename)
         logger.info(f"Downloaded {file_data.name} to {temp_local_filename}")
-
-        if is_pdf:
-            geojson = extract_pdf_geojson(temp_local_filename)
-            draft_id = file_data.name.split('/')[-1]
-            save_draft_to_firestore(
-                draft_id,
-                geojson,
-                {**_upload_metadata(file_data), 'sourceFormat': 'pdf_experimental'},
-            )
-            logger.info(
-                'PDF experimental concluído. Rascunho %s salvo com %s lotes.',
-                draft_id,
-                len(geojson['features']),
-            )
-            return
-
-        result = extract_dxf_geometries(temp_local_filename)
-
-        if result is None:
-            logger.error(f"File {file_data.name} is not a valid DXF (INVALID_FILE); skipping.")
-        else:
-            lotes, quadras, textos = result
-            if not lotes and not quadras:
-                logger.warning(f"File {file_data.name} contained no Lote or Quadra entities (NO_ENTITIES).")
-            else:
-                association = associate_lotes_to_quadras(lotes, quadras)
-                
-                # Log association results
-                associated_count = sum(len(l) for l in association['quadras'].values())
-                orphans_count = len(association['lotes_orfaos'])
-                logger.info(f"Extracted {len(lotes)} lotes, {len(quadras)} quadras and {len(textos)} textos.")
-                logger.info(f"Associated {associated_count} lotes to quadras. {orphans_count} lotes are orphans.")
-                
-                geojson = build_geojson(
-                    association, 
-                    textos, 
-                    association['quadra_polygons'], 
-                    association['lote_polygons']
-                )
-
-                draft_id = file_data.name.split('/')[-1]
-                save_draft_to_firestore(draft_id, geojson, _upload_metadata(file_data))
-                logger.info(f"Processamento concluído. Rascunho {draft_id} salvo com sucesso.")
+        geojson = extract_dwf_geojson(temp_local_filename)
+        draft_id = file_data.name.split('/')[-1]
+        save_draft_to_firestore(
+            draft_id, geojson, {**_upload_metadata(file_data), 'sourceFormat': 'dwf'},
+        )
+        logger.info(f"Processamento DWF concluído. Rascunho {draft_id} salvo com sucesso.")
             
     except (IOError, OSError) as e:
         logger.error(f"Transient error processing {file_data.name}: {e}")
@@ -310,16 +182,14 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     except DraftPersistenceError:
         logger.exception(f"Fatal error persisting {file_data.name}")
         # Sem raise para evitar loop infinito de poison messages do DXF para o Firestore
-    except PdfExtractionError as error:
-        logger.error('PDF_EXPERIMENTAL_INVALID: %s', error)
-        # Persiste o resultado terminal para que a tela não fique aguardando um
-        # documento que nunca existirá.
+    except DwfExtractionError as error:
+        logger.error('DWF_INVALID: %s', error)
         draft_id = file_data.name.split('/')[-1]
         save_draft_to_firestore(
             draft_id,
             {'type': 'FeatureCollection', 'features': []},
             {**_upload_metadata(file_data), 'status': 'erro',
-             'sourceFormat': 'pdf_experimental', 'processingError': str(error)},
+             'sourceFormat': 'dwf', 'processingError': str(error)},
         )
     except Exception as e:
         logger.error(f"Unhandled error processing {file_data.name}: {e}")

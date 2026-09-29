@@ -43,7 +43,7 @@ service firebase.storage {
 
   match /loteamentos_drafts_uploads/{uid}/{filename} {
    allow read: if signed() && request.auth.uid == uid;
-   allow create: if signed() && request.auth.uid == uid && request.resource.size > 0 && request.resource.size <= 50 * 1024 * 1024;
+   allow create: if signed() && request.auth.uid == uid && request.resource.size > 0 && request.resource.size <= 50 * 1024 * 1024 && request.resource.contentType == 'application/x-dwf' && filename.matches('.*\\.([dD][wW][fF])$');
    allow update, delete: if false;
   }
  }

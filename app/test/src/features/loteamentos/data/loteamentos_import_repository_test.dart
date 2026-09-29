@@ -106,30 +106,28 @@ void main() {
       );
     });
 
-    test('preserva o nome base do DXF para a consolidação', () {
+    test('preserva o nome base do DWF para a consolidação', () {
       expect(
         LoteamentosImportRepository.loteamentoNameFromFilename(
-          '00-LOTEAMENTO_HR_R13A_CLUSTER_A_QUADRAS_E_LOTES_R2013.dxf',
+          'LOTEAMENTO_HR_R13A-Model.dwf',
         ),
-        '00-LOTEAMENTO_HR_R13A_CLUSTER_A_QUADRAS_E_LOTES_R2013',
+        'LOTEAMENTO_HR_R13A-Model',
       );
     });
 
     test(
-      'aceita PDF e preserva seu nome base para o rascunho experimental',
+      'rejeita os formatos antigos',
       () {
         expect(
-          LoteamentosImportRepository.loteamentoNameFromFilename(
-            '00-LOTEAMENTO_HR_R13A_CLUSTER_A_QUADRAS_E_LOTES_R2013.pdf',
-          ),
-          '00-LOTEAMENTO_HR_R13A_CLUSTER_A_QUADRAS_E_LOTES_R2013',
+          LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.pdf'),
+          isNull,
         );
       },
     );
 
-    test('rejeita nome DXF sem base utilizável antes do upload', () {
+    test('rejeita nome DWF sem base utilizável antes do upload', () {
       expect(
-        LoteamentosImportRepository.loteamentoNameFromFilename('.dxf'),
+        LoteamentosImportRepository.loteamentoNameFromFilename('.dwf'),
         isNull,
       );
       expect(
@@ -142,38 +140,36 @@ void main() {
       final storage = _RecordingFirebaseStorage();
       final repo = LoteamentosImportRepository(fakeFirestore, storage);
 
-      final draftId = await repo.uploadDxf(
+      final draftId = await repo.uploadDwf(
         userId: 'user-1',
         construtoraId: 'construtora-1',
         fileBytes: Uint8List.fromList([1, 2]),
-        filename: 'Loteamento A.dxf',
+        filename: 'Loteamento A.dwf',
       );
 
       expect(storage.path, 'loteamentos_drafts_uploads/user-1/$draftId');
       expect(storage.reference.bytes, Uint8List.fromList([1, 2]));
-      expect(storage.reference.metadata?.contentType, 'application/dxf');
+      expect(storage.reference.metadata?.contentType, 'application/x-dwf');
       expect(storage.reference.metadata?.customMetadata, {
         'construtoraId': 'construtora-1',
         'loteamentoName': 'Loteamento A',
       });
     });
 
-    test('envia PDF com content type apropriado', () async {
+    test('upload rejeita PDF antes de acessar o Storage', () async {
       final storage = _RecordingFirebaseStorage();
       final repo = LoteamentosImportRepository(fakeFirestore, storage);
 
-      await repo.uploadFile(
-        userId: 'user-1',
-        construtoraId: 'construtora-1',
-        fileBytes: Uint8List.fromList([1, 2]),
-        filename: 'Loteamento A.pdf',
-      );
-
-      expect(storage.reference.metadata?.contentType, 'application/pdf');
       expect(
-        storage.reference.metadata?.customMetadata?['loteamentoName'],
-        'Loteamento A',
+        () => repo.uploadFile(
+          userId: 'user-1',
+          construtoraId: 'construtora-1',
+          fileBytes: Uint8List.fromList([1, 2]),
+          filename: 'Loteamento A.pdf',
+        ),
+        throwsArgumentError,
       );
+      expect(storage.path, isNull);
     });
 
     test(

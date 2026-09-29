@@ -56,7 +56,7 @@ class _LoteamentoImportScreenState
   Future<void> _pickFile() async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['dxf', 'pdf'],
+      allowedExtensions: ['dwf'],
     );
 
     if (result.isNotEmpty) {
@@ -69,7 +69,7 @@ class _LoteamentoImportScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Importar Loteamento (DXF ou PDF)')),
+      appBar: AppBar(title: const Text('Importar Loteamento (DWF)')),
       body: Center(
         child: isUploading
             ? const Column(
@@ -108,12 +108,11 @@ class _LoteamentoImportScreenState
                         final name = await dropzoneController.getFilename(ev);
                         final bytes = await dropzoneController.getFileData(ev);
                         if (!context.mounted) return;
-                        if (!name.toLowerCase().endsWith('.dxf') &&
-                            !name.toLowerCase().endsWith('.pdf')) {
+                        if (!name.toLowerCase().endsWith('.dwf')) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Por favor, envie um arquivo .dxf ou .pdf',
+                                'Por favor, envie um arquivo .dwf',
                               ),
                             ),
                           );
@@ -133,7 +132,7 @@ class _LoteamentoImportScreenState
                           ),
                           const SizedBox(height: 16),
                           const Text(
-                            'Arraste um .dxf ou PDF experimental aqui',
+                            'Arraste um arquivo .dwf aqui',
                             style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
                           const SizedBox(height: 16),

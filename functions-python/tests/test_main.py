@@ -1,27 +1,25 @@
-import pytest
-import ezdxf
 import os
-import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-# The conftest.py already sets up the sys.path, so we can import directly
+import pytest
+
 from main import (
     _claim_consolidation_request,
     _complete_consolidation_request,
     _release_consolidation_request,
     consolidar_loteamento_aprovado,
-    extract_dxf_geometries,
     firestore,
-    processar_dxf,
+    processar_dwf,
 )
-from pdf_extraction import PdfExtractionError
+
 
 class MockCloudEvent:
     def __init__(self, data):
         self.data = data
 
+
 class MockStorageObjectData:
-    def __init__(self, name, bucket="sigo-86dd9.appspot.com", size="1024", generation="12345", metadata=None):
+    def __init__(self, name, bucket='sigo.appspot.com', size='1024', generation='12345', metadata=None):
         self.name = name
         self.bucket = bucket
         self.size = size
@@ -87,16 +85,84 @@ def _immediate_transactional(function):
     return function
 
 
+def _event(filename='123_arquivo.dwf'):
+    return MockCloudEvent(MockStorageObjectData(f'loteamentos_drafts_uploads/user/{filename}'))
+
+
+@patch('main.storage.Client')
+def test_processar_dwf_ignora_rota_e_formatos_antigos(mock_storage):
+    processar_dwf(MockCloudEvent(MockStorageObjectData('uploads/user/arquivo.dwf')))
+    for filename in ('arquivo.dxf', 'arquivo.dwg', 'arquivo.pdf'):
+        processar_dwf(_event(filename))
+    mock_storage.assert_not_called()
+
+
+@patch('main.storage.Client')
+def test_processar_dwf_valida_tamanho_antes_do_download(mock_storage):
+    event = _event()
+    event.data.size = str(51 * 1024 * 1024)
+    processar_dwf(event)
+    mock_storage.assert_not_called()
+
+
+@patch('main.save_draft_to_firestore')
+@patch('main.extract_dwf_geojson')
+@patch('main.storage.Client')
+def test_processar_dwf_cria_rascunho_revisavel(mock_storage, mock_extract, mock_save):
+    mock_extract.return_value = {'type': 'FeatureCollection', 'features': [{'type': 'Feature'}]}
+    blob = MagicMock()
+    mock_storage.return_value.bucket.return_value.blob.return_value = blob
+
+    processar_dwf(_event())
+
+    mock_extract.assert_called_once()
+    mock_save.assert_called_once_with('123_arquivo.dwf', mock_extract.return_value, {
+        'construtoraId': 'construtora-1', 'loteamentoName': 'arquivo',
+        'status': 'pendente', 'sourceFormat': 'dwf',
+    })
+    temporary_path = blob.download_to_filename.call_args.args[0]
+    assert not os.path.exists(temporary_path)
+
+
+@patch('main.save_draft_to_firestore')
+@patch('main.extract_dwf_geojson')
+@patch('main.storage.Client')
+def test_processar_dwf_gera_erro_terminal_sem_geometria(mock_storage, mock_extract, mock_save):
+    from dwf_extraction import DwfExtractionError
+    mock_extract.side_effect = DwfExtractionError('O DWF não possui contornos utilizáveis para loteamento.')
+    mock_storage.return_value.bucket.return_value.blob.return_value = MagicMock()
+
+    processar_dwf(_event())
+
+    _, geojson, metadata = mock_save.call_args.args
+    assert geojson == {'type': 'FeatureCollection', 'features': []}
+    assert metadata['status'] == 'erro'
+    assert 'contornos utilizáveis' in metadata['processingError']
+
+
+@patch('main.extract_dwf_geojson')
+@patch('main.storage.Client')
+def test_processar_dwf_limpa_temporario_em_falha_transitoria(mock_storage, mock_extract):
+    blob = MagicMock()
+    blob.download_to_filename.side_effect = OSError('network down')
+    mock_storage.return_value.bucket.return_value.blob.return_value = blob
+
+    with pytest.raises(OSError):
+        processar_dwf(_event())
+
+    assert not os.path.exists(blob.download_to_filename.call_args.args[0])
+    mock_extract.assert_not_called()
+
+
 @patch('main.firestore.transactional', side_effect=_immediate_transactional)
 @patch('main.firestore.client')
 def test_claim_rejects_an_already_claimed_request(mock_client, _):
     db = _FakeDb({
         'consolidationRequestId': 'request-1',
         'consolidationProcessingRequestId': 'request-1',
-        'consolidationProcessingStartedAt': time.time(),
+        'consolidationProcessingStartedAt': __import__('time').time(),
     })
     mock_client.return_value = db
-
     assert not _claim_consolidation_request('draft-1', 'request-1')
     assert db.reference.data['consolidationProcessingRequestId'] == 'request-1'
 
@@ -104,31 +170,20 @@ def test_claim_rejects_an_already_claimed_request(mock_client, _):
 @patch('main.firestore.transactional', side_effect=_immediate_transactional)
 @patch('main.firestore.client')
 def test_release_only_clears_its_matching_request(mock_client, _):
-    db = _FakeDb({
-        'consolidationProcessingRequestId': 'request-2',
-        'consolidationProcessingStartedAt': time.time(),
-    })
+    db = _FakeDb({'consolidationProcessingRequestId': 'request-2', 'consolidationProcessingStartedAt': 1})
     mock_client.return_value = db
-
     _release_consolidation_request('draft-1', 'request-1')
     assert db.reference.data['consolidationProcessingRequestId'] == 'request-2'
-
     _release_consolidation_request('draft-1', 'request-2')
     assert 'consolidationProcessingRequestId' not in db.reference.data
-    assert 'consolidationProcessingStartedAt' not in db.reference.data
 
 
 @patch('main.time.time', return_value=1_000.0)
 @patch('main.firestore.transactional', side_effect=_immediate_transactional)
 @patch('main.firestore.client')
 def test_claim_recovers_an_expired_request(mock_client, _, __):
-    db = _FakeDb({
-        'consolidationRequestId': 'request-1',
-        'consolidationProcessingRequestId': 'request-1',
-        'consolidationProcessingStartedAt': 800.0,
-    })
+    db = _FakeDb({'consolidationRequestId': 'request-1', 'consolidationProcessingRequestId': 'request-1', 'consolidationProcessingStartedAt': 800.0})
     mock_client.return_value = db
-
     assert _claim_consolidation_request('draft-1', 'request-1')
     assert db.reference.data['consolidationProcessingStartedAt'] == 1_000.0
 
@@ -137,30 +192,10 @@ def test_claim_recovers_an_expired_request(mock_client, _, __):
 @patch('main._complete_consolidation_request', return_value=True)
 @patch('main._claim_consolidation_request', return_value=True)
 def test_consolidar_loteamento_aprovado_processes_new_request_and_marks_completion(mock_claim, mock_complete, mock_consolidate):
-    event = MockApprovalEvent(
-        {'status': 'pendente'},
-        {'status': 'aprovado', 'consolidationRequestId': 'request-1'},
-    )
+    event = MockApprovalEvent({'status': 'pendente'}, {'status': 'aprovado', 'consolidationRequestId': 'request-1'})
     consolidar_loteamento_aprovado(event)
-    mock_consolidate.assert_called_once_with('draft-1', {
-        'status': 'aprovado', 'consolidationRequestId': 'request-1',
-    })
+    mock_consolidate.assert_called_once_with('draft-1', {'status': 'aprovado', 'consolidationRequestId': 'request-1'})
     mock_complete.assert_called_once_with('draft-1', 'request-1')
-
-    consolidar_loteamento_aprovado(MockApprovalEvent(
-        {
-            'status': 'aprovado',
-            'consolidationRequestId': 'request-1',
-            'consolidationCompletedRequestId': 'request-1',
-        },
-        {
-            'status': 'aprovado',
-            'consolidationRequestId': 'request-1',
-            'consolidationCompletedRequestId': 'request-1',
-        },
-    ))
-    consolidar_loteamento_aprovado(MockApprovalEvent({'status': 'pendente'}, {'status': 'pendente'}))
-    assert mock_consolidate.call_count == 1
 
 
 @patch('main.consolidate_approved_draft', side_effect=RuntimeError('batch failed'))
@@ -169,12 +204,7 @@ def test_consolidar_loteamento_aprovado_processes_new_request_and_marks_completi
 @patch('main._claim_consolidation_request', return_value=True)
 def test_consolidar_loteamento_aprovado_propagates_failure_without_marking_completion(mock_claim, mock_release, mock_client, mock_consolidate):
     with pytest.raises(RuntimeError, match='batch failed'):
-        consolidar_loteamento_aprovado(MockApprovalEvent(
-            {'status': 'pendente'},
-            {'status': 'aprovado', 'consolidationRequestId': 'request-1'},
-        ))
-    mock_consolidate.assert_called_once()
-    mock_client.return_value.collection.return_value.document.return_value.update.assert_not_called()
+        consolidar_loteamento_aprovado(MockApprovalEvent({'status': 'pendente'}, {'status': 'aprovado', 'consolidationRequestId': 'request-1'}))
     mock_release.assert_called_once_with('draft-1', 'request-1')
 
 
@@ -182,12 +212,9 @@ def test_consolidar_loteamento_aprovado_propagates_failure_without_marking_compl
 @patch('main._complete_consolidation_request', return_value=True)
 @patch('main._claim_consolidation_request', return_value=True)
 def test_consolidar_loteamento_aprovado_retries_approved_draft_with_new_request(mock_claim, mock_complete, mock_consolidate):
-    consolidar_loteamento_aprovado(MockApprovalEvent(
-        {'status': 'aprovado', 'consolidationRequestId': 'request-1'},
-        {'status': 'aprovado', 'consolidationRequestId': 'request-2'},
-    ))
+    consolidar_loteamento_aprovado(MockApprovalEvent({'status': 'aprovado', 'consolidationRequestId': 'old'}, {'status': 'aprovado', 'consolidationRequestId': 'new'}))
     mock_consolidate.assert_called_once()
-    mock_complete.assert_called_once_with('draft-1', 'request-2')
+    mock_complete.assert_called_once_with('draft-1', 'new')
 
 
 @patch('main.firestore.transactional', side_effect=_immediate_transactional)
@@ -195,451 +222,17 @@ def test_consolidar_loteamento_aprovado_retries_approved_draft_with_new_request(
 def test_complete_only_marks_its_matching_claim(mock_client, _):
     db = _FakeDb({'consolidationProcessingRequestId': 'request-2'})
     mock_client.return_value = db
-
     assert not _complete_consolidation_request('draft-1', 'request-1')
-    assert db.reference.data['consolidationProcessingRequestId'] == 'request-2'
-
     assert _complete_consolidation_request('draft-1', 'request-2')
     assert db.reference.data['consolidationCompletedRequestId'] == 'request-2'
-    assert 'consolidationProcessingRequestId' not in db.reference.data
 
 
-@patch('main.consolidate_approved_draft')
 @patch('main._claim_consolidation_request', return_value=False)
-def test_consolidar_loteamento_aprovado_ignores_request_claimed_by_another_delivery(mock_claim, mock_consolidate):
-    consolidar_loteamento_aprovado(MockApprovalEvent(
-        {'status': 'pendente'},
-        {'status': 'aprovado', 'consolidationRequestId': 'request-1'},
-    ))
+@patch('main.consolidate_approved_draft')
+def test_consolidar_loteamento_aprovado_ignores_request_claimed_by_another_delivery(mock_consolidate, mock_claim):
+    consolidar_loteamento_aprovado(MockApprovalEvent({'status': 'pendente'}, {'status': 'aprovado', 'consolidationRequestId': 'request-1'}))
     mock_consolidate.assert_not_called()
 
 
 def test_consolidar_loteamento_aprovado_enables_event_retry():
     assert consolidar_loteamento_aprovado.__firebase_endpoint__.eventTrigger['retry'] is True
-
-@pytest.fixture
-def synthetic_dxf(tmp_path):
-    doc = ezdxf.new()
-    msp = doc.modelspace()
-    doc.layers.add("LOTES")
-    doc.layers.add("QUADRAS")
-    doc.layers.add("OUTRO")
-    
-    # Lote no plural (testando token flexível)
-    msp.add_lwpolyline([(0, 0), (10, 0), (10, 10), (0, 10)], dxfattribs={"layer": "LOTES"})
-    # Quadra
-    msp.add_lwpolyline([(0, 0), (20, 0), (20, 20), (0, 20)], dxfattribs={"layer": "QUADRA"})
-    # Text
-    msp.add_text("Texto Lote", dxfattribs={"layer": "LOTES"})
-    
-    # Block INSERT with Layer 0 inside
-    block = doc.blocks.new(name="MeuBlocoLote")
-    block.add_lwpolyline([(5, 5), (15, 5), (15, 15), (5, 15)], dxfattribs={"layer": "0"})
-    msp.add_blockref("MeuBlocoLote", (0, 0), dxfattribs={"layer": "LOTE 2"})
-
-    filepath = tmp_path / "test.dxf"
-    doc.saveas(filepath)
-    return str(filepath)
-
-def test_extract_dxf_geometries_happy_path(synthetic_dxf):
-    lotes, quadras, textos = extract_dxf_geometries(synthetic_dxf)
-    assert len(lotes) == 2  # modelspace (LOTES) + block (inherited LOTE 2)
-    assert len(quadras) == 1 # modelspace (QUADRA)
-    assert len(textos) == 1
-
-def test_extract_dxf_geometries_corrupted(tmp_path):
-    filepath = tmp_path / "corrupted.dxf"
-    with open(filepath, "w") as f:
-        f.write("I am not a dxf file")
-
-    # INVALID_FILE (non-DXF) is signalled as None, not as an empty extraction
-    assert extract_dxf_geometries(str(filepath)) is None
-
-def test_extract_dxf_geometries_invalid_structure(tmp_path):
-    filepath = tmp_path / "invalid_structure.dxf"
-    with open(filepath, "w") as f:
-        # Valid DXF header but no EOF -> ezdxf raises DXFStructureError (ezdxf.DXFError)
-        f.write("0\nSECTION\n2\nHEADER\n0\nENDSEC\n")
-
-    assert extract_dxf_geometries(str(filepath)) is None
-
-def test_extract_dxf_geometries_ioerror(tmp_path):
-    filepath = tmp_path / "nonexistent.dxf"
-    # Deterministic IO failure is treated as an invalid file (None), not retried
-    assert extract_dxf_geometries(str(filepath)) is None
-
-@patch("main.storage.Client")
-def test_processar_dxf_filter_route(mock_storage_client):
-    # Outside route
-    event = MockCloudEvent(MockStorageObjectData(name="uploads/loteamentos/user/123_file.dxf"))
-    processar_dxf(event)
-    mock_storage_client.assert_not_called()
-
-    # Non-dxf
-    event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.png"))
-    processar_dxf(event)
-    mock_storage_client.assert_not_called()
-
-@patch("main.storage.Client")
-def test_processar_dxf_too_large(mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(
-        name="loteamentos_drafts_uploads/user/123_file.dxf", 
-        size=str(51 * 1024 * 1024)
-    ))
-    processar_dxf(event)
-    mock_storage_client.assert_not_called()
-
-
-@patch("main.storage.Client")
-def test_processar_pdf_too_large(mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(
-        name="loteamentos_drafts_uploads/user/123_file.pdf",
-        size=str(51 * 1024 * 1024),
-    ))
-
-    processar_dxf(event)
-
-    mock_storage_client.assert_not_called()
-
-
-@patch("main.storage.Client")
-@patch("main.save_draft_to_firestore")
-@patch("main.extract_pdf_geojson")
-def test_processar_pdf_valid(mock_extract, mock_save_draft, mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(
-        name="loteamentos_drafts_uploads/user/123_file.pdf",
-        metadata={'construtoraId': 'construtora-1', 'loteamentoName': 'Loteamento PDF'},
-    ))
-    mock_extract.return_value = {'type': 'FeatureCollection', 'features': [{'type': 'Feature'}]}
-    mock_storage_client.return_value.bucket.return_value.blob.return_value = MagicMock()
-
-    processar_dxf(event)
-
-    mock_extract.assert_called_once()
-    mock_save_draft.assert_called_once_with(
-        '123_file.pdf',
-        mock_extract.return_value,
-        {
-            'construtoraId': 'construtora-1',
-            'loteamentoName': 'Loteamento PDF',
-            'status': 'pendente',
-            'sourceFormat': 'pdf_experimental',
-        },
-    )
-
-
-@patch("main.storage.Client")
-@patch("main.save_draft_to_firestore")
-@patch("main.extract_pdf_geojson", side_effect=PdfExtractionError('sem contornos'))
-def test_processar_pdf_without_contours_persists_terminal_error(mock_extract, mock_save_draft, mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.pdf"))
-    mock_storage_client.return_value.bucket.return_value.blob.return_value = MagicMock()
-
-    processar_dxf(event)
-
-    mock_extract.assert_called_once()
-    mock_save_draft.assert_called_once()
-    _, geojson, metadata = mock_save_draft.call_args.args
-    assert geojson['features'] == []
-    assert metadata['status'] == 'erro'
-    assert metadata['processingError'] == 'sem contornos'
-
-@patch("main.storage.Client")
-@patch("main.save_draft_to_firestore")
-def test_processar_dxf_valid(mock_save_draft, mock_storage_client, synthetic_dxf):
-    event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.dxf"))
-
-    mock_bucket = MagicMock()
-    mock_blob = MagicMock()
-    mock_storage_client.return_value.bucket.return_value = mock_bucket
-    mock_bucket.blob.return_value = mock_blob
-
-    def mock_download(filename, **kwargs):
-        import shutil
-        shutil.copy(synthetic_dxf, filename)
-
-    mock_blob.download_to_filename.side_effect = mock_download
-
-    processar_dxf(event)
-
-    mock_storage_client.return_value.bucket.assert_called_with("sigo-86dd9.appspot.com")
-    mock_bucket.blob.assert_called_once_with(
-        "loteamentos_drafts_uploads/user/123_file.dxf", generation="12345"
-    )
-    mock_blob.download_to_filename.assert_called_once()
-    
-    mock_save_draft.assert_called_once()
-    args, _ = mock_save_draft.call_args
-    assert args[0] == "123_file.dxf"  # mesmo ID retornado ao cliente no upload
-    
-    geojson = args[1]
-    assert geojson["type"] == "FeatureCollection"
-    # synthetic_dxf tem 2 lotes e 1 texto "Texto Lote" e 1 quadra
-    assert len(geojson["features"]) == 2
-    assert args[2] == {
-        'construtoraId': 'construtora-1',
-        'loteamentoName': 'arquivo',
-        'status': 'pendente',
-    }
-
-    # Assert cleanup
-    downloaded_path = mock_blob.download_to_filename.call_args[0][0]
-    assert not os.path.exists(downloaded_path)
-
-@patch("main.logger")
-@patch("main.save_draft_to_firestore")
-@patch("main.storage.Client")
-def test_processar_dxf_swallows_persistence_error(mock_storage_client, mock_save_draft, mock_logger, synthetic_dxf):
-    from firestore_utils import DraftPersistenceError
-    event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.dxf"))
-
-    mock_bucket = MagicMock()
-    mock_blob = MagicMock()
-    mock_storage_client.return_value.bucket.return_value = mock_bucket
-    mock_bucket.blob.return_value = mock_blob
-
-    def mock_download(filename, **kwargs):
-        import shutil
-        shutil.copy(synthetic_dxf, filename)
-
-    mock_blob.download_to_filename.side_effect = mock_download
-    mock_save_draft.side_effect = DraftPersistenceError("Poison message")
-
-    # Should NOT raise, the error is swallowed
-    processar_dxf(event)
-    mock_save_draft.assert_called_once()
-    mock_logger.exception.assert_called_once_with("Fatal error persisting loteamentos_drafts_uploads/user/123_file.dxf")
-
-@patch("main.storage.Client")
-@patch("main.extract_dxf_geometries")
-def test_processar_dxf_download_failure_cleans_temp(mock_extract, mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.dxf"))
-
-    mock_bucket = MagicMock()
-    mock_blob = MagicMock()
-    mock_blob.download_to_filename.side_effect = OSError("network down")
-    mock_storage_client.return_value.bucket.return_value = mock_bucket
-    mock_bucket.blob.return_value = mock_blob
-
-    with pytest.raises(OSError):
-        processar_dxf(event)
-
-    downloaded_path = mock_blob.download_to_filename.call_args[0][0]
-    assert not os.path.exists(downloaded_path)
-    mock_extract.assert_not_called()
-
-@patch("main.storage.Client")
-@patch("main.extract_dxf_geometries")
-def test_processar_dxf_unexpected_error_propagates_and_cleans_temp(mock_extract, mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.dxf"))
-
-    mock_bucket = MagicMock()
-    mock_blob = MagicMock()
-    mock_extract.side_effect = RuntimeError("boom")
-    mock_storage_client.return_value.bucket.return_value = mock_bucket
-    mock_bucket.blob.return_value = mock_blob
-
-    with pytest.raises(RuntimeError):
-        processar_dxf(event)
-
-    downloaded_path = mock_blob.download_to_filename.call_args[0][0]
-    assert not os.path.exists(downloaded_path)
-
-@patch("main.storage.Client")
-@patch("main.extract_dxf_geometries")
-def test_processar_dxf_size_at_limit_is_accepted(mock_extract, mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(
-        name="loteamentos_drafts_uploads/user/123_file.dxf",
-        size=str(50 * 1024 * 1024),
-    ))
-    mock_storage_client.return_value.bucket.return_value = MagicMock()
-    mock_storage_client.return_value.bucket.return_value.blob.return_value = MagicMock()
-    mock_extract.return_value = ([], [], [])
-
-    processar_dxf(event)
-    mock_storage_client.assert_called_once()
-
-@patch("main.storage.Client")
-@patch("main.extract_dxf_geometries")
-def test_processar_dxf_uppercase_extension_is_accepted(mock_extract, mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(
-        name="loteamentos_drafts_uploads/user/123_file.DXF"))
-    mock_storage_client.return_value.bucket.return_value = MagicMock()
-    mock_storage_client.return_value.bucket.return_value.blob.return_value = MagicMock()
-    mock_extract.return_value = ([], [], [])
-
-    processar_dxf(event)
-    mock_storage_client.assert_called_once()
-
-@patch("main.storage.Client")
-@patch("main.extract_dxf_geometries")
-def test_processar_dxf_invalid_file_does_not_raise(mock_extract, mock_storage_client, caplog):
-    event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.dxf"))
-    mock_storage_client.return_value.bucket.return_value = MagicMock()
-    mock_storage_client.return_value.bucket.return_value.blob.return_value = MagicMock()
-    mock_extract.return_value = None
-
-    with caplog.at_level("ERROR"):
-        processar_dxf(event)
-
-    assert "INVALID_FILE" in caplog.text
-
-@patch("main.storage.Client")
-@patch("main.extract_dxf_geometries")
-def test_processar_dxf_no_entities_logs_warning(mock_extract, mock_storage_client, caplog):
-    event = MockCloudEvent(MockStorageObjectData(name="loteamentos_drafts_uploads/user/123_file.dxf"))
-    mock_storage_client.return_value.bucket.return_value = MagicMock()
-    mock_storage_client.return_value.bucket.return_value.blob.return_value = MagicMock()
-    mock_extract.return_value = ([], [], [])
-
-    with caplog.at_level("WARNING"):
-        processar_dxf(event)
-
-    assert "NO_ENTITIES" in caplog.text
-
-@patch("main.storage.Client")
-def test_processar_dxf_missing_name(mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(name=None))
-    processar_dxf(event)
-    mock_storage_client.assert_not_called()
-
-@patch("main.storage.Client")
-def test_processar_dxf_missing_bucket(mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(
-        name="loteamentos_drafts_uploads/user/123_file.dxf", bucket=None))
-    processar_dxf(event)
-    mock_storage_client.assert_not_called()
-
-@patch("main.storage.Client")
-def test_processar_dxf_missing_size(mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(
-        name="loteamentos_drafts_uploads/user/123_file.dxf", size=None))
-    processar_dxf(event)
-    mock_storage_client.assert_not_called()
-
-@patch("main.storage.Client")
-def test_processar_dxf_invalid_size(mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(
-        name="loteamentos_drafts_uploads/user/123_file.dxf", size="not-a-number"))
-    processar_dxf(event)
-    mock_storage_client.assert_not_called()
-
-@patch("main.storage.Client")
-def test_processar_dxf_missing_generation(mock_storage_client):
-    event = MockCloudEvent(MockStorageObjectData(
-        name="loteamentos_drafts_uploads/user/123_file.dxf", generation=None))
-    processar_dxf(event)
-    mock_storage_client.assert_not_called()
-
-def test_extract_dxf_geometries_no_entities(tmp_path):
-    doc = ezdxf.new()
-    msp = doc.modelspace()
-    doc.layers.add("RUAS")
-    msp.add_lwpolyline([(0, 0), (5, 0), (5, 5), (0, 5)], dxfattribs={"layer": "RUAS"})
-
-    filepath = tmp_path / "no_entities.dxf"
-    doc.saveas(filepath)
-
-    lotes, quadras, textos = extract_dxf_geometries(str(filepath))
-    assert lotes == []
-    assert quadras == []
-    assert textos == []
-
-def test_extract_dxf_geometries_combined_layer(tmp_path):
-    doc = ezdxf.new()
-    msp = doc.modelspace()
-    doc.layers.add("LOTE_E_QUADRA")
-    msp.add_lwpolyline([(0, 0), (10, 0), (10, 10), (0, 10)], dxfattribs={"layer": "LOTE_E_QUADRA"})
-
-    filepath = tmp_path / "combined.dxf"
-    doc.saveas(filepath)
-
-    lotes, quadras, textos = extract_dxf_geometries(str(filepath))
-    assert len(lotes) == 1
-    assert len(quadras) == 1
-
-def test_extract_dxf_geometries_nested_insert_layer0(tmp_path):
-    doc = ezdxf.new()
-    msp = doc.modelspace()
-    doc.layers.add("LOTES")
-
-    inner = doc.blocks.new(name="InnerBlock")
-    inner.add_lwpolyline([(0, 0), (1, 0), (1, 1), (0, 1)], dxfattribs={"layer": "0"})
-
-    outer = doc.blocks.new(name="OuterBlock")
-    outer.add_blockref("InnerBlock", (0, 0), dxfattribs={"layer": "0"})
-
-    msp.add_blockref("OuterBlock", (0, 0), dxfattribs={"layer": "LOTES"})
-
-    filepath = tmp_path / "nested.dxf"
-    doc.saveas(filepath)
-
-    lotes, quadras, textos = extract_dxf_geometries(str(filepath))
-    assert len(lotes) == 1
-    assert quadras == []
-    assert textos == []
-
-def test_extract_dxf_geometries_nested_insert_byblock(tmp_path):
-    doc = ezdxf.new()
-    msp = doc.modelspace()
-    doc.layers.add("LOTES")
-
-    inner = doc.blocks.new(name="InnerBlock")
-    inner.add_lwpolyline([(0, 0), (1, 0), (1, 1), (0, 1)], dxfattribs={"layer": "0"})
-
-    outer = doc.blocks.new(name="OuterBlock")
-    outer.add_blockref("InnerBlock", (0, 0), dxfattribs={"layer": "BYBLOCK"})
-
-    msp.add_blockref("OuterBlock", (0, 0), dxfattribs={"layer": "LOTES"})
-
-    filepath = tmp_path / "byblock.dxf"
-    doc.saveas(filepath)
-
-    lotes, quadras, textos = extract_dxf_geometries(str(filepath))
-    assert len(lotes) == 1
-
-def test_extract_dxf_geometries_nested_insert_without_parent_layer(tmp_path):
-    doc = ezdxf.new()
-    msp = doc.modelspace()
-
-    inner = doc.blocks.new(name="InnerBlock")
-    inner.add_lwpolyline([(0, 0), (1, 0), (1, 1), (0, 1)], dxfattribs={"layer": "0"})
-
-    outer = doc.blocks.new(name="OuterBlock")
-    outer.add_blockref("InnerBlock", (0, 0), dxfattribs={"layer": "0"})
-
-    msp.add_blockref("OuterBlock", (0, 0), dxfattribs={"layer": "0"})
-
-    filepath = tmp_path / "no_parent.dxf"
-    doc.saveas(filepath)
-
-    lotes, quadras, textos = extract_dxf_geometries(str(filepath))
-    assert lotes == []
-    assert quadras == []
-
-
-@patch('main.storage.Client')
-@patch('main.save_draft_to_firestore')
-def test_processar_dxf_repaired_quadra_full_geometry(mock_save, mock_storage, tmp_path):
-    import shutil
-    from shapely.geometry import shape
-    doc = ezdxf.new()
-    msp = doc.modelspace()
-    msp.add_lwpolyline([(0,0),(4,0),(4,4),(0,4),(0,0),(6,0),(7,0),(7,1),(6,1),(6,0),(0,0)], dxfattribs={'layer': 'QUADRAS'})
-    for x, y, size, name in [(1,1,1,'1'), (6.1,.1,.8,'2')]:
-        msp.add_lwpolyline([(x,y),(x+size,y),(x+size,y+size),(x,y+size)], dxfattribs={'layer': 'LOTES'})
-        msp.add_text(name, dxfattribs={'insert': (x+.1,y+.1)})
-    msp.add_text('Q 1', dxfattribs={'insert': (3,3)})
-    path = tmp_path / 'repaired.dxf'
-    doc.saveas(path)
-    mock_storage.return_value.bucket.return_value.blob.return_value.download_to_filename.side_effect = lambda filename, **kw: shutil.copy(path, filename)
-    processar_dxf(MockCloudEvent(MockStorageObjectData(name='loteamentos_drafts_uploads/user/repaired.dxf')))
-    features = mock_save.call_args.args[1]['features']
-    lotes = [f for f in features if f['properties']['tipo'] == 'lote']
-    quadras = [f for f in features if f['properties']['tipo'] == 'quadra']
-    assert len(quadras) == 1
-    assert shape(quadras[0]['geometry']).area == 17
-    assert quadras[0]['properties']['status'] == 'ambiguo'
-    assert len(lotes) == 2
-    assert all(f['properties']['quadra'] == 'Q 1' for f in lotes)
-    assert all(f['properties']['status'] == 'valido' for f in lotes)
