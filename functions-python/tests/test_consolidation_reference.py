@@ -107,7 +107,7 @@ def test_reference_dxf_consolidates_with_ambiguous_lotes_and_merged_quadras():
     # Toda quadra tem nome único (duplicados mesclados) e nenhum lote fica sem FK.
     named = [d['name'] for d in quadras.values() if d['name']]
     assert len(named) == len(set(named)), 'nomes de quadra devem ser únicos'
-    assert 'Q-09' in named and 'Q-11' in named and 'Q-17' in named
+    assert 'Q-09' in named and 'Q-11' in named and 'Q-17' in named and 'Q-19' in named
 
     sem_nome = [d for d in lotes.values() if d['name'] == '']
     assert sem_nome, 'lotes ambíguos devem ser materializados com nome vazio'

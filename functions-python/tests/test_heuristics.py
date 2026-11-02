@@ -3,13 +3,17 @@ from shapely.geometry import Polygon
 from heuristics import extract_text, build_geojson
 
 class MockDXFText:
-    def __init__(self, text, x, y, is_mtext=False):
+    def __init__(self, text, x, y, is_mtext=False, dxftype_name=None, align_point=None):
         self._text = text
         self.x = x
         self.y = y
         self.is_mtext = is_mtext
+        self._dxftype = dxftype_name
+        self._align_point = align_point
 
     def dxftype(self):
+        if self._dxftype:
+            return self._dxftype
         return 'MTEXT' if self.is_mtext else 'TEXT'
 
     @property
@@ -19,6 +23,10 @@ class MockDXFText:
     @property
     def text(self):
         return self._text
+
+    @property
+    def align_point(self):
+        return self._align_point
 
     @property
     def insert(self):
@@ -410,3 +418,128 @@ def test_repaired_quadra_and_multipart_lote_preserve_holes_and_parts():
         assert shape(feature['geometry']).equals(geometry)
     quadra = next(f for f in result['features'] if f['properties']['tipo'] == 'quadra')
     assert quadra['properties'] == {'tipo': 'quadra', 'nome': 'Q 1', 'status': 'ambiguo', 'geometria_reparada': True}
+
+
+def test_extract_text_attrib():
+    class Pt:
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+
+    attrib = MockDXFText('lote 12', 10, 20, dxftype_name='ATTRIB')
+    text, pt = extract_text(attrib)
+    assert text == 'LOTE 12'
+    assert pt.x == 10 and pt.y == 20
+
+    attrib_aligned = MockDXFText('07', 0, 0, dxftype_name='ATTRIB', align_point=Pt(15, 25))
+    text_aligned, pt_aligned = extract_text(attrib_aligned)
+    assert text_aligned == '07'
+    assert pt_aligned.x == 15 and pt_aligned.y == 25
+
+
+@pytest.mark.parametrize(
+    ('raw_text', 'expected_nome'),
+    [
+        ('LOTE 12', '12'),
+        ('LT 12', '12'),
+        ('LT. 12', '12'),
+        ('L-12', '12'),
+        ('LOTE 07', '07'),
+    ],
+)
+def test_build_geojson_prefixo_lote_normaliza_para_inteiro(raw_text, expected_nome):
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText(raw_text, 5, 5)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson['features'][0]
+
+    assert feature['properties']['status'] == 'valido'
+    assert feature['properties']['nome'] == expected_nome
+
+
+def test_build_geojson_multi_prefixados_escolhe_o_mais_proximo():
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText('LOTE 12', 4.9, 5.1), MockDXFText('LT 13', 9, 9)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson['features'][0]
+
+    assert feature['properties']['status'] == 'valido'
+    assert feature['properties']['nome'] == '12'
+
+
+def test_build_geojson_fallback_distancia_quadra_adjacente():
+    lote_entity = MockDXFPoly()
+    lote_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
+    quadra_entity = MockDXFPoly()
+    quadra_poly = Polygon([(0, 0), (20, 0), (20, 20), (0, 20), (0, 0)])
+    association = {
+        'quadras': {quadra_entity: [lote_entity]},
+        'lotes_orfaos': [],
+        'quadra_polygons': {quadra_entity: quadra_poly},
+        'lote_polygons': {lote_entity: lote_poly},
+    }
+    # Q-19 fora da quadra, mas a 5 m da borda (<= 8 m).
+    textos = [MockDXFText('1', 5, 5), MockDXFText('Q-19', 25, 10)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson['features'][0]
+
+    assert feature['properties']['quadra'] == 'Q-19'
+
+
+def test_build_geojson_fallback_distancia_quadra_ignora_multiplos_ou_distantes():
+    lote_entity = MockDXFPoly()
+    lote_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
+    quadra_entity = MockDXFPoly()
+    quadra_poly = Polygon([(0, 0), (20, 0), (20, 20), (0, 20), (0, 0)])
+    association = {
+        'quadras': {quadra_entity: [lote_entity]},
+        'lotes_orfaos': [],
+        'quadra_polygons': {quadra_entity: quadra_poly},
+        'lote_polygons': {lote_entity: lote_poly},
+    }
+    # Dois rótulos no raio de 8 m -> mantém vazio.
+    textos_duplos = [MockDXFText('1', 5, 5), MockDXFText('Q-19', 25, 10), MockDXFText('Q-20', 24, 12)]
+    geojson_duplos = build_geojson(
+        association, textos_duplos, association['quadra_polygons'], association['lote_polygons']
+    )
+    assert geojson_duplos['features'][0]['properties']['quadra'] == ''
+
+    # Um rótulo além de 8 m -> mantém vazio.
+    textos_longe = [MockDXFText('1', 5, 5), MockDXFText('Q-19', 30, 10)]
+    geojson_longe = build_geojson(
+        association, textos_longe, association['quadra_polygons'], association['lote_polygons']
+    )
+    assert geojson_longe['features'][0]['properties']['quadra'] == ''
+
+
+def test_build_geojson_fallback_nao_sobrescreve_quadra_coberta_nem_quadra_sem_lotes():
+    lote_entity = MockDXFPoly()
+    lote_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
+    quadra_com_lote = MockDXFPoly()
+    quadra_vazia = MockDXFPoly()
+    quadra_poly1 = Polygon([(0, 0), (20, 0), (20, 20), (0, 20), (0, 0)])
+    quadra_poly2 = Polygon([(100, 0), (120, 0), (120, 20), (100, 20), (100, 0)])
+    association = {
+        'quadras': {quadra_com_lote: [lote_entity], quadra_vazia: []},
+        'lotes_orfaos': [],
+        'quadra_polygons': {quadra_com_lote: quadra_poly1, quadra_vazia: quadra_poly2},
+        'lote_polygons': {lote_entity: lote_poly},
+        'quadras_reparadas': {quadra_vazia},
+    }
+    textos = [
+        MockDXFText('1', 5, 5),
+        MockDXFText('Q-01', 15, 15),   # coberto por quadra_poly1
+        MockDXFText('Q-02', 23, 10),   # adjacente a quadra_poly1 (<= 8m)
+        MockDXFText('Q-99', 124, 10),  # adjacente a quadra_vazia sem lotes (<= 8m)
+    ]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    lote_feat = next(f for f in geojson['features'] if f['properties']['tipo'] == 'lote')
+    quadra_feat = next(f for f in geojson['features'] if f['properties']['tipo'] == 'quadra')
+
+    assert lote_feat['properties']['quadra'] == 'Q-01'
+    assert quadra_feat['properties']['nome'] == ''
+

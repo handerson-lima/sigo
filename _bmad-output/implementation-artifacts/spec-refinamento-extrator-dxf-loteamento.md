@@ -2,8 +2,9 @@
 title: 'Refinamento do extrator DXF de loteamentos para variações de engenharia civil'
 type: 'feature'
 created: '2026-11-02'
-status: 'draft'
+status: 'in-progress'
 route: 'dispatch'
+baseline_commit: '46391526b0512086701fae39a4bb1afd938773bd'
 review_loop_iteration: 0
 context:
   - '_bmad-output/implementation-artifacts/spec-importacao-dxf-loteamento.md'
@@ -58,10 +59,10 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `functions-python/heuristics.py` -- suportar `ATTRIB` em `extract_text`, reconhecer e normalizar prefixos de lote (`LOTE_PREFIX_REGEX`) em `_is_lote_name_candidate`/`_select_nome` (mantendo prioridade para inteiros puros) e aplicar fallback de proximidade (`<= 8.0`) para rótulo de quadra em `build_geojson` quando a quadra com lotes não cobrir nenhum `Q-xx` -- permite ler atributos de bloco, textos `LOTE 12`/`LT 12`/`L-12` e associar `Q-19`.
-- [ ] `functions-python/dxf_extraction.py` -- incluir `'ATTRIB'` em `TEXT_TYPES` e em `_flatten`, calcular escala de área por `$INSUNITS`, resolver cor ACI efetiva e refinar `_geometry_classification` para descartar molduras `Q-xx` e polígonos sem candidato a nome fora da cor ACI predominante dos lotes -- evita falsos lotes em mm, molduras de quadra e polígonos de área institucional/verde em cor distinta.
-- [ ] `functions-python/tests/test_heuristics.py` -- cobrir `extract_text` com `ATTRIB`, candidatos `LOTE 12`/`LT 12`/`LT. 12`/`L-12`, precedência de inteiro puro sobre prefixado e fallback de proximidade de `Q-xx` -- garante os cenários da matriz de heurística.
-- [ ] `functions-python/tests/test_dxf_extraction.py` -- atualizar asserções do fixture `SEM_COTAS` para 23 quadras (`Q-01` a `Q-23`, incluindo `Q-19`) e `<= 18` ambíguos, e adicionar testes unitários para moldura de rótulo `Q-xx`, bloco `INSERT` com `ATTRIB`, `$INSUNITS` em milímetros e filtro por cor ACI -- valida todos os requisitos no fixture real e em DXFs sintéticos.
+- [x] `functions-python/heuristics.py` -- suportar `ATTRIB` em `extract_text`, reconhecer e normalizar prefixos de lote (`LOTE_PREFIX_REGEX`) em `_is_lote_name_candidate`/`_select_nome` (mantendo prioridade para inteiros puros) e aplicar fallback de proximidade (`<= 8.0`) para rótulo de quadra em `build_geojson` quando a quadra com lotes não cobrir nenhum `Q-xx` -- permite ler atributos de bloco, textos `LOTE 12`/`LT 12`/`L-12` e associar `Q-19`.
+- [x] `functions-python/dxf_extraction.py` -- incluir `'ATTRIB'` em `TEXT_TYPES` e em `_flatten`, calcular escala de área por `$INSUNITS`, resolver cor ACI efetiva e refinar `_geometry_classification` para descartar molduras `Q-xx` e polígonos sem candidato a nome fora da cor ACI predominante dos lotes -- evita falsos lotes em mm, molduras de quadra e polígonos de área institucional/verde em cor distinta.
+- [x] `functions-python/tests/test_heuristics.py` -- cobrir `extract_text` com `ATTRIB`, candidatos `LOTE 12`/`LT 12`/`LT. 12`/`L-12`, precedência de inteiro puro sobre prefixado e fallback de proximidade de `Q-xx` -- garante os cenários da matriz de heurística.
+- [x] `functions-python/tests/test_dxf_extraction.py` -- atualizar asserções do fixture `SEM_COTAS` para 23 quadras (`Q-01` a `Q-23`, incluindo `Q-19`) e `<= 18` ambíguos, e adicionar testes unitários para moldura de rótulo `Q-xx`, bloco `INSERT` com `ATTRIB`, `$INSUNITS` em milímetros e filtro por cor ACI -- valida todos os requisitos no fixture real e em DXFs sintéticos.
 
 **Acceptance Criteria:**
 - Given o fixture `00a-LOTEAMENTO_HR_R13A-Model_SEM_COTAS.dxf`, when processado por `extract_dxf_geojson`, then todas as 23 quadras (`Q-01` a `Q-23`, incluindo `Q-19`) são reconhecidas nos lotes, `validos == 245` e `ambiguos` cai de 26 para 18.
@@ -69,6 +70,10 @@ context:
 - Given um DXF com polígonos pequenos de anotação em torno de `Q-xx`, blocos `INSERT` com `ATTRIB`, textos `LOTE 12`/`LT 12`/`L-12` ou `$INSUNITS` em milímetros, when extraído, then classifica e nomeia os lotes corretamente descartando símbolos fora de escala.
 
 ## Implementation Notes
+
+- `functions-python/heuristics.py`: adicionado `LOTE_PREFIX_REGEX` e `QUADRA_LABEL_MAX_DISTANCE = 8.0`. `_is_lote_name_candidate` e `_select_nome` aceitam e normalizam rótulos com prefixo (`LOTE`/`LT`/`L`), preservando a precedência de inteiros puros sobre prefixados. `extract_text` passa a ler entidades `ATTRIB`. `build_geojson` aplica fallback de distância (`<= 8.0` escalado por unidade linear) para rótulos `Q-xx` somente quando a quadra não cobre nenhum `Q-xx`, possui lotes associados e há exatamente 1 rótulo no raio.
+- `functions-python/dxf_extraction.py`: incluído `'ATTRIB'` em `TEXT_TYPES` e emissão de `entity.attribs` em `_flatten` com herança de layer e cor ACI (`_effective_color`: `0`/BYBLOCK segue o `INSERT`, `256`/BYLAYER segue `doc.layers`). Adicionado cálculo de escala linear/área por `$INSUNITS` (`_unit_linear_scale`, `_unit_area_scale`). Refinado `_geometry_classification` para descartar molduras que cobrem `QUADRA_REGEX` sem candidato a lote e polígonos sem candidato a nome cuja cor ACI efetiva diverge da cor predominante (`>= 50%`) dos lotes com candidato.
+- No fixture `00a-LOTEAMENTO_HR_R13A-Model_SEM_COTAS.dxf`: todas as 23 quadras (`Q-01` a `Q-23`, incluindo `Q-19`) são reconhecidas, `validos == 245` e `ambiguos == 18`.
 
 ## Spec Change Log
 
