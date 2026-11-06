@@ -450,3 +450,16 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 - source_spec: `_bmad-output/implementation-artifacts/spec-aprovacao-dxf-com-ambiguos.md`
   summary: Mesclar ou eliminar as quadras de nome vazio na consolidação.
   evidence: O fixture produz 2 features `tipo:'quadra'` sem nome, que viram 2 documentos distintos (mais `Geral`); a spec exigia apenas não abortar, mas a tela de quadras exibirá entradas sem nome. Decisão de produto pendente.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-e-extracao-dwf-loteamento.md`
+  summary: Escalonar `MIN_LOTE_AREA` e `QUADRA_LABEL_MAX_DISTANCE` conforme a unidade declarada em `(Units '<unidade>' ...)` no extrator DWF.
+  evidence: Severidade `medium` não verificada (`maybe-false`); no DWF de referência a matriz `Units` já produz coordenadas em metros, sendo necessário inspecionar pacotes DWF reais exportados em milímetros ou centímetros pelo AutoCAD para confirmar se as coordenadas pós-matriz permanecem fora da escala métrica.
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-e-extracao-dwf-loteamento.md`
+  summary: Filtrar ou isolar seções `ePlot` (`Model` vs `Layout`) quando um pacote DWF contiver múltiplos recursos `application/x-w2d`.
+  evidence: Severidade `medium` não verificada (`maybe-false`); o fixture de referência possui apenas a seção `Model`, exigindo amostras reais de DWF multi-prancha para definir a regra de seleção de seção sem descartar plantas válidas.
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-e-extracao-dwf-loteamento.md`
+  summary: Suportar opcodes W2D adicionais como polilinhas de 32 bits (`0x50` `'P'`) e geometrias em formato ASCII estendido (`(PolyLine ...)`, `(Text ...)`).
+  evidence: Severidade `medium` não verificada (`maybe-false`); o parser atual falha de forma determinística com `DwfExtractionError` caso encontre opcodes fora do subconjunto `W2D V06.00` do fixture, sendo necessário coletar outros DWFs exportados pelo AutoCAD para verificar se tais opcodes são emitidos na prática.
+- source_spec: `_bmad-output/implementation-artifacts/spec-importacao-e-extracao-dwf-loteamento.md`
+  summary: Adicionar cobertura de teste de widget para seleção e drag-and-drop de `.dwf` em `LoteamentoImportScreen` abstraindo `DropzoneView` e `FilePicker`.
+  evidence: Verificado pelo `verification-gap` (`medium`); `LoteamentoImportScreen` instancia `DropzoneView` (exclusivo Web) e invoca `FilePicker.pickFiles` estaticamente, enquanto a validação do nome e MIME já é exercitada nos testes unitários de `LoteamentosImportRepository`.

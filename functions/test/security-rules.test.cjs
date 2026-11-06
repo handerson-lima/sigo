@@ -557,7 +557,7 @@ test('7.3 Storage garante imutabilidade: update e delete bloqueados', async () =
   await assertFails(deleteObject(targetRef));
 });
 
-test('7.4 Importação de loteamento aceita apenas DXF em loteamentos_drafts_uploads', async () => {
+test('7.4 Importação de loteamento aceita apenas DXF e DWF em loteamentos_drafts_uploads', async () => {
   const memberStorage = testEnv.authenticatedContext('diary_user').storage('gs://demo-sigo.appspot.com');
   const dxfBytes = Buffer.from('0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nEOF\n');
 
@@ -568,23 +568,40 @@ test('7.4 Importação de loteamento aceita apenas DXF em loteamentos_drafts_upl
     { contentType: 'application/dxf' }
   ));
 
-  // Extensão maiúscula continua aceita
+  // Extensão maiúscula DXF continua aceita
   await assertSucceeds(uploadBytes(
     ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/2_arquivo.DXF'),
     dxfBytes,
     { contentType: 'application/dxf' }
   ));
 
-  // Formato antigo DWF rejeitado (MIME e extensão)
-  await assertFails(uploadBytes(
+  // DWF válido: MIME e extensão corretos (minúsculo e maiúsculo)
+  await assertSucceeds(uploadBytes(
     ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/3_arquivo.dwf'),
     dxfBytes,
     { contentType: 'application/x-dwf' }
   ));
+  await assertSucceeds(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/4_arquivo.DWF'),
+    dxfBytes,
+    { contentType: 'application/x-dwf' }
+  ));
 
-  // MIME DXF com extensão não-DXF também é rejeitado
+  // Pares MIME/extensão trocados são rejeitados
   await assertFails(uploadBytes(
-    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/4_arquivo.pdf'),
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/5_trocado.dwf'),
+    dxfBytes,
+    { contentType: 'application/dxf' }
+  ));
+  await assertFails(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/6_trocado.dxf'),
+    dxfBytes,
+    { contentType: 'application/x-dwf' }
+  ));
+
+  // Formato não suportado (PDF/DWG) continua rejeitado
+  await assertFails(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/7_arquivo.pdf'),
     dxfBytes,
     { contentType: 'application/dxf' }
   ));
@@ -592,7 +609,7 @@ test('7.4 Importação de loteamento aceita apenas DXF em loteamentos_drafts_upl
   // Não é possível escrever no diretório de outro uid
   const outsiderStorage = testEnv.authenticatedContext('outsider_user').storage('gs://demo-sigo.appspot.com');
   await assertFails(uploadBytes(
-    ref(outsiderStorage, 'loteamentos_drafts_uploads/diary_user/5_invasao.dxf'),
+    ref(outsiderStorage, 'loteamentos_drafts_uploads/diary_user/8_invasao.dxf'),
     dxfBytes,
     { contentType: 'application/dxf' }
   ));

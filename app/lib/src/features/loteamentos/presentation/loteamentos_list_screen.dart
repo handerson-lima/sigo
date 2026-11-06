@@ -39,7 +39,7 @@ class LoteamentosListScreen extends ConsumerWidget {
         if (admin) ...[
           IconButton(
             icon: const Icon(Icons.file_upload, color: Colors.black54),
-            tooltip: 'Importar DXF',
+            tooltip: 'Importar DXF/DWF',
             onPressed: () => context.go('/construtoras/$construtoraId/loteamentos/import'),
           ),
           IconButton(

@@ -36,9 +36,9 @@ def _event(filename='123_arquivo.dxf'):
 
 
 @patch('main.storage.Client')
-def test_processar_dxf_ignora_rota_e_formatos_antigos(mock_storage):
+def test_processar_dxf_ignora_rota_e_formatos_nao_suportados(mock_storage):
     processar_dxf(MockCloudEvent(MockStorageObjectData('uploads/user/arquivo.dxf')))
-    for filename in ('arquivo.dwf', 'arquivo.dwg', 'arquivo.pdf'):
+    for filename in ('arquivo.dwg', 'arquivo.pdf', 'arquivo.txt'):
         processar_dxf(_event(filename))
     mock_storage.assert_not_called()
 
@@ -67,6 +67,29 @@ def test_processar_dxf_cria_rascunho_revisavel(mock_storage, mock_extract, mock_
         'status': 'pendente', 'sourceFormat': 'dxf',
     })
     temporary_path = blob.download_to_filename.call_args.args[0]
+    assert temporary_path.endswith('.dxf')
+    assert not os.path.exists(temporary_path)
+
+
+@patch('main.save_draft_to_firestore')
+@patch('main.extract_dwf_geojson')
+@patch('main.storage.Client')
+def test_processar_dxf_cria_rascunho_revisavel_a_partir_de_dwf(
+    mock_storage, mock_extract_dwf, mock_save,
+):
+    mock_extract_dwf.return_value = {'type': 'FeatureCollection', 'features': [{'type': 'Feature'}]}
+    blob = MagicMock()
+    mock_storage.return_value.bucket.return_value.blob.return_value = blob
+
+    processar_dxf(_event('123_arquivo.dwf'))
+
+    mock_extract_dwf.assert_called_once()
+    mock_save.assert_called_once_with('123_arquivo.dwf', mock_extract_dwf.return_value, {
+        'construtoraId': 'construtora-1', 'loteamentoName': 'arquivo',
+        'status': 'pendente', 'sourceFormat': 'dwf',
+    })
+    temporary_path = blob.download_to_filename.call_args.args[0]
+    assert temporary_path.endswith('.dwf')
     assert not os.path.exists(temporary_path)
 
 
@@ -80,6 +103,18 @@ def test_processar_dxf_aceita_extensao_maiuscula(mock_storage, mock_extract, moc
     processar_dxf(_event('123_ARQUIVO.DXF'))
 
     mock_extract.assert_called_once()
+
+
+@patch('main.save_draft_to_firestore')
+@patch('main.extract_dwf_geojson')
+@patch('main.storage.Client')
+def test_processar_dxf_aceita_dwf_extensao_maiuscula(mock_storage, mock_extract_dwf, mock_save):
+    mock_extract_dwf.return_value = {'type': 'FeatureCollection', 'features': [{'type': 'Feature'}]}
+    mock_storage.return_value.bucket.return_value.blob.return_value = MagicMock()
+
+    processar_dxf(_event('123_ARQUIVO.DWF'))
+
+    mock_extract_dwf.assert_called_once()
 
 
 @patch('main.save_draft_to_firestore')
@@ -97,6 +132,25 @@ def test_processar_dxf_gera_erro_terminal_sem_geometria(mock_storage, mock_extra
     assert metadata['status'] == 'erro'
     assert metadata['sourceFormat'] == 'dxf'
     assert 'contornos utilizáveis' in metadata['processingError']
+
+
+@patch('main.save_draft_to_firestore')
+@patch('main.extract_dwf_geojson')
+@patch('main.storage.Client')
+def test_processar_dxf_gera_erro_terminal_em_dwf_invalido(
+    mock_storage, mock_extract_dwf, mock_save,
+):
+    from dwf_extraction import DwfExtractionError
+    mock_extract_dwf.side_effect = DwfExtractionError('O pacote DWF não possui seção 2D (application/x-w2d).')
+    mock_storage.return_value.bucket.return_value.blob.return_value = MagicMock()
+
+    processar_dxf(_event('123_arquivo.dwf'))
+
+    _, geojson, metadata = mock_save.call_args.args
+    assert geojson == {'type': 'FeatureCollection', 'features': []}
+    assert metadata['status'] == 'erro'
+    assert metadata['sourceFormat'] == 'dwf'
+    assert 'application/x-w2d' in metadata['processingError']
 
 
 @patch('main.extract_dxf_geojson')

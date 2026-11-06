@@ -543,3 +543,16 @@ def test_build_geojson_fallback_nao_sobrescreve_quadra_coberta_nem_quadra_sem_lo
     assert lote_feat['properties']['quadra'] == 'Q-01'
     assert quadra_feat['properties']['nome'] == ''
 
+
+@pytest.mark.parametrize('cota_diametro', ['Ø18.00', 'ø18,00', '⌀25.50'])
+def test_build_geojson_descarta_cota_diametro_decimal(cota_diametro):
+    association = _single_lote_association(Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]))
+    textos = [MockDXFText(cota_diametro, 5, 5)]
+
+    geojson = build_geojson(association, textos, association['quadra_polygons'], association['lote_polygons'])
+    feature = geojson['features'][0]
+
+    assert feature['properties']['status'] == 'ambiguo'
+    assert feature['properties']['nome'] == ''
+
+

@@ -55,7 +55,7 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
   Future<void> _pickFile() async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['dxf'],
+      allowedExtensions: ['dxf', 'dwf'],
     );
 
     if (result.isNotEmpty) {
@@ -68,7 +68,7 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Importar Loteamento (DXF)')),
+      appBar: AppBar(title: const Text('Importar Loteamento (DXF ou DWF)')),
       body: Center(
         child: isUploading
             ? const Column(
@@ -104,11 +104,13 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
                         final name = await dropzoneController.getFilename(ev);
                         final bytes = await dropzoneController.getFileData(ev);
                         if (!context.mounted) return;
-                        if (!name.toLowerCase().endsWith('.dxf')) {
+                        if (LoteamentosImportRepository
+                                .loteamentoNameFromFilename(name) ==
+                            null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Por favor, envie um arquivo .dxf',
+                                'Por favor, envie um arquivo .dxf ou .dwf',
                               ),
                             ),
                           );
@@ -124,7 +126,7 @@ class _LoteamentoImportScreenState extends ConsumerState<LoteamentoImportScreen>
                           const Icon(Icons.cloud_upload, size: 80, color: Colors.grey),
                           const SizedBox(height: 16),
                           const Text(
-                            'Arraste um arquivo .dxf aqui',
+                            'Arraste um arquivo .dxf ou .dwf aqui',
                             style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
                           const SizedBox(height: 16),

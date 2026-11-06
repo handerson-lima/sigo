@@ -11,8 +11,8 @@ DIMENSION_REGEX = re.compile(r'^\d+([.,]\d+)?\s*[xX]\s*\d+([.,]\d+)?\s*(m|cm|M|C
 QUADRA_REGEX = re.compile(r'^(Q|QUADRA)[\s.\-]*[0-9A-Z]+$')
 # Área em metros quadrados ex: M², 152,00M², M2 (ancorado, não casa M20/M2A)
 AREA_REGEX = re.compile(r'^\d*[,.]?\d*\s*M\s*[²2]$')
-# Decimais isolados ex: 16.00, 1.488,00, 152,00
-DECIMAL_REGEX = re.compile(r'^\d+([.,]\d+)+$')
+# Decimais isolados ou cotas de diâmetro ex: 16.00, 1.488,00, 152,00, Ø18.00
+DECIMAL_REGEX = re.compile(r'^[Øø⌀]?\d+([.,]\d+)+$')
 # Nome de lote puro (inteiro) ex: 12, 101
 INTEGER_REGEX = re.compile(r'^\d+$')
 # Nome de lote com prefixo explícito ex: LOTE 12, LT 12, LT. 12, L-12, LOTE 07

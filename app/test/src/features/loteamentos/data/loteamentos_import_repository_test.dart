@@ -123,24 +123,55 @@ void main() {
       );
     });
 
-    test('preserva o nome base do DXF para o rascunho', () {
+    test('preserva o nome base do DXF e do DWF para o rascunho', () {
       expect(
         LoteamentosImportRepository.loteamentoNameFromFilename(
           'LOTEAMENTO_HR_R13A-Model.dxf',
         ),
         'LOTEAMENTO_HR_R13A-Model',
       );
+      expect(
+        LoteamentosImportRepository.loteamentoNameFromFilename(
+          'LOTEAMENTO_HR_R13A-Model.dwf',
+        ),
+        'LOTEAMENTO_HR_R13A-Model',
+      );
+      expect(
+        LoteamentosImportRepository.loteamentoNameFromFilename(
+          'LOTEAMENTO_HR_R13A-Model.DWF',
+        ),
+        'LOTEAMENTO_HR_R13A-Model',
+      );
+    });
+
+    test('resolve o contentType correto para DXF e DWF', () {
+      expect(
+        LoteamentosImportRepository.contentTypeFromFilename('arquivo.dxf'),
+        'application/dxf',
+      );
+      expect(
+        LoteamentosImportRepository.contentTypeFromFilename('arquivo.DXF'),
+        'application/dxf',
+      );
+      expect(
+        LoteamentosImportRepository.contentTypeFromFilename('arquivo.dwf'),
+        'application/x-dwf',
+      );
+      expect(
+        LoteamentosImportRepository.contentTypeFromFilename('arquivo.DWF'),
+        'application/x-dwf',
+      );
+      expect(
+        LoteamentosImportRepository.contentTypeFromFilename('arquivo.pdf'),
+        isNull,
+      );
     });
 
     test(
-      'rejeita os formatos antigos',
+      'rejeita formatos não suportados (PDF e DWG)',
       () {
         expect(
           LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.pdf'),
-          isNull,
-        );
-        expect(
-          LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.dwf'),
           isNull,
         );
         expect(
@@ -150,9 +181,13 @@ void main() {
       },
     );
 
-    test('rejeita nome DXF sem base utilizável antes do upload', () {
+    test('rejeita nome sem base utilizável antes do upload', () {
       expect(
         LoteamentosImportRepository.loteamentoNameFromFilename('.dxf'),
+        isNull,
+      );
+      expect(
+        LoteamentosImportRepository.loteamentoNameFromFilename('.dwf'),
         isNull,
       );
       expect(
@@ -161,7 +196,7 @@ void main() {
       );
     });
 
-    test('envia caminho e metadados necessários ao rascunho', () async {
+    test('envia caminho e metadados necessários ao rascunho DXF', () async {
       final storage = _RecordingFirebaseStorage();
       final repo = LoteamentosImportRepository(fakeFirestore, storage);
 
@@ -178,6 +213,26 @@ void main() {
       expect(storage.reference.metadata?.customMetadata, {
         'construtoraId': 'construtora-1',
         'loteamentoName': 'Loteamento A',
+      });
+    });
+
+    test('envia caminho e metadados necessários ao rascunho DWF', () async {
+      final storage = _RecordingFirebaseStorage();
+      final repo = LoteamentosImportRepository(fakeFirestore, storage);
+
+      final draftId = await repo.uploadFile(
+        userId: 'user-1',
+        construtoraId: 'construtora-1',
+        fileBytes: Uint8List.fromList([3, 4]),
+        filename: 'Loteamento B.dwf',
+      );
+
+      expect(storage.path, 'loteamentos_drafts_uploads/user-1/$draftId');
+      expect(storage.reference.bytes, Uint8List.fromList([3, 4]));
+      expect(storage.reference.metadata?.contentType, 'application/x-dwf');
+      expect(storage.reference.metadata?.customMetadata, {
+        'construtoraId': 'construtora-1',
+        'loteamentoName': 'Loteamento B',
       });
     });
 

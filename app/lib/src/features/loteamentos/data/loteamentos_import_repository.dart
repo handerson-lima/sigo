@@ -52,7 +52,7 @@ class LoteamentosImportRepository {
     );
   }
 
-  /// Envia exclusivamente um DXF para criar um rascunho revisável.
+  /// Envia um arquivo DXF ou DWF para criar um rascunho revisável.
   Future<String> uploadFile({
     required String userId,
     required String construtoraId,
@@ -60,11 +60,12 @@ class LoteamentosImportRepository {
     required String filename,
   }) async {
     final loteamentoName = loteamentoNameFromFilename(filename);
-    if (loteamentoName == null) {
+    final contentType = contentTypeFromFilename(filename);
+    if (loteamentoName == null || contentType == null) {
       throw ArgumentError.value(
         filename,
         'filename',
-        'Envie um arquivo DXF válido',
+        'Envie um arquivo DXF ou DWF válido',
       );
     }
     final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -76,7 +77,7 @@ class LoteamentosImportRepository {
     await ref.putData(
       fileBytes,
       SettableMetadata(
-        contentType: 'application/dxf',
+        contentType: contentType,
         customMetadata: {
           'construtoraId': construtoraId,
           'loteamentoName': loteamentoName,
@@ -88,12 +89,24 @@ class LoteamentosImportRepository {
     return uniqueFilename;
   }
 
+  static String? contentTypeFromFilename(String filename) {
+    final lastDot = filename.lastIndexOf('.');
+    if (lastDot <= 0) {
+      return null;
+    }
+    switch (filename.substring(lastDot).toLowerCase()) {
+      case '.dxf':
+        return 'application/dxf';
+      case '.dwf':
+        return 'application/x-dwf';
+      default:
+        return null;
+    }
+  }
+
   static String? loteamentoNameFromFilename(String filename) {
     final lastDot = filename.lastIndexOf('.');
-    if (lastDot <= 0 ||
-        !const {
-          '.dxf',
-        }.contains(filename.substring(lastDot).toLowerCase())) {
+    if (lastDot <= 0 || contentTypeFromFilename(filename) == null) {
       return null;
     }
     final name = filename.substring(0, lastDot).trim();
