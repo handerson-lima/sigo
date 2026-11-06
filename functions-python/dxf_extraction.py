@@ -191,13 +191,18 @@ def _geometry_classification(
     for txt in text_entities:
         val, pt = extract_text(txt)
         if val and pt is not None:
-            parsed_texts.append((val, Point(pt.x, pt.y)))
+            parsed_texts.append((val, pt.x, pt.y, Point(pt.x, pt.y)))
 
     has_lote_candidate = {}
     filtered_lotes = []
     for entity in candidate_lotes:
         polygon = polygons[entity]
-        covered_vals = [val for val, pt in parsed_texts if polygon.covers(pt)]
+        minx, miny, maxx, maxy = polygon.bounds
+        covered_vals = [
+            val
+            for val, x, y, pt in parsed_texts
+            if minx <= x <= maxx and miny <= y <= maxy and polygon.covers(pt)
+        ]
         has_name_cand = any(_is_lote_name_candidate(val) for val in covered_vals)
         has_quadra_label = any(QUADRA_REGEX.match(val) or val == 'Q' for val in covered_vals)
         if has_quadra_label and not has_name_cand:

@@ -141,26 +141,35 @@ def build_geojson(
     for txt in textos:
         val, pt = extract_text(txt)
         if val and pt is not None:
-            parsed_texts.append((val, Point(pt.x, pt.y)))
+            parsed_texts.append((val, pt.x, pt.y, Point(pt.x, pt.y)))
 
     features = []
+    quadra_nome_cache = {}
 
     def _resolve_quadra_nome(q_entity, quadra_poly):
+        if q_entity in quadra_nome_cache:
+            return quadra_nome_cache[q_entity]
         if quadra_poly is None or quadra_poly.is_empty:
+            quadra_nome_cache[q_entity] = ""
             return ""
+        minx, miny, maxx, maxy = quadra_poly.bounds
         q_candidates = []
-        for val, pt in parsed_texts:
-            if quadra_poly.covers(pt):
-                if QUADRA_REGEX.match(val) or val == "Q":
+        for val, x, y, pt in parsed_texts:
+            if minx <= x <= maxx and miny <= y <= maxy:
+                if (QUADRA_REGEX.match(val) or val == "Q") and quadra_poly.covers(pt):
                     q_candidates.append(val)
         if not q_candidates and association.get('quadras', {}).get(q_entity):
-            for val, pt in parsed_texts:
+            for val, x, y, pt in parsed_texts:
                 if QUADRA_REGEX.match(val) or val == "Q":
-                    if quadra_poly.distance(pt) <= max_quadra_label_distance:
+                    if (
+                        minx - max_quadra_label_distance <= x <= maxx + max_quadra_label_distance
+                        and miny - max_quadra_label_distance <= y <= maxy + max_quadra_label_distance
+                        and quadra_poly.distance(pt) <= max_quadra_label_distance
+                    ):
                         q_candidates.append(val)
-        if len(q_candidates) == 1:
-            return q_candidates[0]
-        return ""
+        resolved = q_candidates[0] if len(q_candidates) == 1 else ""
+        quadra_nome_cache[q_entity] = resolved
+        return resolved
 
     def serialize_geometry(geom):
         if geom.geom_type == 'Polygon':
