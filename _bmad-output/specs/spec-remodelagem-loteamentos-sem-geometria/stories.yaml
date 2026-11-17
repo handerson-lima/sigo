@@ -1,0 +1,58 @@
+- id: "1"
+  title: Evolução dos Modelos de Domínio e Repositórios Sem Geometria
+  description: >-
+    Atualizar os modelos Loteamento, Quadra, Lote e Etapa no Flutter removendo geometria e incluindo
+    medidas dimensionais, dados opcionais de PDF, progresso das etapas e vínculos de lotação.
+    Implementar criação em massa com batches de até 500 operações e atualização atômica de progresso.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Consulte data-contracts.md. Gere os arquivos .g.dart com build_runner após atualizar
+    loteamento.dart, quadra.dart, lote.dart e etapa.dart. Garanta compatibilidade retroativa
+    de leitura JSON para documentos antigos sem os novos campos opcionais.
+- id: "2"
+  title: Criação Manual Individual e em Massa de Loteamentos, Quadras e Lotes
+  description: >-
+    Remodelar o cadastro manual em LoteamentosListScreen, QuadrasListScreen e AddLoteScreen para
+    permitir geração em massa por quantidade ou intervalo de lotes com cálculo automático da área
+    do terreno e ajuste pontual de exceções antes da gravação.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Mantenha o UUID fixo no formulário individual (comportamento existente contra timeout offline) e
+    exponha os campos urbanísticos/carimbo do PDF em seção opcional expansível (ExpansionTile).
+- id: "3"
+  title: Extração Cadastral de PDF em 3 Cenários e Adaptação Tabular DXF/DWF
+  description: >-
+    Reescrever functions-python/pdf_extraction.py para extrair carimbo, cotas e quadro de áreas de
+    PDF único, multipágina e múltiplos arquivos sem geometria, e adaptar dxf_extraction.py,
+    dwf_extraction.py, main.py e firestore_utils.py para o rascunho tabular e consolidação com etapas.
+  spec_checkpoint: true
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Cubra com testes pytest os parsers usando dados equivalentes ao carimbo e quadro de áreas do
+    PDF de referência (Lote 31 da Quadra 28, Loteamento Jardim Botanico, 10x20m, 200m2, 49,96m2),
+    além de múltiplos PDFs compartilhando o mesmo draftId e criação das 5 etapas em batches de 500.
+- id: "4"
+  title: Importação Multi-Arquivo, Revisão Tabular com Lote-Modelo e Regras Firestore
+  description: >-
+    Atualizar LoteamentoImportScreen e LoteamentosImportRepository para aceitar múltiplos PDFs, DXF
+    e DWF com escolha de loteamento novo ou existente, substituir LoteamentoCanvasScreen pela tela
+    de revisão tabular com geração por lote-modelo e ajustar firestore.rules para loteamentos_drafts.
+  spec_checkpoint: false
+  done_checkpoint: true
+  invoke_dev_with: >-
+    Para alterações em firestore.rules, delegue obrigatoriamente ao subagente firestore-rules-author
+    conforme AGENTS.md. Remova ou aposente o uso de LoteamentoCanvasScreen e GeojsonCanvasWidget nas rotas.
+- id: "5"
+  title: Card Visual do Lote, Detalhes 360 Graus e Atribuição de Equipe ou Funcionário
+  description: >-
+    Implementar o LoteSummaryCard em LotesListScreen exibindo medidas resumidas, percentual de
+    conclusão das 5 etapas e alocações, criar LoteDetailScreen com ficha técnica e controle de
+    etapas, e criar o seletor rápido AtribuirLotacaoLoteSheet integrado ao módulo de RH.
+  spec_checkpoint: true
+  done_checkpoint: true
+  invoke_dev_with: >-
+    Reutilize os tokens semânticos de sigo_theme.dart (lotOnTimeBg, lotCompleteBg, brandBlue,
+    brandGold) e os streams equipesStreamProvider / funcionariosStreamProvider de rh_repository.dart.
+    Atualize GoRouter para navegar do card para LoteDetailScreen preservando os breadcrumbs e acesso às etapas.
