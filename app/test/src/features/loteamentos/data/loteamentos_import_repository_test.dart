@@ -263,7 +263,14 @@ void main() {
       final data = (await draft.get()).data();
       expect(data?['status'], 'aprovado');
       expect(data?['consolidationRequestId'], isA<String>());
-      expect((data?['consolidationRequestId'] as String).isNotEmpty, isTrue);
+      final requestId = data?['consolidationRequestId'] as String;
+      expect(requestId.isNotEmpty, isTrue);
+      final parts = requestId.split('-');
+      expect(parts.length, 2);
+      final randomPart = int.tryParse(parts[1]);
+      expect(randomPart, isNotNull);
+      expect(randomPart, greaterThanOrEqualTo(0));
+      expect(randomPart, lessThan(0x7fffffff));
     });
 
     test('cada aprovação gera uma solicitação de consolidação nova', () async {

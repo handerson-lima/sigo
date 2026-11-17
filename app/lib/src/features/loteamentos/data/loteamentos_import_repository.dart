@@ -171,7 +171,7 @@ class LoteamentosImportRepository {
   Future<void> approveDraft(String draftId) async {
     final docRef = _firestore.collection('loteamentos_drafts').doc(draftId);
     final requestId =
-        '${DateTime.now().toUtc().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
+        '${DateTime.now().toUtc().microsecondsSinceEpoch}-${Random.secure().nextInt(0x7fffffff)}';
     await docRef.update({
       'status': 'aprovado',
       // Cada confirmação cria uma solicitação distinta, inclusive quando o
