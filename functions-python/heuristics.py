@@ -206,10 +206,12 @@ def build_geojson(
             }
             return feature
         
+        minx, miny, maxx, maxy = poly.bounds
         candidates = []
-        for val, pt in parsed_texts:
-            if poly.covers(pt) and _is_lote_name_candidate(val):
-                candidates.append((val, pt))
+        for val, x, y, pt in parsed_texts:
+            if minx <= x <= maxx and miny <= y <= maxy:
+                if poly.covers(pt) and _is_lote_name_candidate(val):
+                    candidates.append((val, pt))
 
         nome, escolhido = _select_nome(candidates, poly)
         status = "valido" if escolhido else "ambiguo"
