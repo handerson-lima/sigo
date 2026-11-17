@@ -19,10 +19,10 @@ class FakeLoteRepository implements LoteRepository {
   ) => Stream.value(lotes);
 
   @override
-  Future<void> createLote(Lote lote) async {}
+  Future<void> createLoteComEtapas(Lote lote) async {}
 
   @override
-  Future<void> createLoteComEtapas(Lote lote) async {}
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 Lote makeLote(String id) => Lote(
   id: id,

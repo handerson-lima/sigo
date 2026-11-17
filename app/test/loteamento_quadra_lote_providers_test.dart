@@ -17,6 +17,9 @@ class FakeLoteamentoRepository implements LoteamentoRepository {
 
   @override
   Future<void> createLoteamento(Loteamento loteamento) async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeQuadraRepository implements QuadraRepository {
@@ -32,6 +35,9 @@ class FakeQuadraRepository implements QuadraRepository {
 
   @override
   Future<void> createQuadra(Quadra quadra) async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeLoteRepository implements LoteRepository {
@@ -50,10 +56,10 @@ class FakeLoteRepository implements LoteRepository {
   }
 
   @override
-  Future<void> createLote(Lote lote) async {}
+  Future<void> createLoteComEtapas(Lote lote) async {}
 
   @override
-  Future<void> createLoteComEtapas(Lote lote) async {}
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Loteamento makeLoteamento(String id) => Loteamento(

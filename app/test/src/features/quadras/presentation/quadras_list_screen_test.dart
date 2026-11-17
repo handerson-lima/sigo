@@ -19,6 +19,9 @@ class FakeQuadraRepository implements QuadraRepository {
 
   @override
   Future<void> createQuadra(Quadra quadra) async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Quadra makeQuadra(String id) => Quadra(

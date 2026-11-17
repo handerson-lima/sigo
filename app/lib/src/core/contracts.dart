@@ -178,3 +178,28 @@ String formatQuantityUnits(
   scale: scale,
   useComma: useComma,
 );
+
+const int maxFirestoreBatchOperations = 500;
+
+typedef FirestoreBatchWrite = void Function(WriteBatch batch);
+
+Future<int> commitFirestoreBatches(
+  FirebaseFirestore firestore,
+  List<FirestoreBatchWrite> operations, {
+  int maxOpsPerBatch = maxFirestoreBatchOperations,
+}) async {
+  if (operations.isEmpty) return 0;
+  var batchesCommitted = 0;
+  for (var start = 0; start < operations.length; start += maxOpsPerBatch) {
+    final end = (start + maxOpsPerBatch < operations.length)
+        ? start + maxOpsPerBatch
+        : operations.length;
+    final batch = firestore.batch();
+    for (var i = start; i < end; i++) {
+      operations[i](batch);
+    }
+    await batch.commit();
+    batchesCommitted++;
+  }
+  return batchesCommitted;
+}

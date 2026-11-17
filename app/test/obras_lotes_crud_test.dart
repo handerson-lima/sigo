@@ -26,14 +26,12 @@ class FakeLoteRepository implements LoteRepository {
   }
 
   @override
-  Future<void> createLote(Lote lote) async {
+  Future<void> createLoteComEtapas(Lote lote) async {
     lotes.add(lote);
   }
 
   @override
-  Future<void> createLoteComEtapas(Lote lote) async {
-    lotes.add(lote);
-  }
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeObraRepository implements ObraRepository {

@@ -17,6 +17,9 @@ class FakeLoteamentoRepository implements LoteamentoRepository {
 
   @override
   Future<void> createLoteamento(Loteamento loteamento) async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Loteamento makeLoteamento(String id) => Loteamento(

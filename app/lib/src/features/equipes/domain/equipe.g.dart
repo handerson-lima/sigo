@@ -19,15 +19,16 @@ EquipeLote _$EquipeLoteFromJson(Map<String, dynamic> json) => EquipeLote(
   updatedAt: _dateTimeFromTimestamp(json['updatedAt']),
 );
 
-Map<String, dynamic> _$EquipeLoteToJson(EquipeLote instance) => <String, dynamic>{
-  'id': instance.id,
-  'construtoraId': instance.construtoraId,
-  'loteamentoId': instance.loteamentoId,
-  'quadraId': instance.quadraId,
-  'loteId': instance.loteId,
-  'etapaId': instance.etapaId,
-  'name': instance.name,
-  'responsavelId': instance.responsavelId,
-  'createdAt': _dateTimeToTimestamp(instance.createdAt),
-  'updatedAt': _dateTimeToTimestamp(instance.updatedAt),
-};
+Map<String, dynamic> _$EquipeLoteToJson(EquipeLote instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'construtoraId': instance.construtoraId,
+      'loteamentoId': instance.loteamentoId,
+      'quadraId': instance.quadraId,
+      'loteId': instance.loteId,
+      'etapaId': instance.etapaId,
+      'name': instance.name,
+      'responsavelId': instance.responsavelId,
+      'createdAt': _dateTimeToTimestamp(instance.createdAt),
+      'updatedAt': _dateTimeToTimestamp(instance.updatedAt),
+    };

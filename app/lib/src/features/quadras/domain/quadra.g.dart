@@ -11,6 +11,7 @@ Quadra _$QuadraFromJson(Map<String, dynamic> json) => Quadra(
   construtoraId: json['construtoraId'] as String,
   loteamentoId: json['loteamentoId'] as String,
   name: json['name'] as String,
+  logradouroPadrao: json['logradouroPadrao'] as String?,
   createdAt: DateTime.parse(json['createdAt'] as String),
   updatedAt: DateTime.parse(json['updatedAt'] as String),
 );
@@ -20,6 +21,7 @@ Map<String, dynamic> _$QuadraToJson(Quadra instance) => <String, dynamic>{
   'construtoraId': instance.construtoraId,
   'loteamentoId': instance.loteamentoId,
   'name': instance.name,
+  'logradouroPadrao': instance.logradouroPadrao,
   'createdAt': instance.createdAt.toIso8601String(),
   'updatedAt': instance.updatedAt.toIso8601String(),
 };
