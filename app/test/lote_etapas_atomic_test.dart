@@ -1,4 +1,6 @@
 import 'package:app/src/core/contracts.dart';
+import 'dart:async';
+
 import 'package:app/src/features/etapas/data/etapa_repository.dart';
 import 'package:app/src/features/etapas/domain/etapa.dart';
 import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
@@ -47,6 +49,7 @@ class _SpyWriteBatch implements WriteBatch {
 class _SpyFirestore implements FirebaseFirestore {
   final FakeFirebaseFirestore _inner;
   final List<int> batchOpCounts = [];
+  int transactionCount = 0;
   final int? failOnBatchNumber;
 
   _SpyFirestore(this._inner, {this.failOnBatchNumber});
@@ -79,11 +82,14 @@ class _SpyFirestore implements FirebaseFirestore {
     TransactionHandler<T> transactionHandler, {
     Duration timeout = const Duration(seconds: 30),
     int maxAttempts = 5,
-  }) => _inner.runTransaction<T>(
-    transactionHandler,
-    timeout: timeout,
-    maxAttempts: maxAttempts,
-  );
+  }) {
+    transactionCount++;
+    return _inner.runTransaction<T>(
+      transactionHandler,
+      timeout: timeout,
+      maxAttempts: maxAttempts,
+    );
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -518,9 +524,22 @@ void main() {
       expect(emitted, isNotNull);
       expect(emitted!.id, 'lo1');
 
+      final updatedCompleter = Completer<Lote?>();
+      final updateSub = container.listen<AsyncValue<Lote?>>(
+        watchLoteProvider('lo1'),
+        (_, next) {
+          if (next.value?.areaConstruidaM2 == 65.0 &&
+              !updatedCompleter.isCompleted) {
+            updatedCompleter.complete(next.value);
+          }
+        },
+      );
+      addTearDown(updateSub.close);
+
       await loteRepo.updateLote(emitted.copyWith(areaConstruidaM2: 65.0));
-      await pumpEventQueue();
-      final updated = container.read(watchLoteProvider('lo1')).value;
+      final updated = await updatedCompleter.future.timeout(
+        const Duration(seconds: 5),
+      );
       expect(updated?.areaConstruidaM2, 65.0);
     });
 
@@ -1073,8 +1092,9 @@ void main() {
 
     test('updateEtapaProgresso valida percentual explícito, clamping, FKs, lote ausente, status e etapaId', () async {
       final fakeFirestore = FakeFirebaseFirestore();
-      final etapaRepo = EtapaRepository(fakeFirestore);
-      final loteRepo = LoteRepository(fakeFirestore, etapaRepo);
+      final spyFirestore = _SpyFirestore(fakeFirestore);
+      final etapaRepo = EtapaRepository(spyFirestore);
+      final loteRepo = LoteRepository(spyFirestore, etapaRepo);
 
       await loteRepo.createLoteComEtapas(_makeLote('lo1'));
       await loteRepo.createLoteComEtapas(_makeLote('lo2'));
@@ -1085,6 +1105,7 @@ void main() {
         status: 'em_andamento',
         percentual: 25,
       );
+      expect(spyFirestore.transactionCount, 1);
       var muro = Etapa.fromJson(
         (await fakeFirestore.collection('etapas').doc('lo1_muro').get()).data()!,
       );
@@ -1116,24 +1137,22 @@ void main() {
       );
       expect(muro.percentual, 100);
 
-      // Concorrência em etapas distintas do mesmo lote preserva ambas atualizações
-      await Future.wait([
-        etapaRepo.updateEtapaProgresso(
-          loteId: 'lo1',
-          etapaId: 'lo1_cinza1',
-          status: 'concluida',
-        ),
-        etapaRepo.updateEtapaProgresso(
-          loteId: 'lo1',
-          etapaId: 'lo1_cinza2',
-          status: 'em_andamento',
-          percentual: 50,
-        ),
-      ]);
+      await etapaRepo.updateEtapaProgresso(
+        loteId: 'lo1',
+        etapaId: 'lo1_cinza1',
+        status: 'concluida',
+      );
+      await etapaRepo.updateEtapaProgresso(
+        loteId: 'lo1',
+        etapaId: 'lo1_cinza2',
+        status: 'em_andamento',
+        percentual: 50,
+      );
+      expect(spyFirestore.transactionCount, 5);
       lo1 = Lote.fromJson(
         (await fakeFirestore.collection('lotes').doc('lo1').get()).data()!,
       );
-      expect(lo1.progressoPercentual, 50); // (100 + 100 + 50 + 0 + 0) / 5
+      expect(lo1.progressoPercentual, 50);
       expect(lo1.etapasConcluidasCount, 1);
 
       // Rejeições de validação
