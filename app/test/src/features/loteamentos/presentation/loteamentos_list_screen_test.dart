@@ -1,7 +1,11 @@
 import 'package:app/src/common_widgets/sigo_breadcrumbs.dart';
+import 'package:app/src/features/authentication/data/user_repository.dart';
 import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
 import 'package:app/src/features/loteamentos/domain/loteamento.dart';
 import 'package:app/src/features/loteamentos/presentation/loteamentos_list_screen.dart';
+import 'package:app/src/features/lotes/domain/lote.dart';
+import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
+import 'package:app/src/features/quadras/domain/quadra.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +13,10 @@ import 'package:go_router/go_router.dart';
 
 class FakeLoteamentoRepository implements LoteamentoRepository {
   final List<Loteamento> loteamentos;
+  final List<Loteamento> createdLoteamentos = [];
+  final List<({Loteamento loteamento, List<Quadra> quadras, List<Lote> lotes})>
+  createdEmMassa = [];
+
   FakeLoteamentoRepository(this.loteamentos);
 
   @override
@@ -16,16 +24,39 @@ class FakeLoteamentoRepository implements LoteamentoRepository {
       Stream.value(loteamentos);
 
   @override
-  Future<void> createLoteamento(Loteamento loteamento) async {}
+  Future<void> createLoteamento(Loteamento loteamento) async {
+    createdLoteamentos.add(loteamento);
+  }
+
+  @override
+  Future<void> createLoteamentoEmMassa({
+    required Loteamento loteamento,
+    required List<Quadra> quadras,
+    required List<Lote> lotes,
+  }) async {
+    createdEmMassa.add((
+      loteamento: loteamento,
+      quadras: quadras,
+      lotes: lotes,
+    ));
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Loteamento makeLoteamento(String id) => Loteamento(
+Loteamento makeLoteamento(
+  String id, {
+  String? bairro,
+  String? cidade,
+  String? uf,
+}) => Loteamento(
   id: id,
   construtoraId: 'c1',
   name: 'Loteamento $id',
+  bairro: bairro,
+  cidade: cidade,
+  uf: uf,
   createdAt: DateTime(2026, 1, 1),
   updatedAt: DateTime(2026, 1, 1),
 );
@@ -62,12 +93,21 @@ void main() {
     expect(find.text('Nenhum loteamento cadastrado'), findsOneWidget);
   });
 
-  testWidgets('Renderiza lista com loteamentos e breadcrumbs', (tester) async {
+  testWidgets('Renderiza lista com loteamentos, localização e breadcrumbs', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           watchLoteamentosProvider.overrideWith(
-            (ref, arg) => Stream.value([makeLoteamento('l1')]),
+            (ref, arg) => Stream.value([
+              makeLoteamento(
+                'l1',
+                bairro: 'Estivas',
+                cidade: 'Extremoz',
+                uf: 'RN',
+              ),
+            ]),
           ),
         ],
         child: buildTestWidget(
@@ -79,6 +119,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Loteamento l1'), findsOneWidget);
+    expect(find.text('Estivas • Extremoz - RN'), findsOneWidget);
     expect(
       find.descendant(
         of: find.byType(SigoBreadcrumbs),
@@ -158,7 +199,7 @@ void main() {
             valueListenable: rebuild,
             builder: (context, _, _) {
               buildCount++;
-              return LoteamentosListScreen(construtoraId: 'c1');
+              return const LoteamentosListScreen(construtoraId: 'c1');
             },
           ),
         ),
@@ -188,4 +229,159 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('Loteamento l1'), findsOneWidget);
   });
+
+  testWidgets(
+    'Admin cria loteamento simples apenas com nome via createLoteamento',
+    (tester) async {
+      final fakeRepo = FakeLoteamentoRepository([]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+            ),
+            loteamentoRepositoryProvider.overrideWithValue(fakeRepo),
+          ],
+          child: buildTestWidget(
+            const LoteamentosListScreen(construtoraId: 'c1'),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Novo Loteamento'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('loteamento-name-field')),
+        'Residencial Aurora',
+      );
+      final createBtn = find.text('Criar');
+      await tester.ensureVisible(createBtn);
+      await tester.tap(createBtn);
+      await tester.pumpAndSettle();
+
+      expect(fakeRepo.createdLoteamentos.length, 1);
+      expect(fakeRepo.createdEmMassa, isEmpty);
+      expect(fakeRepo.createdLoteamentos.first.name, 'Residencial Aurora');
+      expect(fakeRepo.createdLoteamentos.first.construtoraId, 'c1');
+    },
+  );
+
+  testWidgets(
+    'Admin cria loteamento com localização opcional e lotes em massa com exceção na prévia',
+    (tester) async {
+      final fakeRepo = FakeLoteamentoRepository([]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+            ),
+            loteamentoRepositoryProvider.overrideWithValue(fakeRepo),
+          ],
+          child: buildTestWidget(
+            const LoteamentosListScreen(construtoraId: 'c1'),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Novo Loteamento'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('loteamento-name-field')),
+        'Jardim Botânico',
+      );
+
+      await tester.tap(find.byKey(const Key('loteamento-carimbo-tile')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('loteamento-bairro-field')),
+        'Estivas',
+      );
+      await tester.enterText(
+        find.byKey(const Key('loteamento-cidade-field')),
+        'Extremoz',
+      );
+      await tester.enterText(
+        find.byKey(const Key('loteamento-uf-field')),
+        'rn',
+      );
+
+      final massTile = find.byKey(const Key('loteamento-mass-tile'));
+      await tester.ensureVisible(massTile);
+      await tester.tap(massTile);
+      await tester.pumpAndSettle();
+
+      for (final entry in <Key, String>{
+        const Key('loteamento-quadra-name-field'): 'Quadra A',
+        const Key('mass-gen-quantidade'): '3',
+        const Key('mass-gen-logradouro'): 'Rua das Flores',
+        const Key('mass-gen-frente'): '10',
+        const Key('mass-gen-profundidade'): '20',
+      }.entries) {
+        final finder = find.byKey(entry.key);
+        await tester.ensureVisible(finder);
+        await tester.enterText(finder, entry.value);
+      }
+      await tester.pump();
+
+      final areaPadraoField = tester.widget<TextFormField>(
+        find.byKey(const Key('mass-gen-area-terreno')),
+      );
+      expect(areaPadraoField.controller?.text, '200');
+
+      final previewBtn = find.byKey(const Key('mass-gen-preview-btn'));
+      await tester.ensureVisible(previewBtn);
+      await tester.tap(previewBtn);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('mass-preview-item-0')), findsOneWidget);
+      expect(find.byKey(const Key('mass-preview-item-1')), findsOneWidget);
+      expect(find.byKey(const Key('mass-preview-item-2')), findsOneWidget);
+
+      final lote2Frente = find.byKey(const Key('mass-preview-frente-1'));
+      await tester.ensureVisible(lote2Frente);
+      await tester.enterText(lote2Frente, '12');
+      await tester.pump();
+
+      final lote2Area = tester.widget<TextFormField>(
+        find.byKey(const Key('mass-preview-area-terreno-1')),
+      );
+      expect(lote2Area.controller?.text, '240');
+
+      final createBtn = find.text('Criar');
+      await tester.ensureVisible(createBtn);
+      await tester.tap(createBtn);
+      await tester.pumpAndSettle();
+
+      expect(fakeRepo.createdLoteamentos, isEmpty);
+      expect(fakeRepo.createdEmMassa.length, 1);
+
+      final call = fakeRepo.createdEmMassa.first;
+      expect(call.loteamento.name, 'Jardim Botânico');
+      expect(call.loteamento.bairro, 'Estivas');
+      expect(call.loteamento.cidade, 'Extremoz');
+      expect(call.loteamento.uf, 'RN');
+      expect(call.quadras.length, 1);
+      expect(call.quadras.first.name, 'Quadra A');
+      expect(call.quadras.first.logradouroPadrao, 'Rua das Flores');
+      expect(call.lotes.length, 3);
+      expect(call.lotes[0].name, 'Lote 1');
+      expect(call.lotes[0].frenteM, 10.0);
+      expect(call.lotes[0].areaTerrenoM2, 200.0);
+      expect(call.lotes[1].name, 'Lote 2');
+      expect(call.lotes[1].frenteM, 12.0);
+      expect(call.lotes[1].areaTerrenoM2, 240.0);
+      expect(call.lotes[2].name, 'Lote 3');
+      expect(call.lotes[2].frenteM, 10.0);
+      expect(call.lotes[2].areaTerrenoM2, 200.0);
+    },
+  );
 }
