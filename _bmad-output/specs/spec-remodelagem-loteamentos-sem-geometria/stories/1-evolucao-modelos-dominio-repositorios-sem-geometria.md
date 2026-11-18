@@ -2,7 +2,7 @@
 title: 'Evolução dos Modelos de Domínio e Repositórios Sem Geometria'
 type: 'feature'
 created: '2026-11-17'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '4a8aa83c1a459fe1d8f28b3143fea0a0852b558b'
@@ -61,16 +61,16 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `c:/sigo/app/lib/src/features/loteamentos/domain/loteamento.dart` -- Adicionar campos opcionais (`bairro`, `cidade`, `uf`, `proprietarioNome`, `proprietarioDocumento`, `responsavelTecnicoNome`, `responsavelTecnicoRegistro`) e `copyWith` -- Alinhar ao contrato 1.1
-- [ ] `c:/sigo/app/lib/src/features/quadras/domain/quadra.dart` -- Adicionar `logradouroPadrao` e `copyWith` -- Alinhar ao contrato 1.2
-- [ ] `c:/sigo/app/lib/src/features/lotes/domain/lote.dart` -- Adicionar medidas principais, campos opcionais do PDF (quadro de áreas, recuos, carimbo), resumo desnormalizado com defaults retrocompatíveis, helper `calcularAreaTerreno` e `copyWith` -- Alinhar ao contrato 1.3
-- [ ] `c:/sigo/app/lib/src/features/etapas/domain/etapa.dart` -- Adicionar `status`, `percentual`, `equipeId`, `equipeNome`, `funcionarioId`, `funcionarioNome`, helper de resolução de `EtapaTipo` e `copyWith` -- Alinhar ao contrato 1.4
-- [ ] `c:/sigo/app/lib/src/features/**/domain/*.g.dart` -- Rodar `dart run build_runner build --delete-conflicting-outputs` em `app/` -- Gerar serializadores atualizados
-- [ ] `c:/sigo/app/lib/src/features/etapas/data/etapa_repository.dart` -- Atualizar `buildDefaultEtapas` e implementar `updateEtapaProgresso` com recálculo atômico no documento `lotes/{loteId}` -- Garantir consistência entre `etapas` e `lotes`
-- [ ] `c:/sigo/app/lib/src/features/lotes/data/lote_repository.dart` -- Implementar `watchLote`, `watchLoteProvider`, `updateLote`, `createLotesEmMassa` (batches <= 500 ops) e `atribuirEquipe`/`removerEquipe`/`atribuirFuncionario`/`removerFuncionario` -- Suportar criação em massa e lotação
-- [ ] `c:/sigo/app/lib/src/features/quadras/data/quadra_repository.dart` -- Implementar `createQuadraComLotes` em batches <= 500 ops -- Permitir criação de quadra + lotes + etapas atomicamente
-- [ ] `c:/sigo/app/lib/src/features/loteamentos/data/loteamento_repository.dart` -- Implementar `updateLoteamento` e `createLoteamentoEmMassa` em batches <= 500 ops -- Permitir criação de loteamento + quadras + lotes + etapas atomicamente
-- [ ] `c:/sigo/app/test/lote_etapas_atomic_test.dart` e fakes de teste existentes -- Atualizar fakes com `noSuchMethod` e adicionar testes unitários cobrindo toda a Matriz I/O -- Garantir regressão zero e cobertura da Story 1
+- [x] `c:/sigo/app/lib/src/features/loteamentos/domain/loteamento.dart` -- Adicionar campos opcionais (`bairro`, `cidade`, `uf`, `proprietarioNome`, `proprietarioDocumento`, `responsavelTecnicoNome`, `responsavelTecnicoRegistro`) e `copyWith` -- Alinhar ao contrato 1.1
+- [x] `c:/sigo/app/lib/src/features/quadras/domain/quadra.dart` -- Adicionar `logradouroPadrao` e `copyWith` -- Alinhar ao contrato 1.2
+- [x] `c:/sigo/app/lib/src/features/lotes/domain/lote.dart` -- Adicionar medidas principais, campos opcionais do PDF (quadro de áreas, recuos, carimbo), resumo desnormalizado com defaults retrocompatíveis, helper `calcularAreaTerreno` e `copyWith` -- Alinhar ao contrato 1.3
+- [x] `c:/sigo/app/lib/src/features/etapas/domain/etapa.dart` -- Adicionar `status`, `percentual`, `equipeId`, `equipeNome`, `funcionarioId`, `funcionarioNome`, helper de resolução de `EtapaTipo` e `copyWith` -- Alinhar ao contrato 1.4
+- [x] `c:/sigo/app/lib/src/features/**/domain/*.g.dart` -- Rodar `dart run build_runner build --delete-conflicting-outputs` em `app/` -- Gerar serializadores atualizados
+- [x] `c:/sigo/app/lib/src/features/etapas/data/etapa_repository.dart` -- Atualizar `buildDefaultEtapas` e implementar `updateEtapaProgresso` com recálculo atômico no documento `lotes/{loteId}` -- Garantir consistência entre `etapas` e `lotes`
+- [x] `c:/sigo/app/lib/src/features/lotes/data/lote_repository.dart` -- Implementar `watchLote`, `watchLoteProvider`, `updateLote`, `createLotesEmMassa` (batches <= 500 ops) e `atribuirEquipe`/`removerEquipe`/`atribuirFuncionario`/`removerFuncionario` -- Suportar criação em massa e lotação
+- [x] `c:/sigo/app/lib/src/features/quadras/data/quadra_repository.dart` -- Implementar `createQuadraComLotes` em batches <= 500 ops -- Permitir criação de quadra + lotes + etapas atomicamente
+- [x] `c:/sigo/app/lib/src/features/loteamentos/data/loteamento_repository.dart` -- Implementar `updateLoteamento` e `createLoteamentoEmMassa` em batches <= 500 ops -- Permitir criação de loteamento + quadras + lotes + etapas atomicamente
+- [x] `c:/sigo/app/test/lote_etapas_atomic_test.dart` e fakes de teste existentes -- Atualizar fakes com `noSuchMethod` e adicionar testes unitários cobrindo toda a Matriz I/O -- Garantir regressão zero e cobertura da Story 1
 
 **Acceptance Criteria:**
 - Given um JSON legado sem os novos campos opcionais, when `fromJson` é chamado nos 4 modelos, then todos desserializam com valores padrão válidos e sem exceções.
@@ -78,6 +78,9 @@ context:
 - Given um lote com suas 5 etapas, when `updateEtapaProgresso` altera uma etapa, then a etapa e os campos desnormalizados do lote (`progressoPercentual`, `etapasConcluidasCount`, `statusEtapasMap`) são atualizados atomicamente no mesmo batch.
 
 ## Implementation Notes
+
+- Unificados `LoteRepository` e `EtapaRepository` para leitura e gravação diretas em `_firestore.collection('lotes')` e `_firestore.collection('etapas')` (mantendo métodos estáticos legados), assegurando disparo consistente de `snapshots()` entre criação, transação e `updateLote` no Firestore e no `FakeFirebaseFirestore`.
+- Alteração de `firestore.rules` (para `existsAfter`/`getAfter` em criação em batch de `quadras`, `lotes` e `etapas`) registrada em `_bmad-output/implementation-artifacts/deferred-work.md` para delegação ao subagente `firestore-rules-author` na Story 4.
 
 ## Spec Change Log
 

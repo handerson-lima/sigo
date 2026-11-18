@@ -264,7 +264,8 @@ class EtapaRepository {
     _validateFk(loteamentoId, preLoteamentoId, 'loteamentoId', loteId);
     _validateFk(quadraId, preQuadraId, 'quadraId', loteId);
 
-    final preEtapasSnap = await _etapasRef()
+    final preEtapasSnap = await _firestore
+        .collection('etapas')
         .where('construtoraId', isEqualTo: preConstrutoraId)
         .where('loteId', isEqualTo: loteId)
         .get();
@@ -427,7 +428,10 @@ class EtapaRepository {
     if (batch != null) {
       final allDocsById = <String, Etapa>{};
       for (final doc in preEtapasSnap.docs) {
-        allDocsById[doc.id] = doc.data().copyWith(id: doc.id);
+        final etapa = _etapaFromSnapshot(doc);
+        if (etapa != null) {
+          allDocsById[doc.id] = etapa;
+        }
       }
       if (!allDocsById.containsKey(etapaId)) {
         final directSnap = await _firestore
@@ -442,7 +446,8 @@ class EtapaRepository {
       applyUpdate(
         loteData: preLoteData,
         allDocsById: allDocsById,
-        setEtapa: (id, etapa) => batch.set(_etapasRef().doc(id), etapa),
+        setEtapa: (id, etapa) =>
+            batch.set(_firestore.collection('etapas').doc(id), etapa.toJson()),
         updateEtapa: (id, updates) =>
             batch.update(_firestore.collection('etapas').doc(id), updates),
         updateLote: (updates) => batch.update(loteDocRef, updates),
