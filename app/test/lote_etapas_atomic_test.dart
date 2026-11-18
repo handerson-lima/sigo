@@ -1,3 +1,4 @@
+import 'package:app/src/core/contracts.dart';
 import 'package:app/src/features/etapas/data/etapa_repository.dart';
 import 'package:app/src/features/etapas/domain/etapa.dart';
 import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
@@ -72,6 +73,17 @@ class _SpyFirestore implements FirebaseFirestore {
   @override
   DocumentReference<Map<String, dynamic>> doc(String documentPath) =>
       _inner.doc(documentPath);
+
+  @override
+  Future<T> runTransaction<T>(
+    TransactionHandler<T> transactionHandler, {
+    Duration timeout = const Duration(seconds: 30),
+    int maxAttempts = 5,
+  }) => _inner.runTransaction<T>(
+    transactionHandler,
+    timeout: timeout,
+    maxAttempts: maxAttempts,
+  );
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -716,6 +728,874 @@ void main() {
       expect(muro.equipeNome, isNull);
       expect(cinza1.funcionarioId, isNull);
       expect(cinza1.funcionarioNome, isNull);
+    });
+  });
+
+  group('Hardening e cobertura de lacunas — contratos, domínio, transações e validações', () {
+    test('commitFirestoreBatches valida maxOpsPerBatch no intervalo [1, 500]', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      await expectLater(
+        commitFirestoreBatches(fakeFirestore, const [], maxOpsPerBatch: 0),
+        throwsA(isA<RangeError>()),
+      );
+      await expectLater(
+        commitFirestoreBatches(fakeFirestore, const [], maxOpsPerBatch: -1),
+        throwsA(isA<RangeError>()),
+      );
+      await expectLater(
+        commitFirestoreBatches(fakeFirestore, const [], maxOpsPerBatch: 501),
+        throwsA(isA<RangeError>()),
+      );
+      expect(await commitFirestoreBatches(fakeFirestore, const []), 0);
+    });
+
+    test('Timestamp.fromDate é desserializado por Loteamento, Quadra, Lote, Etapa e FakeFirebaseFirestore', () async {
+      final createdAt = DateTime(2026, 3, 10, 9, 30);
+      final updatedAt = DateTime(2026, 3, 11, 14, 45);
+      final tsCreated = Timestamp.fromDate(createdAt);
+      final tsUpdated = Timestamp.fromDate(updatedAt);
+
+      final lt = Loteamento.fromJson({
+        'id': 'lt1',
+        'construtoraId': 'c1',
+        'name': 'Loteamento TS',
+        'createdAt': tsCreated,
+        'updatedAt': tsUpdated,
+      });
+      final qd = Quadra.fromJson({
+        'id': 'qd1',
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'name': 'Quadra TS',
+        'createdAt': tsCreated,
+        'updatedAt': tsUpdated,
+      });
+      final lo = Lote.fromJson({
+        'id': 'lo1',
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'quadraId': 'qd1',
+        'name': 'Lote TS',
+        'createdAt': tsCreated,
+        'updatedAt': tsUpdated,
+      });
+      final et = Etapa.fromJson({
+        'id': 'lo1_muro',
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'quadraId': 'qd1',
+        'loteId': 'lo1',
+        'nome': 'Muro',
+        'ordem': 1,
+        'createdAt': tsCreated,
+        'updatedAt': tsUpdated,
+      });
+
+      expect(lt.createdAt, createdAt);
+      expect(lt.updatedAt, updatedAt);
+      expect(qd.createdAt, createdAt);
+      expect(qd.updatedAt, updatedAt);
+      expect(lo.createdAt, createdAt);
+      expect(lo.updatedAt, updatedAt);
+      expect(et.createdAt, createdAt);
+      expect(et.updatedAt, updatedAt);
+
+      final fakeFirestore = FakeFirebaseFirestore();
+      await fakeFirestore.collection('loteamentos').doc('lt1').set({
+        'construtoraId': 'c1',
+        'name': 'Loteamento TS',
+        'createdAt': tsCreated,
+        'updatedAt': tsUpdated,
+      });
+      await fakeFirestore.collection('quadras').doc('qd1').set({
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'name': 'Quadra TS',
+        'createdAt': tsCreated,
+        'updatedAt': tsUpdated,
+      });
+      await fakeFirestore.collection('lotes').doc('lo1').set({
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'quadraId': 'qd1',
+        'name': 'Lote TS',
+        'createdAt': tsCreated,
+        'updatedAt': tsUpdated,
+      });
+      await fakeFirestore.collection('etapas').doc('lo1_muro').set({
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'quadraId': 'qd1',
+        'loteId': 'lo1',
+        'nome': 'Muro',
+        'ordem': 1,
+        'createdAt': tsCreated,
+        'updatedAt': tsUpdated,
+      });
+
+      final ltRepo = LoteamentoRepository(fakeFirestore);
+      final qdRepo = QuadraRepository(fakeFirestore);
+      final etRepo = EtapaRepository(fakeFirestore);
+      final loRepo = LoteRepository(fakeFirestore, etRepo);
+
+      final watchedLt = await ltRepo.watchLoteamentos('c1').first;
+      expect(watchedLt.single.id, 'lt1');
+      expect(watchedLt.single.createdAt, createdAt);
+
+      final watchedQd = await qdRepo.watchQuadras('c1', 'lt1').first;
+      expect(watchedQd.single.id, 'qd1');
+      expect(watchedQd.single.createdAt, createdAt);
+
+      final watchedLo = await loRepo.watchLote('lo1').first;
+      expect(watchedLo, isNotNull);
+      expect(watchedLo!.id, 'lo1');
+      expect(watchedLo.createdAt, createdAt);
+
+      final watchedEt = await etRepo.watchEtapas('c1', 'lt1', 'qd1', 'lo1').first;
+      expect(watchedEt.single.id, 'lo1_muro');
+      expect(watchedEt.single.createdAt, createdAt);
+    });
+
+    test('Lote.fromJson e Etapa.fromJson sanitizam statusEtapasMap parcial, chaves inválidas, NaN/Infinity, limites e calcularAreaTerreno', () {
+      final lote = Lote.fromJson({
+        'id': 'lo1',
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'quadraId': 'qd1',
+        'name': 'Lote Sanitizado',
+        'progressoPercentual': double.nan,
+        'etapasConcluidasCount': double.infinity,
+        'etapasTotalCount': double.negativeInfinity,
+        'statusEtapasMap': {
+          'muro': 'concluida',
+          'cinza1': 'em_andamento',
+          'cinza2': 'status_invalido',
+          'cinza3': '   ',
+          '': 'concluida',
+          '   ': 'concluida',
+          'desconhecida': 'concluida',
+        },
+        'equipesVinculadas': [
+          {1: 'valor_num_key', 'id': 'eq1', 'name': 'Equipe 1'},
+        ],
+        'funcionariosVinculados': [
+          {2: 'outro', 'id': 'f1', 'name': 'João'},
+        ],
+        'createdAt': '2026-01-01T10:00:00.000',
+        'updatedAt': '2026-01-02T10:00:00.000',
+      });
+
+      expect(lote.progressoPercentual, 0);
+      expect(lote.etapasConcluidasCount, 0);
+      expect(lote.etapasTotalCount, 5);
+      expect(lote.statusEtapasMap, {
+        'muro': 'concluida',
+        'cinza1': 'em_andamento',
+        'cinza2': 'pendente',
+        'cinza3': 'pendente',
+        'branca': 'pendente',
+      });
+      expect(lote.equipesVinculadas.single['1'], 'valor_num_key');
+      expect(lote.funcionariosVinculados.single['2'], 'outro');
+
+      final clampedLote = Lote.fromJson({
+        'id': 'lo2',
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'quadraId': 'qd1',
+        'name': 'Lote Clamp',
+        'progressoPercentual': 150,
+        'etapasConcluidasCount': 99,
+        'etapasTotalCount': 0,
+        'createdAt': '2026-01-01T10:00:00.000',
+        'updatedAt': '2026-01-02T10:00:00.000',
+      });
+      expect(clampedLote.progressoPercentual, 100);
+      expect(clampedLote.etapasConcluidasCount, 5);
+      expect(clampedLote.etapasTotalCount, 5);
+
+      expect(Lote.calcularAreaTerreno(1e200, 1e200), isNull);
+      expect(Lote.calcularAreaTerreno(double.infinity, 10.0), isNull);
+      expect(Lote.calcularAreaTerreno(double.nan, 10.0), isNull);
+
+      final etapaInvalid = Etapa.fromJson({
+        'id': 'lo1_muro',
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'quadraId': 'qd1',
+        'loteId': 'lo1',
+        'nome': 'Muro',
+        'ordem': 1,
+        'status': 'qualquer_coisa',
+        'percentual': double.nan,
+        'createdAt': '2026-01-01T10:00:00.000',
+        'updatedAt': '2026-01-02T10:00:00.000',
+      });
+      expect(etapaInvalid.status, EtapaStatus.pendente);
+      expect(etapaInvalid.percentual, 0);
+
+      final etapaBlank = Etapa.fromJson({
+        'id': 'lo1_muro',
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'quadraId': 'qd1',
+        'loteId': 'lo1',
+        'nome': 'Muro',
+        'ordem': 1,
+        'status': '   ',
+        'percentual': 29.6,
+        'createdAt': '2026-01-01T10:00:00.000',
+        'updatedAt': '2026-01-02T10:00:00.000',
+      });
+      expect(etapaBlank.status, EtapaStatus.pendente);
+      expect(etapaBlank.percentual, 30);
+
+      final etapaClamp = Etapa.fromJson({
+        'id': 'lo1_muro',
+        'construtoraId': 'c1',
+        'loteamentoId': 'lt1',
+        'quadraId': 'qd1',
+        'loteId': 'lo1',
+        'nome': 'Muro',
+        'ordem': 1,
+        'status': ' em_andamento ',
+        'percentual': 180,
+        'createdAt': '2026-01-01T10:00:00.000',
+        'updatedAt': '2026-01-02T10:00:00.000',
+      });
+      expect(etapaClamp.status, EtapaStatus.emAndamento);
+      expect(etapaClamp.percentual, 100);
+    });
+
+    test('copyWith(clear...) limpa campos opcionais para null em Loteamento, Quadra e Lote', () {
+      final now = DateTime(2026, 1, 1);
+      final lt = Loteamento(
+        id: 'lt1',
+        construtoraId: 'c1',
+        name: 'LT',
+        bairro: 'Centro',
+        cidade: 'Natal',
+        uf: 'RN',
+        proprietarioNome: 'Prop',
+        proprietarioDocumento: '123',
+        responsavelTecnicoNome: 'Resp',
+        responsavelTecnicoRegistro: 'CREA',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final ltCleared = lt.copyWith(
+        clearBairro: true,
+        clearCidade: true,
+        clearUf: true,
+        clearProprietarioNome: true,
+        clearProprietarioDocumento: true,
+        clearResponsavelTecnicoNome: true,
+        clearResponsavelTecnicoRegistro: true,
+      );
+      expect(ltCleared.bairro, isNull);
+      expect(ltCleared.cidade, isNull);
+      expect(ltCleared.uf, isNull);
+      expect(ltCleared.proprietarioNome, isNull);
+      expect(ltCleared.proprietarioDocumento, isNull);
+      expect(ltCleared.responsavelTecnicoNome, isNull);
+      expect(ltCleared.responsavelTecnicoRegistro, isNull);
+
+      final qd = Quadra(
+        id: 'qd1',
+        construtoraId: 'c1',
+        loteamentoId: 'lt1',
+        name: 'Q1',
+        logradouroPadrao: 'Rua A',
+        createdAt: now,
+        updatedAt: now,
+      );
+      expect(qd.copyWith(clearLogradouroPadrao: true).logradouroPadrao, isNull);
+
+      final lo = _makeLote('lo1').copyWith(
+        areaConstruidaM2: 50,
+        logradouro: 'Rua B',
+        taxaOcupacaoPercent: 25,
+        coeficienteAproveitamento: 0.25,
+        areaPermeavelM2: 100,
+        taxaPermeabilidadePercent: 50,
+        areaImpermeavelM2: 50,
+        recuoFrontalM: 5,
+        recuoFundoM: 5,
+        recuoLateralEsquerdoM: 1.5,
+        recuoLateralDireitoM: 1.5,
+        proprietarioNome: 'Prop',
+        proprietarioDocumento: '123',
+        responsavelTecnicoNome: 'Resp',
+        responsavelTecnicoRegistro: 'CREA',
+        dataProjeto: 'outubro/26',
+      );
+      final loCleared = lo.copyWith(
+        clearFrenteM: true,
+        clearProfundidadeM: true,
+        clearAreaTerrenoM2: true,
+        clearAreaConstruidaM2: true,
+        clearLogradouro: true,
+        clearTaxaOcupacaoPercent: true,
+        clearCoeficienteAproveitamento: true,
+        clearAreaPermeavelM2: true,
+        clearTaxaPermeabilidadePercent: true,
+        clearAreaImpermeavelM2: true,
+        clearRecuoFrontalM: true,
+        clearRecuoFundoM: true,
+        clearRecuoLateralEsquerdoM: true,
+        clearRecuoLateralDireitoM: true,
+        clearProprietarioNome: true,
+        clearProprietarioDocumento: true,
+        clearResponsavelTecnicoNome: true,
+        clearResponsavelTecnicoRegistro: true,
+        clearDataProjeto: true,
+      );
+      expect(loCleared.frenteM, isNull);
+      expect(loCleared.profundidadeM, isNull);
+      expect(loCleared.areaTerrenoM2, isNull);
+      expect(loCleared.areaConstruidaM2, isNull);
+      expect(loCleared.logradouro, isNull);
+      expect(loCleared.taxaOcupacaoPercent, isNull);
+      expect(loCleared.coeficienteAproveitamento, isNull);
+      expect(loCleared.areaPermeavelM2, isNull);
+      expect(loCleared.taxaPermeabilidadePercent, isNull);
+      expect(loCleared.areaImpermeavelM2, isNull);
+      expect(loCleared.recuoFrontalM, isNull);
+      expect(loCleared.recuoFundoM, isNull);
+      expect(loCleared.recuoLateralEsquerdoM, isNull);
+      expect(loCleared.recuoLateralDireitoM, isNull);
+      expect(loCleared.proprietarioNome, isNull);
+      expect(loCleared.proprietarioDocumento, isNull);
+      expect(loCleared.responsavelTecnicoNome, isNull);
+      expect(loCleared.responsavelTecnicoRegistro, isNull);
+      expect(loCleared.dataProjeto, isNull);
+    });
+
+    test('updateEtapaProgresso valida percentual explícito, clamping, FKs, lote ausente, status e etapaId', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final etapaRepo = EtapaRepository(fakeFirestore);
+      final loteRepo = LoteRepository(fakeFirestore, etapaRepo);
+
+      await loteRepo.createLoteComEtapas(_makeLote('lo1'));
+      await loteRepo.createLoteComEtapas(_makeLote('lo2'));
+
+      await etapaRepo.updateEtapaProgresso(
+        loteId: 'lo1',
+        etapaId: 'lo1_muro',
+        status: 'em_andamento',
+        percentual: 25,
+      );
+      var muro = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo1_muro').get()).data()!,
+      );
+      expect(muro.percentual, 25);
+      var lo1 = Lote.fromJson(
+        (await fakeFirestore.collection('lotes').doc('lo1').get()).data()!,
+      );
+      expect(lo1.progressoPercentual, 5);
+
+      await etapaRepo.updateEtapaProgresso(
+        loteId: 'lo1',
+        etapaId: 'lo1_muro',
+        status: 'em_andamento',
+        percentual: -10,
+      );
+      muro = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo1_muro').get()).data()!,
+      );
+      expect(muro.percentual, 0);
+
+      await etapaRepo.updateEtapaProgresso(
+        loteId: 'lo1',
+        etapaId: 'lo1_muro',
+        status: 'em_andamento',
+        percentual: 150,
+      );
+      muro = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo1_muro').get()).data()!,
+      );
+      expect(muro.percentual, 100);
+
+      // Concorrência em etapas distintas do mesmo lote preserva ambas atualizações
+      await Future.wait([
+        etapaRepo.updateEtapaProgresso(
+          loteId: 'lo1',
+          etapaId: 'lo1_cinza1',
+          status: 'concluida',
+        ),
+        etapaRepo.updateEtapaProgresso(
+          loteId: 'lo1',
+          etapaId: 'lo1_cinza2',
+          status: 'em_andamento',
+          percentual: 50,
+        ),
+      ]);
+      lo1 = Lote.fromJson(
+        (await fakeFirestore.collection('lotes').doc('lo1').get()).data()!,
+      );
+      expect(lo1.progressoPercentual, 50); // (100 + 100 + 50 + 0 + 0) / 5
+      expect(lo1.etapasConcluidasCount, 1);
+
+      // Rejeições de validação
+      await expectLater(
+        etapaRepo.updateEtapaProgresso(
+          loteId: 'lo1',
+          etapaId: 'lo1_muro',
+          status: 'invalido',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        etapaRepo.updateEtapaProgresso(
+          loteId: 'lote_inexistente',
+          etapaId: 'lo1_muro',
+          status: 'concluida',
+        ),
+        throwsStateError,
+      );
+      await expectLater(
+        etapaRepo.updateEtapaProgresso(
+          loteId: 'lo1',
+          etapaId: 'lo1_muro',
+          status: 'concluida',
+          construtoraId: 'outra_c',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        etapaRepo.updateEtapaProgresso(
+          loteId: 'lo1',
+          etapaId: 'lo1_muro',
+          status: 'concluida',
+          loteamentoId: 'outro_lt',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        etapaRepo.updateEtapaProgresso(
+          loteId: 'lo1',
+          etapaId: 'lo1_muro',
+          status: 'concluida',
+          quadraId: 'outra_qd',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        etapaRepo.updateEtapaProgresso(
+          loteId: 'lo1',
+          etapaId: 'etapa_desconhecida',
+          status: 'concluida',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        etapaRepo.updateEtapaProgresso(
+          loteId: 'lo1',
+          etapaId: 'lo2_muro',
+          status: 'concluida',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        etapaRepo.updateEtapaProgresso(
+          loteId: 'lo1',
+          etapaId: 'lo1_muro',
+          status: 'concluida',
+          tipo: EtapaTipo.cinza1,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('createDefaultEtapas com batch == null preserva etapas existentes e cria apenas faltantes', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final etapaRepo = EtapaRepository(fakeFirestore);
+
+      final now = DateTime(2026, 2, 1);
+      await fakeFirestore.collection('etapas').doc('lo1_muro').set(
+        Etapa(
+          id: 'lo1_muro',
+          construtoraId: 'c1',
+          loteamentoId: 'lt1',
+          quadraId: 'qd1',
+          loteId: 'lo1',
+          nome: 'Muro',
+          ordem: 1,
+          status: EtapaStatus.concluida,
+          percentual: 100,
+          equipeId: 'eq1',
+          equipeNome: 'Equipe 1',
+          createdAt: now,
+          updatedAt: now,
+        ).toJson(),
+      );
+
+      await etapaRepo.createDefaultEtapas(
+        construtoraId: 'c1',
+        loteamentoId: 'lt1',
+        quadraId: 'qd1',
+        loteId: 'lo1',
+      );
+
+      final snap = await fakeFirestore
+          .collection('etapas')
+          .where('loteId', isEqualTo: 'lo1')
+          .get();
+      expect(snap.docs.length, 5);
+      final muro = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo1_muro').get()).data()!,
+      );
+      expect(muro.status, EtapaStatus.concluida);
+      expect(muro.percentual, 100);
+      expect(muro.equipeId, 'eq1');
+    });
+
+    test('regras transacionais de lotação: substituição na mesma etapa, proteção de dono, remoção geral, rejeição de etapa estrangeira/desconhecida e seeding completo', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final etapaRepo = EtapaRepository(fakeFirestore);
+      final loteRepo = LoteRepository(fakeFirestore, etapaRepo);
+
+      await loteRepo.createLoteComEtapas(_makeLote('lo1'));
+      await loteRepo.createLoteComEtapas(_makeLote('lo2'));
+
+      // Vínculo geral + substituição de equipe/funcionário distintos na mesma etapa
+      await loteRepo.atribuirEquipe(
+        loteId: 'lo1',
+        equipeId: 'eq1',
+        equipeNome: 'Equipe A',
+      );
+      await loteRepo.atribuirEquipe(
+        loteId: 'lo1',
+        equipeId: 'eq1',
+        equipeNome: 'Equipe A',
+        etapaId: 'lo1_muro',
+      );
+      await loteRepo.atribuirEquipe(
+        loteId: 'lo1',
+        equipeId: 'eq2',
+        equipeNome: 'Equipe B',
+        etapaId: 'lo1_muro',
+      );
+
+      await loteRepo.atribuirFuncionario(
+        loteId: 'lo1',
+        funcionarioId: 'f1',
+        funcionarioNome: 'João',
+        role: 'Pedreiro',
+        etapaId: 'lo1_cinza1',
+      );
+      await loteRepo.atribuirFuncionario(
+        loteId: 'lo1',
+        funcionarioId: 'f2',
+        funcionarioNome: 'Maria',
+        role: 'Mestre',
+        etapaId: 'lo1_cinza1',
+      );
+
+      var lo1 = Lote.fromJson(
+        (await fakeFirestore.collection('lotes').doc('lo1').get()).data()!,
+      );
+      expect(
+        lo1.equipesVinculadas.where((e) => e['etapaId'] == 'lo1_muro').length,
+        1,
+      );
+      expect(
+        lo1.equipesVinculadas
+            .firstWhere((e) => e['etapaId'] == 'lo1_muro')['id'],
+        'eq2',
+      );
+      expect(
+        lo1.equipesVinculadas
+            .any((e) => e['id'] == 'eq1' && e['etapaId'] == null),
+        isTrue,
+      );
+      expect(lo1.funcionariosVinculados.length, 1);
+      expect(lo1.funcionariosVinculados.single['id'], 'f2');
+
+      var muro = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo1_muro').get()).data()!,
+      );
+      var cinza1 = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo1_cinza1').get())
+            .data()!,
+      );
+      expect(muro.equipeId, 'eq2');
+      expect(cinza1.funcionarioId, 'f2');
+
+      // Protege etapa cujo dono atual é outro id
+      await loteRepo.removerEquipe(
+        loteId: 'lo1',
+        equipeId: 'eq1',
+        etapaId: 'lo1_muro',
+      );
+      await loteRepo.removerFuncionario(
+        loteId: 'lo1',
+        funcionarioId: 'f1',
+        etapaId: 'lo1_cinza1',
+      );
+      muro = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo1_muro').get()).data()!,
+      );
+      cinza1 = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo1_cinza1').get())
+            .data()!,
+      );
+      expect(muro.equipeId, 'eq2');
+      expect(cinza1.funcionarioId, 'f2');
+
+      // Remove apenas o vínculo geral (etapaId: null) preservando vínculo por etapa
+      await loteRepo.atribuirEquipe(
+        loteId: 'lo1',
+        equipeId: 'eq2',
+        equipeNome: 'Equipe B',
+      );
+      await loteRepo.removerEquipe(
+        loteId: 'lo1',
+        equipeId: 'eq2',
+      );
+      lo1 = Lote.fromJson(
+        (await fakeFirestore.collection('lotes').doc('lo1').get()).data()!,
+      );
+      expect(
+        lo1.equipesVinculadas
+            .any((e) => e['id'] == 'eq2' && e['etapaId'] == null),
+        isFalse,
+      );
+      expect(
+        lo1.equipesVinculadas
+            .any((e) => e['id'] == 'eq2' && e['etapaId'] == 'lo1_muro'),
+        isTrue,
+      );
+      muro = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo1_muro').get()).data()!,
+      );
+      expect(muro.equipeId, 'eq2');
+
+      // Rejeita etapa estrangeira, desconhecida ou strings vazias
+      await expectLater(
+        loteRepo.atribuirEquipe(
+          loteId: 'lo1',
+          equipeId: 'eq1',
+          equipeNome: 'Equipe A',
+          etapaId: 'lo2_muro',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        loteRepo.atribuirEquipe(
+          loteId: 'lo1',
+          equipeId: 'eq1',
+          equipeNome: 'Equipe A',
+          etapaId: 'desconhecida',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        loteRepo.atribuirFuncionario(
+          loteId: 'lo1',
+          funcionarioId: 'f1',
+          funcionarioNome: 'João',
+          role: 'Pedreiro',
+          etapaId: 'lo2_cinza1',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        loteRepo.atribuirEquipe(
+          loteId: 'lo1',
+          equipeId: '   ',
+          equipeNome: 'Equipe A',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        loteRepo.removerEquipe(
+          loteId: 'lo1',
+          equipeId: 'eq2',
+          etapaId: 'lo2_muro',
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        loteRepo.removerFuncionario(
+          loteId: 'lo1',
+          funcionarioId: 'f2',
+          etapaId: 'desconhecida',
+        ),
+        throwsArgumentError,
+      );
+
+      // Seeding completo das 5 etapas ao vincular etapa de lote legado sem etapas
+      await fakeFirestore.collection('lotes').doc('lo_leg').set(
+        _makeLote('lo_leg').toJson(),
+      );
+      await loteRepo.atribuirEquipe(
+        loteId: 'lo_leg',
+        equipeId: 'eq1',
+        equipeNome: 'Equipe Legado',
+        etapaId: 'lo_leg_muro',
+      );
+      final legEtapas = await fakeFirestore
+          .collection('etapas')
+          .where('loteId', isEqualTo: 'lo_leg')
+          .get();
+      expect(legEtapas.docs.length, 5);
+      final legMuro = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo_leg_muro').get())
+            .data()!,
+      );
+      expect(legMuro.equipeId, 'eq1');
+    });
+
+    test('updateLote preserva progresso e vínculos derivados; updateQuadra atualiza quadra', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final etapaRepo = EtapaRepository(fakeFirestore);
+      final loteRepo = LoteRepository(fakeFirestore, etapaRepo);
+      final quadraRepo = QuadraRepository(fakeFirestore);
+
+      final now = DateTime(2026, 1, 1);
+      final quadra = Quadra(
+        id: 'qd1',
+        construtoraId: 'c1',
+        loteamentoId: 'lt1',
+        name: 'Quadra 1',
+        logradouroPadrao: 'Rua A',
+        createdAt: now,
+        updatedAt: now,
+      );
+      await quadraRepo.createQuadra(quadra);
+      await quadraRepo.updateQuadra(
+        quadra.copyWith(name: 'Quadra 1 Rev', logradouroPadrao: 'Rua B'),
+      );
+      final savedQd = Quadra.fromJson(
+        (await fakeFirestore.collection('quadras').doc('qd1').get()).data()!,
+      );
+      expect(savedQd.name, 'Quadra 1 Rev');
+      expect(savedQd.logradouroPadrao, 'Rua B');
+
+      final initialLote = _makeLote('lo1');
+      await loteRepo.createLoteComEtapas(initialLote);
+      await etapaRepo.updateEtapaProgresso(
+        loteId: 'lo1',
+        etapaId: 'lo1_muro',
+        status: 'concluida',
+      );
+      await loteRepo.atribuirEquipe(
+        loteId: 'lo1',
+        equipeId: 'eq1',
+        equipeNome: 'Equipe A',
+        etapaId: 'lo1_muro',
+      );
+      await loteRepo.atribuirFuncionario(
+        loteId: 'lo1',
+        funcionarioId: 'f1',
+        funcionarioNome: 'João',
+        role: 'Pedreiro',
+      );
+
+      // Passa snapshot desatualizado (progresso 0 e listas vazias) para updateLote
+      await loteRepo.updateLote(
+        initialLote.copyWith(areaConstruidaM2: 72.5, logradouro: 'Rua B'),
+      );
+
+      final savedLote = Lote.fromJson(
+        (await fakeFirestore.collection('lotes').doc('lo1').get()).data()!,
+      );
+      expect(savedLote.areaConstruidaM2, 72.5);
+      expect(savedLote.logradouro, 'Rua B');
+      expect(savedLote.progressoPercentual, 20);
+      expect(savedLote.etapasConcluidasCount, 1);
+      expect(savedLote.statusEtapasMap['muro'], 'concluida');
+      expect(savedLote.equipesVinculadas.length, 1);
+      expect(savedLote.funcionariosVinculados.length, 1);
+    });
+
+    test('createLoteComEtapas alinha createdAt das etapas com lote.createdAt e escrita em massa intercala lote + 5 etapas e valida FKs/duplicidades', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final etapaRepo = EtapaRepository(fakeFirestore);
+      final loteRepo = LoteRepository(fakeFirestore, etapaRepo);
+      final quadraRepo = QuadraRepository(fakeFirestore);
+      final ltRepo = LoteamentoRepository(fakeFirestore);
+
+      final customCreatedAt = DateTime(2025, 12, 1, 8, 0);
+      final lote = _makeLote('lo_ts').copyWith(createdAt: customCreatedAt);
+      await loteRepo.createLoteComEtapas(lote);
+      final etapaMuro = Etapa.fromJson(
+        (await fakeFirestore.collection('etapas').doc('lo_ts_muro').get())
+            .data()!,
+      );
+      expect(etapaMuro.createdAt, customCreatedAt);
+      expect(etapaMuro.updatedAt, customCreatedAt);
+
+      // Interleaving: 2 lotes = 12 ops => [l1, 5 etapas de l1, l2, 5 etapas de l2]
+      final operations = <FirestoreBatchWrite>[];
+      LoteRepository.appendLotesComEtapasWrites(
+        firestore: fakeFirestore,
+        operations: operations,
+        lotes: [_makeLote('a1'), _makeLote('a2')],
+      );
+      expect(operations.length, 12);
+      final batch1 = fakeFirestore.batch();
+      for (var i = 0; i < 6; i++) {
+        operations[i](batch1);
+      }
+      await batch1.commit();
+      expect((await fakeFirestore.collection('lotes').get()).docs.map((d) => d.id), contains('a1'));
+      expect((await fakeFirestore.collection('etapas').where('loteId', isEqualTo: 'a1').get()).docs.length, 5);
+      expect((await fakeFirestore.collection('etapas').where('loteId', isEqualTo: 'a2').get()).docs.length, 0);
+
+      // Validação de FKs divergentes e IDs duplicados
+      await expectLater(
+        loteRepo.createLotesEmMassa([_makeLote('dup'), _makeLote('dup')]),
+        throwsArgumentError,
+      );
+      await expectLater(
+        loteRepo.createLotesEmMassa([
+          _makeLote('x1', quadraId: 'qd1'),
+          _makeLote('x2', quadraId: 'qd2'),
+        ]),
+        throwsArgumentError,
+      );
+
+      final now = DateTime(2026, 1, 1);
+      await expectLater(
+        quadraRepo.createQuadraComLotes(
+          quadra: Quadra(
+            id: 'qd1',
+            construtoraId: 'c1',
+            loteamentoId: 'lt1',
+            name: 'Q1',
+            createdAt: now,
+            updatedAt: now,
+          ),
+          lotes: [_makeLote('bad', quadraId: 'qd_outra')],
+        ),
+        throwsArgumentError,
+      );
+
+      await expectLater(
+        ltRepo.createLoteamentoEmMassa(
+          loteamento: Loteamento(
+            id: 'lt1',
+            construtoraId: 'c1',
+            name: 'LT1',
+            createdAt: now,
+            updatedAt: now,
+          ),
+          quadras: [
+            Quadra(
+              id: 'qd1',
+              construtoraId: 'c1',
+              loteamentoId: 'lt1',
+              name: 'Q1',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          ],
+          lotes: [_makeLote('bad2', quadraId: 'qd_inexistente')],
+        ),
+        throwsArgumentError,
+      );
     });
   });
 }

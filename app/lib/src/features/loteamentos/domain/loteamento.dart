@@ -39,12 +39,19 @@ class Loteamento {
     String? construtoraId,
     String? name,
     String? bairro,
+    bool clearBairro = false,
     String? cidade,
+    bool clearCidade = false,
     String? uf,
+    bool clearUf = false,
     String? proprietarioNome,
+    bool clearProprietarioNome = false,
     String? proprietarioDocumento,
+    bool clearProprietarioDocumento = false,
     String? responsavelTecnicoNome,
+    bool clearResponsavelTecnicoNome = false,
     String? responsavelTecnicoRegistro,
+    bool clearResponsavelTecnicoRegistro = false,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -52,16 +59,21 @@ class Loteamento {
       id: id ?? this.id,
       construtoraId: construtoraId ?? this.construtoraId,
       name: name ?? this.name,
-      bairro: bairro ?? this.bairro,
-      cidade: cidade ?? this.cidade,
-      uf: uf ?? this.uf,
-      proprietarioNome: proprietarioNome ?? this.proprietarioNome,
-      proprietarioDocumento:
-          proprietarioDocumento ?? this.proprietarioDocumento,
-      responsavelTecnicoNome:
-          responsavelTecnicoNome ?? this.responsavelTecnicoNome,
-      responsavelTecnicoRegistro:
-          responsavelTecnicoRegistro ?? this.responsavelTecnicoRegistro,
+      bairro: clearBairro ? null : (bairro ?? this.bairro),
+      cidade: clearCidade ? null : (cidade ?? this.cidade),
+      uf: clearUf ? null : (uf ?? this.uf),
+      proprietarioNome: clearProprietarioNome
+          ? null
+          : (proprietarioNome ?? this.proprietarioNome),
+      proprietarioDocumento: clearProprietarioDocumento
+          ? null
+          : (proprietarioDocumento ?? this.proprietarioDocumento),
+      responsavelTecnicoNome: clearResponsavelTecnicoNome
+          ? null
+          : (responsavelTecnicoNome ?? this.responsavelTecnicoNome),
+      responsavelTecnicoRegistro: clearResponsavelTecnicoRegistro
+          ? null
+          : (responsavelTecnicoRegistro ?? this.responsavelTecnicoRegistro),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -20,7 +20,11 @@ class QuadraRepository {
   ) => firestore
       .collection('quadras')
       .withConverter<Quadra>(
-        fromFirestore: (snapshot, _) => Quadra.fromJson(snapshot.data()!),
+        fromFirestore: (snapshot, _) {
+          final data = Map<String, dynamic>.from(snapshot.data()!);
+          data['id'] ??= snapshot.id;
+          return Quadra.fromJson(data).copyWith(id: snapshot.id);
+        },
         toFirestore: (quadra, _) => quadra.toJson(),
       );
 
@@ -39,10 +43,32 @@ class QuadraRepository {
     await docRef.set(quadra);
   }
 
+  Future<void> updateQuadra(Quadra quadra) async {
+    final updated = quadra.copyWith(updatedAt: DateTime.now());
+    await _quadrasRef().doc(updated.id).update(updated.toJson());
+  }
+
   Future<void> createQuadraComLotes({
     required Quadra quadra,
     required List<Lote> lotes,
   }) async {
+    if (quadra.id.trim().isEmpty) {
+      throw ArgumentError.value(quadra.id, 'quadra.id', 'ID da quadra inválido');
+    }
+    if (quadra.construtoraId.trim().isEmpty) {
+      throw ArgumentError.value(
+        quadra.construtoraId,
+        'quadra.construtoraId',
+        'construtoraId da quadra inválido',
+      );
+    }
+    if (quadra.loteamentoId.trim().isEmpty) {
+      throw ArgumentError.value(
+        quadra.loteamentoId,
+        'quadra.loteamentoId',
+        'loteamentoId da quadra inválido',
+      );
+    }
     final operations = <FirestoreBatchWrite>[
       (batch) => batch.set(_quadrasRef().doc(quadra.id), quadra),
     ];
@@ -50,6 +76,9 @@ class QuadraRepository {
       firestore: _firestore,
       operations: operations,
       lotes: lotes,
+      expectedConstrutoraId: quadra.construtoraId,
+      expectedLoteamentoId: quadra.loteamentoId,
+      expectedQuadraId: quadra.id,
     );
     await commitFirestoreBatches(_firestore, operations);
   }

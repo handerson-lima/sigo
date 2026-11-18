@@ -188,6 +188,14 @@ Future<int> commitFirestoreBatches(
   List<FirestoreBatchWrite> operations, {
   int maxOpsPerBatch = maxFirestoreBatchOperations,
 }) async {
+  if (maxOpsPerBatch <= 0 || maxOpsPerBatch > maxFirestoreBatchOperations) {
+    throw RangeError.range(
+      maxOpsPerBatch,
+      1,
+      maxFirestoreBatchOperations,
+      'maxOpsPerBatch',
+    );
+  }
   if (operations.isEmpty) return 0;
   var batchesCommitted = 0;
   for (var start = 0; start < operations.length; start += maxOpsPerBatch) {

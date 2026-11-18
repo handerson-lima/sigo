@@ -20,7 +20,11 @@ class LoteamentoRepository {
   CollectionReference<Loteamento> _loteamentosRef() => _firestore
       .collection('loteamentos')
       .withConverter<Loteamento>(
-        fromFirestore: (snapshot, _) => Loteamento.fromJson(snapshot.data()!),
+        fromFirestore: (snapshot, _) {
+          final data = Map<String, dynamic>.from(snapshot.data()!);
+          data['id'] ??= snapshot.id;
+          return Loteamento.fromJson(data).copyWith(id: snapshot.id);
+        },
         toFirestore: (loteamento, _) => loteamento.toJson(),
       );
 
@@ -46,6 +50,48 @@ class LoteamentoRepository {
     required List<Quadra> quadras,
     required List<Lote> lotes,
   }) async {
+    if (loteamento.id.trim().isEmpty) {
+      throw ArgumentError.value(
+        loteamento.id,
+        'loteamento.id',
+        'ID do loteamento inválido',
+      );
+    }
+    if (loteamento.construtoraId.trim().isEmpty) {
+      throw ArgumentError.value(
+        loteamento.construtoraId,
+        'loteamento.construtoraId',
+        'construtoraId do loteamento inválido',
+      );
+    }
+    final quadraIds = <String>{};
+    for (final quadra in quadras) {
+      if (quadra.id.trim().isEmpty) {
+        throw ArgumentError.value(quadra.id, 'quadra.id', 'ID da quadra inválido');
+      }
+      if (!quadraIds.add(quadra.id)) {
+        throw ArgumentError.value(
+          quadra.id,
+          'quadras',
+          'Quadra duplicada no loteamento em massa: ${quadra.id}',
+        );
+      }
+      if (quadra.construtoraId != loteamento.construtoraId) {
+        throw ArgumentError.value(
+          quadra.construtoraId,
+          'quadra.construtoraId',
+          'Quadra ${quadra.id} possui construtoraId divergente',
+        );
+      }
+      if (quadra.loteamentoId != loteamento.id) {
+        throw ArgumentError.value(
+          quadra.loteamentoId,
+          'quadra.loteamentoId',
+          'Quadra ${quadra.id} possui loteamentoId divergente',
+        );
+      }
+    }
+
     final quadrasRef = QuadraRepository.quadrasCollection(_firestore);
     final operations = <FirestoreBatchWrite>[
       (batch) => batch.set(_loteamentosRef().doc(loteamento.id), loteamento),
@@ -56,6 +102,9 @@ class LoteamentoRepository {
       firestore: _firestore,
       operations: operations,
       lotes: lotes,
+      expectedConstrutoraId: loteamento.construtoraId,
+      expectedLoteamentoId: loteamento.id,
+      allowedQuadraIds: quadraIds,
     );
     await commitFirestoreBatches(_firestore, operations);
   }

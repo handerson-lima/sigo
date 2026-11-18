@@ -71,14 +71,19 @@ EtapaTipo? resolveEtapaTipo({String? id, int? ordem, String? nome}) {
 }
 
 String _etapaStatusFromJson(dynamic raw) {
-  if (raw is String && raw.trim().isNotEmpty) {
-    return raw.trim();
+  if (raw is String) {
+    final trimmed = raw.trim();
+    if (EtapaStatus.values.contains(trimmed)) {
+      return trimmed;
+    }
   }
   return EtapaStatus.pendente;
 }
 
 int _etapaPercentualFromJson(dynamic raw) {
-  if (raw is num) return raw.toInt().clamp(0, 100);
+  if (raw is num && raw.isFinite) {
+    return raw.round().clamp(0, 100);
+  }
   return 0;
 }
 

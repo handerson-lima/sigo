@@ -431,7 +431,11 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
   evidence: `LWPOLYLINE` com bulge vira corda e `ARC`/`SPLINE`/`ELLIPSE` são descartados; comportamento pré-existente de `geometry_utils`, não introduzido por esta spec.
 - source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-loteamento.md`
   summary: Executar `npm run test:rules` no CI (a suíte de storage rules não roda em nenhum workflow).
-  evidence: `.github/workflows/ci.yml` roda apenas `npm test` (`unit.cjs`); os casos de `storage.rules` (incluindo o novo 7.4 de `loteamentos_drafts_uploads`) só rodam manualmente. Bloqueado por uma falha pré-existente em 8.3 (ver item abaixo).
+  evidence: `.github/workflows/ci.yml` roda apenas `npm test` (`unit.cjs`); os casos de `storage.rules` (incluindo o novo
+
+- source_spec: `_bmad-output/specs/spec-remodelagem-loteamentos-sem-geometria/stories/1-evolucao-modelos-dominio-repositorios-sem-geometria.md`
+  summary: Atualizar `firestore.rules` (`quadras`, `lotes`, `etapas`) para usar `existsAfter`/`getAfter` em criações atômicas pai+filho no mesmo `WriteBatch` (atualmente usa `exists`/`get` pré-batch, bloqueando admins não-`dev`).
+  evidence: Confirmado em `firestore.rules:197-249`; alterações em `firestore.rules` devem ser delegadas ao subagente `firestore-rules-author` na Story 4 conforme `AGENTS.md` e `stories.yaml`. 7.4 de `loteamentos_drafts_uploads`) só rodam manualmente. Bloqueado por uma falha pré-existente em 8.3 (ver item abaixo).
 - source_spec: `_bmad-output/implementation-artifacts/spec-importacao-dxf-loteamento.md`
   summary: Reconciliar o teste 8.3 de storage rules com a regra de logos vigente (`signed()`, sem exigir metadata vazia).
   evidence: O commit `3eb4a43` afrouxou `construtoras/{c}/logos` para `signed()`; o teste 8.3 ainda espera `admin(c)` + `metadata.hasOnly([])` e falha. Pré-existente, fora do escopo do DXF; a decisão de restrição é de segurança e precisa de dono.

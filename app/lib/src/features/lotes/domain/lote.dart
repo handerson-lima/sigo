@@ -1,21 +1,25 @@
 import 'package:json_annotation/json_annotation.dart';
 
 import '../../../core/contracts.dart';
+import '../../etapas/domain/etapa.dart';
 
 part 'lote.g.dart';
 
 int _progressoFromJson(dynamic raw) {
-  if (raw is num) return raw.toInt().clamp(0, 100);
+  if (raw is num && raw.isFinite) return raw.round().clamp(0, 100);
   return 0;
 }
 
 int _etapasConcluidasFromJson(dynamic raw) {
-  if (raw is num) return raw.toInt().clamp(0, 5);
+  if (raw is num && raw.isFinite) return raw.round().clamp(0, 5);
   return 0;
 }
 
 int _etapasTotalFromJson(dynamic raw) {
-  if (raw is num && raw.toInt() > 0) return raw.toInt();
+  if (raw is num && raw.isFinite) {
+    final total = raw.round();
+    if (total > 0) return total;
+  }
   return 5;
 }
 
@@ -31,10 +35,13 @@ Map<String, String> _statusEtapasMapFromJson(dynamic raw) {
   final result = Map<String, String>.from(defaultLoteStatusEtapasMap);
   if (raw is Map) {
     for (final entry in raw.entries) {
-      final key = entry.key?.toString();
-      final value = entry.value?.toString();
-      if (key != null && value != null && value.trim().isNotEmpty) {
-        result[key] = value.trim();
+      final key = entry.key?.toString().trim();
+      final value = entry.value?.toString().trim();
+      if (key != null &&
+          defaultLoteStatusEtapasMap.containsKey(key) &&
+          value != null &&
+          EtapaStatus.values.contains(value)) {
+        result[key] = value;
       }
     }
   }
@@ -45,7 +52,11 @@ List<Map<String, dynamic>> _mapListFromJson(dynamic raw) {
   if (raw is! List) return const [];
   return raw
       .whereType<Map>()
-      .map((item) => Map<String, dynamic>.from(item))
+      .map(
+        (item) => item.map<String, dynamic>(
+          (k, v) => MapEntry<String, dynamic>(k.toString(), v),
+        ),
+      )
       .toList();
 }
 
@@ -132,7 +143,11 @@ class Lote {
     if (frenteM == null || profundidadeM == null) return null;
     if (!frenteM.isFinite || !profundidadeM.isFinite) return null;
     if (frenteM <= 0 || profundidadeM <= 0) return null;
-    return double.parse((frenteM * profundidadeM).toStringAsFixed(6));
+    final area = frenteM * profundidadeM;
+    if (!area.isFinite || area <= 0) return null;
+    final rounded = double.parse(area.toStringAsFixed(6));
+    if (!rounded.isFinite || rounded <= 0) return null;
+    return rounded;
   }
 
   Lote copyWith({
@@ -142,24 +157,43 @@ class Lote {
     String? quadraId,
     String? name,
     double? frenteM,
+    bool clearFrenteM = false,
     double? profundidadeM,
+    bool clearProfundidadeM = false,
     double? areaTerrenoM2,
+    bool clearAreaTerrenoM2 = false,
     double? areaConstruidaM2,
+    bool clearAreaConstruidaM2 = false,
     String? logradouro,
+    bool clearLogradouro = false,
     double? taxaOcupacaoPercent,
+    bool clearTaxaOcupacaoPercent = false,
     double? coeficienteAproveitamento,
+    bool clearCoeficienteAproveitamento = false,
     double? areaPermeavelM2,
+    bool clearAreaPermeavelM2 = false,
     double? taxaPermeabilidadePercent,
+    bool clearTaxaPermeabilidadePercent = false,
     double? areaImpermeavelM2,
+    bool clearAreaImpermeavelM2 = false,
     double? recuoFrontalM,
+    bool clearRecuoFrontalM = false,
     double? recuoFundoM,
+    bool clearRecuoFundoM = false,
     double? recuoLateralEsquerdoM,
+    bool clearRecuoLateralEsquerdoM = false,
     double? recuoLateralDireitoM,
+    bool clearRecuoLateralDireitoM = false,
     String? proprietarioNome,
+    bool clearProprietarioNome = false,
     String? proprietarioDocumento,
+    bool clearProprietarioDocumento = false,
     String? responsavelTecnicoNome,
+    bool clearResponsavelTecnicoNome = false,
     String? responsavelTecnicoRegistro,
+    bool clearResponsavelTecnicoRegistro = false,
     String? dataProjeto,
+    bool clearDataProjeto = false,
     int? progressoPercentual,
     int? etapasConcluidasCount,
     int? etapasTotalCount,
@@ -175,31 +209,55 @@ class Lote {
       loteamentoId: loteamentoId ?? this.loteamentoId,
       quadraId: quadraId ?? this.quadraId,
       name: name ?? this.name,
-      frenteM: frenteM ?? this.frenteM,
-      profundidadeM: profundidadeM ?? this.profundidadeM,
-      areaTerrenoM2: areaTerrenoM2 ?? this.areaTerrenoM2,
-      areaConstruidaM2: areaConstruidaM2 ?? this.areaConstruidaM2,
-      logradouro: logradouro ?? this.logradouro,
-      taxaOcupacaoPercent: taxaOcupacaoPercent ?? this.taxaOcupacaoPercent,
-      coeficienteAproveitamento:
-          coeficienteAproveitamento ?? this.coeficienteAproveitamento,
-      areaPermeavelM2: areaPermeavelM2 ?? this.areaPermeavelM2,
-      taxaPermeabilidadePercent:
-          taxaPermeabilidadePercent ?? this.taxaPermeabilidadePercent,
-      areaImpermeavelM2: areaImpermeavelM2 ?? this.areaImpermeavelM2,
-      recuoFrontalM: recuoFrontalM ?? this.recuoFrontalM,
-      recuoFundoM: recuoFundoM ?? this.recuoFundoM,
-      recuoLateralEsquerdoM:
-          recuoLateralEsquerdoM ?? this.recuoLateralEsquerdoM,
-      recuoLateralDireitoM: recuoLateralDireitoM ?? this.recuoLateralDireitoM,
-      proprietarioNome: proprietarioNome ?? this.proprietarioNome,
-      proprietarioDocumento:
-          proprietarioDocumento ?? this.proprietarioDocumento,
-      responsavelTecnicoNome:
-          responsavelTecnicoNome ?? this.responsavelTecnicoNome,
-      responsavelTecnicoRegistro:
-          responsavelTecnicoRegistro ?? this.responsavelTecnicoRegistro,
-      dataProjeto: dataProjeto ?? this.dataProjeto,
+      frenteM: clearFrenteM ? null : (frenteM ?? this.frenteM),
+      profundidadeM: clearProfundidadeM
+          ? null
+          : (profundidadeM ?? this.profundidadeM),
+      areaTerrenoM2: clearAreaTerrenoM2
+          ? null
+          : (areaTerrenoM2 ?? this.areaTerrenoM2),
+      areaConstruidaM2: clearAreaConstruidaM2
+          ? null
+          : (areaConstruidaM2 ?? this.areaConstruidaM2),
+      logradouro: clearLogradouro ? null : (logradouro ?? this.logradouro),
+      taxaOcupacaoPercent: clearTaxaOcupacaoPercent
+          ? null
+          : (taxaOcupacaoPercent ?? this.taxaOcupacaoPercent),
+      coeficienteAproveitamento: clearCoeficienteAproveitamento
+          ? null
+          : (coeficienteAproveitamento ?? this.coeficienteAproveitamento),
+      areaPermeavelM2: clearAreaPermeavelM2
+          ? null
+          : (areaPermeavelM2 ?? this.areaPermeavelM2),
+      taxaPermeabilidadePercent: clearTaxaPermeabilidadePercent
+          ? null
+          : (taxaPermeabilidadePercent ?? this.taxaPermeabilidadePercent),
+      areaImpermeavelM2: clearAreaImpermeavelM2
+          ? null
+          : (areaImpermeavelM2 ?? this.areaImpermeavelM2),
+      recuoFrontalM: clearRecuoFrontalM
+          ? null
+          : (recuoFrontalM ?? this.recuoFrontalM),
+      recuoFundoM: clearRecuoFundoM ? null : (recuoFundoM ?? this.recuoFundoM),
+      recuoLateralEsquerdoM: clearRecuoLateralEsquerdoM
+          ? null
+          : (recuoLateralEsquerdoM ?? this.recuoLateralEsquerdoM),
+      recuoLateralDireitoM: clearRecuoLateralDireitoM
+          ? null
+          : (recuoLateralDireitoM ?? this.recuoLateralDireitoM),
+      proprietarioNome: clearProprietarioNome
+          ? null
+          : (proprietarioNome ?? this.proprietarioNome),
+      proprietarioDocumento: clearProprietarioDocumento
+          ? null
+          : (proprietarioDocumento ?? this.proprietarioDocumento),
+      responsavelTecnicoNome: clearResponsavelTecnicoNome
+          ? null
+          : (responsavelTecnicoNome ?? this.responsavelTecnicoNome),
+      responsavelTecnicoRegistro: clearResponsavelTecnicoRegistro
+          ? null
+          : (responsavelTecnicoRegistro ?? this.responsavelTecnicoRegistro),
+      dataProjeto: clearDataProjeto ? null : (dataProjeto ?? this.dataProjeto),
       progressoPercentual: progressoPercentual ?? this.progressoPercentual,
       etapasConcluidasCount:
           etapasConcluidasCount ?? this.etapasConcluidasCount,

@@ -2,7 +2,7 @@
 title: 'Evolução dos Modelos de Domínio e Repositórios Sem Geometria'
 type: 'feature'
 created: '2026-11-17'
-status: 'in-progress'
+status: 'in-review'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '4a8aa83c1a459fe1d8f28b3143fea0a0852b558b'
@@ -82,6 +82,19 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+- **[high | defer -> Story 4]** `firestore.rules:197-249` usa `exists(...)`/`get(...)` pré-batch em `quadras`, `lotes` e `etapas` em vez de `existsAfter(...)`/`getAfter(...)`, o que rejeitaria criações atômicas pai+filho no mesmo batch para admins não-`dev`. Evidência: confirmado em `firestore.rules:197-249`; edição de `firestore.rules` é reservada à Story 4 via subagente `firestore-rules-author` conforme `AGENTS.md` e `stories.yaml`.
+- **[high | patch]** `lote_repository.dart:204-286`: atribuir equipe/funcionário diferente a uma `etapaId` já ocupada mantém entrada antiga no array do lote enquanto sobrescreve o slot único na etapa; falta também validar `etapaId` pertencente a outro lote / `etapaId` desconhecida e semear as 5 etapas padrão ao criar etapa faltante em lote legado. Evidência: confirmado em `LoteRepository._upsertVinculoInLote`.
+- **[high | patch]** `etapa_repository.dart:156-265` e `lote_repository.dart:213-341`: leituras `.get()` fora de transação seguidas de `WriteBatch` permitem lost update em atualizações concorrentes no mesmo lote. Evidência: confirmado; migrar para `_firestore.runTransaction` (quando `batch == null` no caso de `updateEtapaProgresso`).
+- **[high | patch]** `lote_repository.dart:105-108`: `updateLote` envia `toJson()` completo, sobrescrevendo campos derivados/concorrentes (`progressoPercentual`, `etapasConcluidasCount`, `etapasTotalCount`, `statusEtapasMap`, `equipesVinculadas`, `funcionariosVinculados`). Evidência: confirmado; remover essas 6 chaves do payload de `updateLote`.
+- **[medium | patch]** `etapa_repository.dart:79-132`: `createDefaultEtapas` com `SetOptions(merge: true)` e objeto completo sobrescreveria `status`, `percentual` e vínculos caso uma etapa já exista; além disso, `createLoteComEtapas` usa `DateTime.now()` em vez de `lote.createdAt`. Evidência: confirmado em `createDefaultEtapas` e `createLoteComEtapas`.
+- **[medium | patch]** `etapa_repository.dart:161-193`: `updateEtapaProgresso` aceita parâmetros de hierarquia divergentes de `loteData`, faz fallback silencioso quando `etapaId` não existe mas o `EtapaTipo` já existe ou pertence a outro lote, e não usa `doc.id` ao mapear `Etapa` do snapshot. Evidência: confirmado.
+- **[medium | patch]** `lote_repository.dart:33-55`: `appendLotesComEtapasWrites` enfileira todos os `lotes` antes de todas as `etapas`; acima de 500 ops, falha no batch 2 deixa dezenas de lotes órfãos sem etapas. Intercalar cada `lote` seguido imediatamente de suas 5 `etapas` mantém `[500, 40]` ops e minimiza risco por lote. Evidência: confirmado.
+- **[medium | patch]** `lote.dart:138-214`, `loteamento.dart:37-68`, `quadra.dart:27-45`: `copyWith` não permite limpar campos opcionais de volta para `null` (diferente de `Etapa.copyWith`); e `QuadraRepository` carece de `updateQuadra` + validação de FKs/IDs duplicados na criação em massa. Evidência: confirmado.
+- **[medium | patch]** `contracts.dart:186-205`, `etapa.dart:73-83`, `lote.dart:7-50,131-136`, `lote_repository.dart:110-211`: faltam guarda de `maxOpsPerBatch` (`1..500`), `isFinite` em números, validação de `EtapaStatus.values`, filtro de chaves/valores válidos e mapa mutável em `_statusEtapasMapFromJson`, conversão segura de chaves em `_mapListFromJson`, checagem de área finita em `calcularAreaTerreno`, guarda contra IDs vazios e leitura segura de `entry['etapaId']` em `_matchesVinculo`. Evidência: confirmado.
+- **[false | rejected]** `fromJson` falha se `createdAt`/`updatedAt` estiverem ausentes/nulos: campos obrigatórios pelo `data-contracts.md`, e `compatibleDates`/`readDate` em `contracts.dart` segue o padrão do app inteiro.
+- **[low | patch]** `equipe.g.dart`: diff cosmético de formatação fora do escopo da story; restaurar arquivo ao baseline `4a8aa83`.
+- **[high | patch]** `verification-gap`: 4 gaps reais de teste em `lote_etapas_atomic_test.dart` (`Timestamp` em `fromJson` dos 4 modelos; `percentual` explícito, clamping e erros de validação em `updateEtapaProgresso`; atribuição em lote legado sem etapas, substituição na mesma etapa, proteção de dono distinto na remoção e remoção de vínculo geral; sanitização de JSON não-nulo com mapa parcial, números fora da faixa/`NaN` e status em branco/inválido). Evidência: confirmado na suíte atual.
 
 ## Verification
 

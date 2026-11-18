@@ -30,6 +30,7 @@ class Quadra {
     String? loteamentoId,
     String? name,
     String? logradouroPadrao,
+    bool clearLogradouroPadrao = false,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -38,7 +39,9 @@ class Quadra {
       construtoraId: construtoraId ?? this.construtoraId,
       loteamentoId: loteamentoId ?? this.loteamentoId,
       name: name ?? this.name,
-      logradouroPadrao: logradouroPadrao ?? this.logradouroPadrao,
+      logradouroPadrao: clearLogradouroPadrao
+          ? null
+          : (logradouroPadrao ?? this.logradouroPadrao),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
