@@ -2,7 +2,7 @@
 title: 'Criação Manual Individual e em Massa de Loteamentos, Quadras e Lotes'
 type: 'feature'
 created: '2026-11-18'
-status: 'in-progress'
+status: 'in-review'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: 'acefc7cad96befc43dd26c58f648491e134e420a'

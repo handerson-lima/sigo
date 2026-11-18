@@ -170,7 +170,10 @@ void main() {
 
       final dataProjeto = find.byKey(const Key('lote-data-projeto'));
       await tester.ensureVisible(dataProjeto);
+      await tester.pumpAndSettle();
       await tester.enterText(dataProjeto, 'outubro/26');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
 
       final submitBtn = find.widgetWithText(ElevatedButton, 'Criar Lote');
       await tester.ensureVisible(submitBtn);
