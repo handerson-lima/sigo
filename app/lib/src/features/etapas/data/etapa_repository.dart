@@ -26,8 +26,6 @@ class EtapaRepository {
         toFirestore: (etapa, _) => etapa.toJson(),
       );
 
-  CollectionReference<Etapa> _etapasRef() => etapasCollection(_firestore);
-
   Etapa? _etapaFromSnapshot(DocumentSnapshot<Map<String, dynamic>> doc) {
     final raw = doc.data();
     if (!doc.exists || raw == null) return null;
@@ -42,23 +40,31 @@ class EtapaRepository {
     String quadraId,
     String loteId,
   ) {
-    return _etapasRef()
+    return _firestore
+        .collection('etapas')
         .where('construtoraId', isEqualTo: construtoraId)
         .where('loteamentoId', isEqualTo: loteamentoId)
         .where('quadraId', isEqualTo: quadraId)
         .where('loteId', isEqualTo: loteId)
         .orderBy('ordem')
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(_etapaFromSnapshot)
+              .whereType<Etapa>()
+              .toList(),
+        );
   }
 
   Future<void> createEtapa(Etapa etapa) async {
-    final docRef = _etapasRef().doc(etapa.id);
-    await docRef.set(etapa);
+    final docRef = _firestore.collection('etapas').doc(etapa.id);
+    await docRef.set(etapa.toJson());
   }
 
   Future<void> assignResponsavel(String etapaId, String? responsavelId) async {
-    await _etapasRef().doc(etapaId).update({'responsavelId': responsavelId});
+    await _firestore.collection('etapas').doc(etapaId).update({
+      'responsavelId': responsavelId,
+    });
   }
 
   static List<Etapa> buildDefaultEtapas({
@@ -97,7 +103,7 @@ class EtapaRepository {
     required String loteId,
     required DateTime now,
   }) {
-    final etapasRef = etapasCollection(firestore);
+    final etapasRawRef = firestore.collection('etapas');
     final etapas = buildDefaultEtapas(
       construtoraId: construtoraId,
       loteamentoId: loteamentoId,
@@ -108,7 +114,7 @@ class EtapaRepository {
     );
     for (final etapa in etapas) {
       operations.add((batch) {
-        batch.set(etapasRef.doc(etapa.id), etapa, SetOptions(merge: true));
+        batch.set(etapasRawRef.doc(etapa.id), etapa.toJson(), SetOptions(merge: true));
       });
     }
   }
@@ -129,8 +135,9 @@ class EtapaRepository {
       newId: (tipo) => '${loteId}_${tipo.name}',
       now: now,
     );
+    final etapasRawRef = _firestore.collection('etapas');
     for (final etapa in etapasDefault) {
-      batch.set(_etapasRef().doc(etapa.id), etapa, SetOptions(merge: true));
+      batch.set(etapasRawRef.doc(etapa.id), etapa.toJson(), SetOptions(merge: true));
     }
   }
 
@@ -154,14 +161,16 @@ class EtapaRepository {
       return;
     }
 
-    final existingSnap = await _etapasRef()
+    final existingSnap = await _firestore
+        .collection('etapas')
         .where('construtoraId', isEqualTo: construtoraId)
         .where('loteId', isEqualTo: loteId)
         .get();
     final existingIds = <String>{};
     final existingTipos = <EtapaTipo>{};
     for (final doc in existingSnap.docs) {
-      final etapa = doc.data().copyWith(id: doc.id);
+      final etapa = _etapaFromSnapshot(doc);
+      if (etapa == null) continue;
       existingIds.add(etapa.id);
       final resolved = etapa.tipo;
       if (resolved != null) {
@@ -188,10 +197,11 @@ class EtapaRepository {
     if (missing.isEmpty) return;
 
     final localBatch = _firestore.batch();
+    final etapasRawRef = _firestore.collection('etapas');
     for (final etapa in missing) {
       localBatch.set(
-        _etapasRef().doc(etapa.id),
-        etapa,
+        etapasRawRef.doc(etapa.id),
+        etapa.toJson(),
         SetOptions(merge: true),
       );
     }

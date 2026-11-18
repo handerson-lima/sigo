@@ -32,8 +32,6 @@ class LoteRepository {
         toFirestore: (lote, _) => lote.toJson(),
       );
 
-  CollectionReference<Lote> _lotesRef() => lotesCollection(_firestore);
-
   static String _requireNonEmpty(String value, String fieldName) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) {
@@ -97,10 +95,10 @@ class LoteRepository {
       }
     }
 
-    final lotesRef = lotesCollection(firestore);
+    final lotesRawRef = firestore.collection('lotes');
     for (final lote in lotes) {
       operations.add((batch) {
-        batch.set(lotesRef.doc(lote.id), lote);
+        batch.set(lotesRawRef.doc(lote.id), lote.toJson());
       });
       EtapaRepository.appendDefaultEtapasWrites(
         firestore: firestore,
@@ -119,19 +117,26 @@ class LoteRepository {
     String loteamentoId,
     String quadraId,
   ) {
-    return _lotesRef()
+    return _firestore
+        .collection('lotes')
         .where('construtoraId', isEqualTo: construtoraId)
         .where('loteamentoId', isEqualTo: loteamentoId)
         .where('quadraId', isEqualTo: quadraId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(_loteFromDoc)
+              .whereType<Lote>()
+              .toList(),
+        );
   }
 
   Stream<Lote?> watchLote(String loteId) {
-    return _lotesRef()
+    return _firestore
+        .collection('lotes')
         .doc(loteId)
         .snapshots()
-        .map((snapshot) => snapshot.data());
+        .map(_loteFromDoc);
   }
 
   Future<void> createLoteComEtapas(Lote lote) async {
@@ -142,8 +147,8 @@ class LoteRepository {
 
     final batch = _firestore.batch();
 
-    final docRef = _lotesRef().doc(lote.id);
-    batch.set(docRef, lote);
+    final docRef = _firestore.collection('lotes').doc(lote.id);
+    batch.set(docRef, lote.toJson());
 
     _etapaRepository.addDefaultEtapasToBatch(
       batch: batch,
