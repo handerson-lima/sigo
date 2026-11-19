@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../presentation/loteamentos_list_screen.dart';
 import '../presentation/loteamento_import_screen.dart';
 import '../presentation/loteamento_processing_screen.dart';
-import '../presentation/loteamento_canvas_screen.dart';
+import '../presentation/loteamento_draft_review_screen.dart';
 import '../../../common_widgets/access_guard.dart';
 import '../../quadras/routing/quadras_routes.dart';
 
@@ -60,7 +60,7 @@ List<RouteBase> get loteamentosRoutes => [
           return AccessGuard(
             construtoraId: cId,
             module: 'lotes',
-            child: LoteamentoCanvasScreen(
+            child: LoteamentoDraftReviewScreen(
               construtoraId: cId,
               draftId: draftId,
             ),

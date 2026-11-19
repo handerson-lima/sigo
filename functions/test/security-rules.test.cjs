@@ -9,7 +9,7 @@ const {
   assertFails
 } = require('@firebase/rules-unit-testing');
 const {
-  doc, getDoc, setDoc, updateDoc, deleteDoc,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch,
   collectionGroup, query, where, getDocs, collection
 } = require('firebase/firestore');
 const {
@@ -220,16 +220,18 @@ before(async () => {
     isPendingSync: false
   });
 
-  // 9. Rascunhos de importação DXF (loteamentos_drafts)
+  // 9. Rascunhos de importação (DXF/DWF/PDF) (loteamentos_drafts)
   batch.set(db.doc('loteamentos_drafts/draft_const_a'), {
     construtoraId: 'const_a',
     status: 'pendente',
-    features: []
+    loteamento: { nome: 'Loteamento A' },
+    items: []
   });
   batch.set(db.doc('loteamentos_drafts/draft_const_b'), {
     construtoraId: 'const_b',
     status: 'pendente',
-    features: []
+    loteamento: { nome: 'Loteamento B' },
+    items: []
   });
 
   await batch.commit();
@@ -557,9 +559,10 @@ test('7.3 Storage garante imutabilidade: update e delete bloqueados', async () =
   await assertFails(deleteObject(targetRef));
 });
 
-test('7.4 Importação de loteamento aceita apenas DXF e DWF em loteamentos_drafts_uploads', async () => {
+test('7.4 Importação de loteamento aceita apenas DXF, DWF e PDF em loteamentos_drafts_uploads', async () => {
   const memberStorage = testEnv.authenticatedContext('diary_user').storage('gs://demo-sigo.appspot.com');
   const dxfBytes = Buffer.from('0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nEOF\n');
+  const pdfBytes = Buffer.from('%PDF-1.4\n%%EOF\n');
 
   // DXF válido: MIME e extensão corretos no diretório do próprio uid
   await assertSucceeds(uploadBytes(
@@ -587,31 +590,63 @@ test('7.4 Importação de loteamento aceita apenas DXF e DWF em loteamentos_draf
     { contentType: 'application/x-dwf' }
   ));
 
+  // PDF válido: MIME e extensão corretos (minúsculo e maiúsculo)
+  await assertSucceeds(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/5_arquivo.pdf'),
+    pdfBytes,
+    { contentType: 'application/pdf' }
+  ));
+  await assertSucceeds(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/6_arquivo.PDF'),
+    pdfBytes,
+    { contentType: 'application/pdf' }
+  ));
+
   // Pares MIME/extensão trocados são rejeitados
   await assertFails(uploadBytes(
-    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/5_trocado.dwf'),
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/7_trocado.dwf'),
     dxfBytes,
     { contentType: 'application/dxf' }
   ));
   await assertFails(uploadBytes(
-    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/6_trocado.dxf'),
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/8_trocado.dxf'),
     dxfBytes,
     { contentType: 'application/x-dwf' }
   ));
-
-  // Formato não suportado (PDF/DWG) continua rejeitado
   await assertFails(uploadBytes(
-    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/7_arquivo.pdf'),
-    dxfBytes,
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/9_trocado.pdf'),
+    pdfBytes,
     { contentType: 'application/dxf' }
+  ));
+  await assertFails(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/10_trocado.dxf'),
+    dxfBytes,
+    { contentType: 'application/pdf' }
+  ));
+
+  // Formato não suportado (.dwg) continua rejeitado
+  await assertFails(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/11_arquivo.dwg'),
+    dxfBytes,
+    { contentType: 'application/acad' }
+  ));
+  await assertFails(uploadBytes(
+    ref(memberStorage, 'loteamentos_drafts_uploads/diary_user/12_arquivo.dwg'),
+    dxfBytes,
+    { contentType: 'application/pdf' }
   ));
 
   // Não é possível escrever no diretório de outro uid
   const outsiderStorage = testEnv.authenticatedContext('outsider_user').storage('gs://demo-sigo.appspot.com');
   await assertFails(uploadBytes(
-    ref(outsiderStorage, 'loteamentos_drafts_uploads/diary_user/8_invasao.dxf'),
+    ref(outsiderStorage, 'loteamentos_drafts_uploads/diary_user/13_invasao.dxf'),
     dxfBytes,
     { contentType: 'application/dxf' }
+  ));
+  await assertFails(uploadBytes(
+    ref(outsiderStorage, 'loteamentos_drafts_uploads/diary_user/14_invasao.pdf'),
+    pdfBytes,
+    { contentType: 'application/pdf' }
   ));
 });
 
@@ -666,16 +701,20 @@ test('8.3 Upload de logo: admin aceita; não-admin, tipo inválido e metadata pr
 });
 
 // ==========================================
-// 9. RASCUNHOS DE IMPORTAÇÃO DXF (loteamentos_drafts)
+// 9. RASCUNHOS DE IMPORTAÇÃO E HIERARQUIA ATÔMICA
 // ==========================================
-test('9.1 Rascunho de importação: membro da construtora lê/atualiza; create/delete e non-membro negados', async () => {
+test('9.1 Rascunho de importação: membro da construtora lê/atualiza campos permitidos; campos bloqueados, create/delete e non-membro negados', async () => {
   const rhFs = testEnv.authenticatedContext('rh_user').firestore();
 
-  // Membro ativo da construtora do rascunho lê e aprova.
+  // Membro ativo da construtora do rascunho lê e atualiza exclusivamente os campos permitidos.
   await assertSucceeds(getDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a')));
   await assertSucceeds(updateDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a'), {
+    loteamento: { nome: 'Loteamento Revisado', cidade: 'Campinas' },
+    targetLoteamentoId: 'lot_existente_1',
+    items: [{ quadra: 'Q1', lote: 'L1', areaM2: 250 }],
     status: 'aprovado',
-    consolidationRequestId: 'request-1'
+    consolidationRequestId: 'request-1',
+    updatedAt: new Date()
   }));
 
   // Membro inativo e usuário de outra construtora não leem.
@@ -694,6 +733,11 @@ test('9.1 Rascunho de importação: membro da construtora lê/atualiza; create/d
   }));
   await assertFails(deleteDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a')));
 
+  // Campo legado `features` não pode mais ser atualizado.
+  await assertFails(updateDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a'), {
+    features: [{ id: 'f1' }]
+  }));
+
   // Não é possível mover o rascunho para outra construtora.
   await assertFails(updateDoc(doc(rhFs, 'loteamentos_drafts/draft_const_a'), {
     construtoraId: 'const_b'
@@ -710,4 +754,75 @@ test('9.1 Rascunho de importação: membro da construtora lê/atualiza; create/d
   // Dev mantém acesso global.
   const devFs = testEnv.authenticatedContext('dev_user').firestore();
   await assertSucceeds(getDoc(doc(devFs, 'loteamentos_drafts/draft_const_a')));
+});
+
+test('9.2 Criação atômica em WriteBatch de loteamento + quadra + lote + etapa por admin não-dev', async () => {
+  const adminFs = testEnv.authenticatedContext('admin_user').firestore();
+
+  // Batch atômico válido: todos pertencem a const_a com referências consistentes.
+  const validBatch = writeBatch(adminFs);
+  validBatch.set(doc(adminFs, 'loteamentos/lot_batch_1'), {
+    id: 'lot_batch_1',
+    construtoraId: 'const_a',
+    nome: 'Residencial Batch'
+  });
+  validBatch.set(doc(adminFs, 'quadras/quad_batch_1'), {
+    id: 'quad_batch_1',
+    construtoraId: 'const_a',
+    loteamentoId: 'lot_batch_1',
+    nome: 'Quadra A'
+  });
+  validBatch.set(doc(adminFs, 'lotes/lote_batch_1'), {
+    id: 'lote_batch_1',
+    construtoraId: 'const_a',
+    loteamentoId: 'lot_batch_1',
+    quadraId: 'quad_batch_1',
+    numero: '01'
+  });
+  validBatch.set(doc(adminFs, 'etapas/etapa_batch_1'), {
+    id: 'etapa_batch_1',
+    construtoraId: 'const_a',
+    loteamentoId: 'lot_batch_1',
+    quadraId: 'quad_batch_1',
+    loteId: 'lote_batch_1',
+    nome: 'Fundação'
+  });
+  await assertSucceeds(validBatch.commit());
+
+  // Batch inválido: construtoraId da quadra diverge da construtora do loteamento.
+  const divergentConstBatch = writeBatch(adminFs);
+  divergentConstBatch.set(doc(adminFs, 'loteamentos/lot_batch_bad'), {
+    id: 'lot_batch_bad',
+    construtoraId: 'const_a',
+    nome: 'Residencial Divergente'
+  });
+  divergentConstBatch.set(doc(adminFs, 'quadras/quad_batch_bad'), {
+    id: 'quad_batch_bad',
+    construtoraId: 'const_b',
+    loteamentoId: 'lot_batch_bad',
+    nome: 'Quadra Invasora'
+  });
+  await assertFails(divergentConstBatch.commit());
+
+  // Batch inválido: loteamentoId do lote diverge da quadra criada no mesmo batch.
+  const divergentParentBatch = writeBatch(adminFs);
+  divergentParentBatch.set(doc(adminFs, 'loteamentos/lot_batch_2'), {
+    id: 'lot_batch_2',
+    construtoraId: 'const_a',
+    nome: 'Residencial Batch 2'
+  });
+  divergentParentBatch.set(doc(adminFs, 'quadras/quad_batch_2'), {
+    id: 'quad_batch_2',
+    construtoraId: 'const_a',
+    loteamentoId: 'lot_batch_2',
+    nome: 'Quadra B'
+  });
+  divergentParentBatch.set(doc(adminFs, 'lotes/lote_batch_2'), {
+    id: 'lote_batch_2',
+    construtoraId: 'const_a',
+    loteamentoId: 'lot_batch_1', // diverge de lot_batch_2
+    quadraId: 'quad_batch_2',
+    numero: '02'
+  });
+  await assertFails(divergentParentBatch.commit());
 });

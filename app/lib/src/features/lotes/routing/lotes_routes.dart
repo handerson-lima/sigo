@@ -2,12 +2,14 @@ import 'package:go_router/go_router.dart';
 
 import '../presentation/lotes_list_screen.dart';
 import '../presentation/add_lote_screen.dart';
+import '../presentation/lote_detail_screen.dart';
 import '../../../common_widgets/access_guard.dart';
 import '../../etapas/routing/etapas_routes.dart';
 
 abstract class LotesPaths {
   static const list = 'lotes';
   static const novo = 'novo';
+  static const detalhes = 'detalhes';
 }
 
 List<RouteBase> get lotesRoutes => [
@@ -53,7 +55,28 @@ List<RouteBase> get lotesRoutes => [
                   .replace(path: '${state.matchedLocation}/etapas')
                   .toString()
             : null,
-        routes: [...etapasRoutes],
+        routes: [
+          GoRoute(
+            path: LotesPaths.detalhes,
+            builder: (context, state) {
+              final cId = state.pathParameters['cId']!;
+              final loteamentoId = state.pathParameters['loteamentoId']!;
+              final quadraId = state.pathParameters['quadraId']!;
+              final loteId = state.pathParameters['loteId']!;
+              return AccessGuard(
+                construtoraId: cId,
+                module: 'lotes',
+                child: LoteDetailScreen(
+                  construtoraId: cId,
+                  loteamentoId: loteamentoId,
+                  quadraId: quadraId,
+                  loteId: loteId,
+                ),
+              );
+            },
+          ),
+          ...etapasRoutes,
+        ],
       ),
     ],
   ),

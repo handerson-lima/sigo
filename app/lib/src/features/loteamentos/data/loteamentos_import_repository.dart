@@ -8,6 +8,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 typedef ConsolidationRequester = Future<void> Function(String draftId);
 
+/// Arquivo selecionado pelo usuário para envio ao pipeline de importação.
+class ImportUploadFile {
+  final Uint8List bytes;
+  final String filename;
+
+  const ImportUploadFile({
+    required this.bytes,
+    required this.filename,
+  });
+}
+
 final loteamentosImportRepositoryProvider =
     Provider<LoteamentosImportRepository>((ref) {
       return LoteamentosImportRepository(
@@ -37,7 +48,7 @@ class LoteamentosImportRepository {
   });
 
   /// Realiza o upload do arquivo DXF para o Cloud Storage.
-  /// Retorna o identificador gerado que pode ser usado como ID do rascunho
+  /// Retorna o identificador gerado que pode ser usado como ID do rascunho.
   Future<String> uploadDxf({
     required String userId,
     required String construtoraId,
@@ -52,41 +63,132 @@ class LoteamentosImportRepository {
     );
   }
 
-  /// Envia um arquivo DXF ou DWF para criar um rascunho revisável.
+  /// Envia um arquivo PDF, DXF ou DWF para criar ou complementar um rascunho
+  /// tabular revisável.
   Future<String> uploadFile({
     required String userId,
     required String construtoraId,
     required Uint8List fileBytes,
     required String filename,
+    String? draftId,
+    String? targetLoteamentoId,
+    String? loteamentoNameOverride,
+    int? fileIndex,
   }) async {
-    final loteamentoName = loteamentoNameFromFilename(filename);
+    final parsedName = loteamentoNameFromFilename(filename);
     final contentType = contentTypeFromFilename(filename);
-    if (loteamentoName == null || contentType == null) {
+    if (parsedName == null || contentType == null) {
       throw ArgumentError.value(
         filename,
         'filename',
-        'Envie um arquivo DXF ou DWF válido',
+        'Envie um arquivo PDF, DXF ou DWF válido',
       );
     }
+
+    final effectiveLoteamentoName =
+        (loteamentoNameOverride != null &&
+                loteamentoNameOverride.trim().isNotEmpty)
+            ? loteamentoNameOverride.trim()
+            : parsedName;
+
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    // O arquivo é salvo com um prefixo único
-    final uniqueFilename = '${timestamp}_$filename';
+    final prefix = fileIndex != null ? '${timestamp}_$fileIndex' : '$timestamp';
+    final uniqueFilename = '${prefix}_$filename';
+    final effectiveDraftId =
+        (draftId != null && draftId.trim().isNotEmpty)
+            ? draftId.trim()
+            : uniqueFilename;
+
     final path = 'loteamentos_drafts_uploads/$userId/$uniqueFilename';
     final ref = _storage.ref(path);
+
+    final customMetadata = <String, String>{
+      'construtoraId': construtoraId,
+      'loteamentoName': effectiveLoteamentoName,
+      'originalFilename': filename,
+      if (draftId != null && draftId.trim().isNotEmpty)
+        'draftId': effectiveDraftId,
+      if (targetLoteamentoId != null && targetLoteamentoId.trim().isNotEmpty)
+        'targetLoteamentoId': targetLoteamentoId.trim(),
+    };
 
     await ref.putData(
       fileBytes,
       SettableMetadata(
         contentType: contentType,
-        customMetadata: {
-          'construtoraId': construtoraId,
-          'loteamentoName': loteamentoName,
-        },
+        customMetadata: customMetadata,
       ),
     );
 
-    // Retorna o identificador único para escutar no Firestore
-    return uniqueFilename;
+    return effectiveDraftId;
+  }
+
+  /// Envia um ou mais arquivos PDF, DXF ou DWF para o mesmo rascunho.
+  ///
+  /// Quando múltiplos arquivos são enviados juntos, todos recebem o mesmo
+  /// `draftId` nos metadados customizados do Storage para que o backend faça
+  /// merge transacional de `items` e `sourceFiles` em `loteamentos_drafts/{draftId}`.
+  Future<String> uploadFiles({
+    required String userId,
+    required String construtoraId,
+    required List<ImportUploadFile> files,
+    String? targetLoteamentoId,
+    String? loteamentoNameOverride,
+  }) async {
+    if (files.isEmpty) {
+      throw ArgumentError.value(
+        files,
+        'files',
+        'Selecione ao menos um arquivo PDF, DXF ou DWF',
+      );
+    }
+
+    for (final file in files) {
+      if (loteamentoNameFromFilename(file.filename) == null ||
+          contentTypeFromFilename(file.filename) == null) {
+        throw ArgumentError.value(
+          file.filename,
+          'files',
+          'Envie apenas arquivos PDF, DXF ou DWF válidos',
+        );
+      }
+    }
+
+    if (files.length == 1) {
+      final only = files.first;
+      return uploadFile(
+        userId: userId,
+        construtoraId: construtoraId,
+        fileBytes: only.bytes,
+        filename: only.filename,
+        targetLoteamentoId: targetLoteamentoId,
+        loteamentoNameOverride: loteamentoNameOverride,
+      );
+    }
+
+    final sharedDraftId =
+        'draft_${DateTime.now().toUtc().millisecondsSinceEpoch}_${Random.secure().nextInt(0x7fffffff)}';
+    final defaultLoteamentoName =
+        (loteamentoNameOverride != null &&
+                loteamentoNameOverride.trim().isNotEmpty)
+            ? loteamentoNameOverride.trim()
+            : loteamentoNameFromFilename(files.first.filename)!;
+
+    for (var i = 0; i < files.length; i++) {
+      final file = files[i];
+      await uploadFile(
+        userId: userId,
+        construtoraId: construtoraId,
+        fileBytes: file.bytes,
+        filename: file.filename,
+        draftId: sharedDraftId,
+        targetLoteamentoId: targetLoteamentoId,
+        loteamentoNameOverride: defaultLoteamentoName,
+        fileIndex: i,
+      );
+    }
+
+    return sharedDraftId;
   }
 
   static String? contentTypeFromFilename(String filename) {
@@ -95,6 +197,8 @@ class LoteamentosImportRepository {
       return null;
     }
     switch (filename.substring(lastDot).toLowerCase()) {
+      case '.pdf':
+        return 'application/pdf';
       case '.dxf':
         return 'application/dxf';
       case '.dwf':
@@ -113,7 +217,7 @@ class LoteamentosImportRepository {
     return name.isEmpty ? null : name;
   }
 
-  /// Escuta a criação/atualização do rascunho na coleção loteamentos_drafts
+  /// Escuta a criação/atualização do rascunho na coleção `loteamentos_drafts`.
   Stream<Map<String, dynamic>?> watchDraft(String draftId) {
     return _firestore
         .collection('loteamentos_drafts')
@@ -127,7 +231,29 @@ class LoteamentosImportRepository {
         });
   }
 
-  /// Atualiza as propriedades de uma feature específica no rascunho
+  /// Persiste alterações da revisão tabular no documento `loteamentos_drafts/{draftId}`.
+  Future<void> saveDraftReview({
+    required String draftId,
+    required Map<String, dynamic> loteamento,
+    String? targetLoteamentoId,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final docRef = _firestore.collection('loteamentos_drafts').doc(draftId);
+    final normalizedTarget =
+        (targetLoteamentoId != null && targetLoteamentoId.trim().isNotEmpty)
+            ? targetLoteamentoId.trim()
+            : null;
+
+    await docRef.update({
+      'loteamento': loteamento,
+      'targetLoteamentoId': normalizedTarget,
+      'items': items,
+      'updatedAt': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  /// Atualiza as propriedades de uma feature específica no rascunho legado.
+  @Deprecated('Fluxo geométrico substituído pela revisão tabular (saveDraftReview)')
   Future<void> updateDraftFeature(
     String draftId,
     int featureIndex,
@@ -169,15 +295,49 @@ class LoteamentosImportRepository {
   /// Atualiza o status do rascunho inteiro para aprovado e registra a
   /// solicitação de consolidação consumida pelo backend.
   Future<void> approveDraft(String draftId) async {
+    await _commitApproval(draftId: draftId, extraFields: const {});
+  }
+
+  /// Persiste os dados revisados do rascunho tabular (`loteamento`,
+  /// `targetLoteamentoId`, `items`), marca `status: 'aprovado'`, grava
+  /// `consolidationRequestId` e `updatedAt` e dispara a consolidação.
+  Future<void> approveTabularDraft({
+    required String draftId,
+    required Map<String, dynamic> loteamento,
+    String? targetLoteamentoId,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final normalizedTarget =
+        (targetLoteamentoId != null && targetLoteamentoId.trim().isNotEmpty)
+            ? targetLoteamentoId.trim()
+            : null;
+    await _commitApproval(
+      draftId: draftId,
+      extraFields: {
+        'loteamento': loteamento,
+        'targetLoteamentoId': normalizedTarget,
+        'items': items,
+      },
+    );
+  }
+
+  Future<void> _commitApproval({
+    required String draftId,
+    required Map<String, dynamic> extraFields,
+  }) async {
     final docRef = _firestore.collection('loteamentos_drafts').doc(draftId);
     final requestId =
         '${DateTime.now().toUtc().microsecondsSinceEpoch}-${Random.secure().nextInt(0x7fffffff)}';
-    await docRef.update({
+    final payload = <String, dynamic>{
+      ...extraFields,
       'status': 'aprovado',
       // Cada confirmação cria uma solicitação distinta, inclusive quando o
       // rascunho já está aprovado e precisa ser consolidado novamente.
       'consolidationRequestId': requestId,
-    });
+      'updatedAt': DateTime.now().toUtc().toIso8601String(),
+    };
+
+    await docRef.update(payload);
     // Retry manual do design: se o gatilho não disparar, a callable consolida.
     // Uma falha aqui não bloqueia a aprovação já persistida.
     try {

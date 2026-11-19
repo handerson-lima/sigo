@@ -31,14 +31,16 @@ class MockStorageObjectData:
         self.metadata = metadata or {'construtoraId': 'construtora-1', 'loteamentoName': 'arquivo'}
 
 
-def _event(filename='123_arquivo.dxf'):
-    return MockCloudEvent(MockStorageObjectData(f'loteamentos_drafts_uploads/user/{filename}'))
+def _event(filename='123_arquivo.dxf', metadata=None):
+    return MockCloudEvent(
+        MockStorageObjectData(f'loteamentos_drafts_uploads/user/{filename}', metadata=metadata)
+    )
 
 
 @patch('main.storage.Client')
 def test_processar_dxf_ignora_rota_e_formatos_nao_suportados(mock_storage):
     processar_dxf(MockCloudEvent(MockStorageObjectData('uploads/user/arquivo.dxf')))
-    for filename in ('arquivo.dwg', 'arquivo.pdf', 'arquivo.txt'):
+    for filename in ('arquivo.dwg', 'arquivo.txt', 'arquivo.png'):
         processar_dxf(_event(filename))
     mock_storage.assert_not_called()
 
@@ -52,10 +54,58 @@ def test_processar_dxf_valida_tamanho_antes_do_download(mock_storage):
 
 
 @patch('main.save_draft_to_firestore')
-@patch('main.extract_dxf_geojson')
+@patch('main.extract_pdf_draft')
+@patch('main.storage.Client')
+def test_processar_dxf_cria_rascunho_tabular_a_partir_de_pdf_com_draft_id_compartilhado(
+    mock_storage, mock_extract_pdf, mock_save,
+):
+    mock_extract_pdf.return_value = {
+        'loteamento': {'name': 'Loteamento Jardim Botanico'},
+        'sourceFormat': 'pdf',
+        'sourceFiles': [{'filename': 'lote_31_q28.pdf', 'pageCount': 1, 'status': 'processado'}],
+        'items': [{'quadra': 'Quadra 28', 'nome': 'Lote 31', 'status': 'valido'}],
+    }
+    blob = MagicMock()
+    mock_storage.return_value.bucket.return_value.blob.return_value = blob
+
+    event = _event(
+        '123_lote_31_q28.pdf',
+        metadata={
+            'construtoraId': 'construtora-1',
+            'draftId': 'draft-compartilhado-1',
+            'targetLoteamentoId': 'lot-existente-1',
+            'originalFilename': 'lote_31_q28.pdf',
+        },
+    )
+    processar_dxf(event)
+
+    mock_extract_pdf.assert_called_once()
+    assert mock_extract_pdf.call_args.kwargs == {'filename': 'lote_31_q28.pdf'}
+    mock_save.assert_called_once_with(
+        'draft-compartilhado-1',
+        mock_extract_pdf.return_value,
+        {
+            'construtoraId': 'construtora-1',
+            'targetLoteamentoId': 'lot-existente-1',
+            'status': 'pendente',
+            'sourceFormat': 'pdf',
+        },
+    )
+    temporary_path = blob.download_to_filename.call_args.args[0]
+    assert temporary_path.endswith('.pdf')
+    assert not os.path.exists(temporary_path)
+
+
+@patch('main.save_draft_to_firestore')
+@patch('main.extract_dxf_draft')
 @patch('main.storage.Client')
 def test_processar_dxf_cria_rascunho_revisavel(mock_storage, mock_extract, mock_save):
-    mock_extract.return_value = {'type': 'FeatureCollection', 'features': [{'type': 'Feature'}]}
+    mock_extract.return_value = {
+        'loteamento': {},
+        'sourceFormat': 'dxf',
+        'sourceFiles': [{'filename': '123_arquivo.dxf', 'pageCount': 1, 'status': 'processado'}],
+        'items': [{'quadra': 'Q-01', 'nome': '1', 'status': 'valido'}],
+    }
     blob = MagicMock()
     mock_storage.return_value.bucket.return_value.blob.return_value = blob
 
@@ -72,12 +122,17 @@ def test_processar_dxf_cria_rascunho_revisavel(mock_storage, mock_extract, mock_
 
 
 @patch('main.save_draft_to_firestore')
-@patch('main.extract_dwf_geojson')
+@patch('main.extract_dwf_draft')
 @patch('main.storage.Client')
 def test_processar_dxf_cria_rascunho_revisavel_a_partir_de_dwf(
     mock_storage, mock_extract_dwf, mock_save,
 ):
-    mock_extract_dwf.return_value = {'type': 'FeatureCollection', 'features': [{'type': 'Feature'}]}
+    mock_extract_dwf.return_value = {
+        'loteamento': {},
+        'sourceFormat': 'dwf',
+        'sourceFiles': [{'filename': '123_arquivo.dwf', 'pageCount': 1, 'status': 'processado'}],
+        'items': [{'quadra': 'Q-01', 'nome': '1', 'status': 'valido'}],
+    }
     blob = MagicMock()
     mock_storage.return_value.bucket.return_value.blob.return_value = blob
 
@@ -94,10 +149,10 @@ def test_processar_dxf_cria_rascunho_revisavel_a_partir_de_dwf(
 
 
 @patch('main.save_draft_to_firestore')
-@patch('main.extract_dxf_geojson')
+@patch('main.extract_dxf_draft')
 @patch('main.storage.Client')
 def test_processar_dxf_aceita_extensao_maiuscula(mock_storage, mock_extract, mock_save):
-    mock_extract.return_value = {'type': 'FeatureCollection', 'features': [{'type': 'Feature'}]}
+    mock_extract.return_value = {'loteamento': {}, 'sourceFormat': 'dxf', 'sourceFiles': [], 'items': []}
     mock_storage.return_value.bucket.return_value.blob.return_value = MagicMock()
 
     processar_dxf(_event('123_ARQUIVO.DXF'))
@@ -106,10 +161,10 @@ def test_processar_dxf_aceita_extensao_maiuscula(mock_storage, mock_extract, moc
 
 
 @patch('main.save_draft_to_firestore')
-@patch('main.extract_dwf_geojson')
+@patch('main.extract_dwf_draft')
 @patch('main.storage.Client')
 def test_processar_dxf_aceita_dwf_extensao_maiuscula(mock_storage, mock_extract_dwf, mock_save):
-    mock_extract_dwf.return_value = {'type': 'FeatureCollection', 'features': [{'type': 'Feature'}]}
+    mock_extract_dwf.return_value = {'loteamento': {}, 'sourceFormat': 'dwf', 'sourceFiles': [], 'items': []}
     mock_storage.return_value.bucket.return_value.blob.return_value = MagicMock()
 
     processar_dxf(_event('123_ARQUIVO.DWF'))
@@ -118,7 +173,26 @@ def test_processar_dxf_aceita_dwf_extensao_maiuscula(mock_storage, mock_extract_
 
 
 @patch('main.save_draft_to_firestore')
-@patch('main.extract_dxf_geojson')
+@patch('main.extract_pdf_draft')
+@patch('main.storage.Client')
+def test_processar_dxf_gera_erro_terminal_em_pdf_invalido(mock_storage, mock_extract_pdf, mock_save):
+    from pdf_extraction import PdfExtractionError
+    mock_extract_pdf.side_effect = PdfExtractionError('PDF inválido ou corrompido.')
+    mock_storage.return_value.bucket.return_value.blob.return_value = MagicMock()
+
+    processar_dxf(_event('123_prancha.pdf'))
+
+    _, payload, metadata = mock_save.call_args.args
+    assert 'features' not in payload
+    assert payload['items'] == []
+    assert payload['sourceFiles'][0]['status'] == 'erro'
+    assert metadata['status'] == 'erro'
+    assert metadata['sourceFormat'] == 'pdf'
+    assert 'PDF inválido' in metadata['processingError']
+
+
+@patch('main.save_draft_to_firestore')
+@patch('main.extract_dxf_draft')
 @patch('main.storage.Client')
 def test_processar_dxf_gera_erro_terminal_sem_geometria(mock_storage, mock_extract, mock_save):
     from dxf_extraction import DxfExtractionError
@@ -127,15 +201,16 @@ def test_processar_dxf_gera_erro_terminal_sem_geometria(mock_storage, mock_extra
 
     processar_dxf(_event())
 
-    _, geojson, metadata = mock_save.call_args.args
-    assert geojson == {'type': 'FeatureCollection', 'features': []}
+    _, payload, metadata = mock_save.call_args.args
+    assert 'features' not in payload
+    assert payload['items'] == []
     assert metadata['status'] == 'erro'
     assert metadata['sourceFormat'] == 'dxf'
     assert 'contornos utilizáveis' in metadata['processingError']
 
 
 @patch('main.save_draft_to_firestore')
-@patch('main.extract_dwf_geojson')
+@patch('main.extract_dwf_draft')
 @patch('main.storage.Client')
 def test_processar_dxf_gera_erro_terminal_em_dwf_invalido(
     mock_storage, mock_extract_dwf, mock_save,
@@ -146,14 +221,15 @@ def test_processar_dxf_gera_erro_terminal_em_dwf_invalido(
 
     processar_dxf(_event('123_arquivo.dwf'))
 
-    _, geojson, metadata = mock_save.call_args.args
-    assert geojson == {'type': 'FeatureCollection', 'features': []}
+    _, payload, metadata = mock_save.call_args.args
+    assert 'features' not in payload
+    assert payload['items'] == []
     assert metadata['status'] == 'erro'
     assert metadata['sourceFormat'] == 'dwf'
     assert 'application/x-w2d' in metadata['processingError']
 
 
-@patch('main.extract_dxf_geojson')
+@patch('main.extract_dxf_draft')
 @patch('main.storage.Client')
 def test_processar_dxf_limpa_temporario_em_falha_transitoria(mock_storage, mock_extract):
     blob = MagicMock()

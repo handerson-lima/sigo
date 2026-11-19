@@ -40,11 +40,11 @@ class _LoteamentoProcessingScreenState extends ConsumerState<LoteamentoProcessin
                   CircularProgressIndicator(),
                   SizedBox(height: 24),
                   Text(
-                    'Processando Geometria...',
+                    'Processando Importação...',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 8),
-                  Text('Aguarde enquanto o servidor converte os polígonos. Não feche esta tela.'),
+                  Text('Aguarde enquanto o servidor extrai os dados cadastrais dos arquivos. Não feche esta tela.'),
                 ],
               );
             }
@@ -55,7 +55,7 @@ class _LoteamentoProcessingScreenState extends ConsumerState<LoteamentoProcessin
                 children: [
                   const Icon(Icons.error, color: Colors.red, size: 64),
                   const SizedBox(height: 16),
-                  Text('Não foi possível extrair a geometria:\n${data['processingError'] ?? 'erro desconhecido'}', textAlign: TextAlign.center),
+                  Text('Não foi possível extrair os dados do arquivo:\n${data['processingError'] ?? 'erro desconhecido'}', textAlign: TextAlign.center),
                   const SizedBox(height: 16),
                   ElevatedButton(onPressed: () => context.pop(), child: const Text('Voltar')),
                 ],

@@ -194,9 +194,9 @@ match /construtoras/{c} {
   }
    // --- Hierarquia estrutural (top-level): loteamentos > quadras > lotes > etapas > equipes
    function hierarchyRead(c) { return admin(c) || (member(c) && 'lotes' in cm(c).get('modules', [])); }
-   function loteamentoConstrutora(l) { return get(/databases/$(database)/documents/loteamentos/$(l)).data.construtoraId; }
-   function quadraData(q) { return get(/databases/$(database)/documents/quadras/$(q)).data; }
-   function loteData(l) { return get(/databases/$(database)/documents/lotes/$(l)).data; }
+   function loteamentoConstrutoraAfter(l) { return getAfter(/databases/$(database)/documents/loteamentos/$(l)).data.construtoraId; }
+   function quadraDataAfter(q) { return getAfter(/databases/$(database)/documents/quadras/$(q)).data; }
+   function loteDataAfter(l) { return getAfter(/databases/$(database)/documents/lotes/$(l)).data; }
    function etapaData(e) { return get(/databases/$(database)/documents/etapas/$(e)).data; }
 
    match /loteamentos/{id} {
@@ -210,8 +210,8 @@ match /construtoras/{c} {
      allow read: if hierarchyRead(resource.data.construtoraId);
      allow create: if admin(request.resource.data.construtoraId)
        && request.resource.data.loteamentoId is string
-       && exists(/databases/$(database)/documents/loteamentos/$(request.resource.data.loteamentoId))
-       && loteamentoConstrutora(request.resource.data.loteamentoId) == request.resource.data.construtoraId;
+       && existsAfter(/databases/$(database)/documents/loteamentos/$(request.resource.data.loteamentoId))
+       && loteamentoConstrutoraAfter(request.resource.data.loteamentoId) == request.resource.data.construtoraId;
      allow update: if admin(resource.data.construtoraId)
        && request.resource.data.construtoraId == resource.data.construtoraId
        && request.resource.data.loteamentoId == resource.data.loteamentoId;
@@ -222,9 +222,9 @@ match /construtoras/{c} {
      allow read: if hierarchyRead(resource.data.construtoraId);
      allow create: if admin(request.resource.data.construtoraId)
        && request.resource.data.quadraId is string
-       && exists(/databases/$(database)/documents/quadras/$(request.resource.data.quadraId))
-       && quadraData(request.resource.data.quadraId).construtoraId == request.resource.data.construtoraId
-       && quadraData(request.resource.data.quadraId).loteamentoId == request.resource.data.loteamentoId;
+       && existsAfter(/databases/$(database)/documents/quadras/$(request.resource.data.quadraId))
+       && quadraDataAfter(request.resource.data.quadraId).construtoraId == request.resource.data.construtoraId
+       && quadraDataAfter(request.resource.data.quadraId).loteamentoId == request.resource.data.loteamentoId;
      allow update: if admin(resource.data.construtoraId)
        && request.resource.data.construtoraId == resource.data.construtoraId
        && request.resource.data.loteamentoId == resource.data.loteamentoId
@@ -236,10 +236,10 @@ match /construtoras/{c} {
      allow read: if hierarchyRead(resource.data.construtoraId);
      allow create: if admin(request.resource.data.construtoraId)
        && request.resource.data.loteId is string
-       && exists(/databases/$(database)/documents/lotes/$(request.resource.data.loteId))
-       && loteData(request.resource.data.loteId).construtoraId == request.resource.data.construtoraId
-       && loteData(request.resource.data.loteId).loteamentoId == request.resource.data.loteamentoId
-       && loteData(request.resource.data.loteId).quadraId == request.resource.data.quadraId;
+       && existsAfter(/databases/$(database)/documents/lotes/$(request.resource.data.loteId))
+       && loteDataAfter(request.resource.data.loteId).construtoraId == request.resource.data.construtoraId
+       && loteDataAfter(request.resource.data.loteId).loteamentoId == request.resource.data.loteamentoId
+       && loteDataAfter(request.resource.data.loteId).quadraId == request.resource.data.quadraId;
      allow update: if admin(resource.data.construtoraId)
        && request.resource.data.construtoraId == resource.data.construtoraId
        && request.resource.data.loteamentoId == resource.data.loteamentoId
@@ -266,13 +266,13 @@ match /construtoras/{c} {
      allow delete: if admin(resource.data.construtoraId);
    }
 
-   // Rascunhos de importação DXF: o membro ativo da construtora do rascunho
-   // revisa as features e aprova; criação e exclusão são exclusivas do backend.
+   // Rascunhos de importação (DXF/DWF/PDF): o membro ativo da construtora do rascunho
+   // revisa os itens e aprova; criação e exclusão são exclusivas do backend.
    match /loteamentos_drafts/{draft_id} {
      allow read: if member(resource.data.construtoraId);
      allow update: if member(resource.data.construtoraId)
        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-         ['features', 'status', 'consolidationRequestId', 'updatedAt']
+         ['loteamento', 'targetLoteamentoId', 'items', 'status', 'consolidationRequestId', 'updatedAt']
        );
      allow create, delete: if false;
    }

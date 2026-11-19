@@ -18,8 +18,9 @@ from firebase_admin import initialize_app, firestore
 initialize_app()
 logger = logging.getLogger(__name__)
 
-from dwf_extraction import DwfExtractionError, extract_dwf_geojson
-from dxf_extraction import DxfExtractionError, extract_dxf_geojson
+from dwf_extraction import DwfExtractionError, extract_dwf_draft
+from dxf_extraction import DxfExtractionError, extract_dxf_draft
+from pdf_extraction import PdfExtractionError, extract_pdf_draft
 from firestore_utils import (
     DraftPersistenceError,
     consolidate_approved_draft,
@@ -121,15 +122,41 @@ def _is_active_member(uid: str, construtora_id: str) -> bool:
 def _upload_metadata(file_data):
     """Extract the information needed after the Storage event has finished."""
     metadata = getattr(file_data, 'metadata', None) or {}
-    construtora_id = metadata.get('construtoraId') if isinstance(metadata, dict) else None
-    loteamento_name = metadata.get('loteamentoName') if isinstance(metadata, dict) else None
-    if not construtora_id or not loteamento_name:
-        raise DraftPersistenceError('Upload sem construtoraId ou loteamentoName')
-    return {
+    if not isinstance(metadata, dict):
+        metadata = {}
+    construtora_id = metadata.get('construtoraId')
+    if not construtora_id:
+        raise DraftPersistenceError('Upload sem construtoraId')
+    result = {
         'construtoraId': construtora_id,
-        'loteamentoName': loteamento_name,
         'status': 'pendente',
     }
+    loteamento_name = metadata.get('loteamentoName')
+    if isinstance(loteamento_name, str) and loteamento_name.strip():
+        result['loteamentoName'] = loteamento_name.strip()
+    target_loteamento_id = metadata.get('targetLoteamentoId')
+    if isinstance(target_loteamento_id, str) and target_loteamento_id.strip():
+        result['targetLoteamentoId'] = target_loteamento_id.strip()
+    return result
+
+
+def _resolve_draft_id(file_data) -> str:
+    """Resolve o draftId compartilhado (metadado ``draftId``) ou o nome do arquivo."""
+    metadata = getattr(file_data, 'metadata', None) or {}
+    if isinstance(metadata, dict):
+        draft_id = metadata.get('draftId')
+        if isinstance(draft_id, str) and draft_id.strip():
+            return draft_id.strip()
+    return file_data.name.split('/')[-1]
+
+
+def _resolve_original_filename(file_data) -> str:
+    metadata = getattr(file_data, 'metadata', None) or {}
+    if isinstance(metadata, dict):
+        original = metadata.get('originalFilename')
+        if isinstance(original, str) and original.strip():
+            return original.strip()
+    return file_data.name.split('/')[-1]
 
 
 @storage_fn.on_object_finalized(
@@ -140,7 +167,7 @@ def _upload_metadata(file_data):
 def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     """
     Background Cloud Function to be triggered by Cloud Storage.
-    Path expected: loteamentos_drafts_uploads/{userId}/{timestamp}_{filename}.dxf
+    Path expected: loteamentos_drafts_uploads/{userId}/{timestamp}_{filename}.{pdf|dxf|dwf}
     """
     file_data = event.data
     logger.debug(f"Processing {getattr(file_data, 'name', 'NO_NAME')}")
@@ -158,7 +185,10 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
         return
 
     file_name_lower = file_data.name.lower()
-    if file_name_lower.endswith('.dxf'):
+    if file_name_lower.endswith('.pdf'):
+        file_suffix = '.pdf'
+        source_format = 'pdf'
+    elif file_name_lower.endswith('.dxf'):
         file_suffix = '.dxf'
         source_format = 'dxf'
     elif file_name_lower.endswith('.dwf'):
@@ -193,34 +223,55 @@ def processar_dxf(event: storage_fn.CloudEvent[storage_fn.StorageObjectData]):
     bucket = storage_client.bucket(file_data.bucket)
     blob = bucket.blob(file_data.name, generation=file_data.generation)
 
+    draft_id = _resolve_draft_id(file_data)
+    original_filename = _resolve_original_filename(file_data)
+
     fd, temp_local_filename = tempfile.mkstemp(suffix=file_suffix)
     try:
         blob.download_to_filename(temp_local_filename)
         logger.info(f"Downloaded {file_data.name} to {temp_local_filename}")
-        if source_format == 'dwf':
-            geojson = extract_dwf_geojson(temp_local_filename)
+        if source_format == 'pdf':
+            draft_payload = extract_pdf_draft(temp_local_filename, filename=original_filename)
+        elif source_format == 'dwf':
+            draft_payload = extract_dwf_draft(temp_local_filename, filename=original_filename)
         else:
-            geojson = extract_dxf_geojson(temp_local_filename)
-        draft_id = file_data.name.split('/')[-1]
+            draft_payload = extract_dxf_draft(temp_local_filename, filename=original_filename)
         save_draft_to_firestore(
-            draft_id, geojson, {**_upload_metadata(file_data), 'sourceFormat': source_format},
+            draft_id,
+            draft_payload,
+            {**_upload_metadata(file_data), 'sourceFormat': source_format},
         )
         logger.info(f"Processamento {source_format.upper()} concluído. Rascunho {draft_id} salvo com sucesso.")
-            
+
     except (IOError, OSError) as e:
         logger.error(f"Transient error processing {file_data.name}: {e}")
         raise
     except DraftPersistenceError:
         logger.exception(f"Fatal error persisting {file_data.name}")
-        # Sem raise para evitar loop infinito de poison messages do DXF para o Firestore
-    except (DxfExtractionError, DwfExtractionError) as error:
+        # Sem raise para evitar loop infinito de poison messages para o Firestore
+    except (PdfExtractionError, DxfExtractionError, DwfExtractionError) as error:
         logger.error('%s_INVALID: %s', source_format.upper(), error)
-        draft_id = file_data.name.split('/')[-1]
         save_draft_to_firestore(
             draft_id,
-            {'type': 'FeatureCollection', 'features': []},
-            {**_upload_metadata(file_data), 'status': 'erro',
-             'sourceFormat': source_format, 'processingError': str(error)},
+            {
+                'loteamento': {},
+                'sourceFormat': source_format,
+                'sourceFiles': [
+                    {
+                        'filename': original_filename,
+                        'pageCount': 0,
+                        'status': 'erro',
+                        'error': str(error),
+                    }
+                ],
+                'items': [],
+            },
+            {
+                **_upload_metadata(file_data),
+                'status': 'erro',
+                'sourceFormat': source_format,
+                'processingError': str(error),
+            },
         )
     except Exception as e:
         logger.error(f"Unhandled error processing {file_data.name}: {e}")

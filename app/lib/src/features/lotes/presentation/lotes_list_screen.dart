@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/lote_repository.dart';
+import 'atribuir_lotacao_lote_sheet.dart';
+import 'lote_summary_card.dart';
 import '../../../common_widgets/sigo_breadcrumbs.dart';
 import '../../../common_widgets/sigo_empty_state.dart';
 import '../../../common_widgets/sigo_error_state.dart';
@@ -79,14 +81,75 @@ class LotesListScreen extends ConsumerWidget {
                   );
                 }
 
-                return ListView.builder(
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    return ListTile(
-                      title: Text(item.name),
-                      onTap: () {
-                        context.go('$baseRoute/${item.id}/etapas');
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth >= 1200
+                        ? 3
+                        : constraints.maxWidth >= 820
+                        ? 2
+                        : 1;
+                    final rowCount = (items.length / columns).ceil();
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
+                      itemCount: rowCount,
+                      itemBuilder: (context, rowIndex) {
+                        if (columns == 1) {
+                          final item = items[rowIndex];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: LoteSummaryCard(
+                              lote: item,
+                              isAdmin: isAdmin,
+                              onTap: () =>
+                                  context.go('$baseRoute/${item.id}/detalhes'),
+                              onAtribuirTap: isAdmin
+                                  ? () => showAtribuirLotacaoLoteSheet(
+                                      context: context,
+                                      construtoraId: construtoraId,
+                                      lote: item,
+                                    )
+                                  : null,
+                            ),
+                          );
+                        }
+
+                        final start = rowIndex * columns;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: List.generate(columns, (colIndex) {
+                              final itemIndex = start + colIndex;
+                              return Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    left: colIndex == 0 ? 0 : 6,
+                                    right: colIndex == columns - 1 ? 0 : 6,
+                                  ),
+                                  child: itemIndex < items.length
+                                      ? LoteSummaryCard(
+                                          lote: items[itemIndex],
+                                          isAdmin: isAdmin,
+                                          onTap: () => context.go(
+                                            '$baseRoute/${items[itemIndex].id}/detalhes',
+                                          ),
+                                          onAtribuirTap: isAdmin
+                                              ? () =>
+                                                    showAtribuirLotacaoLoteSheet(
+                                                      context: context,
+                                                      construtoraId:
+                                                          construtoraId,
+                                                      lote: items[itemIndex],
+                                                    )
+                                              : null,
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                              );
+                            }),
+                          ),
+                        );
                       },
                     );
                   },

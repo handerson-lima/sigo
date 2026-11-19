@@ -1,4 +1,5 @@
 import logging
+import math
 import re
 from shapely.geometry import Point
 
@@ -273,4 +274,155 @@ def build_geojson(
         "features": features
     }
     return geojson
+
+
+def _polygon_dimensions(
+    poly,
+    *,
+    linear_scale: float = 1.0,
+    area_scale: float = 1.0,
+) -> tuple[float | None, float | None, float | None]:
+    """Calcula ``(frenteM, profundidadeM, areaTerrenoM2)`` aproximados da envolvente."""
+    if poly is None or poly.is_empty:
+        return None, None, None
+    safe_linear = linear_scale if linear_scale and linear_scale > 0 else 1.0
+    safe_area = area_scale if area_scale and area_scale > 0 else (safe_linear ** 2)
+
+    area_m2 = round(float(poly.area) / safe_area, 2) if poly.area > 0 else None
+
+    frente_m: float | None = None
+    profundidade_m: float | None = None
+    try:
+        mrr = poly.minimum_rotated_rectangle
+        coords = list(mrr.exterior.coords) if hasattr(mrr, 'exterior') else []
+        if len(coords) >= 4:
+            edge1 = math.hypot(coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]) / safe_linear
+            edge2 = math.hypot(coords[2][0] - coords[1][0], coords[2][1] - coords[1][1]) / safe_linear
+            if edge1 > 0 and edge2 > 0:
+                frente_m = round(min(edge1, edge2), 2)
+                profundidade_m = round(max(edge1, edge2), 2)
+    except Exception:
+        frente_m = None
+        profundidade_m = None
+
+    if frente_m is None or profundidade_m is None:
+        minx, miny, maxx, maxy = poly.bounds
+        w = abs(maxx - minx) / safe_linear
+        h = abs(maxy - miny) / safe_linear
+        if w > 0 and h > 0:
+            frente_m = round(min(w, h), 2)
+            profundidade_m = round(max(w, h), 2)
+
+    return frente_m, profundidade_m, area_m2
+
+
+def build_tabular_items(
+    association,
+    textos,
+    quadra_polygons,
+    lote_polygons,
+    *,
+    max_quadra_label_distance=QUADRA_LABEL_MAX_DISTANCE,
+    linear_scale: float = 1.0,
+    area_scale: float = 1.0,
+    source_file: str | None = None,
+    source_page: int = 1,
+) -> list[dict]:
+    """Constrói itens tabulares sem geometria para ``loteamentos_drafts.items``."""
+    parsed_texts = []
+    for txt in textos:
+        val, pt = extract_text(txt)
+        if val and pt is not None:
+            parsed_texts.append((val, pt.x, pt.y, Point(pt.x, pt.y)))
+
+    quadra_nome_cache = {}
+
+    def _resolve_quadra_nome(q_entity, quadra_poly):
+        if q_entity in quadra_nome_cache:
+            return quadra_nome_cache[q_entity]
+        if quadra_poly is None or quadra_poly.is_empty:
+            quadra_nome_cache[q_entity] = ""
+            return ""
+        minx, miny, maxx, maxy = quadra_poly.bounds
+        q_candidates = []
+        for val, x, y, pt in parsed_texts:
+            if minx <= x <= maxx and miny <= y <= maxy:
+                if (QUADRA_REGEX.match(val) or val == "Q") and quadra_poly.covers(pt):
+                    q_candidates.append(val)
+        if not q_candidates and association.get('quadras', {}).get(q_entity):
+            for val, x, y, pt in parsed_texts:
+                if QUADRA_REGEX.match(val) or val == "Q":
+                    if (
+                        minx - max_quadra_label_distance <= x <= maxx + max_quadra_label_distance
+                        and miny - max_quadra_label_distance <= y <= maxy + max_quadra_label_distance
+                        and quadra_poly.distance(pt) <= max_quadra_label_distance
+                    ):
+                        q_candidates.append(val)
+        resolved = q_candidates[0] if len(q_candidates) == 1 else ""
+        quadra_nome_cache[q_entity] = resolved
+        return resolved
+
+    def _build_item(lote_entity, q_entity=None) -> dict:
+        poly = lote_polygons.get(lote_entity)
+        if poly is None or poly.is_empty:
+            return {
+                'quadra': '',
+                'nome': '',
+                'frenteM': None,
+                'profundidadeM': None,
+                'areaTerrenoM2': None,
+                'areaConstruidaM2': None,
+                'logradouro': None,
+                'sourceFile': source_file,
+                'sourcePage': source_page,
+                'status': 'ambiguo',
+            }
+
+        minx, miny, maxx, maxy = poly.bounds
+        candidates = []
+        for val, x, y, pt in parsed_texts:
+            if minx <= x <= maxx and miny <= y <= maxy:
+                if poly.covers(pt) and _is_lote_name_candidate(val):
+                    candidates.append((val, pt))
+
+        nome, escolhido = _select_nome(candidates, poly)
+        status = 'valido' if escolhido else 'ambiguo'
+
+        if q_entity is None:
+            status = 'ambiguo'
+            nome = ''
+
+        quadra_nome = ''
+        if q_entity is not None:
+            quadra_poly = quadra_polygons.get(q_entity)
+            if quadra_poly:
+                quadra_nome = _resolve_quadra_nome(q_entity, quadra_poly)
+
+        frente_m, profundidade_m, area_terreno_m2 = _polygon_dimensions(
+            poly,
+            linear_scale=linear_scale,
+            area_scale=area_scale,
+        )
+        return {
+            'quadra': quadra_nome,
+            'nome': nome,
+            'frenteM': frente_m,
+            'profundidadeM': profundidade_m,
+            'areaTerrenoM2': area_terreno_m2,
+            'areaConstruidaM2': None,
+            'logradouro': None,
+            'sourceFile': source_file,
+            'sourcePage': source_page,
+            'status': status,
+        }
+
+    items: list[dict] = []
+    for q_entity, lote_list in association['quadras'].items():
+        for lote in lote_list:
+            items.append(_build_item(lote, q_entity))
+
+    for lote in association['lotes_orfaos']:
+        items.append(_build_item(lote, None))
+
+    return items
 

@@ -17,7 +17,7 @@ import zlib
 
 from dxf_extraction import MIN_LOTE_AREA, _classify
 from geometry_utils import associate_lotes_to_quadras
-from heuristics import QUADRA_LABEL_MAX_DISTANCE, build_geojson
+from heuristics import QUADRA_LABEL_MAX_DISTANCE, build_tabular_items
 
 logger = logging.getLogger(__name__)
 
@@ -441,8 +441,8 @@ def _parse_w2d_stream(
     return poly_entities, text_entities
 
 
-def extract_dwf_geojson(filepath: str) -> dict:
-    """Lê um arquivo DWF e devolve um FeatureCollection revisável (lotes/quadras/textos)."""
+def extract_dwf_draft(filepath: str, filename: str | None = None) -> dict:
+    """Lê um arquivo DWF e devolve o contrato tabular de rascunho (sem GeoJSON/geometry)."""
     streams = _read_w2d_streams(filepath)
 
     poly_entities: list[tuple[_W2DPolyline, str]] = []
@@ -468,21 +468,35 @@ def extract_dwf_geojson(filepath: str) -> dict:
             'O DWF não possui contornos utilizáveis para loteamento.'
         )
 
+    display_filename = filename or os.path.basename(os.fspath(filepath))
     association = associate_lotes_to_quadras(lotes, quadras)
-    geojson = build_geojson(
+    items = build_tabular_items(
         association,
         text_entities,
         association['quadra_polygons'],
         association['lote_polygons'],
         max_quadra_label_distance=QUADRA_LABEL_MAX_DISTANCE,
+        linear_scale=1.0,
+        area_scale=1.0,
+        source_file=display_filename,
+        source_page=1,
     )
 
-    if not any(
-        feature.get('properties', {}).get('tipo') == 'lote'
-        for feature in geojson.get('features', [])
-    ):
+    if not items:
         raise DwfExtractionError(
             'O DWF não possui contornos utilizáveis para loteamento.'
         )
-    return geojson
+
+    return {
+        'loteamento': {},
+        'sourceFormat': 'dwf',
+        'sourceFiles': [
+            {
+                'filename': display_filename,
+                'pageCount': 1,
+                'status': 'processado',
+            }
+        ],
+        'items': items,
+    }
 

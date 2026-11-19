@@ -2,7 +2,7 @@
 title: 'Criação Manual Individual e em Massa de Loteamentos, Quadras e Lotes'
 type: 'feature'
 created: '2026-11-18'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: 'acefc7cad96befc43dd26c58f648491e134e420a'
@@ -59,11 +59,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] Extrair helper/componentes reutilizáveis sem duplicar lógica para parsing decimal (`pt-br` vírgula/ponto), rascunho/prévia de geração de lotes em massa e edição de exceções individuais.
-- [ ] `c:/sigo/app/lib/src/features/loteamentos/presentation/loteamentos_list_screen.dart` -- Evoluir `_AddLoteamentoDialog` com `ExpansionTile` de localização/carimbo e seção opcional de geração em massa (1 quadra + N lotes com prévia editável -> `createLoteamentoEmMassa` / `createLoteamento`) e subtítulo de localização no `ListTile`.
-- [ ] `c:/sigo/app/lib/src/features/quadras/presentation/quadras_list_screen.dart` -- Adicionar verificação de permissão admin, ação `'Nova Quadra'` / `'Criar Nova Quadra'`, dialog `_AddQuadraDialog` com `logradouroPadrao` e geração opcional em massa (`createQuadraComLotes` / `createQuadra`), e subtítulo `logradouroPadrao` no `ListTile`.
-- [ ] `c:/sigo/app/lib/src/features/lotes/presentation/add_lote_screen.dart` -- Preservar UUID fixo em `initState()` e compatibilidade com `obras_lotes_crud_test.dart`; adicionar modo **Individual** (medidas principais + auto-cálculo de área + `ExpansionTile` PDF opcional -> `createLoteComEtapas`) e modo **Em Massa** (gerador por quantidade/prefixo/início/medidas + prévia editável -> `createLotesEmMassa`).
-- [ ] Adicionar/atualizar widget tests cobrindo criação individual, cálculo automático de área (`frente * profundidade`), ajuste de exceções na prévia e persistência via `createLoteamentoEmMassa`, `createQuadraComLotes`, `createLoteComEtapas` e `createLotesEmMassa`.
+- [x] Extrair helper/componentes reutilizáveis sem duplicar lógica para parsing decimal (`pt-br` vírgula/ponto), rascunho/prévia de geração de lotes em massa e edição de exceções individuais.
+- [x] `c:/sigo/app/lib/src/features/loteamentos/presentation/loteamentos_list_screen.dart` -- Evoluir `_AddLoteamentoDialog` com `ExpansionTile` de localização/carimbo e seção opcional de geração em massa (1 quadra + N lotes com prévia editável -> `createLoteamentoEmMassa` / `createLoteamento`) e subtítulo de localização no `ListTile`.
+- [x] `c:/sigo/app/lib/src/features/quadras/presentation/quadras_list_screen.dart` -- Adicionar verificação de permissão admin, ação `'Nova Quadra'` / `'Criar Nova Quadra'`, dialog `_AddQuadraDialog` com `logradouroPadrao` e geração opcional em massa (`createQuadraComLotes` / `createQuadra`), e subtítulo `logradouroPadrao` no `ListTile`.
+- [x] `c:/sigo/app/lib/src/features/lotes/presentation/add_lote_screen.dart` -- Preservar UUID fixo em `initState()` e compatibilidade com `obras_lotes_crud_test.dart`; adicionar modo **Individual** (medidas principais + auto-cálculo de área + `ExpansionTile` PDF opcional -> `createLoteComEtapas`) e modo **Em Massa** (gerador por quantidade/prefixo/início/medidas + prévia editável -> `createLotesEmMassa`).
+- [x] Adicionar/atualizar widget tests cobrindo criação individual, cálculo automático de área (`frente * profundidade`), ajuste de exceções na prévia e persistência via `createLoteamentoEmMassa`, `createQuadraComLotes`, `createLoteComEtapas` e `createLotesEmMassa`.
 
 **Acceptance Criteria:**
 - Given o formulário individual ou gerador em massa, when `frenteM` e `profundidadeM` são preenchidas com valores positivos, then `areaTerrenoM2` é calculada automaticamente podendo ainda ser ajustada manualmente.
@@ -72,9 +72,21 @@ context:
 
 ## Implementation Notes
 
+- Commits `0657ea1` e `200c11a` implementaram:
+  - Helper e componente compartilhado `app/lib/src/features/lotes/presentation/lote_mass_generator_section.dart` (`parseDecimalPtBr`, `formatDecimalPtBr`, `validateOptionalDecimalPtBr`, `DimensionalAreaCoordinator`, `LoteMassDraft`, `LoteMassGeneratorSection` e `_LotePreviewItemEditor`).
+  - Evolução de `LoteamentosListScreen` (`_AddLoteamentoDialog`) e `QuadrasListScreen` (`_AddQuadraDialog`) com guarda de permissão admin, subtítulos informativos, `ExpansionTile(maintainState: true)` para campos opcionais e geração em massa via `createLoteamentoEmMassa` / `createQuadraComLotes`.
+  - Evolução de `AddLoteScreen` com modos Individual (UUID fixo em `initState()`, cálculo automático de `areaTerrenoM2` com sobrescrita manual, `ExpansionTile` de dados técnicos/PDF) e Em Massa (`createLotesEmMassa`), sem qualquer campo `geometry`.
+  - Cobertura de testes de widget em `loteamentos_list_screen_test.dart`, `quadras_list_screen_test.dart` e `add_lote_screen_test.dart`, mantendo compatibilidade com `obras_lotes_crud_test.dart` e `loteamento_quadra_lote_navigation_test.dart`.
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+- **Revisão Story 2 (`acefc7c..HEAD`) — APROVADO (2026-11-19):**
+  - `flutter analyze`: 0 erros e 0 warnings nos arquivos da Story 2 (apenas 2 `info` pré-existentes fora do escopo em `dev_construtoras_list_screen.dart:313` e `:558`).
+  - `flutter test` (5 suites): 38/38 testes passaram (`All tests passed!`).
+  - Todos os invariantes e critérios de aceite verificados (UUID fixo em `initState()`, `ExpansionTile` para campos opcionais, cálculo automático de `areaTerrenoM2`, parsing pt-br vírgula/ponto, prévia editável de exceções, permissão admin e ausência do campo `geometry`).
+  - **Observação não-bloqueante:** em `add_lote_screen.dart:202`, o modo Em Massa gera `uuid.v4()` ao submeter; futuramente pode reutilizar `draft.uid` para idempotência também em retry pós-timeout em massa (opcional, pois a spec exige UUID fixo apenas no fluxo individual).
 
 ## Verification
 

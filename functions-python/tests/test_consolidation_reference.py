@@ -1,15 +1,14 @@
-"""Fim a fim da consolidação sobre o DXF de referência sem cotas (sem Firestore).
+"""Fim a fim da consolidação tabular sobre o DXF de referência (sem Firestore).
 
-Reproduz a matriz ``APROVAR_COM_AMBIGUOS``: extrai o rascunho do fixture, aprova
-sem resolver os nomes dos lotes (aceitando os ambíguos) e materializa os
-documentos top-level. Garante que quadras com nome duplicado são mescladas em um
-único documento, que lotes sem nome viram ``name: ''`` e que todo lote recebe uma
-FK de quadra válida.
+Extrai o rascunho tabular do fixture, aprova sem resolver os lotes ambíguos e
+materializa loteamento, quadras, lotes e as 5 etapas padrão de cada lote em
+múltiplos WriteBatches (respeitando o teto de 500 operações por batch), sem
+qualquer campo ``geometry``.
 """
 import os
 
-from dxf_extraction import extract_dxf_geojson
-from firestore_utils import consolidate_approved_draft
+from dxf_extraction import extract_dxf_draft
+from firestore_utils import DEFAULT_ETAPAS, MAX_BATCH_OPERATIONS, consolidate_approved_draft
 
 FIXTURE = os.path.join(
     os.path.dirname(__file__),
@@ -66,51 +65,52 @@ class _FakeDb:
 
 
 def _approved_reference_draft():
-    """Aprova o rascunho do fixture sem resolver nomes (matriz de ambíguos)."""
-    draft = extract_dxf_geojson(FIXTURE)
+    draft = extract_dxf_draft(FIXTURE)
     draft['construtoraId'] = 'construtora-1'
-    draft['loteamentoName'] = '00a-LOTEAMENTO_HR_R13A-Model_SEM_COTAS'
+    draft['loteamento'] = {'name': '00a-LOTEAMENTO_HR_R13A-Model_SEM_COTAS'}
     return draft
 
 
-def test_reference_dxf_consolidates_with_ambiguous_lotes_and_merged_quadras():
+def test_reference_dxf_consolidates_tabular_with_etapas_and_multi_batches():
     draft = _approved_reference_draft()
-    lote_features = [
-        f for f in draft['features'] if f['properties']['tipo'] == 'lote'
-    ]
-    assert lote_features, 'o fixture precisa produzir lotes'
-    assert any(
-        f['properties']['status'] == 'ambiguo' for f in lote_features
-    ), 'o fixture precisa produzir lotes ambíguos'
+    items = draft['items']
+    assert items, 'o fixture precisa produzir lotes'
+    assert any(i['status'] == 'ambiguo' for i in items), 'o fixture precisa produzir lotes ambíguos'
 
     db = _FakeDb()
     consolidate_approved_draft(DRAFT_ID, draft, db=db)
+
+    # Todos os batches respeitam o limite de 500 operações.
+    assert len(db.commits) >= 3
+    assert all(len(batch) <= MAX_BATCH_OPERATIONS for batch in db.commits)
 
     documents = db.documents()
     loteamento = documents[f'loteamentos/{DRAFT_ID}--loteamento']
     assert loteamento['construtoraId'] == 'construtora-1'
     assert loteamento['name'] == '00a-LOTEAMENTO_HR_R13A-Model_SEM_COTAS'
+    assert 'geometry' not in loteamento
 
-    quadras = {
-        path: document
-        for path, document in documents.items()
-        if path.startswith('quadras/')
-    }
-    lotes = {
-        path: document
-        for path, document in documents.items()
-        if path.startswith('lotes/')
-    }
-    assert len(lotes) == len(lote_features)
+    quadras = {p: d for p, d in documents.items() if p.startswith('quadras/')}
+    lotes = {p: d for p, d in documents.items() if p.startswith('lotes/')}
+    etapas = {p: d for p, d in documents.items() if p.startswith('etapas/')}
+
+    assert len(lotes) == len(items)
+    assert len(etapas) == len(items) * len(DEFAULT_ETAPAS)
     assert quadras, 'deve materializar ao menos uma quadra'
 
-    # Toda quadra tem nome único (duplicados mesclados) e nenhum lote fica sem FK.
     named = [d['name'] for d in quadras.values() if d['name']]
     assert len(named) == len(set(named)), 'nomes de quadra devem ser únicos'
     assert 'Q-09' in named and 'Q-11' in named and 'Q-17' in named and 'Q-19' in named
+    assert all('geometry' not in q for q in quadras.values())
 
     sem_nome = [d for d in lotes.values() if d['name'] == '']
     assert sem_nome, 'lotes ambíguos devem ser materializados com nome vazio'
     for lote in lotes.values():
+        assert 'geometry' not in lote
         assert isinstance(lote['quadraId'], str) and lote['quadraId']
         assert f'quadras/{lote["quadraId"]}' in documents
+        assert lote['progressoPercentual'] == 0
+        assert lote['etapasConcluidasCount'] == 0
+        assert lote['etapasTotalCount'] == 5
+        for tipo, _nome, _ordem in DEFAULT_ETAPAS:
+            assert f'etapas/{lote["id"]}_{tipo}' in etapas

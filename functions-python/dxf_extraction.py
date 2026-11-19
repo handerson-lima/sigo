@@ -1,10 +1,10 @@
-"""Extração nativa de loteamentos a partir de arquivos DXF.
+"""Extração nativa de loteamentos a partir de arquivos DXF (contrato tabular sem geometria).
 
-O DXF é o formato de referência do produto. O extrator explodes os blocos
-(``INSERT``) herdando o layer, interpreta ``LWPOLYLINE``/``POLYLINE`` como
-parcelas, classifica lote × quadra (primeiro por tokens de layer, depois por
-geometria) e associa os textos ``TEXT``/``MTEXT`` para montar o mesmo contrato
-GeoJSON revisável consumido pelo canvas.
+O extrator explode os blocos (``INSERT``) herdando o layer, interpreta
+``LWPOLYLINE``/``POLYLINE`` como parcelas, classifica lote × quadra (primeiro
+por tokens de layer, depois por geometria), associa os textos ``TEXT``/``MTEXT``
+/``ATTRIB`` e calcula área e dimensões aproximadas da envolvente para emitir o
+contrato tabular ``items`` de ``loteamentos_drafts``.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from heuristics import (
     QUADRA_LABEL_MAX_DISTANCE,
     QUADRA_REGEX,
     _is_lote_name_candidate,
-    build_geojson,
+    build_tabular_items,
     extract_text,
 )
 
@@ -288,8 +288,8 @@ def _read_document(filepath):
         raise DxfExtractionError(f'Não foi possível ler o DXF: {error}') from error
 
 
-def extract_dxf_geojson(filepath: str) -> dict:
-    """Lê um DXF e devolve um FeatureCollection revisável (lotes/quadras/textos)."""
+def extract_dxf_draft(filepath: str, filename: str | None = None) -> dict:
+    """Lê um DXF e devolve o contrato tabular de rascunho (sem GeoJSON/geometry)."""
     document = _read_document(filepath)
 
     flat = list(_flatten(document.modelspace(), doc=document))
@@ -313,18 +313,32 @@ def extract_dxf_geojson(filepath: str) -> dict:
     if not lotes:
         raise DxfExtractionError('O DXF não possui contornos utilizáveis para loteamento.')
 
+    display_filename = filename or os.path.basename(os.fspath(filepath))
     association = associate_lotes_to_quadras(lotes, quadras)
-    geojson = build_geojson(
+    items = build_tabular_items(
         association,
         text_entities,
         association['quadra_polygons'],
         association['lote_polygons'],
         max_quadra_label_distance=QUADRA_LABEL_MAX_DISTANCE * linear_scale,
+        linear_scale=linear_scale,
+        area_scale=area_scale,
+        source_file=display_filename,
+        source_page=1,
     )
 
-    if not any(
-        feature.get('properties', {}).get('tipo') == 'lote'
-        for feature in geojson.get('features', [])
-    ):
+    if not items:
         raise DxfExtractionError('O DXF não possui contornos utilizáveis para loteamento.')
-    return geojson
+
+    return {
+        'loteamento': {},
+        'sourceFormat': 'dxf',
+        'sourceFiles': [
+            {
+                'filename': display_filename,
+                'pageCount': 1,
+                'status': 'processado',
+            }
+        ],
+        'items': items,
+    }

@@ -1,149 +1,49 @@
 import hashlib
-import json
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from firestore_utils import (
+    DEFAULT_ETAPAS,
+    DEFAULT_STATUS_ETAPAS_MAP,
+    MAX_BATCH_OPERATIONS,
+    DraftPersistenceError,
     consolidate_approved_draft,
     save_draft_to_firestore,
-    DraftPersistenceError,
 )
 
-class MockServiceUnavailable(Exception):
-    pass
+
+def _immediate_transactional(function):
+    return function
 
 
-def _has_nested_array(value):
-    """Detecta arrays dentro de arrays, que o Firestore rejeita no ``set``."""
-    if isinstance(value, list):
-        if any(isinstance(item, list) for item in value):
-            return True
-        return any(_has_nested_array(item) for item in value)
-    if isinstance(value, dict):
-        return any(_has_nested_array(item) for item in value.values())
-    return False
+class _FakeSnapshot:
+    def __init__(self, data):
+        self._data = dict(data) if data is not None else None
+        self.exists = data is not None
+
+    def to_dict(self):
+        return dict(self._data) if self._data is not None else None
 
 
-def _draft_with_geometry():
-    geometry = {
-        "type": "Polygon",
-        "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]],
-    }
-    geojson = {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "geometry": geometry,
-                "properties": {
-                    "tipo": "lote",
-                    "nome": "1",
-                    "status": "valido",
-                    "quadra": "Q 1",
-                },
-            }
-        ],
-    }
-    return geojson, geometry
+class _FakeDraftDocRef:
+    def __init__(self, store, path, set_side_effect=None):
+        self._store = store
+        self.path = path
+        self._set_side_effect = set_side_effect
+
+    def get(self, transaction=None):
+        return _FakeSnapshot(self._store.get(self.path))
+
+    def set(self, document):
+        if self._set_side_effect is not None:
+            raise self._set_side_effect
+        self._store[self.path] = dict(document)
 
 
-@patch('firestore_utils.firestore.client')
-def test_save_draft_success(mock_client):
-    mock_db = MagicMock()
-    mock_client.return_value = mock_db
-    mock_collection = MagicMock()
-    mock_db.collection.return_value = mock_collection
-    mock_doc = MagicMock()
-    mock_collection.document.return_value = mock_doc
-
-    geojson, geometry = _draft_with_geometry()
-    save_draft_to_firestore("test_id", geojson)
-
-    mock_db.collection.assert_called_once_with('loteamentos_drafts')
-    mock_collection.document.assert_called_once_with('test_id')
-    mock_doc.set.assert_called_once()
-
-    payload = mock_doc.set.call_args.args[0]
-    assert isinstance(payload['features'][0]['geometry'], str)
-    assert payload['features'][0]['geometry'] == json.dumps(geometry)
-    assert json.loads(payload['features'][0]['geometry']) == geometry
-    assert not _has_nested_array(payload)
-    # A entrada não é mutada: o contrato Map de build_geojson é preservado.
-    assert isinstance(geojson['features'][0]['geometry'], dict)
-
-
-@patch('firestore_utils.firestore.client')
-def test_save_draft_is_idempotent_for_serialized_geometry(mock_client):
-    mock_db = MagicMock()
-    mock_client.return_value = mock_db
-    mock_db.collection.return_value.document.return_value = MagicMock()
-
-    _, geometry = _draft_with_geometry()
-    serialized = json.dumps(geometry)
-    geojson = {
-        "type": "FeatureCollection",
-        "features": [
-            {"type": "Feature", "geometry": serialized, "properties": {}}
-        ],
-    }
-
-    save_draft_to_firestore("test_id", geojson)
-
-    payload = mock_db.collection.return_value.document.return_value.set.call_args.args[0]
-    assert payload['features'][0]['geometry'] == serialized
-    assert not _has_nested_array(payload)
-
-
-@patch('firestore_utils.firestore.client')
-def test_save_draft_serializes_geometry_and_merges_metadata(mock_client):
-    mock_db = MagicMock()
-    mock_client.return_value = mock_db
-    mock_doc = mock_db.collection.return_value.document.return_value
-
-    geojson, geometry = _draft_with_geometry()
-    metadata = {
-        'construtoraId': 'construtora-1',
-        'loteamentoName': 'arquivo',
-        'status': 'pendente',
-    }
-    save_draft_to_firestore("test_id", geojson, metadata)
-
-    payload = mock_doc.set.call_args.args[0]
-    assert payload['status'] == 'pendente'
-    assert payload['construtoraId'] == 'construtora-1'
-    assert payload['features'][0]['geometry'] == json.dumps(geometry)
-    assert not _has_nested_array(payload)
-
-@patch('firestore_utils.firestore.client')
-def test_save_draft_transient_error(mock_client):
-    mock_db = MagicMock()
-    mock_client.return_value = mock_db
-    mock_collection = MagicMock()
-    mock_db.collection.return_value = mock_collection
-    mock_doc = MagicMock()
-    mock_collection.document.return_value = mock_doc
-    
-    # We use a custom exception named MockServiceUnavailable to mimic google.api_core
-    mock_doc.set.side_effect = type('ServiceUnavailable', (Exception,), {})("Unavailable")
-
-    with pytest.raises(Exception) as exc:
-        save_draft_to_firestore("test_id", {})
-    assert "ServiceUnavailable" in type(exc.value).__name__
-
-@patch('firestore_utils.firestore.client')
-def test_save_draft_fatal_error(mock_client):
-    mock_db = MagicMock()
-    mock_client.return_value = mock_db
-    mock_collection = MagicMock()
-    mock_db.collection.return_value = mock_collection
-    mock_doc = MagicMock()
-    mock_collection.document.return_value = mock_doc
-    
-    # Generic exception that should be wrapped
-    mock_doc.set.side_effect = ValueError("Invalid data")
-
-    with pytest.raises(DraftPersistenceError) as exc:
-        save_draft_to_firestore("test_id", {})
-    assert "Failed to persist draft to Firestore" in str(exc.value)
+class _FakeTransaction:
+    def set(self, reference, document):
+        reference.set(document)
 
 
 class _FakeDocument:
@@ -152,11 +52,16 @@ class _FakeDocument:
 
 
 class _FakeCollection:
-    def __init__(self, name):
+    def __init__(self, name, store, set_side_effect=None):
         self.name = name
+        self._store = store
+        self._set_side_effect = set_side_effect
 
     def document(self, identifier):
-        return _FakeDocument(f'{self.name}/{identifier}')
+        path = f'{self.name}/{identifier}'
+        if self.name == 'loteamentos_drafts':
+            return _FakeDraftDocRef(self._store, path, set_side_effect=self._set_side_effect)
+        return _FakeDocument(path)
 
 
 class _FakeBatch:
@@ -175,14 +80,21 @@ class _FakeBatch:
 
 
 class _FakeDb:
-    def __init__(self, fail_batch_number=None):
+    def __init__(self, fail_batch_number=None, set_side_effect=None):
+        self.store = {}
         self.collections = {}
         self.commits = []
         self.fail_batch_number = fail_batch_number
+        self.set_side_effect = set_side_effect
         self.batch_count = 0
 
     def collection(self, name):
-        return self.collections.setdefault(name, _FakeCollection(name))
+        return self.collections.setdefault(
+            name, _FakeCollection(name, self.store, set_side_effect=self.set_side_effect)
+        )
+
+    def transaction(self):
+        return _FakeTransaction()
 
     def batch(self):
         self.batch_count += 1
@@ -197,108 +109,275 @@ def _documents(db):
     return documents
 
 
-GEOMETRY = {
-    'type': 'Polygon',
-    'coordinates': [[[0, 0], [10, 0], [10, 10], [0, 0]]],
-}
-
-
-def _approved_draft(lote_count=1, geometry=None, lote_status='resolvido', quadra_feature=False):
-    features = []
-    if quadra_feature:
-        feature = {'properties': {'tipo': 'quadra', 'nome': 'Q 1'}}
-        if geometry is not None:
-            feature['geometry'] = geometry
-        features.append(feature)
-    for index in range(lote_count):
-        feature = {
-            'properties': {
-                'tipo': 'lote', 'nome': f'L {index}',
-                'quadra': 'Q 1', 'status': lote_status,
-            },
-        }
-        if geometry is not None:
-            feature['geometry'] = geometry
-        features.append(feature)
+def _sample_pdf_payload(filename='lote_31_q28.pdf', lote_name='Lote 31', quadra='Quadra 28'):
     return {
-        'construtoraId': 'construtora-1',
-        'loteamentoName': 'LOTEAMENTO_APROVADO',
-        'features': features,
+        'loteamento': {
+            'name': 'Loteamento Jardim Botanico',
+            'bairro': 'Estivas',
+            'cidade': 'Extremoz',
+            'uf': 'RN',
+            'proprietarioNome': 'CARNEIRO E OLIVEIRA EMPREENDIMENTOS LTDA',
+            'proprietarioDocumento': '69.307.863/0001-02',
+            'responsavelTecnicoNome': 'JOCSA RAMOS VARELA',
+            'responsavelTecnicoRegistro': '2116022975',
+        },
+        'sourceFormat': 'pdf',
+        'sourceFiles': [
+            {'filename': filename, 'pageCount': 1, 'status': 'processado'}
+        ],
+        'items': [
+            {
+                'quadra': quadra,
+                'nome': lote_name,
+                'frenteM': 10.0,
+                'profundidadeM': 20.0,
+                'areaTerrenoM2': 200.0,
+                'areaConstruidaM2': 49.96,
+                'logradouro': 'Rua Sandoval Wanderley, s/n',
+                'taxaOcupacaoPercent': 24.98,
+                'coeficienteAproveitamento': 0.24,
+                'areaPermeavelM2': 112.46,
+                'taxaPermeabilidadePercent': 56.23,
+                'areaImpermeavelM2': 37.58,
+                'recuoFrontalM': 5.05,
+                'recuoFundoM': 5.94,
+                'recuoLateralEsquerdoM': 1.43,
+                'recuoLateralDireitoM': 1.43,
+                'dataProjeto': 'outubro/26',
+                'sourceFile': filename,
+                'sourcePage': 1,
+                'status': 'valido',
+            }
+        ],
     }
 
 
-def test_consolidate_creates_top_level_documents_with_foreign_keys():
+@patch('firestore_utils.firestore.transactional', side_effect=_immediate_transactional)
+def test_save_draft_persists_tabular_contract_without_geometry(_):
     db = _FakeDb()
-    consolidate_approved_draft('draft-1', _approved_draft(lote_count=2), db=db)
+    payload = _sample_pdf_payload()
+    metadata = {
+        'construtoraId': 'construtora-1',
+        'targetLoteamentoId': 'lot-existente-1',
+        'status': 'pendente',
+        'sourceFormat': 'pdf',
+    }
+
+    saved = save_draft_to_firestore('draft-pdf-1', payload, metadata, db=db)
+
+    stored = db.store['loteamentos_drafts/draft-pdf-1']
+    assert saved == stored
+    assert 'features' not in stored
+    assert stored['construtoraId'] == 'construtora-1'
+    assert stored['targetLoteamentoId'] == 'lot-existente-1'
+    assert stored['loteamento']['name'] == 'Loteamento Jardim Botanico'
+    assert stored['sourceFormat'] == 'pdf'
+    assert len(stored['sourceFiles']) == 1
+    assert len(stored['items']) == 1
+    assert 'geometry' not in stored['items'][0]
+
+
+@patch('firestore_utils.firestore.transactional', side_effect=_immediate_transactional)
+def test_save_draft_merges_multiple_pdfs_sharing_same_draft_id_transactionally(_):
+    db = _FakeDb()
+    meta = {'construtoraId': 'construtora-1', 'status': 'pendente', 'sourceFormat': 'pdf'}
+
+    # Primeiro PDF
+    payload1 = _sample_pdf_payload('lote_31_q28.pdf', 'Lote 31', 'Quadra 28')
+    save_draft_to_firestore('shared-draft', payload1, meta, db=db)
+
+    # Segundo PDF compartilhando o mesmo draftId
+    payload2 = _sample_pdf_payload('lote_32_q28.pdf', 'Lote 32', 'Quadra 28')
+    payload2['loteamento'] = {'name': 'Outro Nome Não Sobrescreve', 'bairro': 'Estivas'}
+    save_draft_to_firestore('shared-draft', payload2, meta, db=db)
+
+    # Reentrega idempotente do primeiro PDF não duplica itens nem sourceFiles
+    save_draft_to_firestore('shared-draft', payload1, meta, db=db)
+
+    stored = db.store['loteamentos_drafts/shared-draft']
+    assert stored['status'] == 'pendente'
+    assert stored['loteamento']['name'] == 'Loteamento Jardim Botanico'
+    assert [f['filename'] for f in stored['sourceFiles']] == [
+        'lote_31_q28.pdf', 'lote_32_q28.pdf',
+    ]
+    assert sorted(i['nome'] for i in stored['items']) == ['Lote 31', 'Lote 32']
+
+
+@patch('firestore_utils.firestore.transactional', side_effect=_immediate_transactional)
+def test_save_draft_keeps_valid_items_when_subsequent_file_fails(_):
+    db = _FakeDb()
+    meta = {'construtoraId': 'construtora-1', 'status': 'pendente', 'sourceFormat': 'pdf'}
+    save_draft_to_firestore('shared-draft', _sample_pdf_payload('ok.pdf', 'Lote 31'), meta, db=db)
+
+    error_payload = {
+        'loteamento': {},
+        'sourceFormat': 'pdf',
+        'sourceFiles': [{'filename': 'corrupt.pdf', 'pageCount': 0, 'status': 'erro', 'error': 'PDF inválido'}],
+        'items': [],
+    }
+    save_draft_to_firestore(
+        'shared-draft',
+        error_payload,
+        {**meta, 'status': 'erro', 'processingError': 'PDF inválido'},
+        db=db,
+    )
+
+    stored = db.store['loteamentos_drafts/shared-draft']
+    assert stored['status'] == 'pendente'
+    assert len(stored['items']) == 1
+    assert len(stored['sourceFiles']) == 2
+    assert stored['sourceFiles'][1]['status'] == 'erro'
+
+
+@patch('firestore_utils.firestore.transactional', side_effect=_immediate_transactional)
+def test_save_draft_transient_error(_):
+    db = _FakeDb(set_side_effect=type('ServiceUnavailable', (Exception,), {})('Unavailable'))
+    with pytest.raises(Exception) as exc:
+        save_draft_to_firestore('test_id', {'items': []}, db=db)
+    assert 'ServiceUnavailable' in type(exc.value).__name__
+
+
+@patch('firestore_utils.firestore.transactional', side_effect=_immediate_transactional)
+def test_save_draft_fatal_error(_):
+    db = _FakeDb(set_side_effect=ValueError('Invalid data'))
+    with pytest.raises(DraftPersistenceError, match='Failed to persist draft to Firestore'):
+        save_draft_to_firestore('test_id', {'items': []}, db=db)
+
+
+def _approved_tabular_draft(
+    lote_count=1,
+    lote_status='valido',
+    quadra='Quadra 28',
+    target_loteamento_id=None,
+):
+    items = []
+    for index in range(lote_count):
+        items.append({
+            'quadra': quadra,
+            'nome': f'Lote {index + 1}',
+            'frenteM': 10.0,
+            'profundidadeM': 20.0,
+            'areaTerrenoM2': 200.0,
+            'areaConstruidaM2': 49.96,
+            'logradouro': 'Rua Sandoval Wanderley, s/n',
+            'taxaOcupacaoPercent': 24.98,
+            'coeficienteAproveitamento': 0.24,
+            'areaPermeavelM2': 112.46,
+            'taxaPermeabilidadePercent': 56.23,
+            'areaImpermeavelM2': 37.58,
+            'recuoFrontalM': 5.05,
+            'recuoFundoM': 5.94,
+            'recuoLateralEsquerdoM': 1.43,
+            'recuoLateralDireitoM': 1.43,
+            'dataProjeto': 'outubro/26',
+            'status': lote_status,
+        })
+    return {
+        'construtoraId': 'construtora-1',
+        'targetLoteamentoId': target_loteamento_id,
+        'loteamento': {
+            'name': 'Loteamento Jardim Botanico',
+            'bairro': 'Estivas',
+            'cidade': 'Extremoz',
+            'uf': 'RN',
+            'proprietarioNome': 'CARNEIRO E OLIVEIRA EMPREENDIMENTOS LTDA',
+            'proprietarioDocumento': '69.307.863/0001-02',
+            'responsavelTecnicoNome': 'JOCSA RAMOS VARELA',
+            'responsavelTecnicoRegistro': '2116022975',
+        },
+        'items': items,
+    }
+
+
+def test_consolidate_creates_loteamento_quadras_lotes_and_five_default_etapas():
+    db = _FakeDb()
+    consolidate_approved_draft('draft-1', _approved_tabular_draft(lote_count=2), db=db)
 
     documents = _documents(db)
     loteamento_id = 'draft-1--loteamento'
     loteamento = documents[f'loteamentos/{loteamento_id}']
     assert loteamento['id'] == loteamento_id
     assert loteamento['construtoraId'] == 'construtora-1'
-    assert loteamento['name'] == 'LOTEAMENTO_APROVADO'
-    assert isinstance(loteamento['createdAt'], str)
-    assert isinstance(loteamento['updatedAt'], str)
+    assert loteamento['name'] == 'Loteamento Jardim Botanico'
+    assert loteamento['bairro'] == 'Estivas'
+    assert loteamento['cidade'] == 'Extremoz'
+    assert loteamento['uf'] == 'RN'
+    assert loteamento['proprietarioDocumento'] == '69.307.863/0001-02'
+    assert loteamento['responsavelTecnicoRegistro'] == '2116022975'
+    assert 'geometry' not in loteamento
 
-    quadra_paths = [p for p in documents if p.startswith('quadras/')]
-    assert len(quadra_paths) == 1
-    quadra = documents[quadra_paths[0]]
-    assert quadra['construtoraId'] == 'construtora-1'
+    expected_hash = hashlib.sha256('Quadra 28'.encode('utf-8')).hexdigest()[:16]
+    quadra_id = f'draft-1--quadra--ref--{expected_hash}'
+    quadra = documents[f'quadras/{quadra_id}']
     assert quadra['loteamentoId'] == loteamento_id
-    assert quadra['name'] == 'Q 1'
+    assert quadra['name'] == 'Quadra 28'
+    assert quadra['logradouroPadrao'] == 'Rua Sandoval Wanderley, s/n'
+    assert 'geometry' not in quadra
 
     lote_paths = sorted(p for p in documents if p.startswith('lotes/'))
     assert lote_paths == ['lotes/draft-1--lote--0', 'lotes/draft-1--lote--1']
     for path in lote_paths:
-        assert documents[path]['construtoraId'] == 'construtora-1'
-        assert documents[path]['loteamentoId'] == loteamento_id
-        assert documents[path]['quadraId'] == quadra['id']
+        lote = documents[path]
+        assert 'geometry' not in lote
+        assert lote['construtoraId'] == 'construtora-1'
+        assert lote['loteamentoId'] == loteamento_id
+        assert lote['quadraId'] == quadra_id
+        assert lote['frenteM'] == 10.0
+        assert lote['profundidadeM'] == 20.0
+        assert lote['areaTerrenoM2'] == 200.0
+        assert lote['areaConstruidaM2'] == 49.96
+        assert lote['taxaOcupacaoPercent'] == 24.98
+        assert lote['recuoFrontalM'] == 5.05
+        assert lote['progressoPercentual'] == 0
+        assert lote['etapasConcluidasCount'] == 0
+        assert lote['etapasTotalCount'] == 5
+        assert lote['statusEtapasMap'] == DEFAULT_STATUS_ETAPAS_MAP
+        assert lote['equipesVinculadas'] == []
+        assert lote['funcionariosVinculados'] == []
+
+        for tipo, nome, ordem in DEFAULT_ETAPAS:
+            etapa_id = f'{lote["id"]}_{tipo}'
+            etapa = documents[f'etapas/{etapa_id}']
+            assert etapa['id'] == etapa_id
+            assert etapa['loteId'] == lote['id']
+            assert etapa['quadraId'] == quadra_id
+            assert etapa['loteamentoId'] == loteamento_id
+            assert etapa['nome'] == nome
+            assert etapa['ordem'] == ordem
+            assert etapa['status'] == 'pendente'
+            assert etapa['percentual'] == 0
 
 
-def test_consolidate_reads_geometry_serialized_as_string_in_the_draft():
+def test_consolidate_merges_into_existing_loteamento_when_target_loteamento_id_is_set():
     db = _FakeDb()
-    serialized = json.dumps(GEOMETRY)
-    consolidate_approved_draft('draft-1', _approved_draft(geometry=serialized), db=db)
+    draft = _approved_tabular_draft(lote_count=1, target_loteamento_id='lot-existente-99')
+    consolidate_approved_draft('draft-2', draft, db=db)
 
     documents = _documents(db)
-    lote = documents['lotes/draft-1--lote--0']
-    assert lote['geometry'] == json.dumps(GEOMETRY)
-    assert json.loads(lote['geometry']) == GEOMETRY
+    # Não cria nem sobrescreve documento na coleção loteamentos.
+    assert not any(p.startswith('loteamentos/') for p in documents)
+
+    lote = documents['lotes/draft-2--lote--0']
+    assert lote['loteamentoId'] == 'lot-existente-99'
+    quadra = documents[f'quadras/{lote["quadraId"]}']
+    assert quadra['loteamentoId'] == 'lot-existente-99'
+    for tipo, _nome, _ordem in DEFAULT_ETAPAS:
+        etapa = documents[f'etapas/draft-2--lote--0_{tipo}']
+        assert etapa['loteamentoId'] == 'lot-existente-99'
 
 
-def test_consolidate_reads_geometry_as_map():
+def test_consolidate_splits_writes_into_batches_of_500_including_etapas():
     db = _FakeDb()
-    consolidate_approved_draft('draft-1', _approved_draft(geometry=GEOMETRY), db=db)
+    # 100 lotes -> 1 loteamento + 1 quadra + 100 lotes + 500 etapas = 602 operações -> 2 batches (500 + 102)
+    consolidate_approved_draft('draft-batch', _approved_tabular_draft(lote_count=100), db=db)
 
-    documents = _documents(db)
-    lote = documents['lotes/draft-1--lote--0']
-    assert json.loads(lote['geometry']) == GEOMETRY
-
-
-def test_consolidate_uses_quadra_feature_when_present():
-    db = _FakeDb()
-    consolidate_approved_draft(
-        'draft-1', _approved_draft(quadra_feature=True), db=db,
-    )
-
-    documents = _documents(db)
-    assert 'quadras/draft-1--quadra--0' in documents
-    assert documents['lotes/draft-1--lote--1']['quadraId'] == 'draft-1--quadra--0'
-
-
-def test_consolidate_creates_reference_quadra_with_stable_hash():
-    db = _FakeDb()
-    consolidate_approved_draft('draft-1', _approved_draft(), db=db)
-
-    expected_hash = hashlib.sha256('Q 1'.encode('utf-8')).hexdigest()[:16]
-    quadra_id = f'draft-1--quadra--ref--{expected_hash}'
-    documents = _documents(db)
-    assert f'quadras/{quadra_id}' in documents
-    assert documents['lotes/draft-1--lote--0']['quadraId'] == quadra_id
+    assert len(db.commits) == 2
+    assert len(db.commits[0]) == MAX_BATCH_OPERATIONS
+    assert len(db.commits[1]) == 102
 
 
 def test_consolidate_is_idempotent_for_duplicate_delivery():
-    draft = _approved_draft(lote_count=2)
+    draft = _approved_tabular_draft(lote_count=2)
     first = _FakeDb()
     second = _FakeDb()
     consolidate_approved_draft('draft-1', draft, db=first)
@@ -307,153 +386,35 @@ def test_consolidate_is_idempotent_for_duplicate_delivery():
     assert set(_documents(first)) == set(_documents(second))
 
 
-def test_consolidate_accepts_valido_lote_status():
+def test_consolidate_materializes_ambiguous_lote_with_empty_name_and_default_quadra():
     db = _FakeDb()
-    consolidate_approved_draft(
-        'draft-1', _approved_draft(lote_status='valido'), db=db,
-    )
-    assert 'lotes/draft-1--lote--0' in _documents(db)
-
-
-def test_consolidate_materializes_ambiguous_lote_with_empty_name():
-    db = _FakeDb()
-    draft = _approved_draft(lote_status='ambiguo')
-    draft['features'][0]['properties']['nome'] = ''
-    consolidate_approved_draft('draft-1', draft, db=db)
+    draft = _approved_tabular_draft(lote_count=1, lote_status='ambiguo', quadra='')
+    consolidate_approved_draft('draft-amb', draft, db=db)
 
     documents = _documents(db)
-    lote = documents['lotes/draft-1--lote--0']
+    lote = documents['lotes/draft-amb--lote--0']
     assert lote['name'] == ''
-    expected_hash = hashlib.sha256('Q 1'.encode('utf-8')).hexdigest()[:16]
-    assert lote['quadraId'] == f'draft-1--quadra--ref--{expected_hash}'
+    assert lote['quadraId'] == 'draft-amb--quadra--geral'
+    assert documents['quadras/draft-amb--quadra--geral']['name'] == 'Geral'
 
 
-def test_consolidate_ignores_tentative_name_of_ambiguous_lote():
-    db = _FakeDb()
-    draft = _approved_draft(lote_status='ambiguo')
-    draft['features'][0]['properties']['nome'] = 'ESTRADA CARROÇÁVEL'
-    consolidate_approved_draft('draft-1', draft, db=db)
-
-    documents = _documents(db)
-    lote = documents['lotes/draft-1--lote--0']
-    assert lote['name'] == ''
-    expected_hash = hashlib.sha256('Q 1'.encode('utf-8')).hexdigest()[:16]
-    assert lote['quadraId'] == f'draft-1--quadra--ref--{expected_hash}'
-
-
-def test_consolidate_materializes_lote_without_nome_property():
-    db = _FakeDb()
-    draft = _approved_draft()
-    del draft['features'][0]['properties']['nome']
-    consolidate_approved_draft('draft-1', draft, db=db)
-
-    assert _documents(db)['lotes/draft-1--lote--0']['name'] == ''
-
-
-def test_consolidate_rejects_draft_without_lotes():
+def test_consolidate_rejects_draft_without_items():
     db = _FakeDb()
     with pytest.raises(ValueError, match='sem lotes'):
         consolidate_approved_draft(
             'draft-1',
-            {'construtoraId': 'construtora-1', 'loteamentoName': 'X', 'features': []},
+            {'construtoraId': 'construtora-1', 'loteamento': {'name': 'X'}, 'items': []},
             db=db,
         )
     assert db.commits == []
 
 
-def test_consolidate_splits_writes_into_batches_of_500():
-    db = _FakeDb()
-    consolidate_approved_draft('draft-1', _approved_draft(lote_count=600), db=db)
+def test_consolidate_never_touches_draft_and_propagates_batch_failure():
+    db_ok = _FakeDb()
+    consolidate_approved_draft('draft-1', _approved_tabular_draft(), db=db_ok)
+    assert 'loteamentos_drafts' not in db_ok.collections
 
-    # 1 loteamento + 1 quadra + 600 lotes = 602 documentos -> 2 batches.
-    assert len(db.commits) == 2
-    assert len(db.commits[0]) == 500
-    assert len(db.commits[1]) == 102
-
-
-def test_consolidate_never_touches_the_draft_document():
-    db = _FakeDb()
-    consolidate_approved_draft('draft-1', _approved_draft(), db=db)
-    # A retenção do rascunho é o que permite a retentativa.
-    assert 'loteamentos_drafts' not in db.collections
-
-
-def test_consolidate_failure_keeps_no_completed_marker_and_raises():
-    db = _FakeDb(fail_batch_number=1)
+    db_fail = _FakeDb(fail_batch_number=1)
     with pytest.raises(RuntimeError, match='batch failed'):
-        consolidate_approved_draft('draft-1', _approved_draft(lote_count=600), db=db)
-    # Nenhum batch concluído: o chamador decide reter o rascunho para retry.
-    assert db.commits == []
-
-
-def test_consolidate_assigns_lote_without_quadra_to_containing_quadra():
-    db = _FakeDb()
-    quadra_geometry = {
-        'type': 'Polygon',
-        'coordinates': [[[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]]],
-    }
-    lote_geometry = {
-        'type': 'Polygon',
-        'coordinates': [[[10, 10], [20, 10], [20, 20], [10, 20], [10, 10]]],
-    }
-    draft = {
-        'construtoraId': 'construtora-1',
-        'loteamentoName': 'LOTEAMENTO',
-        'features': [
-            {'properties': {'tipo': 'quadra', 'nome': 'A'}, 'geometry': quadra_geometry},
-            {
-                'properties': {'tipo': 'lote', 'nome': 'L 1', 'quadra': '', 'status': 'resolvido'},
-                'geometry': lote_geometry,
-            },
-        ],
-    }
-    consolidate_approved_draft('draft-1', draft, db=db)
-
-    documents = _documents(db)
-    assert documents['lotes/draft-1--lote--1']['quadraId'] == 'draft-1--quadra--0'
-
-
-def test_consolidate_falls_back_to_default_quadra_when_unassigned():
-    db = _FakeDb()
-    draft = _approved_draft()
-    for feature in draft['features']:
-        feature['properties']['quadra'] = ''
-    consolidate_approved_draft('draft-1', draft, db=db)
-
-    documents = _documents(db)
-    lote = documents['lotes/draft-1--lote--0']
-    assert lote['quadraId'] == 'draft-1--quadra--geral'
-    assert documents['quadras/draft-1--quadra--geral']['name'] == 'Geral'
-
-
-def test_consolidate_allows_quadra_feature_without_name():
-    db = _FakeDb()
-    draft = _approved_draft()
-    draft['features'].insert(0, {
-        'properties': {'tipo': 'quadra', 'nome': '', 'status': 'resolvido'},
-        'geometry': GEOMETRY,
-    })
-    consolidate_approved_draft('draft-1', draft, db=db)
-
-    documents = _documents(db)
-    assert documents['quadras/draft-1--quadra--0']['name'] == ''
-
-
-def test_consolidate_merges_duplicate_quadra_names_into_one_document():
-    db = _FakeDb()
-    draft = _approved_draft()
-    duplicate = {
-        'properties': {'tipo': 'quadra', 'nome': 'Q 1'},
-        'geometry': GEOMETRY,
-    }
-    draft['features'].insert(0, dict(duplicate))
-    draft['features'].insert(1, dict(duplicate))
-    consolidate_approved_draft('draft-1', draft, db=db)
-
-    documents = _documents(db)
-    quadra_paths = [p for p in documents if p.startswith('quadras/')]
-    assert len(quadra_paths) == 1
-    quadra = documents[quadra_paths[0]]
-    assert quadra['name'] == 'Q 1'
-    # O lote (deslocado para o índice 2) aponta para a quadra canônica.
-    assert documents['lotes/draft-1--lote--2']['quadraId'] == quadra['id']
+        consolidate_approved_draft('draft-1', _approved_tabular_draft(lote_count=100), db=db_fail)
+    assert db_fail.commits == []

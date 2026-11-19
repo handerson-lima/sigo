@@ -18,26 +18,39 @@ class _RecordingUploadTask extends Fake implements UploadTask {
 
 class FakeTaskSnapshot extends Fake implements TaskSnapshot {}
 
+class _RecordedUpload {
+  final String path;
+  final Uint8List bytes;
+  final SettableMetadata? metadata;
+
+  _RecordedUpload({
+    required this.path,
+    required this.bytes,
+    required this.metadata,
+  });
+}
+
 class _RecordingReference extends Fake implements Reference {
-  Uint8List? bytes;
-  SettableMetadata? metadata;
+  final String _path;
+  final List<_RecordedUpload> _uploads;
+
+  _RecordingReference(this._path, this._uploads);
 
   @override
   UploadTask putData(Uint8List data, [SettableMetadata? metadata]) {
-    bytes = data;
-    this.metadata = metadata;
+    _uploads.add(_RecordedUpload(path: _path, bytes: data, metadata: metadata));
     return _RecordingUploadTask();
   }
 }
 
 class _RecordingFirebaseStorage extends Fake implements FirebaseStorage {
-  final reference = _RecordingReference();
-  String? path;
+  final List<_RecordedUpload> uploads = [];
+  String? lastPath;
 
   @override
   Reference ref([String? path]) {
-    this.path = path;
-    return reference;
+    lastPath = path;
+    return _RecordingReference(path ?? '', uploads);
   }
 }
 
@@ -53,77 +66,19 @@ void main() {
       repository = LoteamentosImportRepository(fakeFirestore, fakeStorage);
     });
 
-    test('updateDraftFeature safely merges properties inside a transaction', () async {
-      // Configurar dados de teste
-      final draftId = 'draft123';
-      final draftRef = fakeFirestore.collection('loteamentos_drafts').doc(draftId);
-      await draftRef.set({
-        'features': [
-          {'type': 'Feature', 'properties': {'nome': 'Lote 1', 'status': 'ambiguo'}},
-          {'type': 'Feature', 'properties': {'nome': 'Lote 2', 'status': 'resolvido'}},
-        ],
-      });
-
-      // Executar a transação
-      await repository.updateDraftFeature(draftId, 0, {'nome': 'Lote 1A', 'status': 'resolvido'});
-
-      // Validar os resultados
-      final snapshot = await draftRef.get();
-      final data = snapshot.data();
-      expect(data, isNotNull);
-      final features = data!['features'] as List<dynamic>;
-      expect(features.length, 2);
-      expect((features[0] as Map)['properties']['nome'], 'Lote 1A');
-      expect((features[0] as Map)['properties']['status'], 'resolvido');
-      // Garante que o outro elemento não foi modificado
-      expect((features[1] as Map)['properties']['nome'], 'Lote 2');
-    });
-
-    test('updateDraftFeature preserva geometry serializada como String', () async {
-      final draftRef = fakeFirestore
-          .collection('loteamentos_drafts')
-          .doc('draft-serialized');
-      const geometry =
-          '{"type":"Polygon","coordinates":[[[0,0],[0,10],[10,10],[0,0]]]}';
-      await draftRef.set({
-        'features': [
-          {
-            'type': 'Feature',
-            'geometry': geometry,
-            'properties': {'nome': '', 'status': 'ambiguo'},
-          },
-        ],
-      });
-
-      await repository.updateDraftFeature(
-        'draft-serialized',
-        0,
-        {'nome': 'Lote 1A', 'status': 'resolvido'},
-      );
-
-      final features =
-          (await draftRef.get()).data()!['features'] as List<dynamic>;
-      final feature = features[0] as Map;
-      expect(feature['geometry'], isA<String>());
-      expect(feature['geometry'], geometry);
-      expect(feature['properties']['nome'], 'Lote 1A');
-      expect(feature['properties']['status'], 'resolvido');
-    });
-
-    test('updateDraftFeature throws on invalid index', () async {
-      final draftId = 'draft123';
-      final draftRef = fakeFirestore.collection('loteamentos_drafts').doc(draftId);
-      await draftRef.set({
-        'features': [],
-      });
-
+    test('preserva o nome base de PDF, DXF e DWF para o rascunho', () {
       expect(
-        () => repository.updateDraftFeature(draftId, 0, {'nome': 'Lote'}),
-        throwsA(isA<Exception>()),
+        LoteamentosImportRepository.loteamentoNameFromFilename(
+          'Lote_31_Q28.pdf',
+        ),
+        'Lote_31_Q28',
       );
-    });
-
-    test('preserva o nome base do DXF e do DWF para o rascunho', () {
+      expect(
+        LoteamentosImportRepository.loteamentoNameFromFilename(
+          'Lote_31_Q28.PDF',
+        ),
+        'Lote_31_Q28',
+      );
       expect(
         LoteamentosImportRepository.loteamentoNameFromFilename(
           'LOTEAMENTO_HR_R13A-Model.dxf',
@@ -144,7 +99,15 @@ void main() {
       );
     });
 
-    test('resolve o contentType correto para DXF e DWF', () {
+    test('resolve o contentType correto para PDF, DXF e DWF', () {
+      expect(
+        LoteamentosImportRepository.contentTypeFromFilename('arquivo.pdf'),
+        'application/pdf',
+      );
+      expect(
+        LoteamentosImportRepository.contentTypeFromFilename('arquivo.PDF'),
+        'application/pdf',
+      );
       expect(
         LoteamentosImportRepository.contentTypeFromFilename('arquivo.dxf'),
         'application/dxf',
@@ -162,36 +125,30 @@ void main() {
         'application/x-dwf',
       );
       expect(
-        LoteamentosImportRepository.contentTypeFromFilename('arquivo.pdf'),
+        LoteamentosImportRepository.contentTypeFromFilename('arquivo.dwg'),
         isNull,
       );
     });
 
-    test(
-      'rejeita formatos não suportados (PDF e DWG)',
-      () {
-        expect(
-          LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.pdf'),
-          isNull,
-        );
-        expect(
-          LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.dwg'),
-          isNull,
-        );
-      },
-    );
-
-    test('rejeita nome sem base utilizável antes do upload', () {
+    test('rejeita formatos não suportados (DWG e TXT) e nomes sem base', () {
+      expect(
+        LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.dwg'),
+        isNull,
+      );
+      expect(
+        LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.txt'),
+        isNull,
+      );
+      expect(
+        LoteamentosImportRepository.loteamentoNameFromFilename('.pdf'),
+        isNull,
+      );
       expect(
         LoteamentosImportRepository.loteamentoNameFromFilename('.dxf'),
         isNull,
       );
       expect(
         LoteamentosImportRepository.loteamentoNameFromFilename('.dwf'),
-        isNull,
-      );
-      expect(
-        LoteamentosImportRepository.loteamentoNameFromFilename('arquivo.txt'),
         isNull,
       );
     });
@@ -207,12 +164,15 @@ void main() {
         filename: 'Loteamento A.dxf',
       );
 
-      expect(storage.path, 'loteamentos_drafts_uploads/user-1/$draftId');
-      expect(storage.reference.bytes, Uint8List.fromList([1, 2]));
-      expect(storage.reference.metadata?.contentType, 'application/dxf');
-      expect(storage.reference.metadata?.customMetadata, {
+      expect(storage.uploads, hasLength(1));
+      final upload = storage.uploads.first;
+      expect(upload.path, 'loteamentos_drafts_uploads/user-1/$draftId');
+      expect(upload.bytes, Uint8List.fromList([1, 2]));
+      expect(upload.metadata?.contentType, 'application/dxf');
+      expect(upload.metadata?.customMetadata, {
         'construtoraId': 'construtora-1',
         'loteamentoName': 'Loteamento A',
+        'originalFilename': 'Loteamento A.dxf',
       });
     });
 
@@ -227,44 +187,175 @@ void main() {
         filename: 'Loteamento B.dwf',
       );
 
-      expect(storage.path, 'loteamentos_drafts_uploads/user-1/$draftId');
-      expect(storage.reference.bytes, Uint8List.fromList([3, 4]));
-      expect(storage.reference.metadata?.contentType, 'application/x-dwf');
-      expect(storage.reference.metadata?.customMetadata, {
+      expect(storage.uploads, hasLength(1));
+      final upload = storage.uploads.first;
+      expect(upload.path, 'loteamentos_drafts_uploads/user-1/$draftId');
+      expect(upload.bytes, Uint8List.fromList([3, 4]));
+      expect(upload.metadata?.contentType, 'application/x-dwf');
+      expect(upload.metadata?.customMetadata, {
         'construtoraId': 'construtora-1',
         'loteamentoName': 'Loteamento B',
+        'originalFilename': 'Loteamento B.dwf',
       });
     });
 
-    test('upload rejeita PDF antes de acessar o Storage', () async {
+    test('envia PDF único com contentType application/pdf e targetLoteamentoId', () async {
+      final storage = _RecordingFirebaseStorage();
+      final repo = LoteamentosImportRepository(fakeFirestore, storage);
+
+      final draftId = await repo.uploadFiles(
+        userId: 'user-1',
+        construtoraId: 'construtora-1',
+        targetLoteamentoId: 'lot-existente-1',
+        loteamentoNameOverride: 'Jardim Botanico',
+        files: [
+          ImportUploadFile(
+            bytes: Uint8List.fromList([0x25, 0x50, 0x44, 0x46]),
+            filename: 'lote_31_q28.pdf',
+          ),
+        ],
+      );
+
+      expect(storage.uploads, hasLength(1));
+      final upload = storage.uploads.first;
+      expect(upload.path, 'loteamentos_drafts_uploads/user-1/$draftId');
+      expect(upload.metadata?.contentType, 'application/pdf');
+      expect(upload.metadata?.customMetadata, {
+        'construtoraId': 'construtora-1',
+        'loteamentoName': 'Jardim Botanico',
+        'originalFilename': 'lote_31_q28.pdf',
+        'targetLoteamentoId': 'lot-existente-1',
+      });
+    });
+
+    test(
+      'envia múltiplos PDFs compartilhando o mesmo draftId nos metadados do Storage',
+      () async {
+        final storage = _RecordingFirebaseStorage();
+        final repo = LoteamentosImportRepository(fakeFirestore, storage);
+
+        final draftId = await repo.uploadFiles(
+          userId: 'user-1',
+          construtoraId: 'construtora-1',
+          targetLoteamentoId: 'lot-existente-2',
+          files: [
+            ImportUploadFile(
+              bytes: Uint8List.fromList([1, 2, 3]),
+              filename: 'lote_01.pdf',
+            ),
+            ImportUploadFile(
+              bytes: Uint8List.fromList([4, 5, 6]),
+              filename: 'lote_02.pdf',
+            ),
+          ],
+        );
+
+        expect(draftId, startsWith('draft_'));
+        expect(storage.uploads, hasLength(2));
+        expect(storage.uploads[0].path, isNot(storage.uploads[1].path));
+        for (final upload in storage.uploads) {
+          expect(upload.metadata?.contentType, 'application/pdf');
+          expect(upload.metadata?.customMetadata?['draftId'], draftId);
+          expect(
+            upload.metadata?.customMetadata?['construtoraId'],
+            'construtora-1',
+          );
+          expect(
+            upload.metadata?.customMetadata?['targetLoteamentoId'],
+            'lot-existente-2',
+          );
+        }
+      },
+    );
+
+    test('uploadFiles rejeita lista vazia ou formato inválido antes de acessar o Storage', () async {
       final storage = _RecordingFirebaseStorage();
       final repo = LoteamentosImportRepository(fakeFirestore, storage);
 
       expect(
-        () => repo.uploadFile(
+        () => repo.uploadFiles(
           userId: 'user-1',
           construtoraId: 'construtora-1',
-          fileBytes: Uint8List.fromList([1, 2]),
-          filename: 'Loteamento A.pdf',
+          files: const [],
         ),
         throwsArgumentError,
       );
-      expect(storage.path, isNull);
+      expect(
+        () => repo.uploadFiles(
+          userId: 'user-1',
+          construtoraId: 'construtora-1',
+          files: [
+            ImportUploadFile(
+              bytes: Uint8List.fromList([1]),
+              filename: 'ok.pdf',
+            ),
+            ImportUploadFile(
+              bytes: Uint8List.fromList([2]),
+              filename: 'invalido.dwg',
+            ),
+          ],
+        ),
+        throwsArgumentError,
+      );
+      expect(storage.uploads, isEmpty);
     });
 
-    test('aprovação marca o rascunho e grava uma solicitação de consolidação', () async {
+    test('saveDraftReview grava loteamento, targetLoteamentoId, items e updatedAt', () async {
+      final draftRef = fakeFirestore
+          .collection('loteamentos_drafts')
+          .doc('draft-tabular');
+      await draftRef.set({'status': 'pendente'});
+
+      await repository.saveDraftReview(
+        draftId: 'draft-tabular',
+        loteamento: {'name': 'Jardim Botanico', 'cidade': 'Extremoz', 'uf': 'RN'},
+        targetLoteamentoId: 'lot-123',
+        items: [
+          {
+            'quadra': 'Quadra 28',
+            'nome': 'Lote 31',
+            'frenteM': 10.0,
+            'profundidadeM': 20.0,
+            'areaTerrenoM2': 200.0,
+            'status': 'valido',
+          },
+        ],
+      );
+
+      final data = (await draftRef.get()).data()!;
+      expect(data['loteamento'], {
+        'name': 'Jardim Botanico',
+        'cidade': 'Extremoz',
+        'uf': 'RN',
+      });
+      expect(data['targetLoteamentoId'], 'lot-123');
+      expect((data['items'] as List).length, 1);
+      expect(data['updatedAt'], isA<String>());
+    });
+
+    test('aprovação grava loteamento, targetLoteamentoId, items, status aprovado, requestId e updatedAt', () async {
       final draft = fakeFirestore
           .collection('loteamentos_drafts')
           .doc('draft-1');
       await draft.set({'status': 'pendente'});
 
-      await repository.approveDraft('draft-1');
+      await repository.approveTabularDraft(
+        draftId: 'draft-1',
+        loteamento: {'name': 'Jardim Botanico'},
+        targetLoteamentoId: null,
+        items: [
+          {'quadra': 'Quadra 28', 'nome': 'Lote 31', 'status': 'valido'},
+        ],
+      );
 
-      final data = (await draft.get()).data();
-      expect(data?['status'], 'aprovado');
-      expect(data?['consolidationRequestId'], isA<String>());
-      final requestId = data?['consolidationRequestId'] as String;
-      expect(requestId.isNotEmpty, isTrue);
+      final data = (await draft.get()).data()!;
+      expect(data['status'], 'aprovado');
+      expect(data['loteamento'], {'name': 'Jardim Botanico'});
+      expect(data['targetLoteamentoId'], isNull);
+      expect((data['items'] as List).length, 1);
+      expect(data['updatedAt'], isA<String>());
+      expect(data['consolidationRequestId'], isA<String>());
+      final requestId = data['consolidationRequestId'] as String;
       final parts = requestId.split('-');
       expect(parts.length, 2);
       final randomPart = int.tryParse(parts[1]);
