@@ -18,6 +18,10 @@ DateTime _dateTimeFromTimestamp(dynamic timestamp) {
 
 dynamic _dateTimeToTimestamp(DateTime date) => Timestamp.fromDate(date);
 
+@Deprecated(
+  'Legado da coleção raiz /equipes. As equipes de trabalho foram unificadas em '
+  'construtoras/{construtoraId}/equipes (use Equipe de features/rh/domain/equipe.dart).',
+)
 @JsonSerializable()
 class EquipeLote {
   final String id;

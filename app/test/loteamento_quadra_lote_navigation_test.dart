@@ -13,9 +13,9 @@ import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/access_denied_screen.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/obras/presentation/obra_dashboard_screen.dart';
-import 'package:app/src/features/equipes/data/equipe_repository.dart';
-import 'package:app/src/features/equipes/domain/equipe.dart';
 import 'package:app/src/features/equipes/presentation/equipes_list_screen.dart';
+import 'package:app/src/features/rh/data/rh_repository.dart';
+import 'package:app/src/features/rh/domain/equipe.dart' as rh;
 import 'package:app/src/features/quadras/data/quadra_repository.dart';
 import 'package:app/src/features/quadras/domain/quadra.dart';
 import 'package:app/src/features/quadras/presentation/quadras_list_screen.dart';
@@ -108,23 +108,6 @@ class FakeEtapaRepository implements EtapaRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class FakeEquipeRepository implements EquipeRepository {
-  final List<EquipeLote> equipes;
-  FakeEquipeRepository(this.equipes);
-
-  @override
-  Stream<List<EquipeLote>> watchEquipes(
-    String construtoraId,
-    String loteamentoId,
-    String quadraId,
-    String loteId,
-    String etapaId,
-  ) => Stream.value(equipes);
-
-  @override
-  Future<void> createEquipe(EquipeLote equipe) async {}
-}
-
 Loteamento makeLoteamento(String id) => Loteamento(
   id: id,
   construtoraId: 'c1',
@@ -152,7 +135,7 @@ Lote makeLote(String id) => Lote(
   updatedAt: DateTime(2026, 1, 1),
 );
 
-Etapa makeEtapa(String id) => Etapa(
+Etapa makeEtapa(String id, {String? equipeId, String? equipeNome}) => Etapa(
   id: id,
   construtoraId: 'c1',
   loteamentoId: 'l1',
@@ -160,20 +143,17 @@ Etapa makeEtapa(String id) => Etapa(
   loteId: 'lo1',
   nome: 'Etapa $id',
   ordem: 1,
+  equipeId: equipeId,
+  equipeNome: equipeNome,
   createdAt: DateTime(2026, 1, 1),
   updatedAt: DateTime(2026, 1, 1),
 );
 
-EquipeLote makeEquipe(String id) => EquipeLote(
+rh.Equipe makeRhEquipe(String id) => rh.Equipe(
   id: id,
   construtoraId: 'c1',
-  loteamentoId: 'l1',
-  quadraId: 'q1',
-  loteId: 'lo1',
-  etapaId: 'e1',
   name: 'Equipe $id',
-  createdAt: DateTime(2026, 1, 1),
-  updatedAt: DateTime(2026, 1, 1),
+  isActive: true,
 );
 
 void main() {
@@ -397,9 +377,19 @@ void main() {
       ProviderScope(
         overrides: [
           trustedDevProvider.overrideWith((ref) => Stream.value(true)),
-          etapaRepositoryProvider.overrideWithValue(FakeEtapaRepository([])),
-          equipeRepositoryProvider.overrideWithValue(
-            FakeEquipeRepository([makeEquipe('e1')]),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value(null),
+          ),
+          etapaRepositoryProvider.overrideWithValue(
+            FakeEtapaRepository([
+              makeEtapa('e1', equipeId: 'eq1', equipeNome: 'Equipe eq1'),
+            ]),
+          ),
+          equipesStreamProvider('c1').overrideWith(
+            (ref) => Stream.value([makeRhEquipe('eq1')]),
+          ),
+          funcionariosStreamProvider('c1').overrideWith(
+            (ref) => Stream.value([]),
           ),
         ],
         child: MaterialApp.router(routerConfig: router),
@@ -409,7 +399,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(EquipesListScreen), findsOneWidget);
-    expect(find.text('Equipe e1'), findsOneWidget);
+    expect(find.text('Equipe eq1'), findsOneWidget);
     expect(
       router.state.uri.path,
       '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/etapas/e1/equipes',
@@ -426,11 +416,17 @@ void main() {
       ProviderScope(
         overrides: [
           trustedDevProvider.overrideWith((ref) => Stream.value(true)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value(null),
+          ),
           etapaRepositoryProvider.overrideWithValue(
             FakeEtapaRepository([makeEtapa('e1')]),
           ),
-          equipeRepositoryProvider.overrideWithValue(
-            FakeEquipeRepository([makeEquipe('e1')]),
+          equipesStreamProvider('c1').overrideWith(
+            (ref) => Stream.value([makeRhEquipe('eq1')]),
+          ),
+          funcionariosStreamProvider('c1').overrideWith(
+            (ref) => Stream.value([]),
           ),
         ],
         child: MaterialApp.router(routerConfig: router),

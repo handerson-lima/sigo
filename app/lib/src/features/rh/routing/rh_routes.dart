@@ -9,6 +9,7 @@ import '../presentation/chamada_form_screen.dart';
 /// Constantes de path para RH.
 abstract class RhPaths {
   static const funcionarios = 'rh/funcionarios';
+  static const equipes = 'rh/equipes';
   static const novoFuncionario = 'rh/funcionarios/novo';
   static const editarFuncionario = 'rh/funcionarios/:fId/editar';
   static const chamadas = 'obra/:oId/rh/chamadas';
@@ -18,6 +19,7 @@ abstract class RhPaths {
   static String rhFor(String cId) => '/construtoras/$cId/rh';
   static String funcionariosFor(String cId) =>
       '/construtoras/$cId/rh/funcionarios';
+  static String equipesFor(String cId) => '/construtoras/$cId/rh/equipes';
   static String novoFuncionarioFor(String cId) =>
       '/construtoras/$cId/rh/funcionarios/novo';
   static String editarFuncionarioFor(String cId, String fId) =>
@@ -40,6 +42,17 @@ List<RouteBase> get rhRoutes => [
         construtoraId: cId,
         module: 'rh',
         child: FuncionariosListScreen(construtoraId: cId),
+      );
+    },
+  ),
+  GoRoute(
+    path: RhPaths.equipes,
+    builder: (context, state) {
+      final cId = state.pathParameters['cId']!;
+      return AccessGuard(
+        construtoraId: cId,
+        module: 'rh',
+        child: FuncionariosListScreen(construtoraId: cId, initialTabIndex: 1),
       );
     },
   ),

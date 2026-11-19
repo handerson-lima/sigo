@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/rh_repository.dart';
 import '../domain/equipe.dart';
+import 'equipe_form_dialog.dart';
 
 class EquipesDialog extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -158,24 +159,42 @@ class _EquipesDialogState extends ConsumerState<EquipesDialog> {
                           subtitle: eq.leaderName != null
                               ? Text('Líder: ${eq.leaderName}')
                               : null,
-                          trailing: IconButton(
-                            icon: Icon(
-                              eq.isActive ? Icons.toggle_on : Icons.toggle_off,
-                              color: eq.isActive ? Colors.green : Colors.grey,
-                              size: 32,
-                            ),
-                            tooltip: eq.isActive
-                                ? 'Inativar equipe'
-                                : 'Reativar equipe',
-                            onPressed: () async {
-                              await ref
-                                  .read(rhRepositoryProvider)
-                                  .setEquipeActive(
-                                    widget.construtoraId,
-                                    eq.id,
-                                    !eq.isActive,
-                                  );
-                            },
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined),
+                                tooltip: 'Editar equipe',
+                                onPressed: () => showEquipeFormDialog(
+                                  context,
+                                  construtoraId: widget.construtoraId,
+                                  equipe: eq,
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  eq.isActive
+                                      ? Icons.toggle_on
+                                      : Icons.toggle_off,
+                                  color: eq.isActive
+                                      ? Colors.green
+                                      : Colors.grey,
+                                  size: 32,
+                                ),
+                                tooltip: eq.isActive
+                                    ? 'Inativar equipe'
+                                    : 'Reativar equipe',
+                                onPressed: () async {
+                                  await ref
+                                      .read(rhRepositoryProvider)
+                                      .setEquipeActive(
+                                        widget.construtoraId,
+                                        eq.id,
+                                        !eq.isActive,
+                                      );
+                                },
+                              ),
+                            ],
                           ),
                         );
                       },

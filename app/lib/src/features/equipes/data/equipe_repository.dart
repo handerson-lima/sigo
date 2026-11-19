@@ -1,12 +1,25 @@
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/equipe.dart';
 
+/// Legado da coleção raiz `/equipes`.
+/// A fonte única de verdade de equipes foi migrada para
+/// `construtoras/{construtoraId}/equipes` via `RhRepository` / `equipesStreamProvider`.
+@Deprecated(
+  'Migrado para RhRepository em construtoras/{construtoraId}/equipes '
+  '(use rhRepositoryProvider / equipesStreamProvider).',
+)
 final equipeRepositoryProvider = Provider<EquipeRepository>((ref) {
   return EquipeRepository(FirebaseFirestore.instance);
 });
 
+@Deprecated(
+  'Migrado para RhRepository em construtoras/{construtoraId}/equipes '
+  '(use RhRepository em features/rh/data/rh_repository.dart).',
+)
 class EquipeRepository {
   final FirebaseFirestore _firestore;
 
@@ -44,6 +57,10 @@ class EquipeRepository {
   }
 }
 
+@Deprecated(
+  'Migrado para RhRepository em construtoras/{construtoraId}/equipes '
+  '(use equipesStreamProvider).',
+)
 typedef EquipeParams = ({
   String construtoraId,
   String loteamentoId,
@@ -52,6 +69,10 @@ typedef EquipeParams = ({
   String etapaId,
 });
 
+@Deprecated(
+  'Migrado para RhRepository em construtoras/{construtoraId}/equipes '
+  '(use equipesStreamProvider).',
+)
 final watchEquipesProvider = StreamProvider.family<List<EquipeLote>, EquipeParams>((
   ref,
   params,

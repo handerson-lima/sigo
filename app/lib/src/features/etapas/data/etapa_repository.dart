@@ -67,6 +67,95 @@ class EtapaRepository {
     });
   }
 
+  /// Vincula uma equipe do RH (`construtoras/{c}/equipes/{equipeId}`) à etapa.
+  ///
+  /// Atualiza apenas `equipeId`, `equipeNome` e `updatedAt`, preservando as FKs
+  /// exigidas por `firestore.rules`. Quando [construtoraId] ou [loteId] são
+  /// informados, valida previamente a existência e as FKs do documento.
+  Future<void> vincularEquipe({
+    required String etapaId,
+    required String equipeId,
+    required String equipeNome,
+    String? construtoraId,
+    String? loteId,
+  }) async {
+    final cleanEtapaId = etapaId.trim();
+    final cleanEquipeId = equipeId.trim();
+    final cleanEquipeNome = equipeNome.trim();
+    if (cleanEtapaId.isEmpty) {
+      throw ArgumentError.value(etapaId, 'etapaId', 'ID da etapa inválido');
+    }
+    if (cleanEquipeId.isEmpty) {
+      throw ArgumentError.value(equipeId, 'equipeId', 'ID da equipe inválido');
+    }
+    if (cleanEquipeNome.isEmpty) {
+      throw ArgumentError.value(
+        equipeNome,
+        'equipeNome',
+        'Nome da equipe inválido',
+      );
+    }
+
+    final docRef = _firestore.collection('etapas').doc(cleanEtapaId);
+    if (construtoraId != null || loteId != null) {
+      final snap = await docRef.get();
+      final etapa = _etapaFromSnapshot(snap);
+      if (etapa == null) {
+        throw StateError('Etapa $cleanEtapaId não encontrada');
+      }
+      _validateFk(
+        construtoraId,
+        etapa.construtoraId,
+        'construtoraId',
+        etapa.loteId,
+      );
+      _validateFk(loteId, etapa.loteId, 'loteId', etapa.loteId);
+    }
+
+    await docRef.update({
+      'equipeId': cleanEquipeId,
+      'equipeNome': cleanEquipeNome,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Remove o vínculo de equipe da etapa, limpando `equipeId` e `equipeNome`.
+  ///
+  /// Preserva as FKs exigidas por `firestore.rules`. Quando [construtoraId] ou
+  /// [loteId] são informados, valida previamente a existência e as FKs.
+  Future<void> desvincularEquipe({
+    required String etapaId,
+    String? construtoraId,
+    String? loteId,
+  }) async {
+    final cleanEtapaId = etapaId.trim();
+    if (cleanEtapaId.isEmpty) {
+      throw ArgumentError.value(etapaId, 'etapaId', 'ID da etapa inválido');
+    }
+
+    final docRef = _firestore.collection('etapas').doc(cleanEtapaId);
+    if (construtoraId != null || loteId != null) {
+      final snap = await docRef.get();
+      final etapa = _etapaFromSnapshot(snap);
+      if (etapa == null) {
+        throw StateError('Etapa $cleanEtapaId não encontrada');
+      }
+      _validateFk(
+        construtoraId,
+        etapa.construtoraId,
+        'construtoraId',
+        etapa.loteId,
+      );
+      _validateFk(loteId, etapa.loteId, 'loteId', etapa.loteId);
+    }
+
+    await docRef.update({
+      'equipeId': null,
+      'equipeNome': null,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
   static List<Etapa> buildDefaultEtapas({
     required String construtoraId,
     required String loteamentoId,

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/contracts.dart';
 import '../../../design_system/sigo_theme.dart';
+import '../../authentication/data/user_repository.dart';
 import '../../etapas/domain/etapa.dart';
+import '../../obras/presentation/current_permissions_provider.dart';
 import '../../rh/data/rh_repository.dart';
 import '../../rh/domain/equipe.dart';
 import '../../rh/domain/funcionario.dart';
+import '../../rh/presentation/equipe_form_dialog.dart';
 import '../data/lote_repository.dart';
 import '../domain/lote.dart';
 
@@ -61,6 +65,7 @@ class _AtribuirLotacaoLoteSheetState
     extends ConsumerState<AtribuirLotacaoLoteSheet> {
   late String? _selectedEtapaId;
   final TextEditingController _searchController = TextEditingController();
+  final List<Equipe> _recentlyCreatedEquipes = [];
   String _searchQuery = '';
   bool _isSubmitting = false;
 
@@ -189,6 +194,56 @@ class _AtribuirLotacaoLoteSheetState
     }
   }
 
+  bool _computeCanRh() {
+    final isDev = ref.watch(trustedDevProvider).value == true;
+    final construtoraMember = ref
+        .watch(construtoraPermissionProvider(widget.construtoraId))
+        .value;
+
+    final isConstrutoraAdmin =
+        construtoraMember != null &&
+        construtoraMember['isActive'] == true &&
+        (construtoraMember['isAdmin'] == true ||
+            construtoraMember['isOwner'] == true ||
+            construtoraMember['role'] == 'admin' ||
+            construtoraMember['role'] == 'owner');
+
+    final construtoraModules = (construtoraMember?['modules'] as List? ?? [])
+        .map((m) => normalizeModule(m.toString()))
+        .toSet();
+
+    return isDev ||
+        isConstrutoraAdmin ||
+        (construtoraMember != null &&
+            construtoraMember['isActive'] == true &&
+            (construtoraModules.contains('rh') ||
+                construtoraModules.contains('recursos_humanos')));
+  }
+
+  Future<void> _abrirNovaEquipeDialog() async {
+    final created = await showEquipeFormDialog(
+      context,
+      construtoraId: widget.construtoraId,
+    );
+    if (created == null || !mounted) return;
+    setState(() {
+      _recentlyCreatedEquipes.removeWhere((e) => e.id == created.id);
+      _recentlyCreatedEquipes.insert(0, created);
+      if (_searchQuery.isNotEmpty &&
+          !created.name.toLowerCase().contains(_searchQuery)) {
+        _searchController.clear();
+        _searchQuery = '';
+      }
+    });
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Equipe "${created.name}" criada e disponível para atribuição.',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final sigo =
@@ -199,6 +254,7 @@ class _AtribuirLotacaoLoteSheetState
         ? _selectedEtapaId
         : null;
 
+    final canRh = _computeCanRh();
     final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
     final funcionariosAsync = ref.watch(
       funcionariosStreamProvider(widget.construtoraId),
@@ -325,7 +381,7 @@ class _AtribuirLotacaoLoteSheetState
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildEquipesTab(context, sigo, equipesAsync),
+                  _buildEquipesTab(context, sigo, equipesAsync, canRh),
                   _buildFuncionariosTab(context, sigo, funcionariosAsync),
                 ],
               ),
@@ -340,6 +396,7 @@ class _AtribuirLotacaoLoteSheetState
     BuildContext context,
     SigoThemeExtension sigo,
     AsyncValue<List<Equipe>> equipesAsync,
+    bool canRh,
   ) {
     return equipesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -353,7 +410,14 @@ class _AtribuirLotacaoLoteSheetState
         ),
       ),
       data: (equipes) {
-        final active = equipes.where((e) => e.isActive).where((e) {
+        final mergedById = <String, Equipe>{};
+        for (final e in _recentlyCreatedEquipes) {
+          mergedById[e.id] = e;
+        }
+        for (final e in equipes) {
+          mergedById[e.id] = e;
+        }
+        final active = mergedById.values.where((e) => e.isActive).where((e) {
           if (_searchQuery.isEmpty) return true;
           final name = e.name.toLowerCase();
           final leader = (e.leaderName ?? '').toLowerCase();
@@ -362,82 +426,188 @@ class _AtribuirLotacaoLoteSheetState
 
         if (active.isEmpty) {
           return Center(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              child: Text(
-                _searchQuery.isEmpty
-                    ? 'Nenhuma equipe ativa encontrada no RH.'
-                    : 'Nenhuma equipe ativa corresponde à busca.',
-                style: TextStyle(color: sigo.inkSecondary),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _searchQuery.isEmpty
+                        ? 'Nenhuma equipe ativa encontrada no RH.'
+                        : 'Nenhuma equipe ativa corresponde à busca.',
+                    style: TextStyle(color: sigo.inkSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  if (canRh)
+                    FilledButton.icon(
+                      key: const Key('btn_nova_equipe_contextual_lote'),
+                      onPressed: _isSubmitting ? null : _abrirNovaEquipeDialog,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Nova equipe'),
+                    )
+                  else
+                    Container(
+                      key: const Key('msg_sem_permissao_criar_equipe'),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: sigo.surfaceBase,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: sigo.borderHairline),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: sigo.inkSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Apenas usuários com acesso ao RH ou administradores da construtora podem cadastrar novas equipes.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: sigo.inkSecondary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
           );
         }
 
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          itemCount: active.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final equipe = active[index];
-            final jaVinculada = _isEquipeVinculada(equipe.id);
-            final hasLeader =
-                equipe.leaderName != null &&
-                equipe.leaderName!.trim().isNotEmpty;
-
-            return Container(
-              decoration: BoxDecoration(
-                color: sigo.surfaceBase,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: jaVinculada ? sigo.brandBlue : sigo.borderHairline,
-                ),
-              ),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: sigo.lotCompleteBg,
-                  foregroundColor: sigo.lotCompleteInk,
-                  child: const Icon(Icons.groups_outlined, size: 20),
-                ),
-                title: Text(
-                  equipe.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: sigo.inkPrimary,
-                  ),
-                ),
-                subtitle: hasLeader
-                    ? Text(
-                        'Líder: ${equipe.leaderName}',
-                        style: TextStyle(color: sigo.inkSecondary),
-                      )
-                    : null,
-                trailing: jaVinculada
-                    ? Chip(
-                        label: Text(
-                          'Vinculada',
-                          style: TextStyle(
-                            color: sigo.lotCompleteInk,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+              child: canRh
+                  ? Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${active.length} ${active.length == 1 ? 'equipe ativa' : 'equipes ativas'}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: sigo.inkSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
                           ),
                         ),
-                        backgroundColor: sigo.lotCompleteBg,
-                        side: BorderSide.none,
-                      )
-                    : FilledButton(
-                        onPressed: _isSubmitting
-                            ? null
-                            : () => _atribuirEquipe(equipe),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: sigo.actionBlue,
-                          foregroundColor: sigo.surfaceRaised,
+                        TextButton.icon(
+                          key: const Key('btn_nova_equipe_contextual_lote'),
+                          onPressed: _isSubmitting
+                              ? null
+                              : _abrirNovaEquipeDialog,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Nova equipe'),
                         ),
-                        child: const Text('Atribuir'),
+                      ],
+                    )
+                  : Container(
+                      key: const Key('msg_sem_permissao_criar_equipe'),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
+                      decoration: BoxDecoration(
+                        color: sigo.surfaceBase,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: sigo.borderHairline),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: sigo.inkSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Apenas usuários com acesso ao RH ou administradores da construtora podem cadastrar novas equipes.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: sigo.inkSecondary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                itemCount: active.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final equipe = active[index];
+                  final jaVinculada = _isEquipeVinculada(equipe.id);
+                  final hasLeader =
+                      equipe.leaderName != null &&
+                      equipe.leaderName!.trim().isNotEmpty;
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: sigo.surfaceBase,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: jaVinculada
+                            ? sigo.brandBlue
+                            : sigo.borderHairline,
+                      ),
+                    ),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: sigo.lotCompleteBg,
+                        foregroundColor: sigo.lotCompleteInk,
+                        child: const Icon(Icons.groups_outlined, size: 20),
+                      ),
+                      title: Text(
+                        equipe.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: sigo.inkPrimary,
+                        ),
+                      ),
+                      subtitle: hasLeader
+                          ? Text(
+                              'Líder: ${equipe.leaderName}',
+                              style: TextStyle(color: sigo.inkSecondary),
+                            )
+                          : null,
+                      trailing: jaVinculada
+                          ? Chip(
+                              label: Text(
+                                'Vinculada',
+                                style: TextStyle(
+                                  color: sigo.lotCompleteInk,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              backgroundColor: sigo.lotCompleteBg,
+                              side: BorderSide.none,
+                            )
+                          : FilledButton(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () => _atribuirEquipe(equipe),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: sigo.actionBlue,
+                                foregroundColor: sigo.surfaceRaised,
+                              ),
+                              child: const Text('Atribuir'),
+                            ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         );
       },
     );

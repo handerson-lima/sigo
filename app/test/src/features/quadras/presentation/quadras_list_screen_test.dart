@@ -4,6 +4,8 @@ import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/quadras/data/quadra_repository.dart';
 import 'package:app/src/features/quadras/domain/quadra.dart';
+import 'package:app/src/features/quadras/presentation/quadra_summary_card.dart';
+import 'package:app/src/features/quadras/presentation/quadra_summary_provider.dart';
 import 'package:app/src/features/quadras/presentation/quadras_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -372,6 +374,65 @@ void main() {
       expect(call.lotes[1].areaTerrenoM2, 240.0);
       expect(call.lotes[2].frenteM, 10.0);
       expect(call.lotes[2].areaTerrenoM2, 200.0);
+    },
+  );
+
+  testWidgets(
+    'Renderiza QuadraSummaryCard com métricas agregadas e navega para lotes ao clicar',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: '/construtoras/c1/loteamentos/l1/quadras',
+        routes: [
+          GoRoute(
+            path: '/construtoras/c1/loteamentos/l1/quadras',
+            builder: (context, state) => const QuadrasListScreen(
+              construtoraId: 'c1',
+              loteamentoId: 'l1',
+            ),
+          ),
+          GoRoute(
+            path: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Tela de Lotes q1')),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            watchQuadrasProvider.overrideWith(
+              (ref, arg) => Stream.value([
+                makeQuadra('q1', logradouroPadrao: 'Rua Sandoval Wanderley'),
+              ]),
+            ),
+            quadraSummaryMapProvider.overrideWith(
+              (ref, arg) => Stream.value({
+                'q1': const QuadraSummary(
+                  totalLotes: 10,
+                  concluidos: 6,
+                  emAndamento: 3,
+                  pendentes: 1,
+                  progressoMedio: 72,
+                ),
+              }),
+            ),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byType(QuadraSummaryCard), findsOneWidget);
+      expect(find.text('Em andamento • 72%'), findsOneWidget);
+      expect(find.text('10 lotes'), findsOneWidget);
+      expect(find.text('6 concl.'), findsOneWidget);
+
+      await tester.tap(find.byType(QuadraSummaryCard));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tela de Lotes q1'), findsOneWidget);
     },
   );
 }

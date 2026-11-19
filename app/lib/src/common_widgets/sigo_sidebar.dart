@@ -413,18 +413,30 @@ class SigoSidebar extends ConsumerWidget {
                           isActive: activeRoute.endsWith('/sync'),
                           onTap: () => context.go('/construtoras/$cId/sync'),
                         ),
-                      if (cId != null && canRh)
+                      if (cId != null && canRh) ...[
                         _NavItem(
                           icon: Icons.people,
                           title: 'Funcionários (RH)',
                           isActive:
-                              activeRoute.contains('/rh') &&
-                              !activeRoute.contains('/chamadas'),
+                              activeRoute.contains('/rh/funcionarios') ||
+                              (activeRoute.contains('/rh') &&
+                                  !activeRoute.contains('/chamadas') &&
+                                  !activeRoute.contains('/equipes')),
                           onTap: () {
                             Scaffold.maybeOf(context)?.closeDrawer();
                             context.go('/construtoras/$cId/rh/funcionarios');
                           },
                         ),
+                        _NavItem(
+                          icon: Icons.groups,
+                          title: 'Equipes de Trabalho',
+                          isActive: activeRoute.contains('/rh/equipes'),
+                          onTap: () {
+                            Scaffold.maybeOf(context)?.closeDrawer();
+                            context.go('/construtoras/$cId/rh/equipes');
+                          },
+                        ),
+                      ],
                       if (cId != null && canEpiCatalogo)
                         _NavItem(
                           icon: Icons.health_and_safety_outlined,

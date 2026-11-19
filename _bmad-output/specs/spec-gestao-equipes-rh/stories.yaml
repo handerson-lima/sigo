@@ -1,0 +1,98 @@
+- id: "1"
+  title: "Fase 1.1: Hub RH com abas Funcionários | Equipes, rota /rh/equipes e sidebar"
+  description: >-
+    Criar a estrutura de Hub RH com navegação por abas (Funcionários | Equipes), registrar a rota
+    `/construtoras/:cId/rh/equipes` protegida por `AccessGuard(module: 'rh')` e atualizar o rótulo
+    na `SigoSidebar` sob `canRh`. Referente à CAP-1.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Leia `_bmad-output/specs/spec-gestao-equipes-rh/SPEC.md` (CAP-1 e chaves `Key`).
+    Em `app/lib/src/features/rh/routing/rh_routes.dart`, adicione `RhPaths.equipes = 'rh/equipes'`,
+    `RhPaths.equipesFor(String cId)` e o `GoRoute` protegido por `AccessGuard(construtoraId: cId, module: 'rh')`.
+    Evolua `FuncionariosListScreen` (ou extraia um `RhHubScreen`) para exibir um `TabBar` com as abas
+    `Funcionários` (`Key('rh_tab_funcionarios')`) e `Equipes` (`Key('rh_tab_equipes')`), sincronizado com
+    `/rh/funcionarios` e `/rh/equipes`. Atualize `app/lib/src/common_widgets/sigo_sidebar.dart` sob `canRh`
+    com rótulo claro (`Recursos Humanos`, `Key('sidebar_nav_rh')`) ativo em `/rh` (exceto `/chamadas`).
+    Adicione testes de widget cobrindo roteamento, guarda de acesso e troca de abas.
+
+- id: "2"
+  title: "Fase 1.2: Aba Equipes completa, formulário reutilizável e confirmação de inativação"
+  description: >-
+    Implementar a aba Equipes no Hub RH com busca, filtro de status, contagem de membros ativos,
+    empty state com CTA, formulário reutilizável de criação/edição (nome com validação de duplicidade
+    case-insensitive e líder opcional entre funcionários ativos) e diálogo de confirmação ao inativar
+    equipe com colaboradores vinculados. Referente às CAP-2 e CAP-3.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Leia `_bmad-output/specs/spec-gestao-equipes-rh/SPEC.md` (CAP-2, CAP-3, Detalhamento Técnico §2 e chaves `Key`).
+    Crie `showEquipeFormDialog` em `app/lib/src/features/rh/presentation/equipe_form_dialog.dart` retornando
+    `Future<Equipe?>`: valide nome obrigatório e unicidade case-insensitive contra `equipesStreamProvider(cId)`
+    (ignorando `initialEquipe.id` na edição); inclua dropdown de líder opcional populado com funcionários ativos
+    (e opção fallback caso o líder atual esteja inativo), gravando `leaderId` e `leaderName` (ou limpando via
+    `clearLeader: true`).
+    Implemente a aba `Equipes` no Hub RH com busca (`Key('search_equipes_input')`), filtros Ativos/Todos/Inativos,
+    contagem de colaboradores ativos por equipe (`Key('equipe_members_count_<id>')`), ações Editar e Inativar/Reativar,
+    empty state com CTA (`Key('btn_empty_add_equipe')`) e diálogo de confirmação (`Key('dialog_confirm_inativar_equipe')`)
+    quando houver colaboradores vinculados ao inativar.
+    Adicione testes de widget e unidade cobrindo duplicidade case-insensitive, seleção/limpeza de líder, contagem de
+    membros e confirmação de inativação.
+
+- id: "3"
+  title: "Fase 2.1: Criação contextual de equipe em FuncionarioFormScreen com auto-seleção"
+  description: >-
+    Adicionar botão `+ Nova equipe` ao lado do dropdown de equipe em `FuncionarioFormScreen`, reutilizando
+    o formulário completo de equipe e auto-selecionando a equipe recém-criada sem perder os dados do formulário.
+    Referente à CAP-4.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Leia `_bmad-output/specs/spec-gestao-equipes-rh/SPEC.md` (CAP-4, Detalhamento Técnico §3 e chaves `Key`).
+    Em `app/lib/src/features/rh/presentation/funcionario_form_screen.dart`, adicione o botão `+ Nova equipe`
+    (`Key('btn_nova_equipe_contextual_funcionario')`) junto ao `funcionario_team_select`.
+    Ao abrir `showEquipeFormDialog` e receber uma `Equipe` criada, atualize `_teamId = created.id` e garanta
+    (com cache local de fallback caso o stream ainda não tenha emitido) que o `DropdownButtonFormField`
+    exiba e selecione imediatamente a nova equipe sem erro. Garanta também fallback seguro se o colaborador
+    em edição pertencer a uma equipe inativa. Adicione testes de widget validando a criação contextual,
+    auto-seleção e preservação dos demais campos.
+
+- id: "4"
+  title: "Fase 2.2: Criação contextual de equipe em AtribuirLotacaoLoteSheet com guarda canRh"
+  description: >-
+    Adicionar botão `+ Nova equipe` na aba `Equipes RH` de `AtribuirLotacaoLoteSheet` visível apenas para
+    usuários com `canRh`, exibindo mensagem orientativa quando o usuário não tiver permissão de RH.
+    Referente à CAP-5.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Leia `_bmad-output/specs/spec-gestao-equipes-rh/SPEC.md` (CAP-5, Detalhamento Técnico §3 e §5, e chaves `Key`).
+    Em `app/lib/src/features/lotes/presentation/atribuir_lotacao_lote_sheet.dart`, avalie `canRh` via
+    `trustedDevProvider` e `construtoraPermissionProvider(widget.construtoraId)`.
+    Na aba `Equipes RH`, quando `canRh == true`, exiba o botão `+ Nova equipe`
+    (`Key('btn_nova_equipe_contextual_lote')`) no topo da aba e no empty state, abrindo `showEquipeFormDialog`.
+    Quando `canRh == false`, oculte o botão e exiba a mensagem orientativa (`Key('msg_sem_permissao_criar_equipe')`).
+    Adicione testes de widget cobrindo ambos os cenários (`canRh == true` e `canRh == false`, com lista vazia e populada).
+
+- id: "5"
+  title: "Fase 3: Unificação de EquipesListScreen em Etapas com fonte única do RH"
+  description: >-
+    Migrar `EquipesListScreen` (`.../etapas/:etapaId/equipes`) para consumir `construtoras/{cId}/equipes` e
+    `construtoras/{cId}/funcionarios` via `etapa.equipeId` / `etapa.equipeNome`, exibindo equipe vinculada e
+    membros ativos, permitindo vincular/alterar/remover equipe do RH na etapa e marcando `/equipes` (`EquipeLote`)
+    como deprecated. Referente às CAP-6 e CAP-7.
+  spec_checkpoint: false
+  done_checkpoint: false
+  invoke_dev_with: >-
+    Leia `_bmad-output/specs/spec-gestao-equipes-rh/SPEC.md` (CAP-6, CAP-7, Detalhamento Técnico §4 e §5, e chaves `Key`).
+    Em `app/lib/src/features/etapas/data/etapa_repository.dart`, adicione `watchEtapa(String etapaId)` /
+    `watchEtapaProvider` e `assignEquipe({required String etapaId, String? equipeId, String? equipeNome})`.
+    Refatore `app/lib/src/features/equipes/presentation/equipes_list_screen.dart` para não usar mais
+    `watchEquipesProvider` (`/equipes`): passe a observar a etapa atual, `equipesStreamProvider(construtoraId)` e
+    `funcionariosStreamProvider(construtoraId)`, exibindo card da equipe vinculada (`Key('etapa_equipe_vinculada_card')`),
+    líder, membros ativos (`Key('etapa_equipe_membro_<id>')`), fallback gracioso para equipe inativa/arquivada e
+    ações de vincular (`Key('btn_vincular_equipe_etapa')`), alterar (`Key('btn_alterar_equipe_etapa')`) e remover
+    (`Key('btn_remover_equipe_etapa')`) condicionadas à permissão de escrita em `etapas`.
+    Anote `EquipeLote` e `EquipeRepository` em `app/lib/src/features/equipes/` com `@Deprecated(...)`.
+    Se for necessário ajustar leitura em `firestore.rules`, delegue exclusivamente ao subagente `firestore-rules-author`.
+    Adicione testes unitários (`EtapaRepository.assignEquipe`) e de widget (`EquipesListScreen`).

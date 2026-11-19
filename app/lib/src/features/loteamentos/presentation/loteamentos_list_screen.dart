@@ -14,26 +14,8 @@ import '../../obras/presentation/current_permissions_provider.dart';
 import '../../quadras/domain/quadra.dart';
 import '../data/loteamento_repository.dart';
 import '../domain/loteamento.dart';
-
-String? _formatLoteamentoLocalizacao(Loteamento item) {
-  final bairro = nullIfBlankText(item.bairro);
-  final cidade = nullIfBlankText(item.cidade);
-  final uf = nullIfBlankText(item.uf)?.toUpperCase();
-
-  final cidadeUf = switch ((cidade, uf)) {
-    (final c?, final u?) => '$c - $u',
-    (final c?, null) => c,
-    (null, final u?) => u,
-    (null, null) => null,
-  };
-
-  return switch ((bairro, cidadeUf)) {
-    (final b?, final cu?) => '$b • $cu',
-    (final b?, null) => b,
-    (null, final cu?) => cu,
-    (null, null) => null,
-  };
-}
+import 'loteamento_summary_card.dart';
+import 'loteamento_summary_provider.dart';
 
 class LoteamentosListScreen extends ConsumerWidget {
   final String construtoraId;
@@ -44,6 +26,9 @@ class LoteamentosListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final params = (construtoraId: construtoraId);
     final loteamentosAsync = ref.watch(watchLoteamentosProvider(params));
+    final summaries = ref
+        .watch(loteamentoSummaryMapProvider(construtoraId))
+        .value;
     final cm = ref.watch(construtoraPermissionProvider(construtoraId)).value;
     final admin =
         ref.watch(trustedDevProvider).value == true ||
@@ -111,18 +96,64 @@ class LoteamentosListScreen extends ConsumerWidget {
                   );
                 }
 
-                return ListView.builder(
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final localizacao = _formatLoteamentoLocalizacao(item);
-                    return ListTile(
-                      title: Text(item.name),
-                      subtitle: localizacao != null ? Text(localizacao) : null,
-                      trailing: const Icon(Icons.arrow_forward_ios),
-                      onTap: () {
-                        context.go(
-                          '/construtoras/$construtoraId/loteamentos/${item.id}/quadras',
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth >= 1200
+                        ? 3
+                        : constraints.maxWidth >= 720
+                        ? 2
+                        : 1;
+                    final rowCount = (items.length / columns).ceil();
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      itemCount: rowCount,
+                      itemBuilder: (context, rowIndex) {
+                        if (columns == 1) {
+                          final item = items[rowIndex];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: LoteamentoSummaryCard(
+                              loteamento: item,
+                              summary: summaries?[item.id],
+                              onTap: () {
+                                context.go(
+                                  '/construtoras/$construtoraId/loteamentos/${item.id}/quadras',
+                                );
+                              },
+                            ),
+                          );
+                        }
+
+                        final start = rowIndex * columns;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: List.generate(columns, (colIndex) {
+                              final itemIndex = start + colIndex;
+                              return Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    left: colIndex == 0 ? 0 : 6,
+                                    right: colIndex == columns - 1 ? 0 : 6,
+                                  ),
+                                  child: itemIndex < items.length
+                                      ? LoteamentoSummaryCard(
+                                          loteamento: items[itemIndex],
+                                          summary:
+                                              summaries?[items[itemIndex].id],
+                                          onTap: () {
+                                            context.go(
+                                              '/construtoras/$construtoraId/loteamentos/${items[itemIndex].id}/quadras',
+                                            );
+                                          },
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                              );
+                            }),
+                          ),
                         );
                       },
                     );

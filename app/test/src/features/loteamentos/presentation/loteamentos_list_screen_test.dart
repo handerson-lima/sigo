@@ -2,6 +2,8 @@ import 'package:app/src/common_widgets/sigo_breadcrumbs.dart';
 import 'package:app/src/features/authentication/data/user_repository.dart';
 import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
 import 'package:app/src/features/loteamentos/domain/loteamento.dart';
+import 'package:app/src/features/loteamentos/presentation/loteamento_summary_card.dart';
+import 'package:app/src/features/loteamentos/presentation/loteamento_summary_provider.dart';
 import 'package:app/src/features/loteamentos/presentation/loteamentos_list_screen.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
@@ -382,6 +384,74 @@ void main() {
       expect(call.lotes[2].name, 'Lote 3');
       expect(call.lotes[2].frenteM, 10.0);
       expect(call.lotes[2].areaTerrenoM2, 200.0);
+    },
+  );
+
+  testWidgets(
+    'Renderiza LoteamentoSummaryCard com métricas e navega para quadras ao clicar',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: '/construtoras/c1/loteamentos',
+        routes: [
+          GoRoute(
+            path: '/construtoras/c1/loteamentos',
+            builder: (context, state) =>
+                const LoteamentosListScreen(construtoraId: 'c1'),
+          ),
+          GoRoute(
+            path: '/construtoras/c1/loteamentos/:loteamentoId/quadras',
+            builder: (context, state) => Scaffold(
+              body: Text('Quadras de ${state.pathParameters['loteamentoId']}'),
+            ),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            watchLoteamentosProvider.overrideWith(
+              (ref, arg) => Stream.value([
+                makeLoteamento(
+                  'l1',
+                  bairro: 'Centro',
+                  cidade: 'Natal',
+                  uf: 'RN',
+                ),
+              ]),
+            ),
+            loteamentoSummaryMapProvider('c1').overrideWith(
+              (ref) => Stream.value(const {
+                'l1': LoteamentoSummary(
+                  totalQuadras: 3,
+                  totalLotes: 24,
+                  lotesConcluidos: 10,
+                  lotesEmAndamento: 8,
+                  lotesPendentes: 6,
+                  progressoMedio: 42,
+                ),
+              }),
+            ),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LoteamentoSummaryCard), findsOneWidget);
+      expect(find.text('Loteamento l1'), findsOneWidget);
+      expect(find.text('Centro • Natal - RN'), findsOneWidget);
+      expect(find.text('Em andamento • 42%'), findsOneWidget);
+      expect(
+        find.text('Progresso Geral (3 quadras • 24 lotes)'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Loteamento l1'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Quadras de l1'), findsOneWidget);
     },
   );
 }

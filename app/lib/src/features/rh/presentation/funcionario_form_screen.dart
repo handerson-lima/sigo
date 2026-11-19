@@ -6,7 +6,9 @@ import 'package:uuid/uuid.dart';
 import '../../../common_widgets/sigo_layout.dart';
 import '../../../core/contracts.dart';
 import '../data/rh_repository.dart';
+import '../domain/equipe.dart';
 import '../domain/funcionario.dart';
+import 'equipe_form_dialog.dart';
 
 class FuncionarioFormScreen extends ConsumerStatefulWidget {
   final String construtoraId;
@@ -37,6 +39,7 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
   String _employmentType = 'clt';
   String _salaryBasis = 'mensal';
   String? _teamId;
+  Equipe? _recentlyCreatedEquipe;
   bool _isSaving = false;
   bool _isInitialized = false;
 
@@ -326,29 +329,79 @@ class _FuncionarioFormScreenState extends ConsumerState<FuncionarioFormScreen> {
                               final activeEquipes = equipes
                                   .where((e) => e.isActive)
                                   .toList();
-                              return DropdownButtonFormField<String?>(
-                                key: const Key('funcionario_team_select'),
-                                isExpanded: true,
-                                initialValue: _teamId,
-                                decoration: const InputDecoration(
-                                  labelText: 'Equipe de Trabalho (Opcional)',
-                                  prefixIcon: Icon(Icons.groups),
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: [
-                                  const DropdownMenuItem<String?>(
-                                    value: null,
-                                    child: Text('Sem equipe vinculada'),
+                              if (_recentlyCreatedEquipe != null &&
+                                  !activeEquipes.any(
+                                    (e) => e.id == _recentlyCreatedEquipe!.id,
+                                  )) {
+                                activeEquipes.add(_recentlyCreatedEquipe!);
+                              }
+                              final hasSelectedTeam =
+                                  _teamId != null &&
+                                  activeEquipes.any((e) => e.id == _teamId);
+                              final effectiveTeamId = hasSelectedTeam
+                                  ? _teamId
+                                  : null;
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  DropdownButtonFormField<String?>(
+                                    key: const Key('funcionario_team_select'),
+                                    isExpanded: true,
+                                    initialValue: effectiveTeamId,
+                                    decoration: const InputDecoration(
+                                      labelText:
+                                          'Equipe de Trabalho (Opcional)',
+                                      prefixIcon: Icon(Icons.groups),
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: [
+                                      const DropdownMenuItem<String?>(
+                                        value: null,
+                                        child: Text('Sem equipe vinculada'),
+                                      ),
+                                      ...activeEquipes.map(
+                                        (e) => DropdownMenuItem<String?>(
+                                          value: e.id,
+                                          child: Text(e.name),
+                                        ),
+                                      ),
+                                    ],
+                                    onChanged: (val) =>
+                                        setState(() => _teamId = val),
                                   ),
-                                  ...activeEquipes.map(
-                                    (e) => DropdownMenuItem<String?>(
-                                      value: e.id,
-                                      child: Text(e.name),
+                                  const SizedBox(height: 6),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      key: const Key(
+                                        'btn_inline_create_equipe',
+                                      ),
+                                      onPressed: _isSaving
+                                          ? null
+                                          : () async {
+                                              final created =
+                                                  await showEquipeFormDialog(
+                                                    context,
+                                                    construtoraId:
+                                                        widget.construtoraId,
+                                                  );
+                                              if (created != null && mounted) {
+                                                setState(() {
+                                                  _recentlyCreatedEquipe =
+                                                      created;
+                                                  _teamId = created.id;
+                                                });
+                                              }
+                                            },
+                                      icon: const Icon(
+                                        Icons.group_add_outlined,
+                                        size: 18,
+                                      ),
+                                      label: const Text('+ Nova equipe'),
                                     ),
                                   ),
                                 ],
-                                onChanged: (val) =>
-                                    setState(() => _teamId = val),
                               );
                             },
                           ),

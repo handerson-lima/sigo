@@ -149,9 +149,50 @@ class _EtapasListScreenState extends ConsumerState<EtapasListScreen> {
                     final item = items[index];
                     final dateStr = DateFormat('dd/MM/yyyy HH:mm')
                         .format(item.createdAt);
+                    final equipeNome = item.equipeNome?.trim();
+                    final hasEquipe =
+                        equipeNome != null && equipeNome.isNotEmpty;
                     return ListTile(
                       title: Text(item.nome),
-                      subtitle: Text('Criado em: $dateStr'),
+                      subtitle: hasEquipe
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('Criado em: $dateStr'),
+                                const SizedBox(height: 2),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.groups_outlined,
+                                      size: 14,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        'Equipe: $equipeNome',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          : Text('Criado em: $dateStr'),
+                      trailing: const Icon(Icons.chevron_right),
                       onTap: () {
                         context.go('$baseRoute/${item.id}/equipes');
                       },

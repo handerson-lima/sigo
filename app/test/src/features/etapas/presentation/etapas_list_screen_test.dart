@@ -299,4 +299,49 @@ void main() {
 
     expect(find.text('Erro ao inicializar etapas. Tente novamente.'), findsOneWidget);
   });
+
+  testWidgets('Exibe equipe vinculada no subtítulo quando equipeNome preenchido', (
+    tester,
+  ) async {
+    final mockEtapa = Etapa(
+      id: 'e1',
+      construtoraId: 'c1',
+      loteamentoId: 'l1',
+      quadraId: 'q1',
+      loteId: 'lo1',
+      nome: 'Muro',
+      ordem: 1,
+      equipeId: 'eq-1',
+      equipeNome: 'Equipe Alvenaria',
+      createdAt: DateTime(2023, 1, 1),
+      updatedAt: DateTime(2023, 1, 1),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          watchEtapasProvider.overrideWith(
+            (ref, arg) => Stream.value([mockEtapa]),
+          ),
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value(null),
+          ),
+        ],
+        child: buildTestWidget(
+          const EtapasListScreen(
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+            quadraId: 'q1',
+            loteId: 'lo1',
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Muro'), findsOneWidget);
+    expect(find.text('Equipe: Equipe Alvenaria'), findsOneWidget);
+  });
 }

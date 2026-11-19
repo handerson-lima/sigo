@@ -1,13 +1,27 @@
 import 'package:app/src/design_system/sigo_theme.dart';
+import 'package:app/src/features/authentication/data/user_repository.dart';
 import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/lotes/presentation/atribuir_lotacao_lote_sheet.dart';
+import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/rh/data/rh_repository.dart';
 import 'package:app/src/features/rh/domain/equipe.dart';
 import 'package:app/src/features/rh/domain/funcionario.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class _SpyRhRepository implements RhRepository {
+  final List<Equipe> createdEquipes = [];
+
+  @override
+  Future<void> createEquipe(Equipe equipe) async {
+    createdEquipes.add(equipe);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class _SpyLoteRepository implements LoteRepository {
   Map<String, dynamic>? lastEquipeCall;
@@ -75,6 +89,14 @@ void main() {
           ProviderScope(
             overrides: [
               loteRepositoryProvider.overrideWithValue(spy),
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': ['lotes'],
+                }),
+              ),
               equipesStreamProvider('c1').overrideWith(
                 (ref) => Stream.value([
                   Equipe(
@@ -135,6 +157,14 @@ void main() {
           ProviderScope(
             overrides: [
               loteRepositoryProvider.overrideWithValue(spy),
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': ['lotes'],
+                }),
+              ),
               equipesStreamProvider(
                 'c1',
               ).overrideWith((ref) => Stream.value(const <Equipe>[])),
@@ -197,6 +227,137 @@ void main() {
         expect(spy.lastFuncionarioCall!['funcionarioNome'], 'João Silva');
         expect(spy.lastFuncionarioCall!['role'], 'Pedreiro');
         expect(spy.lastFuncionarioCall!['etapaId'], 'lo1_muro');
+      },
+    );
+
+    testWidgets(
+      'com canRh == true exibe botao + Nova equipe no estado vazio, cria equipe via dialogo e disponibiliza para atribuicao',
+      (tester) async {
+        final spyLote = _SpyLoteRepository();
+        final spyRh = _SpyRhRepository();
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              loteRepositoryProvider.overrideWithValue(spyLote),
+              rhRepositoryProvider.overrideWithValue(spyRh),
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': ['rh'],
+                }),
+              ),
+              equipesStreamProvider(
+                'c1',
+              ).overrideWith((ref) => Stream.value(const <Equipe>[])),
+              funcionariosStreamProvider(
+                'c1',
+              ).overrideWith((ref) => Stream.value(const <Funcionario>[])),
+            ],
+            child: MaterialApp(
+              theme: SigoTheme.lightTheme,
+              home: Scaffold(
+                body: AtribuirLotacaoLoteSheet(
+                  construtoraId: 'c1',
+                  lote: _makeLote(),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('btn_nova_equipe_contextual_lote')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('msg_sem_permissao_criar_equipe')),
+          findsNothing,
+        );
+
+        await tester.tap(
+          find.byKey(const Key('btn_nova_equipe_contextual_lote')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('equipe_form_name_input')), findsOneWidget);
+
+        await tester.enterText(
+          find.byKey(const Key('equipe_form_name_input')),
+          'Equipe Elétrica Nova',
+        );
+        await tester.tap(find.byKey(const Key('btn_save_equipe_form')));
+        await tester.pumpAndSettle();
+
+        expect(spyRh.createdEquipes, hasLength(1));
+        expect(spyRh.createdEquipes.first.name, 'Equipe Elétrica Nova');
+        expect(spyRh.createdEquipes.first.construtoraId, 'c1');
+
+        // A equipe recém-criada já aparece disponível na lista e o botão no cabeçalho segue visível
+        expect(find.text('Equipe Elétrica Nova'), findsOneWidget);
+        expect(
+          find.byKey(const Key('btn_nova_equipe_contextual_lote')),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Atribuir'));
+        await tester.pumpAndSettle();
+
+        expect(spyLote.lastEquipeCall, isNotNull);
+        expect(spyLote.lastEquipeCall!['equipeNome'], 'Equipe Elétrica Nova');
+      },
+    );
+
+    testWidgets(
+      'com canRh == false oculta botao + Nova equipe e exibe mensagem orientativa no estado vazio',
+      (tester) async {
+        final spyLote = _SpyLoteRepository();
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              loteRepositoryProvider.overrideWithValue(spyLote),
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': ['lotes'],
+                }),
+              ),
+              equipesStreamProvider(
+                'c1',
+              ).overrideWith((ref) => Stream.value(const <Equipe>[])),
+              funcionariosStreamProvider(
+                'c1',
+              ).overrideWith((ref) => Stream.value(const <Funcionario>[])),
+            ],
+            child: MaterialApp(
+              theme: SigoTheme.lightTheme,
+              home: Scaffold(
+                body: AtribuirLotacaoLoteSheet(
+                  construtoraId: 'c1',
+                  lote: _makeLote(),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('btn_nova_equipe_contextual_lote')),
+          findsNothing,
+        );
+        expect(
+          find.byKey(const Key('msg_sem_permissao_criar_equipe')),
+          findsOneWidget,
+        );
       },
     );
   });
