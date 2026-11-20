@@ -102,6 +102,7 @@ void main() {
     // Trailing slash em /loteamentos/ não deve abrir LoteamentoSwitcher
     await tester.pumpWidget(
       ProviderScope(
+        key: const ValueKey('trailing-slash-scope'),
         overrides: [
           authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
         ],

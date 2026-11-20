@@ -272,9 +272,9 @@ void main() {
       () async {
         final container = ProviderContainer(
           overrides: [
-            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
-            construtoraPermissionProvider('c1').overrideWith(
-              (ref) => Stream.error(Exception('falha permissao')),
+            trustedDevProvider.overrideWithValue(const AsyncValue.data(false)),
+            construtoraPermissionProvider('c1').overrideWithValue(
+              AsyncValue.error(Exception('falha permissao'), StackTrace.current),
             ),
             loteamentoRepositoryProvider.overrideWithValue(
               FakeLoteamentoRepository([makeLoteamento('l1')]),
@@ -283,16 +283,16 @@ void main() {
         );
         addTearDown(container.dispose);
 
+        final states = <AsyncValue<List<Loteamento>>>[];
         final sub = container.listen(
           watchLoteamentosProvider((construtoraId: 'c1')),
-          (_, _) {},
+          (_, next) => states.add(next),
+          fireImmediately: true,
         );
         addTearDown(sub.close);
 
-        await expectLater(
-          container.read(watchLoteamentosProvider((construtoraId: 'c1')).future),
-          throwsA(isA<Exception>()),
-        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(states.any((s) => s.hasError), isTrue);
       },
     );
   });

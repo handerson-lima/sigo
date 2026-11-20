@@ -408,6 +408,12 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
+      final sub = container.listen(
+        loteamentoSummaryMapProvider('c1'),
+        (_, _) {},
+      );
+      addTearDown(sub.close);
+
       final value = await container.read(loteamentoSummaryMapProvider('c1').future);
       expect(value, isEmpty);
     });

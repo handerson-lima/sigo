@@ -4,6 +4,8 @@ import 'package:app/src/features/construtoras/routing/construtora_routes.dart';
 import 'package:app/src/features/etapas/data/etapa_repository.dart';
 import 'package:app/src/features/etapas/domain/etapa.dart';
 import 'package:app/src/features/etapas/presentation/etapas_list_screen.dart';
+import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
+import 'package:app/src/features/loteamentos/domain/loteamento.dart';
 import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/lotes/presentation/lote_detail_screen.dart';
@@ -289,6 +291,17 @@ void main() {
                   'modules': <String>[],
                 }),
               ),
+              watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+                (ref) => Stream.value([
+                  Loteamento(
+                    id: 'l1',
+                    construtoraId: 'c1',
+                    name: 'Loteamento L1',
+                    createdAt: DateTime(2026),
+                    updatedAt: DateTime(2026),
+                  ),
+                ]),
+              ),
               effectiveLoteamentoObraIdProvider((
                 construtoraId: 'c1',
                 loteamentoId: 'l1',
@@ -335,11 +348,11 @@ void main() {
         final etapaRepo = EtapaRepository(firestore);
         final loteRepo = LoteRepository(firestore, etapaRepo);
         await _seedLoteComEtapas(firestore, _fullLote());
-        await etapaRepo.updateEtapaStatus(
+        await etapaRepo.updateEtapaProgresso(
+          loteId: 'lo1',
           etapaId: 'lo1_muro',
           status: EtapaStatus.emAndamento,
           percentual: 50,
-          loteId: 'lo1',
         );
 
         final router = GoRouter(
@@ -358,6 +371,17 @@ void main() {
                   'isAdmin': false,
                   'modules': <String>[],
                 }),
+              ),
+              watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+                (ref) => Stream.value([
+                  Loteamento(
+                    id: 'l1',
+                    construtoraId: 'c1',
+                    name: 'Loteamento L1',
+                    createdAt: DateTime(2026),
+                    updatedAt: DateTime(2026),
+                  ),
+                ]),
               ),
               effectiveLoteamentoObraIdProvider((
                 construtoraId: 'c1',

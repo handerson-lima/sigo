@@ -708,7 +708,7 @@ void main() {
     testWidgets(
       'nao-admin na obra: permitido sem adminOnly e bloqueado com adminOnly',
       (tester) async {
-        List<Override> buildOverrides() => [
+        buildOverrides() => [
           trustedDevProvider.overrideWith((ref) => Stream.value(false)),
           construtoraPermissionProvider('c1').overrideWith(
             (ref) => Stream.value({
@@ -781,7 +781,7 @@ void main() {
     testWidgets(
       'centralModules lotes + obra de outro modulo permite sem adminOnly e nega com adminOnly',
       (tester) async {
-        List<Override> buildOverrides() => [
+        buildOverrides() => [
           trustedDevProvider.overrideWith((ref) => Stream.value(false)),
           construtoraPermissionProvider('c1').overrideWith(
             (ref) => Stream.value({
