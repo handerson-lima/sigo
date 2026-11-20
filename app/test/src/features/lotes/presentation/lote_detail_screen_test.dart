@@ -327,5 +327,84 @@ void main() {
         expect(find.byKey(const Key('lote_detail_atribuir_btn')), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'Membro comum nao-admin ve chips, slider e botoes de acao desabilitados',
+      (tester) async {
+        final firestore = FakeFirebaseFirestore();
+        final etapaRepo = EtapaRepository(firestore);
+        final loteRepo = LoteRepository(firestore, etapaRepo);
+        await _seedLoteComEtapas(firestore, _fullLote());
+        await etapaRepo.updateEtapaStatus(
+          etapaId: 'lo1_muro',
+          status: EtapaStatus.emAndamento,
+          percentual: 50,
+          loteId: 'lo1',
+        );
+
+        final router = GoRouter(
+          initialLocation:
+              '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/detalhes',
+          routes: construtoraRoutes,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': <String>[],
+                }),
+              ),
+              effectiveLoteamentoObraIdProvider((
+                construtoraId: 'c1',
+                loteamentoId: 'l1',
+              )).overrideWithValue(const AsyncValue.data('l1')),
+              currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+                  .overrideWith(
+                    (ref) => Stream.value(
+                      ObraMember(
+                        userId: 'u1',
+                        isActive: true,
+                        isAdmin: false,
+                        modules: const ['lotes'],
+                        joinedAt: DateTime(2026),
+                      ),
+                    ),
+                  ),
+              etapaRepositoryProvider.overrideWithValue(etapaRepo),
+              loteRepositoryProvider.overrideWithValue(loteRepo),
+            ],
+            child: MaterialApp.router(
+              theme: SigoTheme.lightTheme,
+              routerConfig: router,
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('lote_detail_editar_btn')), findsNothing);
+        expect(find.byKey(const Key('lote_detail_atribuir_btn')), findsNothing);
+
+        final chipConcluida = tester.widget<ChoiceChip>(
+          find.byKey(const Key('etapa_status_muro_concluida')),
+        );
+        expect(chipConcluida.onSelected, isNull);
+
+        final slider = tester.widget<Slider>(
+          find.byKey(const Key('etapa_slider_muro')),
+        );
+        expect(slider.onChanged, isNull);
+
+        final pctChip = tester.widget<ActionChip>(
+          find.byKey(const Key('etapa_pct_muro_25')),
+        );
+        expect(pctChip.onPressed, isNull);
+      },
+    );
   });
 }

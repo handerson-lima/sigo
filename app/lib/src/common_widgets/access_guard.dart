@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/authentication/data/user_repository.dart';
+import '../features/loteamentos/data/loteamento_repository.dart';
+import '../features/loteamentos/domain/loteamento.dart';
 import '../features/obras/presentation/current_permissions_provider.dart';
 import '../features/obras/presentation/access_denied_screen.dart';
 import '../core/contracts.dart';
@@ -66,26 +68,26 @@ class AccessGuard extends ConsumerWidget {
     );
 
     if (loteamentoId != null) {
-      final resolvedAsync = ref.watch(
-        effectiveLoteamentoObraIdProvider((
-          construtoraId: construtoraId!,
-          loteamentoId: loteamentoId!,
-        )),
+      final loteamentosAsync = ref.watch(
+        watchLoteamentosProvider((construtoraId: construtoraId!)),
       );
-      if (resolvedAsync.isLoading && !resolvedAsync.hasValue) {
+      if (loteamentosAsync.isLoading && !loteamentosAsync.hasValue) {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
-      final effectiveObraId = resolvedAsync.value ?? loteamentoId!;
-      final obraDocAsync = ref.watch(
-        obraDocProvider((
-          construtoraId: construtoraId!,
-          obraId: effectiveObraId,
-        )),
-      );
-      if (obraDocAsync.value != null &&
-          obraDocAsync.value!['isActive'] == false) {
+      if (loteamentosAsync.hasError) {
+        return Scaffold(
+          body: Center(
+            child: Text('Erro de validação: ${loteamentosAsync.error}'),
+          ),
+        );
+      }
+      final matchedLoteamento = (loteamentosAsync.value ?? const <Loteamento>[])
+          .where((l) => l.id == loteamentoId && l.construtoraId == construtoraId)
+          .firstOrNull;
+      if (matchedLoteamento == null) {
         return const AccessDeniedScreen();
       }
+      final effectiveObraId = matchedLoteamento.effectiveObraId;
 
       final om = ref.watch(
         currentPermissionsProvider((
@@ -93,22 +95,49 @@ class AccessGuard extends ConsumerWidget {
           obraId: effectiveObraId,
         )),
       );
-      if (om.isLoading) {
+      if (om.isLoading && !om.hasValue) {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
+      if (om.hasError) {
+        return Scaffold(
+          body: Center(child: Text('Erro de validação: ${om.error}')),
+        );
+      }
       final obra = om.value;
-      if (obra != null) {
-        if (!obra.isActive ||
-            (adminOnly && !obra.isAdmin) ||
-            (module != null &&
-                !obra.isAdmin &&
-                !obra.modules.contains(normalizeModule(module!)))) {
+
+      if (admin || obra != null) {
+        final obraDocAsync = ref.watch(
+          obraDocProvider((
+            construtoraId: construtoraId!,
+            obraId: effectiveObraId,
+          )),
+        );
+        if (obraDocAsync.isLoading && !obraDocAsync.hasValue) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (obraDocAsync.value != null &&
+            obraDocAsync.value!['isActive'] == false) {
           return const AccessDeniedScreen();
         }
-        return child;
       }
 
       if (admin) return child;
+      if (obra != null) {
+        if (!obra.isActive || (adminOnly && !obra.isAdmin)) {
+          return const AccessDeniedScreen();
+        }
+        if (module == null ||
+            obra.isAdmin ||
+            obra.modules.contains(normalizeModule(module!)) ||
+            (!adminOnly &&
+                centralModules.contains(normalizeModule(module!)))) {
+          return child;
+        }
+        return const AccessDeniedScreen();
+      }
+
       if (!adminOnly &&
           module != null &&
           centralModules.contains(normalizeModule(module!))) {

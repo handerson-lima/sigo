@@ -103,15 +103,15 @@ class LoteamentoRepository {
     late final StreamController<List<Loteamento>> controller;
     final subs = <StreamSubscription<QuerySnapshot<Loteamento>>>[];
     final resultsByStream = <int, List<Loteamento>>{};
+    final errorsByStream = <int, (Object, StackTrace)>{};
     final readyStreams = <int>{};
-    Object? lastError;
-    StackTrace? lastStack;
 
     void emitIfReady() {
       if (controller.isClosed) return;
       if (readyStreams.length < queries.length) return;
-      if (resultsByStream.isEmpty && lastError != null) {
-        controller.addError(lastError!, lastStack);
+      if (errorsByStream.isNotEmpty) {
+        final firstErr = errorsByStream.values.first;
+        controller.addError(firstErr.$1, firstErr.$2);
         return;
       }
       final merged = <String, Loteamento>{};
@@ -132,6 +132,7 @@ class LoteamentoRepository {
           subs.add(
             queries[index].snapshots().listen(
               (snap) {
+                errorsByStream.remove(index);
                 resultsByStream[index] = snap.docs
                     .map((doc) => doc.data())
                     .toList();
@@ -139,8 +140,7 @@ class LoteamentoRepository {
                 emitIfReady();
               },
               onError: (err, stack) {
-                lastError = err;
-                lastStack = stack;
+                errorsByStream[index] = (err, stack);
                 readyStreams.add(index);
                 emitIfReady();
               },
@@ -152,6 +152,9 @@ class LoteamentoRepository {
         for (final sub in subs) {
           await sub.cancel();
         }
+        if (!controller.isClosed) {
+          await controller.close();
+        }
       },
     );
 
@@ -159,20 +162,45 @@ class LoteamentoRepository {
   }
 
   Future<void> createLoteamento(Loteamento loteamento) async {
-    final firestore = _firestore!;
+    final firestore = _firestore;
+    if (firestore == null) return;
     final batch = firestore.batch();
     batch.set(_loteamentosRef().doc(loteamento.id), loteamento);
-    batch.set(
-      _mirrorObraRef(firestore, loteamento),
-      _buildMirrorObraPayload(loteamento),
-      SetOptions(merge: true),
-    );
+    if ((loteamento.obraId ?? '').trim().isEmpty) {
+      batch.set(
+        _mirrorObraRef(firestore, loteamento),
+        _buildMirrorObraPayload(loteamento),
+        SetOptions(merge: true),
+      );
+    }
     await batch.commit();
   }
 
   Future<void> updateLoteamento(Loteamento loteamento) async {
+    final firestore = _firestore;
+    if (firestore == null) return;
     final updated = loteamento.copyWith(updatedAt: DateTime.now());
-    await _loteamentosRef().doc(updated.id).update(updated.toJson());
+    final fullJson = updated.toJson();
+    final editablePayload = <String, dynamic>{
+      'name': fullJson['name'],
+      'bairro': fullJson['bairro'],
+      'cidade': fullJson['cidade'],
+      'uf': fullJson['uf'],
+      'proprietarioNome': fullJson['proprietarioNome'],
+      'proprietarioDocumento': fullJson['proprietarioDocumento'],
+      'responsavelTecnicoNome': fullJson['responsavelTecnicoNome'],
+      'responsavelTecnicoRegistro': fullJson['responsavelTecnicoRegistro'],
+      'updatedAt': fullJson['updatedAt'],
+    };
+    await firestore
+        .collection('loteamentos')
+        .doc(updated.id)
+        .update(editablePayload);
+    try {
+      await _mirrorObraRef(firestore, updated).update({'name': updated.name});
+    } on FirebaseException catch (e) {
+      if (e.code != 'not-found') rethrow;
+    }
   }
 
   Future<void> createLoteamentoEmMassa({
@@ -230,11 +258,12 @@ class LoteamentoRepository {
     final quadrasRef = QuadraRepository.quadrasCollection(firestore);
     final operations = <FirestoreBatchWrite>[
       (batch) => batch.set(_loteamentosRef().doc(loteamento.id), loteamento),
-      (batch) => batch.set(
-        _mirrorObraRef(firestore, loteamento),
-        _buildMirrorObraPayload(loteamento),
-        SetOptions(merge: true),
-      ),
+      if ((loteamento.obraId ?? '').trim().isEmpty)
+        (batch) => batch.set(
+          _mirrorObraRef(firestore, loteamento),
+          _buildMirrorObraPayload(loteamento),
+          SetOptions(merge: true),
+        ),
       for (final quadra in quadras)
         (batch) => batch.set(quadrasRef.doc(quadra.id), quadra),
     ];
@@ -259,6 +288,12 @@ final watchLoteamentosProvider =
       if (devAsync.value == true) {
         return repo.watchLoteamentos(params.construtoraId);
       }
+      if (devAsync.hasError) {
+        return Stream.error(
+          devAsync.error!,
+          devAsync.stackTrace ?? StackTrace.current,
+        );
+      }
 
       final cmAsync = ref.watch(
         construtoraPermissionProvider(params.construtoraId),
@@ -267,6 +302,12 @@ final watchLoteamentosProvider =
         return Firebase.apps.isEmpty
             ? repo.watchLoteamentos(params.construtoraId)
             : const Stream.empty();
+      }
+      if (cmAsync.hasError) {
+        return Stream.error(
+          cmAsync.error!,
+          cmAsync.stackTrace ?? StackTrace.current,
+        );
       }
 
       final cm = cmAsync.value;
@@ -289,6 +330,12 @@ final watchLoteamentosProvider =
       );
       if (obraIdsAsync.isLoading && !obraIdsAsync.hasValue) {
         return const Stream.empty();
+      }
+      if (obraIdsAsync.hasError) {
+        return Stream.error(
+          obraIdsAsync.error!,
+          obraIdsAsync.stackTrace ?? StackTrace.current,
+        );
       }
       final obraIds = obraIdsAsync.value ?? ObraIdSet.empty;
       if (obraIds.isEmpty) {

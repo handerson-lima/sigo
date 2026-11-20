@@ -94,7 +94,7 @@ void main() {
                 (ref) => Stream.value({
                   'isActive': true,
                   'isAdmin': false,
-                  'modules': ['lotes'],
+                  'modules': ['rh'],
                 }),
               ),
               equipesStreamProvider('c1').overrideWith(
@@ -162,7 +162,7 @@ void main() {
                 (ref) => Stream.value({
                   'isActive': true,
                   'isAdmin': false,
-                  'modules': ['lotes'],
+                  'modules': ['rh'],
                 }),
               ),
               equipesStreamProvider(
@@ -356,6 +356,15 @@ void main() {
         );
         expect(
           find.byKey(const Key('msg_sem_permissao_criar_equipe')),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Funcionários RH'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            'Apenas usuários com acesso ao RH ou administradores da construtora podem visualizar e vincular funcionários.',
+          ),
           findsOneWidget,
         );
       },

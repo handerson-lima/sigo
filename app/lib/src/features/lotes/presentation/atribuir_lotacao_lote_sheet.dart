@@ -256,9 +256,9 @@ class _AtribuirLotacaoLoteSheetState
 
     final canRh = _computeCanRh();
     final equipesAsync = ref.watch(equipesStreamProvider(widget.construtoraId));
-    final funcionariosAsync = ref.watch(
-      funcionariosStreamProvider(widget.construtoraId),
-    );
+    final funcionariosAsync = canRh
+        ? ref.watch(funcionariosStreamProvider(widget.construtoraId))
+        : const AsyncValue<List<Funcionario>>.data(<Funcionario>[]);
 
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final maxHeight = MediaQuery.of(context).size.height * 0.85;
@@ -382,7 +382,7 @@ class _AtribuirLotacaoLoteSheetState
               child: TabBarView(
                 children: [
                   _buildEquipesTab(context, sigo, equipesAsync, canRh),
-                  _buildFuncionariosTab(context, sigo, funcionariosAsync),
+                  _buildFuncionariosTab(context, sigo, funcionariosAsync, canRh),
                 ],
               ),
             ),
@@ -617,7 +617,20 @@ class _AtribuirLotacaoLoteSheetState
     BuildContext context,
     SigoThemeExtension sigo,
     AsyncValue<List<Funcionario>> funcionariosAsync,
+    bool canRh,
   ) {
+    if (!canRh) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Apenas usuários com acesso ao RH ou administradores da construtora podem visualizar e vincular funcionários.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: sigo.inkSecondary),
+          ),
+        ),
+      );
+    }
     return funcionariosAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(

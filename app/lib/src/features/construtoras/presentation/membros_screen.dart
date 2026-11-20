@@ -44,6 +44,7 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
     ref.invalidate(pendingRequestsProvider(construtoraId));
     ref.invalidate(obrasDaConstrutoraProvider(construtoraId));
     ref.invalidate(obrasAtivasProvider(construtoraId));
+    ref.invalidate(obrasELoteamentosAtivosProvider(construtoraId));
     ref.invalidate(contagemObrasPorMembroProvider(construtoraId));
     ref.invalidate(contagemObrasMetaProvider(construtoraId));
     ref.invalidate(uidObrasPorMembroProvider(construtoraId));
@@ -144,7 +145,9 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
     final construtoraId = widget.construtoraId;
     final membrosAsync = ref.watch(membrosProvider(construtoraId));
     final pendingAsync = ref.watch(pendingRequestsProvider(construtoraId));
-    final obrasAtivasAsync = ref.watch(obrasAtivasProvider(construtoraId));
+    final obrasAtivasAsync = ref.watch(
+      obrasELoteamentosAtivosProvider(construtoraId),
+    );
     final contagem = ref.watch(contagemObrasPorMembroProvider(construtoraId));
     final contagemMeta = ref.watch(contagemObrasMetaProvider(construtoraId));
     final contagemCarregando =

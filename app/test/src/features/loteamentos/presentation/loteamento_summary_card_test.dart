@@ -5,7 +5,10 @@ import 'package:app/src/features/loteamentos/presentation/loteamento_summary_car
 import 'package:app/src/features/loteamentos/presentation/loteamento_summary_provider.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/quadras/domain/quadra.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Loteamento _buildLoteamento({
@@ -333,4 +336,190 @@ void main() {
       expect(summaries['lt2']!.progressoMedio, 0);
     });
   });
+
+  group('watchLoteamentoSummariesForTest (escopado)', () {
+    test('agrega apenas loteamentos escopados mesmo com >10 IDs', () async {
+      final firestore = FakeFirebaseFirestore();
+      final now = DateTime(2026, 10, 1);
+
+      for (var i = 1; i <= 12; i++) {
+        final ltId = 'lt_$i';
+        await firestore.collection('quadras').doc('q_$i').set(
+              Quadra(
+                id: 'q_$i',
+                construtoraId: 'c1',
+                loteamentoId: ltId,
+                name: 'Q$i',
+                createdAt: now,
+                updatedAt: now,
+              ).toJson(),
+            );
+        await firestore.collection('lotes').doc('l_$i').set(
+              Lote(
+                id: 'l_$i',
+                construtoraId: 'c1',
+                loteamentoId: ltId,
+                quadraId: 'q_$i',
+                name: 'L$i',
+                progressoPercentual: 100,
+                etapasConcluidasCount: 5,
+                createdAt: now,
+                updatedAt: now,
+              ).toJson(),
+            );
+      }
+      await firestore.collection('quadras').doc('q_fora').set(
+            Quadra(
+              id: 'q_fora',
+              construtoraId: 'c1',
+              loteamentoId: 'lt_fora',
+              name: 'Q Fora',
+              createdAt: now,
+              updatedAt: now,
+            ).toJson(),
+          );
+
+      final scoped = [for (var i = 1; i <= 12; i++) 'lt_$i'];
+      final result = await watchLoteamentoSummariesForTest(
+        firestore,
+        'c1',
+        scopedLoteamentoIds: scoped,
+      ).first;
+
+      expect(result.length, 12);
+      expect(result.containsKey('lt_fora'), isFalse);
+      expect(result['lt_12']?.totalLotes, 1);
+      expect(result['lt_12']?.progressoMedio, 100);
+    });
+
+    test('propaga erro de consulta parcial no stream de resumos', () async {
+      final firestore = _FailingSummaryFirestore(FakeFirebaseFirestore());
+      await expectLater(
+        watchLoteamentoSummariesForTest(
+          firestore,
+          'c1',
+          scopedLoteamentoIds: const ['lt_1'],
+        ).first,
+        throwsA(isA<FirebaseException>()),
+      );
+    });
+
+    test('loteamentoSummaryMapProvider retorna mapa vazio sem Firebase', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final value = await container.read(loteamentoSummaryMapProvider('c1').future);
+      expect(value, isEmpty);
+    });
+  });
+}
+
+class _FailingSummaryFirestore implements FirebaseFirestore {
+  final FakeFirebaseFirestore _delegate;
+
+  _FailingSummaryFirestore(this._delegate);
+
+  @override
+  CollectionReference<Map<String, dynamic>> collection(String path) {
+    if (path == 'lotes') {
+      return _FailingSummaryCollection(_delegate.collection(path));
+    }
+    return _delegate.collection(path);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => _delegate.noSuchMethod(invocation);
+}
+
+class _FailingSummaryCollection
+    implements CollectionReference<Map<String, dynamic>> {
+  final CollectionReference<Map<String, dynamic>> _delegate;
+
+  _FailingSummaryCollection(this._delegate);
+
+  @override
+  Query<Map<String, dynamic>> where(
+    Object field, {
+    Object? isEqualTo,
+    Object? isNotEqualTo,
+    Object? isLessThan,
+    Object? isLessThanOrEqualTo,
+    Object? isGreaterThan,
+    Object? isGreaterThanOrEqualTo,
+    Object? arrayContains,
+    Iterable<Object?>? arrayContainsAny,
+    Iterable<Object?>? whereIn,
+    Iterable<Object?>? whereNotIn,
+    bool? isNull,
+  }) =>
+      _FailingSummaryQuery(
+        _delegate.where(
+          field,
+          isEqualTo: isEqualTo,
+          isNotEqualTo: isNotEqualTo,
+          isLessThan: isLessThan,
+          isLessThanOrEqualTo: isLessThanOrEqualTo,
+          isGreaterThan: isGreaterThan,
+          isGreaterThanOrEqualTo: isGreaterThanOrEqualTo,
+          arrayContains: arrayContains,
+          arrayContainsAny: arrayContainsAny,
+          whereIn: whereIn,
+          whereNotIn: whereNotIn,
+          isNull: isNull,
+        ),
+      );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => _delegate.noSuchMethod(invocation);
+}
+
+class _FailingSummaryQuery implements Query<Map<String, dynamic>> {
+  final Query<Map<String, dynamic>> _delegate;
+
+  _FailingSummaryQuery(this._delegate);
+
+  @override
+  Query<Map<String, dynamic>> where(
+    Object field, {
+    Object? isEqualTo,
+    Object? isNotEqualTo,
+    Object? isLessThan,
+    Object? isLessThanOrEqualTo,
+    Object? isGreaterThan,
+    Object? isGreaterThanOrEqualTo,
+    Object? arrayContains,
+    Iterable<Object?>? arrayContainsAny,
+    Iterable<Object?>? whereIn,
+    Iterable<Object?>? whereNotIn,
+    bool? isNull,
+  }) =>
+      _FailingSummaryQuery(
+        _delegate.where(
+          field,
+          isEqualTo: isEqualTo,
+          isNotEqualTo: isNotEqualTo,
+          isLessThan: isLessThan,
+          isLessThanOrEqualTo: isLessThanOrEqualTo,
+          isGreaterThan: isGreaterThan,
+          isGreaterThanOrEqualTo: isGreaterThanOrEqualTo,
+          arrayContains: arrayContains,
+          arrayContainsAny: arrayContainsAny,
+          whereIn: whereIn,
+          whereNotIn: whereNotIn,
+          isNull: isNull,
+        ),
+      );
+
+  @override
+  Stream<QuerySnapshot<Map<String, dynamic>>> snapshots({
+    bool includeMetadataChanges = false,
+    ListenSource source = ListenSource.defaultSource,
+  }) {
+    return Stream.error(
+      FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'),
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => _delegate.noSuchMethod(invocation);
 }

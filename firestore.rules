@@ -11,7 +11,11 @@ service cloud.firestore {
    function admin(c) { return member(c) && (cm(c).get('isAdmin', false) == true || cm(c).get('isOwner', false) == true || cm(c).get('role', '') == 'admin' || cm(c).get('role', '') == 'owner'); }
    function omExists(c,o) { return signed() && exists(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)); }
    function om(c,o) { return get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)).data; }
-   function obraMember(c,o) { return member(c) && omExists(c,o) && om(c,o).get('isActive', false) == true; }
+   function activeObra(c,o) {
+     let ob = get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o));
+     return ob == null || ob.data.get('isActive', true) == true;
+   }
+   function obraMember(c,o) { return member(c) && omExists(c,o) && om(c,o).get('isActive', false) == true && activeObra(c,o); }
    function obraAdmin(c,o) { return admin(c) || (obraMember(c,o) && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || om(c,o).get('role', '') == 'admin' || om(c,o).get('role', '') == 'owner')); }
    function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]) || m == 'validacao' && 'qualidade' in om(c,o).get('modules',[]) || m == 'adm' && 'financeiro' in om(c,o).get('modules',[]))); }
    function stock(c) { return admin(c) || (member(c) && ('estoque' in cm(c).get('modules',[]) || 'almoxarifado' in cm(c).get('modules',[]))); }
@@ -52,7 +56,7 @@ match /construtoras/{c} {
     allow delete: if dev();
    }
    match /equipes/{e} {
-    allow read: if rh(c);
+    allow read: if member(c);
     allow create, update: if rh(c) && request.resource.data.id == e && request.resource.data.construtoraId == c;
     allow delete: if dev();
    }
@@ -96,7 +100,17 @@ match /construtoras/{c} {
    match /obras/{o} {
     allow read: if admin(c) || obraMember(c,o);
     allow create: if admin(c) && request.resource.data.id == o && request.resource.data.construtoraId == c;
-    allow update: if admin(c) && request.resource.data.id == resource.data.id && request.resource.data.construtoraId == resource.data.construtoraId;
+    allow update: if (
+      admin(c)
+      && request.resource.data.id == resource.data.id
+      && request.resource.data.construtoraId == resource.data.construtoraId
+    ) || (
+      obraAdmin(c,o)
+      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+      && request.resource.data.name is string
+      && request.resource.data.name.size() > 0
+      && request.resource.data.name.size() <= 200
+    );
     allow delete: if dev();
     match /members/{uid} { allow read: if signed() && activeUser() && (request.auth.uid == uid || obraAdmin(c,o)); allow write: if dev(); }
     match /lotes/{l} {
@@ -210,15 +224,28 @@ match /construtoras/{c} {
        ? lot.data.obraId
        : l;
    }
+   function obraMemberActive(c, o) {
+     let memberDoc = get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid));
+     let obraDoc = get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o));
+     return member(c)
+       && memberDoc != null
+       && memberDoc.data.get('isActive', false) == true
+       && (obraDoc == null || obraDoc.data.get('isActive', true) == true);
+   }
    function obraOnlyAdmin(c, o) {
-     return obraMember(c, o)
-       && (om(c, o).get('isAdmin', false) == true
-           || om(c, o).get('isOwner', false) == true
-           || om(c, o).get('role', '') in ['admin', 'owner']);
+     let memberDoc = get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid));
+     let obraDoc = get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o));
+     return member(c)
+       && memberDoc != null
+       && memberDoc.data.get('isActive', false) == true
+       && (obraDoc == null || obraDoc.data.get('isActive', true) == true)
+       && (memberDoc.data.get('isAdmin', false) == true
+           || memberDoc.data.get('isOwner', false) == true
+           || memberDoc.data.get('role', '') in ['admin', 'owner']);
    }
    function hierarchyObraMember(c, l) {
      return c is string && c.size() > 0 && l is string && l.size() > 0
-       && obraMember(c, effectiveHierarchyObra(c, l));
+       && obraMemberActive(c, effectiveHierarchyObra(c, l));
    }
    function hierarchyObraAdmin(c, l) {
      return c is string && c.size() > 0 && (
@@ -232,15 +259,26 @@ match /construtoras/{c} {
    function optHierarchyStr(data, field, maxLen) {
      return !(field in data) || data[field] == null || (data[field] is string && data[field].size() <= maxLen);
    }
+   function optHierarchyStrUpdate(data, old, field, maxLen) {
+     return optHierarchyStr(data, field, maxLen) || (field in old && data[field] == old[field]);
+   }
    function isValidLoteamento(data, id) {
      return reqHierarchyId(data, 'construtoraId')
        && (!('id' in data) || (data.id is string && data.id == id))
+       && (
+         ('name' in data && data.name is string && data.name.size() > 0 && data.name.size() <= 200)
+         || ('nome' in data && data.nome is string && data.nome.size() > 0 && data.nome.size() <= 200)
+       )
        && optHierarchyStr(data, 'obraId', 128)
        && optHierarchyStr(data, 'name', 200)
        && optHierarchyStr(data, 'nome', 200)
        && optHierarchyStr(data, 'bairro', 200)
        && optHierarchyStr(data, 'cidade', 200)
-       && optHierarchyStr(data, 'uf', 20);
+       && optHierarchyStr(data, 'uf', 20)
+       && optHierarchyStr(data, 'proprietarioNome', 200)
+       && optHierarchyStr(data, 'proprietarioDocumento', 100)
+       && optHierarchyStr(data, 'responsavelTecnicoNome', 200)
+       && optHierarchyStr(data, 'responsavelTecnicoRegistro', 100);
    }
    function isValidQuadra(data, id) {
      return reqHierarchyId(data, 'construtoraId')
@@ -249,6 +287,14 @@ match /construtoras/{c} {
        && optHierarchyStr(data, 'name', 200)
        && optHierarchyStr(data, 'nome', 200)
        && optHierarchyStr(data, 'logradouroPadrao', 300);
+   }
+   function isValidQuadraUpdate(data, old, id) {
+     return reqHierarchyId(data, 'construtoraId')
+       && reqHierarchyId(data, 'loteamentoId')
+       && (!('id' in data) || (data.id is string && data.id == id))
+       && optHierarchyStrUpdate(data, old, 'name', 200)
+       && optHierarchyStrUpdate(data, old, 'nome', 200)
+       && optHierarchyStrUpdate(data, old, 'logradouroPadrao', 300);
    }
    function isValidLote(data, id) {
      return reqHierarchyId(data, 'construtoraId')
@@ -259,6 +305,16 @@ match /construtoras/{c} {
        && optHierarchyStr(data, 'nome', 200)
        && optHierarchyStr(data, 'numero', 50)
        && optHierarchyStr(data, 'logradouro', 300);
+   }
+   function isValidLoteUpdate(data, old, id) {
+     return reqHierarchyId(data, 'construtoraId')
+       && reqHierarchyId(data, 'loteamentoId')
+       && reqHierarchyId(data, 'quadraId')
+       && (!('id' in data) || (data.id is string && data.id == id))
+       && optHierarchyStrUpdate(data, old, 'name', 200)
+       && optHierarchyStrUpdate(data, old, 'nome', 200)
+       && optHierarchyStrUpdate(data, old, 'numero', 50)
+       && optHierarchyStrUpdate(data, old, 'logradouro', 300);
    }
    function isValidEtapa(data, id) {
      return reqHierarchyId(data, 'construtoraId')
@@ -272,6 +328,18 @@ match /construtoras/{c} {
        && optHierarchyStr(data, 'equipeNome', 200)
        && optHierarchyStr(data, 'responsavelId', 128);
    }
+   function isValidEtapaUpdate(data, old, id) {
+     return reqHierarchyId(data, 'construtoraId')
+       && reqHierarchyId(data, 'loteamentoId')
+       && reqHierarchyId(data, 'quadraId')
+       && reqHierarchyId(data, 'loteId')
+       && (!('id' in data) || (data.id is string && data.id == id))
+       && optHierarchyStrUpdate(data, old, 'name', 200)
+       && optHierarchyStrUpdate(data, old, 'nome', 200)
+       && optHierarchyStrUpdate(data, old, 'equipeId', 128)
+       && optHierarchyStrUpdate(data, old, 'equipeNome', 200)
+       && optHierarchyStrUpdate(data, old, 'responsavelId', 128);
+   }
    function isValidEquipeLote(data, id) {
      return reqHierarchyId(data, 'construtoraId')
        && reqHierarchyId(data, 'loteamentoId')
@@ -282,6 +350,17 @@ match /construtoras/{c} {
        && optHierarchyStr(data, 'name', 200)
        && optHierarchyStr(data, 'nome', 200)
        && optHierarchyStr(data, 'responsavelId', 128);
+   }
+   function isValidEquipeLoteUpdate(data, old, id) {
+     return reqHierarchyId(data, 'construtoraId')
+       && reqHierarchyId(data, 'loteamentoId')
+       && reqHierarchyId(data, 'quadraId')
+       && reqHierarchyId(data, 'loteId')
+       && reqHierarchyId(data, 'etapaId')
+       && (!('id' in data) || (data.id is string && data.id == id))
+       && optHierarchyStrUpdate(data, old, 'name', 200)
+       && optHierarchyStrUpdate(data, old, 'nome', 200)
+       && optHierarchyStrUpdate(data, old, 'responsavelId', 128);
    }
 
    function quadraMatchesLoteamentoAfter(data) {
@@ -322,7 +401,12 @@ match /construtoras/{c} {
          admin(resource.data.construtoraId)
          || (
            obraOnlyAdmin(resource.data.construtoraId, loteamentoObraId(resource.data, id))
-           && request.resource.data.get('obraId', null) == resource.data.get('obraId', null)
+           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'name', 'nome', 'bairro', 'cidade', 'uf',
+             'proprietarioNome', 'proprietarioDocumento',
+             'responsavelTecnicoNome', 'responsavelTecnicoRegistro',
+             'updatedAt'
+           ])
          )
        );
      allow delete: if admin(resource.data.construtoraId);
@@ -334,7 +418,7 @@ match /construtoras/{c} {
      allow create: if isValidQuadra(request.resource.data, id)
        && hierarchyObraAdmin(request.resource.data.construtoraId, request.resource.data.loteamentoId)
        && quadraMatchesLoteamentoAfter(request.resource.data);
-     allow update: if isValidQuadra(request.resource.data, id)
+     allow update: if isValidQuadraUpdate(request.resource.data, resource.data, id)
        && hierarchyObraAdmin(resource.data.construtoraId, resource.data.loteamentoId)
        && request.resource.data.construtoraId == resource.data.construtoraId
        && request.resource.data.loteamentoId == resource.data.loteamentoId
@@ -348,7 +432,7 @@ match /construtoras/{c} {
      allow create: if isValidLote(request.resource.data, id)
        && hierarchyObraAdmin(request.resource.data.construtoraId, request.resource.data.loteamentoId)
        && loteMatchesQuadraAfter(request.resource.data);
-     allow update: if isValidLote(request.resource.data, id)
+     allow update: if isValidLoteUpdate(request.resource.data, resource.data, id)
        && hierarchyObraAdmin(resource.data.construtoraId, resource.data.loteamentoId)
        && request.resource.data.construtoraId == resource.data.construtoraId
        && request.resource.data.loteamentoId == resource.data.loteamentoId
@@ -363,7 +447,7 @@ match /construtoras/{c} {
      allow create: if isValidEtapa(request.resource.data, id)
        && hierarchyObraAdmin(request.resource.data.construtoraId, request.resource.data.loteamentoId)
        && etapaMatchesLoteAfter(request.resource.data);
-     allow update: if isValidEtapa(request.resource.data, id)
+     allow update: if isValidEtapaUpdate(request.resource.data, resource.data, id)
        && hierarchyObraAdmin(resource.data.construtoraId, resource.data.loteamentoId)
        && request.resource.data.construtoraId == resource.data.construtoraId
        && request.resource.data.loteamentoId == resource.data.loteamentoId
@@ -379,7 +463,7 @@ match /construtoras/{c} {
      allow create: if isValidEquipeLote(request.resource.data, id)
        && hierarchyObraAdmin(request.resource.data.construtoraId, request.resource.data.loteamentoId)
        && equipeMatchesEtapa(request.resource.data);
-     allow update: if isValidEquipeLote(request.resource.data, id)
+     allow update: if isValidEquipeLoteUpdate(request.resource.data, resource.data, id)
        && hierarchyObraAdmin(resource.data.construtoraId, resource.data.loteamentoId)
        && request.resource.data.construtoraId == resource.data.construtoraId
        && request.resource.data.loteamentoId == resource.data.loteamentoId

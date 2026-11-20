@@ -264,3 +264,21 @@ test('gestão de usuários dev: ativar/desativar, redefinir senha e excluir pres
  const recreated=await invoke('adminCreateUser','dev',{operationId:'life-recreate',email,password:'NovaConta@123',displayName:'Recriado',globalRole:'user'});
  assert.notEqual(recreated.uid,uid);
 });
+
+test('setMembership cria documento espelho em obras quando só existe loteamento ou obraId legado',async()=>{
+ await invoke('setMembership','dev',{construtoraId:'a',userId:'member',role:'member',modules:[]});
+ await db.doc('loteamentos/lot_mirror_1').set({id:'lot_mirror_1',construtoraId:'a',name:'Loteamento Espelho'});
+ await invoke('setMembership','admin',{construtoraId:'a',obraId:'lot_mirror_1',userId:'member',role:'admin',modules:['lotes']});
+ const mirror1=await db.doc('construtoras/a/obras/lot_mirror_1').get();
+ assert.equal(mirror1.exists,true);
+ assert.equal(mirror1.data().name,'Loteamento Espelho');
+ assert.equal(mirror1.data().isActive,true);
+ assert.equal((await db.doc('construtoras/a/obras/lot_mirror_1/members/member').get()).data().isAdmin,true);
+
+ await db.doc('loteamentos/lot_legacy_doc').set({id:'lot_legacy_doc',construtoraId:'a',obraId:'obra_legacy_1',name:'Legado ObraId'});
+ await invoke('setMembership','admin',{construtoraId:'a',obraId:'obra_legacy_1',userId:'member',role:'admin',modules:['lotes']});
+ const mirrorLegacy=await db.doc('construtoras/a/obras/obra_legacy_1').get();
+ assert.equal(mirrorLegacy.exists,true);
+ assert.equal(mirrorLegacy.data().name,'Legado ObraId');
+ assert.equal((await db.doc('construtoras/a/obras/obra_legacy_1/members/member').get()).data().isAdmin,true);
+});

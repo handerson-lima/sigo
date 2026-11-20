@@ -173,6 +173,12 @@ final effectiveLoteamentoObraIdProvider = Provider.autoDispose
       if (loteamentosAsync.isLoading && !loteamentosAsync.hasValue) {
         return const AsyncValue.loading();
       }
+      if (loteamentosAsync.hasError) {
+        return AsyncValue.error(
+          loteamentosAsync.error!,
+          loteamentosAsync.stackTrace ?? StackTrace.current,
+        );
+      }
       final items = loteamentosAsync.value ?? const <Loteamento>[];
       for (final item in items) {
         if (item.id == scope.loteamentoId) {

@@ -243,10 +243,20 @@ async function membership(d: any, uid: string) {
     let mirrorLoteamentoData: admin.firestore.DocumentData | undefined;
     if (!parentSnap.exists) {
       if (!o) fail('not-found', 'Escopo ausente');
-      const loteamentoSnap = await tx.get(db.doc(`loteamentos/${o}`));
-      const loteamentoData = loteamentoSnap.data();
+      let loteamentoSnap = await tx.get(db.doc(`loteamentos/${o}`));
+      let loteamentoData = loteamentoSnap.data();
       if (!loteamentoSnap.exists || loteamentoData?.construtoraId !== c) {
-        fail('not-found', 'Escopo ausente');
+        const legacyQuery = await tx.get(
+          db.collection('loteamentos')
+            .where('construtoraId', '==', c)
+            .where('obraId', '==', o)
+            .limit(1)
+        );
+        if (legacyQuery.empty) {
+          fail('not-found', 'Escopo ausente');
+        }
+        loteamentoSnap = legacyQuery.docs[0];
+        loteamentoData = loteamentoSnap.data();
       }
       mirrorLoteamentoData = loteamentoData;
     }

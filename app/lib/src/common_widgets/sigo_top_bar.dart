@@ -71,14 +71,19 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
     if (route != null) {
       final uri = Uri.tryParse(route);
       final segments = uri?.pathSegments ?? [];
-      if (segments.length >= 2 && segments[0] == 'construtoras') {
+      if (segments.length >= 2 &&
+          segments[0] == 'construtoras' &&
+          segments[1].isNotEmpty) {
         cId = segments[1];
-        if (segments.length >= 4 && segments[2] == 'obra') {
+        if (segments.length >= 4 &&
+            segments[2] == 'obra' &&
+            segments[3].isNotEmpty) {
           isObraContext = true;
           oId = segments[3];
           switcherScopeId = oId;
         } else if (segments.length >= 4 &&
             segments[2] == 'loteamentos' &&
+            segments[3].isNotEmpty &&
             segments[3] != 'import' &&
             segments[3] != 'draft') {
           switcherScopeId = segments[3];

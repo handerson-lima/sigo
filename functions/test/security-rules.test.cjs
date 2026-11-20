@@ -1333,3 +1333,246 @@ test('11.6 Membro comum da obra (isAdmin: false, modules: [lotes]): apenas lê L
   // Leitura em L2 negada
   await assertFails(getDoc(doc(memberL1Fs, 'loteamentos/L2')));
 });
+
+test('11.7 Obra inativa (isActive: false) bloqueia obraMember e obraAdmin na obra e na hierarquia', async () => {
+  await db.doc('construtoras/const_a/obras/obra_inativa_a').set({
+    id: 'obra_inativa_a',
+    construtoraId: 'const_a',
+    name: 'Obra Inativa A',
+    isActive: false
+  });
+  await db.doc('construtoras/const_a/obras/obra_inativa_a/members/admin_l1_user').set({
+    userId: 'admin_l1_user',
+    isActive: true,
+    isAdmin: true,
+    modules: ['lotes']
+  });
+  await db.doc('loteamentos/obra_inativa_a').set({
+    id: 'obra_inativa_a',
+    construtoraId: 'const_a',
+    name: 'Loteamento Obra Inativa'
+  });
+  await db.doc('quadras/q_obra_inativa').set({
+    id: 'q_obra_inativa',
+    construtoraId: 'const_a',
+    loteamentoId: 'obra_inativa_a',
+    name: 'Quadra Inativa'
+  });
+
+  const adminL1Fs = testEnv.authenticatedContext('admin_l1_user').firestore();
+  await assertFails(getDoc(doc(adminL1Fs, 'construtoras/const_a/obras/obra_inativa_a')));
+  await assertFails(getDoc(doc(adminL1Fs, 'loteamentos/obra_inativa_a')));
+  await assertFails(getDoc(doc(adminL1Fs, 'quadras/q_obra_inativa')));
+  await assertFails(updateDoc(doc(adminL1Fs, 'construtoras/const_a/obras/obra_inativa_a'), {
+    name: 'Tentativa Reativar'
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/obra_inativa_a'), {
+    name: 'Tentativa Editar'
+  }));
+  await assertFails(setDoc(doc(adminL1Fs, 'quadras/q_obra_inativa_new'), {
+    id: 'q_obra_inativa_new',
+    construtoraId: 'const_a',
+    loteamentoId: 'obra_inativa_a',
+    name: 'Quadra Bloqueada'
+  }));
+
+  // Admin da construtora continua podendo ler/atualizar a obra inativa
+  const adminFs = testEnv.authenticatedContext('admin_user').firestore();
+  await assertSucceeds(getDoc(doc(adminFs, 'construtoras/const_a/obras/obra_inativa_a')));
+  await assertSucceeds(updateDoc(doc(adminFs, 'construtoras/const_a/obras/obra_inativa_a'), {
+    isActive: false,
+    name: 'Obra Inativa A Renomeada'
+  }));
+});
+
+test('11.8 obraAdmin atualiza apenas name em obras/{o}; outros campos ficam exclusivos de admin(c)', async () => {
+  const adminL1Fs = testEnv.authenticatedContext('admin_l1_user').firestore();
+  const memberL1Fs = testEnv.authenticatedContext('member_l1_user').firestore();
+  const adminFs = testEnv.authenticatedContext('admin_user').firestore();
+
+  // obraAdmin pode atualizar apenas name com string válida (1..200)
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'construtoras/const_a/obras/L1'), {
+    name: 'Obra L1 Renomeada'
+  }));
+
+  // obraAdmin é bloqueado ao tentar alterar isActive, description, id, construtoraId ou campo extra
+  await assertFails(updateDoc(doc(adminL1Fs, 'construtoras/const_a/obras/L1'), {
+    isActive: false
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'construtoras/const_a/obras/L1'), {
+    name: 'Nome Ok',
+    description: 'Tentativa de descrição'
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'construtoras/const_a/obras/L1'), {
+    construtoraId: 'const_b'
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'construtoras/const_a/obras/L1'), {
+    name: ''
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'construtoras/const_a/obras/L1'), {
+    name: 'x'.repeat(201)
+  }));
+
+  // Membro comum da obra não pode atualizar name
+  await assertFails(updateDoc(doc(memberL1Fs, 'construtoras/const_a/obras/L1'), {
+    name: 'Membro Não Atualiza'
+  }));
+
+  // Admin da construtora continua podendo atualizar outros campos além de name
+  await assertSucceeds(updateDoc(doc(adminFs, 'construtoras/const_a/obras/L1'), {
+    description: 'Descrição oficial da construtora',
+    isActive: true
+  }));
+});
+
+test('11.9 obraOnlyAdmin em loteamentos/{id} só edita metadados permitidos e respeita limites/imutabilidade', async () => {
+  const adminL1Fs = testEnv.authenticatedContext('admin_l1_user').firestore();
+  const adminFs = testEnv.authenticatedContext('admin_user').firestore();
+
+  // Metadados editáveis permitidos (incluindo proprietário e responsável técnico)
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    name: 'Loteamento 1 Oficial',
+    bairro: 'Centro',
+    cidade: 'Campinas',
+    uf: 'SP',
+    proprietarioNome: 'João da Silva',
+    proprietarioDocumento: '12345678901',
+    responsavelTecnicoNome: 'Eng. Maria Souza',
+    responsavelTecnicoRegistro: 'CREA-SP 123456',
+    updatedAt: new Date().toISOString()
+  }));
+
+  // Campos protegidos contra obraOnlyAdmin: id, construtoraId, obraId, createdAt, totalLotes, campo extra
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    createdAt: '2025-01-01T00:00:00.000Z'
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    id: 'L1_hack'
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    construtoraId: 'const_b'
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    obraId: 'obra_1'
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    totalLotes: 999
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    extraMalicioso: 'hack'
+  }));
+
+  // Validação de limites/tipos: name vazio e strings além do limite rejeitados
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    name: ''
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    proprietarioNome: 'a'.repeat(201)
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    responsavelTecnicoRegistro: 'r'.repeat(101)
+  }));
+
+  // Admin da construtora pode definir obraId em loteamento existente
+  await assertSucceeds(updateDoc(doc(adminFs, 'loteamentos/L1'), {
+    obraId: null
+  }));
+});
+
+test('11.10 Update parcial em quadras/lotes/etapas/equipes preserva campos legados não tocados', async () => {
+  const b = db.batch();
+  b.set(db.doc('quadras/q_legacy_dirty'), {
+    id: 'q_legacy_dirty',
+    construtoraId: 'const_a',
+    loteamentoId: 'L1',
+    name: 'Quadra Legada',
+    logradouroPadrao: 'l'.repeat(350), // acima de 300 em doc legado
+    legacyExtra: { origem: 'importacao_v1' }
+  });
+  b.set(db.doc('lotes/lo_legacy_dirty'), {
+    id: 'lo_legacy_dirty',
+    construtoraId: 'const_a',
+    loteamentoId: 'L1',
+    quadraId: 'q_legacy_dirty',
+    name: 'Lote Legado',
+    logradouro: 12345, // tipo legado não-string
+    areaTerrenoM2: 300
+  });
+  b.set(db.doc('etapas/et_legacy_dirty'), {
+    id: 'et_legacy_dirty',
+    construtoraId: 'const_a',
+    loteamentoId: 'L1',
+    quadraId: 'q_legacy_dirty',
+    loteId: 'lo_legacy_dirty',
+    nome: 'n'.repeat(250), // acima de 200 em doc legado
+    ordem: 1
+  });
+  b.set(db.doc('equipes/eq_legacy_dirty'), {
+    id: 'eq_legacy_dirty',
+    construtoraId: 'const_a',
+    loteamentoId: 'L1',
+    quadraId: 'q_legacy_dirty',
+    loteId: 'lo_legacy_dirty',
+    etapaId: 'et_legacy_dirty',
+    name: 'Equipe Legada',
+    responsavelId: 'r'.repeat(150) // acima de 128 em doc legado
+  });
+  await b.commit();
+
+  const adminL1Fs = testEnv.authenticatedContext('admin_l1_user').firestore();
+
+  // Updates parciais que não tocam nos campos legados fora do padrão passam
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'quadras/q_legacy_dirty'), {
+    name: 'Quadra Legada Atualizada'
+  }));
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'lotes/lo_legacy_dirty'), {
+    name: 'Lote Legado Atualizado'
+  }));
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'etapas/et_legacy_dirty'), {
+    equipeId: 'eq_rh_1',
+    equipeNome: 'Equipe Alvenaria'
+  }));
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'equipes/eq_legacy_dirty'), {
+    name: 'Equipe Legada Atualizada'
+  }));
+
+  // Se tentar modificar o campo fora do padrão com valor inválido, continua bloqueado
+  await assertFails(updateDoc(doc(adminL1Fs, 'quadras/q_legacy_dirty'), {
+    logradouroPadrao: 'l'.repeat(301)
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'lotes/lo_legacy_dirty'), {
+    logradouro: 99999
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'etapas/et_legacy_dirty'), {
+    nome: 'n'.repeat(201)
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'equipes/eq_legacy_dirty'), {
+    responsavelId: 'r'.repeat(129)
+  }));
+});
+
+test('11.11 construtoras/{c}/equipes/{e} permite leitura por member(c), mantendo escrita e funcionarios em rh(c)', async () => {
+  const adminL1Fs = testEnv.authenticatedContext('admin_l1_user').firestore();
+  const semVinculoFs = testEnv.authenticatedContext('operario_sem_vinculo').firestore();
+  const outsiderFs = testEnv.authenticatedContext('outsider_user').firestore();
+
+  // admin_l1_user e operario_sem_vinculo são member(const_a) -> leem equipes da construtora
+  await assertSucceeds(getDoc(doc(adminL1Fs, 'construtoras/const_a/equipes/eq_1')));
+  await assertSucceeds(getDocs(collection(adminL1Fs, 'construtoras/const_a/equipes')));
+  await assertSucceeds(getDoc(doc(semVinculoFs, 'construtoras/const_a/equipes/eq_1')));
+
+  // Usuário sem RH não cria/atualiza equipes nem lê funcionarios
+  await assertFails(setDoc(doc(adminL1Fs, 'construtoras/const_a/equipes/eq_hack'), {
+    id: 'eq_hack',
+    construtoraId: 'const_a',
+    nome: 'Equipe Não RH'
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'construtoras/const_a/equipes/eq_1'), {
+    nome: 'Editado Sem RH'
+  }));
+  await assertFails(getDoc(doc(adminL1Fs, 'construtoras/const_a/funcionarios/func_1')));
+  await assertFails(getDoc(doc(semVinculoFs, 'construtoras/const_a/funcionarios/func_1')));
+
+  // Outsider não lê equipes de const_a
+  await assertFails(getDoc(doc(outsiderFs, 'construtoras/const_a/equipes/eq_1')));
+});

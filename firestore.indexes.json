@@ -1,6 +1,62 @@
 {
   "indexes": [
     {
+      "collectionGroup": "loteamentos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "construtoraId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "loteamentos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "construtoraId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "obraId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quadras",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "construtoraId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "loteamentoId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lotes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "construtoraId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "loteamentoId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "construtora_members",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

@@ -21,12 +21,17 @@ class SigoSidebar extends ConsumerWidget {
     final pathSegments = uri.pathSegments;
     String? cId;
     String? oId;
-    if (pathSegments.length >= 2 && pathSegments[0] == 'construtoras') {
+    if (pathSegments.length >= 2 &&
+        pathSegments[0] == 'construtoras' &&
+        pathSegments[1].isNotEmpty) {
       cId = pathSegments[1];
-      if (pathSegments.length >= 4 && pathSegments[2] == 'obra') {
+      if (pathSegments.length >= 4 &&
+          pathSegments[2] == 'obra' &&
+          pathSegments[3].isNotEmpty) {
         oId = pathSegments[3];
       } else if (pathSegments.length >= 4 &&
           pathSegments[2] == 'loteamentos' &&
+          pathSegments[3].isNotEmpty &&
           pathSegments[3] != 'import' &&
           pathSegments[3] != 'draft') {
         final loteamentoId = pathSegments[3];
@@ -101,10 +106,7 @@ class SigoSidebar extends ConsumerWidget {
         (obra != null && obra.isActive && obra.isAdmin) ||
         isConstrutoraAdmin;
 
-    final canMembros =
-        isDev ||
-        (obra != null && obra.isActive && obra.isAdmin) ||
-        isConstrutoraAdmin;
+    final canMembros = isDev || isConstrutoraAdmin;
 
     final canAdm =
         isDev ||
@@ -264,16 +266,19 @@ class SigoSidebar extends ConsumerWidget {
                     ),
                     children: [
                       if (oId != null) ...[
-                        _NavItem(
-                          icon: Icons.dashboard,
-                          title: 'Dashboard',
-                          isActive:
-                              activeRoute == '/construtoras/$cId/obra/$oId',
-                          onTap: () {
-                            Scaffold.maybeOf(context)?.closeDrawer();
-                            context.go('/construtoras/$cId/obra/$oId');
-                          },
-                        ),
+                        if (isDev ||
+                            isConstrutoraAdmin ||
+                            (obra != null && obra.isActive))
+                          _NavItem(
+                            icon: Icons.dashboard,
+                            title: 'Dashboard',
+                            isActive:
+                                activeRoute == '/construtoras/$cId/obra/$oId',
+                            onTap: () {
+                              Scaffold.maybeOf(context)?.closeDrawer();
+                              context.go('/construtoras/$cId/obra/$oId');
+                            },
+                          ),
                         if (isDev ||
                             isConstrutoraAdmin ||
                             (construtoraMember != null &&

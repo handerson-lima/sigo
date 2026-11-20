@@ -32,10 +32,7 @@ class ObraDashboardScreen extends ConsumerWidget {
     final centralMember = ref
         .watch(construtoraPermissionProvider(construtoraId))
         .value;
-    final centralAdmin =
-        centralMember?['isActive'] == true &&
-        (centralMember?['isAdmin'] == true ||
-            centralMember?['isOwner'] == true);
+    final centralAdmin = isConstrutoraAdminMember(centralMember);
     final canCentralLotes =
         centralAdmin ||
         centralMember?['isActive'] == true &&

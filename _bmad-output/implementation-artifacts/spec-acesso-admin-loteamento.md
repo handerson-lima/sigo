@@ -80,6 +80,44 @@ context: []
 
 ## Review Triage Log
 
+- `medium` **EC1** (`loteamento_repository.dart:110-146`) — `watchLoteamentosByObraIds` descarta `lastError` se outro stream emitir lista (mesmo vazia). Verificado no diff. → `patch`.
+- `medium` **EC2** (`loteamento_repository.dart:287-296`) — `watchLoteamentosProvider` converte erro de `construtoraPermissionProvider`/`userActiveObraIdsProvider` em lista vazia em vez de propagar erro. Verificado no diff. → `patch`.
+- `low` **EC3** (`sigo_sidebar.dart:28-32`) — Trailing slash em `/construtoras/c1/loteamentos/` gera `pathSegments[3] == ''` e path inválido `obras//members/`. Verificado no diff. → `patch`.
+- `low` **EC4** (`sigo_top_bar.dart:80-84`) — Trailing slash em `/construtoras/c1/loteamentos/` gera `switcherScopeId == ''`. Verificado no diff. → `patch`.
+- `low` **EC5** (`access_guard.dart:79-88`) — `obraDocAsync` não aguarda loading quando aplicável, podendo piscar filho antes de bloquear obra inativa. Verificado no diff. → `patch`.
+- `medium` **EC6** (`current_permissions_provider.dart:168-183`) — `effectiveLoteamentoObraIdProvider` ignora `loteamentosAsync.hasError` e cai em fallback `loteamentoId`, negando legado `obraId != id`. Verificado no diff. → `patch`.
+- `medium` **EC7** (`loteamentos_list_screen.dart:109-127`) — `onPainelTap` habilitado para `hasGlobalLotes` e `!isConstrutoraMember`, levando a `AccessDeniedScreen` sem vínculo na obra. Verificado no diff. → `patch`.
+- `medium` **EC8** (`quadras_list_screen.dart:34-49`) — Botão `quadras-painel-loteamento-btn` sempre visível mesmo para usuário sem vínculo na obra. Verificado no diff. → `patch`.
+- `low` **EC9** (`loteamento_repository.dart:161-176`) — `createLoteamento`/`createLoteamentoEmMassa` sobrescrevem `obras/{effectiveObraId}` mesmo quando `obraId` explícito aponta para obra existente. Verificado no diff. → `patch`.
+- `low` **EC10** (`loteamentos_list_screen.dart:633-666`) — `_EditLoteamentoDialog` sem `maxLength` alinhado às regras do Firestore. Verificado no diff. → `patch`.
+- `medium` **EC11** (`membros_providers.dart:119-137`) — `obrasELoteamentosAtivosProvider` usa `.value ?? []` de `watchLoteamentosProvider`, ocultando loading/erro. Verificado no diff. → `patch`.
+- `low` **EC12** (`functions/src/index.ts:244-252`) — `membership` não consulta `loteamentos.where('obraId', '==', o)` se obra espelho estiver ausente em caso legado. Verificado no diff. → `patch`.
+- `medium` **EC13** (`firestore.rules:235-285`) — `allow update` em `quadras`/`lotes`/`etapas`/`equipes` valida todos os campos com `optHierarchyStr`, podendo bloquear updates parciais em docs legados. Verificado em `firestore.rules`. → `patch`.
+- `medium` **EC14** (`firestore.rules:14,213-227,314-390`) — `obraMember` não checa `obras/{o}.isActive` (divergindo do `AccessGuard`); leitura de `loteamentos`/`quadras`/`lotes` por `obraMember` é necessária ao `LoteHierarchySelector`. Verificado em `firestore.rules` e `lote_hierarchy_selector.dart`. → `patch` (checar `activeObra(c, o)`).
+- `medium` **EC15** (`loteamentos_list_screen.dart:109-127`) — Mesmo problema de paridade UI×guard do botão Painel reportado em EC7/EC8. Verificado no diff. → `patch`.
+- `medium` **BH1** (`loteamento_repository.dart:173-176`, `firestore.rules:99`) — `updateLoteamento` não sincroniza `name` com `obras/{effectiveObraId}`, envia `toJson()` inteiro (sobrescrevendo `Timestamp` `createdAt`) e `obras/{o}` `update` exige `admin(c)`. Verificado no código. → `patch`.
+- `medium` **BH2** (`firestore.rules:235-244,314-327`) — `isValidLoteamento` não valida `proprietario*`/`responsavelTecnico*`, aceita `name` vazio/nulo, e `update` por `obraOnlyAdmin` não restringe `affectedKeys().hasOnly(...)` nem protege `createdAt`. Verificado em `firestore.rules`. → `patch`.
+- `high` **BH3** (`firestore.indexes.json`) — Faltam índices compostos `(construtoraId, __name__)`/`(construtoraId, obraId)` em `loteamentos` e `(construtoraId, loteamentoId)` em `quadras` e `lotes` para produção. Verificado em `firestore.indexes.json`. → `patch`.
+- `high` **BH4** (`atribuir_lotacao_lote_sheet.dart`, `equipes_list_screen.dart`, `firestore.rules:49-58`) — `ADMIN_LOTEAMENTO` sem `rh(c)` recebe `permission-denied` em `equipes`/`funcionarios` ao abrir sheets de lotação. Verificado em `firestore.rules` e `funcionario.dart`: liberar `read: if member(c)` apenas em `equipes` (sem dados sensíveis) e restringir `funcionarios` a `canRh` na UI. → `patch`.
+- `medium` **BH5** (`lote_detail_screen.dart:1009-1132`) — Controles de progresso de etapa ficam habilitados sem `isAdmin`, levando a `permission-denied` para não-admin. Verificado em `lote_detail_screen.dart`. → `patch`.
+- `medium` **BH6** (`loteamento_repository.dart`, `loteamento_summary_provider.dart`) — Erros silenciados (EC1/EC2) e `StreamController` não fechado em `onCancel` em `watchLoteamentosByObraIds` e `_watchLoteamentoSummaries`. Verificado no diff. → `patch`.
+- `medium` **BH7** (`loteamentos_list_screen.dart`, `quadras_list_screen.dart`, `sigo_sidebar.dart`) — Botão Painel / item `Dashboard` na sidebar exposto sem `obraMember` (EC7/EC8/EC15). Verificado no diff. → `patch`.
+- `high` **BH8** (`access_guard.dart:79-116`) — `obraDocProvider` dispara `permission-denied` (limpando cache em `read_cache.dart`) para usuário apenas com módulo central `lotes`, contorna `isActive == false`, não trata `om.hasError` nem verifica existência do loteamento na construtora. Verificado no diff e `read_cache.dart`. → `patch`.
+- `medium` **BH9** (`functions/src/index.ts`, `membros_providers.dart`, `membros_screen.dart`) — Fallback `obraId` em `membership` (EC12), loading/erro em `obrasELoteamentosAtivosProvider` (EC11) e filtro de `MembrosScreen` ainda usando apenas `obrasAtivasProvider`. Verificado em `membros_screen.dart`. → `patch`.
+- `medium` **BH10** (`obra_dashboard_screen.dart:35-38`, `sigo_sidebar.dart:91-94`) — `ObraDashboardScreen` não usa `isConstrutoraAdminMember`; `SigoSidebar` inclui `obra.isAdmin` em `canMembros`, exibindo link para `/membros` que nega acesso a `ADMIN_LOTEAMENTO`. Verificado nos arquivos. → `patch`.
+- `false` **BH11** (`firestore.rules:395-402`, `firestore_utils.py:506-519`) — `loteamentos_drafts` permitindo `member(c)` é contrato existente validado em `security-rules.test.cjs` (teste 9.1), e `consolidate_approved_draft` só escreve `obras/{loteamento_id}` quando `not target_loteamento_id` (loteamento novo); overwrite em `createLoteamento` com `obraId` explícito já tratado em EC9.
+- `medium` **BH12** (`app/test/**`, `functions/test/**`) — Lacunas de cobertura de testes detalhadas nos achados pré-verificados de `verification-gap` (VG1–VG7). → `patch`.
+- `medium` **VG1** (`loteamento_repository.dart:71-159,283-314`, `current_permissions_provider.dart:139-164`) — Pré-verificado: `watchLoteamentosByObraIds`, `userActiveObraIdsProvider` e caminho filtrado de `watchLoteamentosProvider` sem execução real em testes. → `patch`.
+- `medium` **VG2** (`loteamento_summary_provider.dart:164-390`) — Pré-verificado: `_watchLoteamentoSummaries` com `scopedLoteamentoIds` sem execução em testes. → `patch`.
+- `medium` **VG3** (`functions/src/index.ts:241-271`) — Pré-verificado: fallback de `membership` criando espelho `obras/{o}` a partir de `loteamentos/{o}` sem teste em `functions/test/integration.cjs`. → `patch`.
+- `low` **VG4** (`loteamento_repository.dart:161-171`) — Pré-verificado: escrita do espelho em `createLoteamento` sem asserção em `lote_etapas_atomic_test.dart`. → `patch`.
+- `medium` **VG5** (`sigo_sidebar.dart:28-42,282-287`, `obra_dashboard_screen.dart:157-162`) — Pré-verificado: visibilidade de `Loteamentos` e resolução de `oId` em `/loteamentos/:id` sem verificação em `sigo_sidebar_test.dart`. → `patch`.
+- `medium` **VG6** (`access_guard.dart:79-117`) — Pré-verificado: `AccessGuard` com `loteamentoId` para obra inativa, membro não-admin e fallback `centralModules` sem teste. → `patch`.
+- `low` **VG7** (`sigo_top_bar.dart:312-315,371-373`) — Pré-verificado: `LoteamentoSwitcher` para loteamento legado (`obraId != id`) sem teste. → `patch`.
+- `medium` **VG-Other1** (`access_guard.dart:100-116`) — Usuário com `centralModules: ['lotes']` e vínculo na obra sem `'lotes'` (ex.: só `'diario'`) é negado no `if (obra != null)` antes do fallback de `centralModules`. Verificado no diff. → `patch`.
+- `medium` **VG-Other2** (`loteamento_repository.dart:110-116`) — Mesmo bug de descarte de erro em `watchLoteamentosByObraIds` de EC1. Verificado no diff. → `patch`.
+- `medium` **VG-Other3** (`loteamento_repository.dart:173-176`) — Mesmo bug de dessincronização de `name` em `updateLoteamento` de BH1. Verificado no diff. → `patch`.
+
 ## Verification
 
 **Commands:**

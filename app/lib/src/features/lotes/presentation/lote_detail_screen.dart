@@ -914,6 +914,7 @@ class _LoteDetailScreenState extends ConsumerState<LoteDetailScreen> {
     bool isAdmin,
   ) {
     final isBusy = _busyEtapaIds.contains(etapa.id);
+    final canEdit = isAdmin && !isBusy;
     final status = etapa.status;
     final sliderValue =
         _sliderDrafts[etapa.id] ?? etapa.percentual.toDouble().clamp(0, 100);
@@ -1010,7 +1011,7 @@ class _LoteDetailScreenState extends ConsumerState<LoteDetailScreen> {
                 key: Key('etapa_status_${etapa.tipo?.name ?? etapa.id}_pendente'),
                 label: 'Pendente',
                 selected: status == EtapaStatus.pendente,
-                enabled: !isBusy,
+                enabled: canEdit,
                 selectedColor: sigo.surfaceRaised,
                 selectedTextColor: sigo.inkPrimary,
                 onSelected: () => _updateEtapaProgresso(
@@ -1026,7 +1027,7 @@ class _LoteDetailScreenState extends ConsumerState<LoteDetailScreen> {
                 ),
                 label: 'Em andamento',
                 selected: status == EtapaStatus.emAndamento,
-                enabled: !isBusy,
+                enabled: canEdit,
                 selectedColor: sigo.lotOnTimeBg,
                 selectedTextColor: sigo.lotOnTimeInk,
                 onSelected: () => _updateEtapaProgresso(
@@ -1044,7 +1045,7 @@ class _LoteDetailScreenState extends ConsumerState<LoteDetailScreen> {
                 ),
                 label: 'Concluída',
                 selected: status == EtapaStatus.concluida,
-                enabled: !isBusy,
+                enabled: canEdit,
                 selectedColor: sigo.lotCompleteBg,
                 selectedTextColor: sigo.lotCompleteInk,
                 onSelected: () => _updateEtapaProgresso(
@@ -1077,12 +1078,12 @@ class _LoteDetailScreenState extends ConsumerState<LoteDetailScreen> {
                     divisions: 20,
                     label: '${sliderValue.round()}%',
                     activeColor: sigo.brandBlue,
-                    onChanged: isBusy
+                    onChanged: !canEdit
                         ? null
                         : (value) {
                             setState(() => _sliderDrafts[etapa.id] = value);
                           },
-                    onChangeEnd: isBusy
+                    onChangeEnd: !canEdit
                         ? null
                         : (value) {
                             final rounded = value.round().clamp(0, 100);
@@ -1117,7 +1118,7 @@ class _LoteDetailScreenState extends ConsumerState<LoteDetailScreen> {
                         color: sigo.inkPrimary,
                       ),
                       visualDensity: VisualDensity.compact,
-                      onPressed: isBusy
+                      onPressed: !canEdit
                           ? null
                           : () => _updateEtapaProgresso(
                               lote: lote,

@@ -652,5 +652,285 @@ void main() {
         expect(find.text('lista loteamentos'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'obraDocProvider isActive: false nega acesso em loteamentoId != null',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+              ),
+              watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+                (ref) => Stream.value([
+                  Loteamento(
+                    id: 'L1',
+                    construtoraId: 'c1',
+                    name: 'Loteamento L1',
+                    createdAt: DateTime(2026),
+                    updatedAt: DateTime(2026),
+                  ),
+                ]),
+              ),
+              currentPermissionsProvider((construtoraId: 'c1', obraId: 'L1'))
+                  .overrideWith(
+                    (ref) => Stream.value(
+                      ObraMember(
+                        userId: 'u1',
+                        isActive: true,
+                        isAdmin: true,
+                        modules: const ['lotes'],
+                        joinedAt: DateTime(2026),
+                      ),
+                    ),
+                  ),
+              obraDocProvider((construtoraId: 'c1', obraId: 'L1'))
+                  .overrideWith((ref) => Stream.value({'isActive': false})),
+            ],
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                loteamentoId: 'L1',
+                module: 'lotes',
+                child: Text('area L1'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('area L1'), findsNothing);
+        expect(find.text('Acesso Negado'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'nao-admin na obra: permitido sem adminOnly e bloqueado com adminOnly',
+      (tester) async {
+        List<Override> buildOverrides() => [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({
+              'isActive': true,
+              'isAdmin': false,
+              'modules': <String>[],
+            }),
+          ),
+          watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+            (ref) => Stream.value([
+              Loteamento(
+                id: 'L1',
+                construtoraId: 'c1',
+                name: 'Loteamento L1',
+                createdAt: DateTime(2026),
+                updatedAt: DateTime(2026),
+              ),
+            ]),
+          ),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'L1'))
+              .overrideWith(
+                (ref) => Stream.value(
+                  ObraMember(
+                    userId: 'u1',
+                    isActive: true,
+                    isAdmin: false,
+                    modules: const ['lotes'],
+                    joinedAt: DateTime(2026),
+                  ),
+                ),
+              ),
+        ];
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(),
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                loteamentoId: 'L1',
+                module: 'lotes',
+                child: Text('leitura L1'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('leitura L1'), findsOneWidget);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(),
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                loteamentoId: 'L1',
+                module: 'lotes',
+                adminOnly: true,
+                child: Text('criacao L1'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('criacao L1'), findsNothing);
+        expect(find.text('Acesso Negado'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'centralModules lotes + obra de outro modulo permite sem adminOnly e nega com adminOnly',
+      (tester) async {
+        List<Override> buildOverrides() => [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({
+              'isActive': true,
+              'isAdmin': false,
+              'modules': ['lotes'],
+            }),
+          ),
+          watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+            (ref) => Stream.value([
+              Loteamento(
+                id: 'L1',
+                construtoraId: 'c1',
+                name: 'Loteamento L1',
+                createdAt: DateTime(2026),
+                updatedAt: DateTime(2026),
+              ),
+            ]),
+          ),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'L1'))
+              .overrideWith(
+                (ref) => Stream.value(
+                  ObraMember(
+                    userId: 'u1',
+                    isActive: true,
+                    isAdmin: false,
+                    modules: const ['diario'],
+                    joinedAt: DateTime(2026),
+                  ),
+                ),
+              ),
+        ];
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(),
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                loteamentoId: 'L1',
+                module: 'lotes',
+                child: Text('modulo central ok'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('modulo central ok'), findsOneWidget);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(),
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                loteamentoId: 'L1',
+                module: 'lotes',
+                adminOnly: true,
+                child: Text('adminOnly negado'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('adminOnly negado'), findsNothing);
+        expect(find.text('Acesso Negado'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'loteamento de outra construtora e negado inclusive para admin da construtora',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({'isActive': true, 'isAdmin': true}),
+              ),
+              watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+                (ref) => Stream.value([
+                  Loteamento(
+                    id: 'L1',
+                    construtoraId: 'c1',
+                    name: 'Loteamento L1',
+                    createdAt: DateTime(2026),
+                    updatedAt: DateTime(2026),
+                  ),
+                ]),
+              ),
+            ],
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                loteamentoId: 'L_OUTRA',
+                module: 'lotes',
+                child: Text('vazamento cross-tenant'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('vazamento cross-tenant'), findsNothing);
+        expect(find.text('Acesso Negado'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'erro em currentPermissionsProvider exibe mensagem de erro em vez de Acesso Negado',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': <String>[],
+                }),
+              ),
+              watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+                (ref) => Stream.value([
+                  Loteamento(
+                    id: 'L1',
+                    construtoraId: 'c1',
+                    name: 'Loteamento L1',
+                    createdAt: DateTime(2026),
+                    updatedAt: DateTime(2026),
+                  ),
+                ]),
+              ),
+              currentPermissionsProvider((construtoraId: 'c1', obraId: 'L1'))
+                  .overrideWith((ref) => Stream.error(Exception('falha om'))),
+            ],
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                loteamentoId: 'L1',
+                module: 'lotes',
+                child: Text('area L1'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Acesso Negado'), findsNothing);
+        expect(find.textContaining('Erro de validação:'), findsOneWidget);
+      },
+    );
   });
 }

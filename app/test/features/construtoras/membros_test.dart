@@ -1322,7 +1322,7 @@ void main() {
             pendingRequestsProvider('c-1').overrideWith(
               (ref) => Stream.value(const <Map<String, dynamic>>[]),
             ),
-            obrasAtivasProvider('c-1').overrideWithValue(
+            obrasELoteamentosAtivosProvider('c-1').overrideWithValue(
               AsyncValue.error(Exception('obras falhou'), StackTrace.empty),
             ),
           ],

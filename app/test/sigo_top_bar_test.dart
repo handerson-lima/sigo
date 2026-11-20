@@ -57,4 +57,65 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('SigoTopBar resolve LoteamentoSwitcher quando obraId != id e ignora trailing slash', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final loteamentosList = [
+      Loteamento(
+        id: 'l1',
+        construtoraId: 'c9',
+        obraId: 'o1',
+        name: 'CAOL VIDA NOVA',
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
+          watchLoteamentosProvider((construtoraId: 'c9'))
+              .overrideWith((ref) => Stream.value(loteamentosList)),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            appBar: SigoTopBar(
+              title: 'Painel',
+              activeRoute: '/construtoras/c9/obra/o1',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final dropdown = tester.widget<DropdownButton<String>>(
+      find.byKey(const Key('loteamento-switcher-dropdown')),
+    );
+    expect(dropdown.value, 'l1');
+
+    // Trailing slash em /loteamentos/ não deve abrir LoteamentoSwitcher
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateChangesProvider.overrideWith((ref) => Stream.value(null)),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            appBar: SigoTopBar(
+              title: 'Loteamentos',
+              activeRoute: '/construtoras/c9/loteamentos/',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('loteamento-switcher-dropdown')), findsNothing);
+  });
 }

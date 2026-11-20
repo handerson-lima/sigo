@@ -171,6 +171,8 @@ Stream<Map<String, LoteamentoSummary>> _watchLoteamentoSummaries(
 
   final quadrasByChunk = <int, List<Quadra>>{};
   final lotesByChunk = <int, List<Lote>>{};
+  final quadraErrors = <int, (Object, StackTrace)>{};
+  final loteErrors = <int, (Object, StackTrace)>{};
   var expectedQuadraChunks = 0;
   var expectedLoteChunks = 0;
   final readyQuadraChunks = <int>{};
@@ -180,6 +182,16 @@ Stream<Map<String, LoteamentoSummary>> _watchLoteamentoSummaries(
     if (controller.isClosed) return;
     if (readyQuadraChunks.length < expectedQuadraChunks ||
         readyLoteChunks.length < expectedLoteChunks) {
+      return;
+    }
+    if (quadraErrors.isNotEmpty) {
+      final firstErr = quadraErrors.values.first;
+      controller.addError(firstErr.$1, firstErr.$2);
+      return;
+    }
+    if (loteErrors.isNotEmpty) {
+      final firstErr = loteErrors.values.first;
+      controller.addError(firstErr.$1, firstErr.$2);
       return;
     }
     final allQuadras = <String, Quadra>{};
@@ -228,12 +240,13 @@ Stream<Map<String, LoteamentoSummary>> _watchLoteamentoSummaries(
               )
               .listen(
                 (quadras) {
+                  quadraErrors.remove(0);
                   quadrasByChunk[0] = quadras;
                   readyQuadraChunks.add(0);
                   emitIfReady();
                 },
-                onError: (_, _) {
-                  quadrasByChunk[0] ??= const [];
+                onError: (err, stack) {
+                  quadraErrors[0] = (err, stack);
                   readyQuadraChunks.add(0);
                   emitIfReady();
                 },
@@ -250,12 +263,13 @@ Stream<Map<String, LoteamentoSummary>> _watchLoteamentoSummaries(
               )
               .listen(
                 (lotes) {
+                  loteErrors.remove(0);
                   lotesByChunk[0] = lotes;
                   readyLoteChunks.add(0);
                   emitIfReady();
                 },
-                onError: (_, _) {
-                  lotesByChunk[0] ??= const [];
+                onError: (err, stack) {
+                  loteErrors[0] = (err, stack);
                   readyLoteChunks.add(0);
                   emitIfReady();
                 },
@@ -289,12 +303,13 @@ Stream<Map<String, LoteamentoSummary>> _watchLoteamentoSummaries(
               )
               .listen(
                 (quadras) {
+                  quadraErrors.remove(chunkIndex);
                   quadrasByChunk[chunkIndex] = quadras;
                   readyQuadraChunks.add(chunkIndex);
                   emitIfReady();
                 },
-                onError: (_, _) {
-                  quadrasByChunk[chunkIndex] ??= const [];
+                onError: (err, stack) {
+                  quadraErrors[chunkIndex] = (err, stack);
                   readyQuadraChunks.add(chunkIndex);
                   emitIfReady();
                 },
@@ -312,12 +327,13 @@ Stream<Map<String, LoteamentoSummary>> _watchLoteamentoSummaries(
               )
               .listen(
                 (lotes) {
+                  loteErrors.remove(chunkIndex);
                   lotesByChunk[chunkIndex] = lotes;
                   readyLoteChunks.add(chunkIndex);
                   emitIfReady();
                 },
-                onError: (_, _) {
-                  lotesByChunk[chunkIndex] ??= const [];
+                onError: (err, stack) {
+                  loteErrors[chunkIndex] = (err, stack);
                   readyLoteChunks.add(chunkIndex);
                   emitIfReady();
                 },
@@ -329,11 +345,25 @@ Stream<Map<String, LoteamentoSummary>> _watchLoteamentoSummaries(
       for (final sub in subs) {
         await sub.cancel();
       }
+      if (!controller.isClosed) {
+        await controller.close();
+      }
     },
   );
 
   return controller.stream;
 }
+
+/// Cria o stream agregado de resumos para testes unitários com [FirebaseFirestore] injetado.
+Stream<Map<String, LoteamentoSummary>> watchLoteamentoSummariesForTest(
+  FirebaseFirestore firestore,
+  String construtoraId, {
+  List<String>? scopedLoteamentoIds,
+}) => _watchLoteamentoSummaries(
+  firestore,
+  construtoraId,
+  scopedLoteamentoIds: scopedLoteamentoIds,
+);
 
 /// Fornece o mapa `loteamentoId -> LoteamentoSummary` em tempo real para uma
 /// construtora, respeitando o escopo vinculado do usuário e com fallback seguro
@@ -344,17 +374,31 @@ final loteamentoSummaryMapProvider = StreamProvider.autoDispose
         return Stream.value(const <String, LoteamentoSummary>{});
       }
 
-      final isDev = ref.watch(trustedDevProvider).value == true;
-      final cm = ref.watch(construtoraPermissionProvider(construtoraId)).value;
+      final devAsync = ref.watch(trustedDevProvider);
+      if (devAsync.hasError) {
+        return Stream.error(
+          devAsync.error!,
+          devAsync.stackTrace ?? StackTrace.current,
+        );
+      }
+      final isDev = devAsync.value == true;
+      final cmAsync = ref.watch(construtoraPermissionProvider(construtoraId));
+      if (!isDev && cmAsync.hasError) {
+        return Stream.error(
+          cmAsync.error!,
+          cmAsync.stackTrace ?? StackTrace.current,
+        );
+      }
+      final cm = cmAsync.value;
       if (isDev || hasGlobalLotesAccess(cm)) {
-        try {
-          return _watchLoteamentoSummaries(
-            FirebaseFirestore.instance,
-            construtoraId,
-          );
-        } catch (_) {
-          return Stream.value(const <String, LoteamentoSummary>{});
-        }
+        return _watchLoteamentoSummaries(
+          FirebaseFirestore.instance,
+          construtoraId,
+        );
+      }
+
+      if (cmAsync.isLoading && !cmAsync.hasValue) {
+        return const Stream.empty();
       }
 
       if (cm?['isActive'] != true) {
@@ -367,6 +411,12 @@ final loteamentoSummaryMapProvider = StreamProvider.autoDispose
       if (loteamentosAsync.isLoading && !loteamentosAsync.hasValue) {
         return const Stream.empty();
       }
+      if (loteamentosAsync.hasError) {
+        return Stream.error(
+          loteamentosAsync.error!,
+          loteamentosAsync.stackTrace ?? StackTrace.current,
+        );
+      }
       final ids =
           (loteamentosAsync.value ?? const <Loteamento>[])
               .map((l) => l.id.trim())
@@ -378,13 +428,9 @@ final loteamentoSummaryMapProvider = StreamProvider.autoDispose
         return Stream.value(const <String, LoteamentoSummary>{});
       }
 
-      try {
-        return _watchLoteamentoSummaries(
-          FirebaseFirestore.instance,
-          construtoraId,
-          scopedLoteamentoIds: ids,
-        );
-      } catch (_) {
-        return Stream.value(const <String, LoteamentoSummary>{});
-      }
+      return _watchLoteamentoSummaries(
+        FirebaseFirestore.instance,
+        construtoraId,
+        scopedLoteamentoIds: ids,
+      );
     });

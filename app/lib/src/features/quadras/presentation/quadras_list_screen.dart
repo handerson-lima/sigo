@@ -34,19 +34,29 @@ class QuadrasListScreen extends ConsumerWidget {
     final effectiveObraId =
         ref.watch(effectiveLoteamentoObraIdProvider(params)).value ??
         loteamentoId;
+    final obraMember = ref
+        .watch(
+          currentPermissionsProvider((
+            construtoraId: construtoraId,
+            obraId: effectiveObraId,
+          )),
+        )
+        .value;
+    final canOpenPainel = obraMember != null && obraMember.isActive;
 
     return SigoLayout(
       title: 'Quadras',
       activeRoute:
           '/construtoras/$construtoraId/loteamentos/$loteamentoId/quadras',
       actions: [
-        IconButton(
-          key: const Key('quadras-painel-loteamento-btn'),
-          icon: const Icon(Icons.dashboard_outlined, color: Colors.black54),
-          tooltip: 'Painel do Loteamento',
-          onPressed: () =>
-              context.go('/construtoras/$construtoraId/obra/$effectiveObraId'),
-        ),
+        if (canOpenPainel)
+          IconButton(
+            key: const Key('quadras-painel-loteamento-btn'),
+            icon: const Icon(Icons.dashboard_outlined, color: Colors.black54),
+            tooltip: 'Painel do Loteamento',
+            onPressed: () =>
+                context.go('/construtoras/$construtoraId/obra/$effectiveObraId'),
+          ),
         if (admin)
           IconButton(
             icon: const Icon(Icons.add_box_outlined, color: Colors.black54),

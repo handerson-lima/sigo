@@ -493,12 +493,46 @@ void main() {
         lt.copyWith(name: 'Atualizado', cidade: 'Natal', uf: 'RN'),
       );
 
-      final savedLt = Loteamento.fromJson(
-        (await fakeFirestore.collection('loteamentos').doc('lt1').get()).data()!,
-      );
+      final rawLt =
+          (await fakeFirestore.collection('loteamentos').doc('lt1').get()).data()!;
+      final savedLt = Loteamento.fromJson(rawLt);
       expect(savedLt.name, 'Atualizado');
       expect(savedLt.cidade, 'Natal');
       expect(savedLt.uf, 'RN');
+      expect(savedLt.createdAt, now);
+
+      // Espelho em obras/{id} também recebe o nome atualizado
+      final mirrorObra = await fakeFirestore
+          .collection('construtoras')
+          .doc('c1')
+          .collection('obras')
+          .doc('lt1')
+          .get();
+      expect(mirrorObra.data()?['name'], 'Atualizado');
+
+      // Loteamento com obraId explícito não grava espelho em createLoteamento
+      // e updateLoteamento não falha se o espelho não existir
+      final ltLegado = Loteamento(
+        id: 'lt_leg',
+        construtoraId: 'c1',
+        obraId: 'obra_ausente',
+        name: 'Legado',
+        createdAt: now,
+        updatedAt: now,
+      );
+      await loteamentoRepo.createLoteamento(ltLegado);
+      final mirrorLegado = await fakeFirestore
+          .collection('construtoras')
+          .doc('c1')
+          .collection('obras')
+          .doc('obra_ausente')
+          .get();
+      expect(mirrorLegado.exists, isFalse);
+      await loteamentoRepo.updateLoteamento(ltLegado.copyWith(name: 'Legado II'));
+      final savedLegado = Loteamento.fromJson(
+        (await fakeFirestore.collection('loteamentos').doc('lt_leg').get()).data()!,
+      );
+      expect(savedLegado.name, 'Legado II');
 
       final lote = _makeLote('lo1');
       await loteRepo.createLoteComEtapas(lote);

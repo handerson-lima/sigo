@@ -1,3 +1,4 @@
+import 'package:app/src/common_widgets/sigo_sidebar.dart';
 import 'package:app/src/features/authentication/data/user_repository.dart';
 import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
@@ -88,4 +89,85 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Diário de Loteamento'), findsWidgets);
   });
+
+  testWidgets(
+    'SigoSidebar exibe Loteamentos para membro com modulo lotes na obra e oculta Membros para obraAdmin',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'modules': <String>[],
+              }),
+            ),
+            effectiveLoteamentoObraIdProvider((
+              construtoraId: 'c1',
+              loteamentoId: 'L1',
+            )).overrideWithValue(const AsyncValue.data('O1')),
+            currentPermissionsProvider((construtoraId: 'c1', obraId: 'O1'))
+                .overrideWith(
+                  (ref) => Stream.value(
+                    ObraMember(
+                      userId: 'u1',
+                      isActive: true,
+                      isAdmin: true,
+                      modules: const ['lotes'],
+                      joinedAt: DateTime(2025),
+                    ),
+                  ),
+                ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SigoSidebar(
+                activeRoute: '/construtoras/c1/loteamentos/L1/quadras',
+                isCollapsed: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Loteamentos'), findsOneWidget);
+      expect(find.text('Membros & Acessos'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'SigoSidebar ignora segmento vazio com trailing slash sem consultar obra',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'modules': <String>[],
+              }),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SigoSidebar(
+                activeRoute: '/construtoras/c1/loteamentos/',
+                isCollapsed: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('Dashboard'), findsNothing);
+      expect(find.text('Minhas Construtoras'), findsOneWidget);
+    },
+  );
 }

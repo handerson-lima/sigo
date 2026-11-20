@@ -119,20 +119,32 @@ List<Obra> unificarObrasELoteamentos({
 final obrasELoteamentosAtivosProvider = StreamProvider.autoDispose
     .family<List<Obra>, String>((ref, construtoraId) {
       final obrasAsync = ref.watch(obrasDaConstrutoraProvider(construtoraId));
-      final loteamentos =
-          ref
-              .watch(watchLoteamentosProvider((construtoraId: construtoraId)))
-              .value ??
-          const <Loteamento>[];
-      return obrasAsync.when(
-        data: (lista) => Stream.value(
-          unificarObrasELoteamentos(
-            todasObras: lista,
-            loteamentos: loteamentos,
-          ),
+      final loteamentosAsync = ref.watch(
+        watchLoteamentosProvider((construtoraId: construtoraId)),
+      );
+      if (obrasAsync.hasError) {
+        return Stream.error(
+          obrasAsync.error!,
+          obrasAsync.stackTrace ?? StackTrace.current,
+        );
+      }
+      if (loteamentosAsync.hasError) {
+        return Stream.error(
+          loteamentosAsync.error!,
+          loteamentosAsync.stackTrace ?? StackTrace.current,
+        );
+      }
+      if ((obrasAsync.isLoading && !obrasAsync.hasValue) ||
+          (loteamentosAsync.isLoading && !loteamentosAsync.hasValue)) {
+        return const Stream.empty();
+      }
+      final lista = obrasAsync.value ?? const <Obra>[];
+      final loteamentos = loteamentosAsync.value ?? const <Loteamento>[];
+      return Stream.value(
+        unificarObrasELoteamentos(
+          todasObras: lista,
+          loteamentos: loteamentos,
         ),
-        loading: () => const Stream.empty(),
-        error: (e, s) => Stream.error(e, s),
       );
     });
 

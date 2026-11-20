@@ -33,7 +33,6 @@ class LoteamentosListScreen extends ConsumerWidget {
     final cm = ref.watch(construtoraPermissionProvider(construtoraId)).value;
     final admin = isDev || isConstrutoraAdminMember(cm);
     final isConstrutoraMember = cm?['isActive'] == true;
-    final hasGlobalLotes = isDev || hasGlobalLotesAccess(cm);
     final activeObraIds = ref
         .watch(userActiveObraIdsProvider(construtoraId))
         .value;
@@ -107,7 +106,7 @@ class LoteamentosListScreen extends ConsumerWidget {
                     )),
                   );
                   final canOpenPainel =
-                      hasGlobalLotes ||
+                      admin ||
                       (activeObraIds?.contains(item.effectiveObraId) ?? false);
 
                   return LoteamentoSummaryCard(
@@ -118,7 +117,7 @@ class LoteamentosListScreen extends ConsumerWidget {
                         '/construtoras/$construtoraId/loteamentos/${item.id}/quadras',
                       );
                     },
-                    onPainelTap: (canOpenPainel || !isConstrutoraMember)
+                    onPainelTap: canOpenPainel
                         ? () {
                             context.go(
                               '/construtoras/$construtoraId/obra/${item.effectiveObraId}',
@@ -633,8 +632,10 @@ class _EditLoteamentoDialogState extends ConsumerState<_EditLoteamentoDialog> {
                 TextFormField(
                   key: const Key('edit-loteamento-name-field'),
                   controller: _nameController,
+                  maxLength: 200,
                   decoration: const InputDecoration(
                     labelText: 'Nome do Loteamento',
+                    counterText: '',
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) => v == null || v.trim().isEmpty
@@ -645,8 +646,10 @@ class _EditLoteamentoDialogState extends ConsumerState<_EditLoteamentoDialog> {
                 TextFormField(
                   key: const Key('edit-loteamento-bairro-field'),
                   controller: _bairroController,
+                  maxLength: 200,
                   decoration: const InputDecoration(
                     labelText: 'Bairro (Opcional)',
+                    counterText: '',
                     isDense: true,
                   ),
                 ),
@@ -659,8 +662,10 @@ class _EditLoteamentoDialogState extends ConsumerState<_EditLoteamentoDialog> {
                       child: TextFormField(
                         key: const Key('edit-loteamento-cidade-field'),
                         controller: _cidadeController,
+                        maxLength: 200,
                         decoration: const InputDecoration(
                           labelText: 'Cidade (Opcional)',
+                          counterText: '',
                           isDense: true,
                         ),
                       ),
@@ -685,8 +690,10 @@ class _EditLoteamentoDialogState extends ConsumerState<_EditLoteamentoDialog> {
                 TextFormField(
                   key: const Key('edit-loteamento-proprietario-nome-field'),
                   controller: _proprietarioNomeController,
+                  maxLength: 200,
                   decoration: const InputDecoration(
                     labelText: 'Proprietário / Empreendedor (Opcional)',
+                    counterText: '',
                     isDense: true,
                   ),
                 ),
@@ -694,8 +701,10 @@ class _EditLoteamentoDialogState extends ConsumerState<_EditLoteamentoDialog> {
                 TextFormField(
                   key: const Key('edit-loteamento-proprietario-doc-field'),
                   controller: _proprietarioDocController,
+                  maxLength: 100,
                   decoration: const InputDecoration(
                     labelText: 'CPF / CNPJ do Proprietário (Opcional)',
+                    counterText: '',
                     isDense: true,
                   ),
                 ),
@@ -708,8 +717,10 @@ class _EditLoteamentoDialogState extends ConsumerState<_EditLoteamentoDialog> {
                       child: TextFormField(
                         key: const Key('edit-loteamento-resp-nome-field'),
                         controller: _respTecnicoNomeController,
+                        maxLength: 200,
                         decoration: const InputDecoration(
                           labelText: 'Responsável Técnico (Opcional)',
+                          counterText: '',
                           isDense: true,
                         ),
                       ),
@@ -719,8 +730,10 @@ class _EditLoteamentoDialogState extends ConsumerState<_EditLoteamentoDialog> {
                       child: TextFormField(
                         key: const Key('edit-loteamento-resp-registro-field'),
                         controller: _respTecnicoRegController,
+                        maxLength: 100,
                         decoration: const InputDecoration(
                           labelText: 'CREA / CAU',
+                          counterText: '',
                           isDense: true,
                         ),
                       ),
