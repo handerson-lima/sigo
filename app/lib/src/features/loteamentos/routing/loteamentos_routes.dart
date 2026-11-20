@@ -19,7 +19,6 @@ List<RouteBase> get loteamentosRoutes => [
       final cId = state.pathParameters['cId']!;
       return AccessGuard(
         construtoraId: cId,
-        module: 'lotes',
         child: LoteamentosListScreen(construtoraId: cId),
       );
     },
@@ -30,6 +29,7 @@ List<RouteBase> get loteamentosRoutes => [
           final cId = state.pathParameters['cId']!;
           return AccessGuard(
             construtoraId: cId,
+            adminOnly: true,
             module: 'lotes',
             child: LoteamentoImportScreen(construtoraId: cId),
           );
@@ -42,6 +42,7 @@ List<RouteBase> get loteamentosRoutes => [
               final draftId = state.pathParameters['draftId']!;
               return AccessGuard(
                 construtoraId: cId,
+                adminOnly: true,
                 module: 'lotes',
                 child: LoteamentoProcessingScreen(
                   construtoraId: cId,
@@ -59,6 +60,7 @@ List<RouteBase> get loteamentosRoutes => [
           final draftId = state.pathParameters['draftId']!;
           return AccessGuard(
             construtoraId: cId,
+            adminOnly: true,
             module: 'lotes',
             child: LoteamentoDraftReviewScreen(
               construtoraId: cId,

@@ -8,6 +8,7 @@ part 'loteamento.g.dart';
 class Loteamento {
   final String id;
   final String construtoraId;
+  final String? obraId;
   final String name;
   final String? bairro;
   final String? cidade;
@@ -22,6 +23,7 @@ class Loteamento {
   Loteamento({
     required this.id,
     required this.construtoraId,
+    this.obraId,
     required this.name,
     this.bairro,
     this.cidade,
@@ -34,9 +36,17 @@ class Loteamento {
     required this.updatedAt,
   });
 
+  /// Retorna o ID efetivo da obra vinculada a este loteamento (fallback para `id`).
+  String get effectiveObraId {
+    final trimmed = obraId?.trim();
+    return (trimmed != null && trimmed.isNotEmpty) ? trimmed : id;
+  }
+
   Loteamento copyWith({
     String? id,
     String? construtoraId,
+    String? obraId,
+    bool clearObraId = false,
     String? name,
     String? bairro,
     bool clearBairro = false,
@@ -58,6 +68,7 @@ class Loteamento {
     return Loteamento(
       id: id ?? this.id,
       construtoraId: construtoraId ?? this.construtoraId,
+      obraId: clearObraId ? null : (obraId ?? this.obraId),
       name: name ?? this.name,
       bairro: clearBairro ? null : (bairro ?? this.bairro),
       cidade: clearCidade ? null : (cidade ?? this.cidade),

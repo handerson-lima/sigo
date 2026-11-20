@@ -660,4 +660,125 @@ void main() {
     expect(router.state.uri.path, '/construtoras/c1/loteamentos');
     expect(find.byType(LoteamentosListScreen), findsOneWidget);
   });
+
+  testWidgets(
+    'ADMIN_LOTEAMENTO acessa /loteamentos filtrado em L1, cria lote em L1 e recebe Acesso Negado em L2',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: '/construtoras/c1',
+        routes: construtoraRoutes,
+      );
+
+      final fakeLoteamentoRepo = FakeLoteamentoRepository([
+        makeLoteamento('L1'),
+        makeLoteamento('L2'),
+      ]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'modules': <String>[],
+              }),
+            ),
+            userActiveObraIdsProvider('c1').overrideWith(
+              (ref) => Stream.value(ObraIdSet.fromIterable(['L1'])),
+            ),
+            loteamentoRepositoryProvider.overrideWithValue(fakeLoteamentoRepo),
+            quadraRepositoryProvider.overrideWithValue(
+              FakeQuadraRepository([makeQuadra('q1')]),
+            ),
+            loteRepositoryProvider.overrideWithValue(FakeLoteRepository([])),
+            currentPermissionsProvider((construtoraId: 'c1', obraId: 'L1'))
+                .overrideWith(
+                  (ref) => Stream.value(
+                    ObraMember(
+                      userId: 'u1',
+                      isActive: true,
+                      isAdmin: true,
+                      modules: const [],
+                      joinedAt: DateTime(2026),
+                    ),
+                  ),
+                ),
+            currentPermissionsProvider((construtoraId: 'c1', obraId: 'L2'))
+                .overrideWith((ref) => Stream.value(null)),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Entrou em /construtoras/c1/loteamentos vendo apenas L1
+      expect(router.state.uri.path, '/construtoras/c1/loteamentos');
+      expect(find.byType(LoteamentosListScreen), findsOneWidget);
+      expect(find.text('Loteamento L1'), findsOneWidget);
+      expect(find.text('Loteamento L2'), findsNothing);
+
+      // Navega para quadras de L1 e depois para lotes/novo
+      await tester.tap(find.text('Loteamento L1'));
+      await tester.pumpAndSettle();
+      expect(find.byType(QuadrasListScreen), findsOneWidget);
+
+      await tester.tap(find.text('Quadra q1'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LotesListScreen), findsOneWidget);
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      expect(find.byType(AddLoteScreen), findsOneWidget);
+
+      // Tenta deep-link cross-loteamento em L2 -> Acesso Negado
+      router.go('/construtoras/c1/loteamentos/L2/quadras');
+      await tester.pumpAndSettle();
+      expect(find.byType(AccessDeniedScreen), findsOneWidget);
+      expect(find.byType(QuadrasListScreen), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'OPERARIO_SEM_VINCULO acessa /loteamentos e ve estado vazio contextual sem erro',
+    (tester) async {
+      final router = GoRouter(
+        initialLocation: '/construtoras/c1',
+        routes: construtoraRoutes,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'modules': <String>[],
+              }),
+            ),
+            userActiveObraIdsProvider('c1')
+                .overrideWith((ref) => Stream.value(ObraIdSet.empty)),
+            loteamentoRepositoryProvider.overrideWithValue(
+              FakeLoteamentoRepository([makeLoteamento('L1')]),
+            ),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(router.state.uri.path, '/construtoras/c1/loteamentos');
+      expect(find.byType(LoteamentosListScreen), findsOneWidget);
+      expect(
+        find.text('Nenhum loteamento vinculado ao seu usuário nesta construtora.'),
+        findsOneWidget,
+      );
+      expect(find.text('Loteamento L1'), findsNothing);
+    },
+  );
 }

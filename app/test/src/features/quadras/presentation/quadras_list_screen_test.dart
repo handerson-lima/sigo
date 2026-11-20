@@ -1,6 +1,7 @@
 import 'package:app/src/common_widgets/sigo_breadcrumbs.dart';
 import 'package:app/src/features/authentication/data/user_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
+import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/quadras/data/quadra_repository.dart';
 import 'package:app/src/features/quadras/domain/quadra.dart';
@@ -435,4 +436,53 @@ void main() {
       expect(find.text('Tela de Lotes q1'), findsOneWidget);
     },
   );
+
+  testWidgets('Admin do loteamento cria quadra mesmo sendo operario na construtora', (
+    tester,
+  ) async {
+    final fakeRepo = FakeQuadraRepository([]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({
+              'isActive': true,
+              'isAdmin': false,
+              'modules': <String>[],
+            }),
+          ),
+          effectiveLoteamentoObraIdProvider((
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+          )).overrideWithValue(const AsyncValue.data('l1')),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+              .overrideWith(
+                (ref) => Stream.value(
+                  ObraMember(
+                    userId: 'u1',
+                    isActive: true,
+                    isAdmin: true,
+                    modules: const [],
+                    joinedAt: DateTime(2026),
+                  ),
+                ),
+              ),
+          quadraRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: buildTestWidget(
+          const QuadrasListScreen(construtoraId: 'c1', loteamentoId: 'l1'),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Nova Quadra'), findsOneWidget);
+    expect(find.text('Criar Nova Quadra'), findsOneWidget);
+    expect(
+      find.byKey(const Key('quadras-painel-loteamento-btn')),
+      findsOneWidget,
+    );
+  });
 }

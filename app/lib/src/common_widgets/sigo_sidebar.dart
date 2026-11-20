@@ -23,9 +23,22 @@ class SigoSidebar extends ConsumerWidget {
     String? oId;
     if (pathSegments.length >= 2 && pathSegments[0] == 'construtoras') {
       cId = pathSegments[1];
-      if (pathSegments.length >= 4 &&
-          (pathSegments[2] == 'obra' || pathSegments[2] == 'loteamentos')) {
+      if (pathSegments.length >= 4 && pathSegments[2] == 'obra') {
         oId = pathSegments[3];
+      } else if (pathSegments.length >= 4 &&
+          pathSegments[2] == 'loteamentos' &&
+          pathSegments[3] != 'import' &&
+          pathSegments[3] != 'draft') {
+        final loteamentoId = pathSegments[3];
+        oId = ref
+                .watch(
+                  effectiveLoteamentoObraIdProvider((
+                    construtoraId: cId,
+                    loteamentoId: loteamentoId,
+                  )),
+                )
+                .value ??
+            loteamentoId;
       }
     }
 
@@ -265,7 +278,13 @@ class SigoSidebar extends ConsumerWidget {
                             isConstrutoraAdmin ||
                             (construtoraMember != null &&
                                 construtoraMember['isActive'] == true &&
-                                construtoraModules.contains('lotes')))
+                                construtoraModules.contains('lotes')) ||
+                            (obra != null &&
+                                obra.isActive &&
+                                (obra.isAdmin ||
+                                    obra.modules
+                                        .map(normalizeModule)
+                                        .contains('lotes'))))
                           _NavItem(
                             icon: Icons.map,
                             title: 'Loteamentos',

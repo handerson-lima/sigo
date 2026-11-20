@@ -154,7 +154,12 @@ class ObraDashboardScreen extends ConsumerWidget {
                   spacing: 20,
                   runSpacing: 20,
                   children: [
-                    if (canCentralLotes)
+                    if (canCentralLotes ||
+                        (member.isActive &&
+                            (member.isAdmin ||
+                                member.modules
+                                    .map(normalizeModule)
+                                    .contains('lotes'))))
                       SigoModuleCard(
                         icon: Icons.map,
                         title: 'Loteamentos',

@@ -7,7 +7,6 @@ import '../../../common_widgets/sigo_empty_state.dart';
 import '../../../common_widgets/sigo_error_state.dart';
 import '../../../common_widgets/sigo_layout.dart';
 import '../../../design_system/sigo_theme.dart';
-import '../../authentication/data/user_repository.dart';
 import '../../etapas/data/etapa_repository.dart';
 import '../../etapas/domain/etapa.dart';
 import '../../obras/presentation/current_permissions_provider.dart';
@@ -214,14 +213,12 @@ class _LoteDetailScreenState extends ConsumerState<LoteDetailScreen> {
     );
     final etapasAsync = ref.watch(watchEtapasProvider(etapasParams));
 
-    final dev = ref.watch(trustedDevProvider).value == true;
-    final member = ref
-        .watch(construtoraPermissionProvider(widget.construtoraId))
-        .value;
-    final isAdmin =
-        dev ||
-        (member?['isActive'] == true &&
-            (member?['isAdmin'] == true || member?['isOwner'] == true));
+    final isAdmin = ref.watch(
+      isLoteamentoAdminProvider((
+        construtoraId: widget.construtoraId,
+        loteamentoId: widget.loteamentoId,
+      )),
+    );
 
     final title = loteAsync.value?.name ?? 'Detalhes do Lote';
 

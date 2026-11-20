@@ -21,6 +21,7 @@ List<RouteBase> get lotesRoutes => [
       final quadraId = state.pathParameters['quadraId']!;
       return AccessGuard(
         construtoraId: cId,
+        loteamentoId: loteamentoId,
         module: 'lotes',
         child: LotesListScreen(
           construtoraId: cId,
@@ -38,6 +39,7 @@ List<RouteBase> get lotesRoutes => [
           final quadraId = state.pathParameters['quadraId']!;
           return AccessGuard(
             construtoraId: cId,
+            loteamentoId: loteamentoId,
             module: 'lotes',
             adminOnly: true,
             child: AddLoteScreen(
@@ -65,6 +67,7 @@ List<RouteBase> get lotesRoutes => [
               final loteId = state.pathParameters['loteId']!;
               return AccessGuard(
                 construtoraId: cId,
+                loteamentoId: loteamentoId,
                 module: 'lotes',
                 child: LoteDetailScreen(
                   construtoraId: cId,

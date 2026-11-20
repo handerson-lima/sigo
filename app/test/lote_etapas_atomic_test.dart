@@ -455,11 +455,20 @@ void main() {
         lotes: lotes,
       );
 
-      expect(spyFirestore.batchOpCounts, [500, 43]);
+      expect(spyFirestore.batchOpCounts, [500, 44]);
       expect(
         (await fakeFirestore.collection('loteamentos').get()).docs.length,
         1,
       );
+      final mirrorObra = await fakeFirestore
+          .collection('construtoras')
+          .doc('c1')
+          .collection('obras')
+          .doc('lt1')
+          .get();
+      expect(mirrorObra.exists, isTrue);
+      expect(mirrorObra.data()?['name'], 'Jardim Botanico');
+      expect(mirrorObra.data()?['isActive'], isTrue);
       expect((await fakeFirestore.collection('quadras').get()).docs.length, 2);
       expect((await fakeFirestore.collection('lotes').get()).docs.length, 90);
       expect((await fakeFirestore.collection('etapas').get()).docs.length, 450);

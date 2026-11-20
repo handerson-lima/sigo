@@ -29,14 +29,14 @@ class LoteamentosListScreen extends ConsumerWidget {
     final summaries = ref
         .watch(loteamentoSummaryMapProvider(construtoraId))
         .value;
+    final isDev = ref.watch(trustedDevProvider).value == true;
     final cm = ref.watch(construtoraPermissionProvider(construtoraId)).value;
-    final admin =
-        ref.watch(trustedDevProvider).value == true ||
-        cm?['isActive'] == true &&
-            (cm?['isAdmin'] == true ||
-                cm?['isOwner'] == true ||
-                cm?['role'] == 'admin' ||
-                cm?['role'] == 'owner');
+    final admin = isDev || isConstrutoraAdminMember(cm);
+    final isConstrutoraMember = cm?['isActive'] == true;
+    final hasGlobalLotes = isDev || hasGlobalLotesAccess(cm);
+    final activeObraIds = ref
+        .watch(userActiveObraIdsProvider(construtoraId))
+        .value;
 
     return SigoLayout(
       title: 'Loteamentos',
@@ -76,8 +76,11 @@ class LoteamentosListScreen extends ConsumerWidget {
               ),
               data: (items) {
                 if (items.isEmpty) {
+                  final emptyMessage = (!admin && isConstrutoraMember)
+                      ? 'Nenhum loteamento vinculado ao seu usuário nesta construtora.'
+                      : 'Nenhum loteamento cadastrado';
                   return SigoEmptyState(
-                    message: 'Nenhum loteamento cadastrado',
+                    message: emptyMessage,
                     icon: Icons.map_outlined,
                     action: admin
                         ? ElevatedButton.icon(
@@ -96,6 +99,44 @@ class LoteamentosListScreen extends ConsumerWidget {
                   );
                 }
 
+                Widget buildCard(Loteamento item) {
+                  final canEditItem = ref.watch(
+                    isLoteamentoAdminProvider((
+                      construtoraId: construtoraId,
+                      loteamentoId: item.id,
+                    )),
+                  );
+                  final canOpenPainel =
+                      hasGlobalLotes ||
+                      (activeObraIds?.contains(item.effectiveObraId) ?? false);
+
+                  return LoteamentoSummaryCard(
+                    loteamento: item,
+                    summary: summaries?[item.id],
+                    onTap: () {
+                      context.go(
+                        '/construtoras/$construtoraId/loteamentos/${item.id}/quadras',
+                      );
+                    },
+                    onPainelTap: (canOpenPainel || !isConstrutoraMember)
+                        ? () {
+                            context.go(
+                              '/construtoras/$construtoraId/obra/${item.effectiveObraId}',
+                            );
+                          }
+                        : null,
+                    onEditTap: canEditItem
+                        ? () {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) =>
+                                  _EditLoteamentoDialog(loteamento: item),
+                            );
+                          }
+                        : null,
+                  );
+                }
+
                 return LayoutBuilder(
                   builder: (context, constraints) {
                     final columns = constraints.maxWidth >= 1200
@@ -110,18 +151,9 @@ class LoteamentosListScreen extends ConsumerWidget {
                       itemCount: rowCount,
                       itemBuilder: (context, rowIndex) {
                         if (columns == 1) {
-                          final item = items[rowIndex];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: LoteamentoSummaryCard(
-                              loteamento: item,
-                              summary: summaries?[item.id],
-                              onTap: () {
-                                context.go(
-                                  '/construtoras/$construtoraId/loteamentos/${item.id}/quadras',
-                                );
-                              },
-                            ),
+                            child: buildCard(items[rowIndex]),
                           );
                         }
 
@@ -139,16 +171,7 @@ class LoteamentosListScreen extends ConsumerWidget {
                                     right: colIndex == columns - 1 ? 0 : 6,
                                   ),
                                   child: itemIndex < items.length
-                                      ? LoteamentoSummaryCard(
-                                          loteamento: items[itemIndex],
-                                          summary:
-                                              summaries?[items[itemIndex].id],
-                                          onTap: () {
-                                            context.go(
-                                              '/construtoras/$construtoraId/loteamentos/${items[itemIndex].id}/quadras',
-                                            );
-                                          },
-                                        )
+                                      ? buildCard(items[itemIndex])
                                       : const SizedBox.shrink(),
                                 ),
                               );
@@ -488,6 +511,242 @@ class _AddLoteamentoDialogState extends ConsumerState<_AddLoteamentoDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Criar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditLoteamentoDialog extends ConsumerStatefulWidget {
+  final Loteamento loteamento;
+
+  const _EditLoteamentoDialog({required this.loteamento});
+
+  @override
+  ConsumerState<_EditLoteamentoDialog> createState() =>
+      _EditLoteamentoDialogState();
+}
+
+class _EditLoteamentoDialogState extends ConsumerState<_EditLoteamentoDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _bairroController;
+  late final TextEditingController _cidadeController;
+  late final TextEditingController _ufController;
+  late final TextEditingController _proprietarioNomeController;
+  late final TextEditingController _proprietarioDocController;
+  late final TextEditingController _respTecnicoNomeController;
+  late final TextEditingController _respTecnicoRegController;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final l = widget.loteamento;
+    _nameController = TextEditingController(text: l.name);
+    _bairroController = TextEditingController(text: l.bairro ?? '');
+    _cidadeController = TextEditingController(text: l.cidade ?? '');
+    _ufController = TextEditingController(text: l.uf ?? '');
+    _proprietarioNomeController = TextEditingController(
+      text: l.proprietarioNome ?? '',
+    );
+    _proprietarioDocController = TextEditingController(
+      text: l.proprietarioDocumento ?? '',
+    );
+    _respTecnicoNomeController = TextEditingController(
+      text: l.responsavelTecnicoNome ?? '',
+    );
+    _respTecnicoRegController = TextEditingController(
+      text: l.responsavelTecnicoRegistro ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _bairroController.dispose();
+    _cidadeController.dispose();
+    _ufController.dispose();
+    _proprietarioNomeController.dispose();
+    _proprietarioDocController.dispose();
+    _respTecnicoNomeController.dispose();
+    _respTecnicoRegController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false) || _isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      final bairro = nullIfBlankText(_bairroController.text);
+      final cidade = nullIfBlankText(_cidadeController.text);
+      final uf = nullIfBlankText(_ufController.text)?.toUpperCase();
+      final propNome = nullIfBlankText(_proprietarioNomeController.text);
+      final propDoc = nullIfBlankText(_proprietarioDocController.text);
+      final rtNome = nullIfBlankText(_respTecnicoNomeController.text);
+      final rtReg = nullIfBlankText(_respTecnicoRegController.text);
+
+      final updated = widget.loteamento.copyWith(
+        name: _nameController.text.trim(),
+        bairro: bairro,
+        clearBairro: bairro == null,
+        cidade: cidade,
+        clearCidade: cidade == null,
+        uf: uf,
+        clearUf: uf == null,
+        proprietarioNome: propNome,
+        clearProprietarioNome: propNome == null,
+        proprietarioDocumento: propDoc,
+        clearProprietarioDocumento: propDoc == null,
+        responsavelTecnicoNome: rtNome,
+        clearResponsavelTecnicoNome: rtNome == null,
+        responsavelTecnicoRegistro: rtReg,
+        clearResponsavelTecnicoRegistro: rtReg == null,
+      );
+
+      await ref.read(loteamentoRepositoryProvider).updateLoteamento(updated);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Editar Loteamento'),
+      content: SizedBox(
+        width: 560,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  key: const Key('edit-loteamento-name-field'),
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome do Loteamento',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Nome é obrigatório'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const Key('edit-loteamento-bairro-field'),
+                  controller: _bairroController,
+                  decoration: const InputDecoration(
+                    labelText: 'Bairro (Opcional)',
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        key: const Key('edit-loteamento-cidade-field'),
+                        controller: _cidadeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Cidade (Opcional)',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        key: const Key('edit-loteamento-uf-field'),
+                        controller: _ufController,
+                        maxLength: 2,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: const InputDecoration(
+                          labelText: 'UF',
+                          counterText: '',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  key: const Key('edit-loteamento-proprietario-nome-field'),
+                  controller: _proprietarioNomeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Proprietário / Empreendedor (Opcional)',
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  key: const Key('edit-loteamento-proprietario-doc-field'),
+                  controller: _proprietarioDocController,
+                  decoration: const InputDecoration(
+                    labelText: 'CPF / CNPJ do Proprietário (Opcional)',
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        key: const Key('edit-loteamento-resp-nome-field'),
+                        controller: _respTecnicoNomeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Responsável Técnico (Opcional)',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        key: const Key('edit-loteamento-resp-registro-field'),
+                        controller: _respTecnicoRegController,
+                        decoration: const InputDecoration(
+                          labelText: 'CREA / CAU',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          key: const Key('edit-loteamento-save-btn'),
+          onPressed: _isSaving ? null : _submit,
+          child: _isSaving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Salvar'),
         ),
       ],
     );

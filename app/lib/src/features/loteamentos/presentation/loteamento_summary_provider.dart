@@ -5,9 +5,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../authentication/data/user_repository.dart';
 import '../../etapas/domain/etapa.dart';
 import '../../lotes/domain/lote.dart';
+import '../../obras/presentation/current_permissions_provider.dart';
 import '../../quadras/domain/quadra.dart';
+import '../data/loteamento_repository.dart';
+import '../domain/loteamento.dart';
 
 /// Resumo agregado de métricas de um loteamento (quadras, lotes e progresso).
 @immutable
@@ -159,71 +163,172 @@ Lote? _loteFromSnapshot(DocumentSnapshot<Map<String, dynamic>> doc) {
 
 Stream<Map<String, LoteamentoSummary>> _watchLoteamentoSummaries(
   FirebaseFirestore firestore,
-  String construtoraId,
-) {
+  String construtoraId, {
+  List<String>? scopedLoteamentoIds,
+}) {
   late final StreamController<Map<String, LoteamentoSummary>> controller;
-  StreamSubscription<List<Quadra>>? quadrasSub;
-  StreamSubscription<List<Lote>>? lotesSub;
+  final subs = <StreamSubscription<dynamic>>[];
 
-  List<Quadra>? latestQuadras;
-  List<Lote>? latestLotes;
+  final quadrasByChunk = <int, List<Quadra>>{};
+  final lotesByChunk = <int, List<Lote>>{};
+  var expectedQuadraChunks = 0;
+  var expectedLoteChunks = 0;
+  final readyQuadraChunks = <int>{};
+  final readyLoteChunks = <int>{};
 
   void emitIfReady() {
     if (controller.isClosed) return;
-    if (latestQuadras == null || latestLotes == null) return;
+    if (readyQuadraChunks.length < expectedQuadraChunks ||
+        readyLoteChunks.length < expectedLoteChunks) {
+      return;
+    }
+    final allQuadras = <String, Quadra>{};
+    for (final list in quadrasByChunk.values) {
+      for (final q in list) {
+        allQuadras[q.id] = q;
+      }
+    }
+    final allLotes = <String, Lote>{};
+    for (final list in lotesByChunk.values) {
+      for (final l in list) {
+        allLotes[l.id] = l;
+      }
+    }
     controller.add(
       computeLoteamentoSummaries(
-        quadras: latestQuadras!,
-        lotes: latestLotes!,
+        quadras: allQuadras.values,
+        lotes: allLotes.values,
       ),
     );
   }
 
+  List<List<String>> buildChunks(List<String> ids) {
+    const chunkSize = 10;
+    return [
+      for (var i = 0; i < ids.length; i += chunkSize)
+        ids.sublist(i, i + chunkSize < ids.length ? i + chunkSize : ids.length),
+    ];
+  }
+
   controller = StreamController<Map<String, LoteamentoSummary>>(
     onListen: () {
-      quadrasSub = firestore
-          .collection('quadras')
-          .where('construtoraId', isEqualTo: construtoraId)
-          .snapshots()
-          .map(
-            (snap) => snap.docs
-                .map(_quadraFromSnapshot)
-                .whereType<Quadra>()
-                .toList(),
-          )
-          .listen(
-            (quadras) {
-              latestQuadras = quadras;
-              emitIfReady();
-            },
-            onError: (_, _) {
-              latestQuadras ??= const [];
-              emitIfReady();
-            },
-          );
+      if (scopedLoteamentoIds == null) {
+        expectedQuadraChunks = 1;
+        expectedLoteChunks = 1;
+        subs.add(
+          firestore
+              .collection('quadras')
+              .where('construtoraId', isEqualTo: construtoraId)
+              .snapshots()
+              .map(
+                (snap) => snap.docs
+                    .map(_quadraFromSnapshot)
+                    .whereType<Quadra>()
+                    .toList(),
+              )
+              .listen(
+                (quadras) {
+                  quadrasByChunk[0] = quadras;
+                  readyQuadraChunks.add(0);
+                  emitIfReady();
+                },
+                onError: (_, _) {
+                  quadrasByChunk[0] ??= const [];
+                  readyQuadraChunks.add(0);
+                  emitIfReady();
+                },
+              ),
+        );
+        subs.add(
+          firestore
+              .collection('lotes')
+              .where('construtoraId', isEqualTo: construtoraId)
+              .snapshots()
+              .map(
+                (snap) =>
+                    snap.docs.map(_loteFromSnapshot).whereType<Lote>().toList(),
+              )
+              .listen(
+                (lotes) {
+                  lotesByChunk[0] = lotes;
+                  readyLoteChunks.add(0);
+                  emitIfReady();
+                },
+                onError: (_, _) {
+                  lotesByChunk[0] ??= const [];
+                  readyLoteChunks.add(0);
+                  emitIfReady();
+                },
+              ),
+        );
+        return;
+      }
 
-      lotesSub = firestore
-          .collection('lotes')
-          .where('construtoraId', isEqualTo: construtoraId)
-          .snapshots()
-          .map(
-            (snap) =>
-                snap.docs.map(_loteFromSnapshot).whereType<Lote>().toList(),
-          )
-          .listen(
-            (lotes) {
-              latestLotes = lotes;
-              emitIfReady();
-            },
-            onError: (_, _) {
-              latestLotes ??= const [];
-              emitIfReady();
-            },
-          );
+      if (scopedLoteamentoIds.isEmpty) {
+        controller.add(const <String, LoteamentoSummary>{});
+        return;
+      }
+
+      final chunks = buildChunks(scopedLoteamentoIds);
+      expectedQuadraChunks = chunks.length;
+      expectedLoteChunks = chunks.length;
+      for (var i = 0; i < chunks.length; i++) {
+        final chunkIndex = i;
+        final chunk = chunks[chunkIndex];
+        subs.add(
+          firestore
+              .collection('quadras')
+              .where('construtoraId', isEqualTo: construtoraId)
+              .where('loteamentoId', whereIn: chunk)
+              .snapshots()
+              .map(
+                (snap) => snap.docs
+                    .map(_quadraFromSnapshot)
+                    .whereType<Quadra>()
+                    .toList(),
+              )
+              .listen(
+                (quadras) {
+                  quadrasByChunk[chunkIndex] = quadras;
+                  readyQuadraChunks.add(chunkIndex);
+                  emitIfReady();
+                },
+                onError: (_, _) {
+                  quadrasByChunk[chunkIndex] ??= const [];
+                  readyQuadraChunks.add(chunkIndex);
+                  emitIfReady();
+                },
+              ),
+        );
+        subs.add(
+          firestore
+              .collection('lotes')
+              .where('construtoraId', isEqualTo: construtoraId)
+              .where('loteamentoId', whereIn: chunk)
+              .snapshots()
+              .map(
+                (snap) =>
+                    snap.docs.map(_loteFromSnapshot).whereType<Lote>().toList(),
+              )
+              .listen(
+                (lotes) {
+                  lotesByChunk[chunkIndex] = lotes;
+                  readyLoteChunks.add(chunkIndex);
+                  emitIfReady();
+                },
+                onError: (_, _) {
+                  lotesByChunk[chunkIndex] ??= const [];
+                  readyLoteChunks.add(chunkIndex);
+                  emitIfReady();
+                },
+              ),
+        );
+      }
     },
     onCancel: () async {
-      await quadrasSub?.cancel();
-      await lotesSub?.cancel();
+      for (final sub in subs) {
+        await sub.cancel();
+      }
     },
   );
 
@@ -231,16 +336,53 @@ Stream<Map<String, LoteamentoSummary>> _watchLoteamentoSummaries(
 }
 
 /// Fornece o mapa `loteamentoId -> LoteamentoSummary` em tempo real para uma
-/// construtora, com fallback seguro quando o Firebase não está inicializado.
+/// construtora, respeitando o escopo vinculado do usuário e com fallback seguro
+/// quando o Firebase não está inicializado.
 final loteamentoSummaryMapProvider = StreamProvider.autoDispose
     .family<Map<String, LoteamentoSummary>, String>((ref, construtoraId) {
       if (Firebase.apps.isEmpty) {
         return Stream.value(const <String, LoteamentoSummary>{});
       }
+
+      final isDev = ref.watch(trustedDevProvider).value == true;
+      final cm = ref.watch(construtoraPermissionProvider(construtoraId)).value;
+      if (isDev || hasGlobalLotesAccess(cm)) {
+        try {
+          return _watchLoteamentoSummaries(
+            FirebaseFirestore.instance,
+            construtoraId,
+          );
+        } catch (_) {
+          return Stream.value(const <String, LoteamentoSummary>{});
+        }
+      }
+
+      if (cm?['isActive'] != true) {
+        return Stream.value(const <String, LoteamentoSummary>{});
+      }
+
+      final loteamentosAsync = ref.watch(
+        watchLoteamentosProvider((construtoraId: construtoraId)),
+      );
+      if (loteamentosAsync.isLoading && !loteamentosAsync.hasValue) {
+        return const Stream.empty();
+      }
+      final ids =
+          (loteamentosAsync.value ?? const <Loteamento>[])
+              .map((l) => l.id.trim())
+              .where((id) => id.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort();
+      if (ids.isEmpty) {
+        return Stream.value(const <String, LoteamentoSummary>{});
+      }
+
       try {
         return _watchLoteamentoSummaries(
           FirebaseFirestore.instance,
           construtoraId,
+          scopedLoteamentoIds: ids,
         );
       } catch (_) {
         return Stream.value(const <String, LoteamentoSummary>{});

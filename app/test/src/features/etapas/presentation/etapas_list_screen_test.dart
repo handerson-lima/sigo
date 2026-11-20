@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:app/src/features/etapas/presentation/etapas_list_screen.dart';
 import 'package:app/src/features/etapas/data/etapa_repository.dart';
 import 'package:app/src/features/etapas/domain/etapa.dart';
+import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:app/src/features/authentication/data/user_repository.dart';
@@ -343,5 +344,54 @@ void main() {
 
     expect(find.text('Muro'), findsOneWidget);
     expect(find.text('Equipe: Equipe Alvenaria'), findsOneWidget);
+  });
+
+  testWidgets('Admin do loteamento ve botao Inicializar Etapas', (
+    tester,
+  ) async {
+    final fakeRepo = FakeEtapaRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          watchEtapasProvider.overrideWith((ref, arg) => Stream.value([])),
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({
+              'isActive': true,
+              'isAdmin': false,
+              'modules': <String>[],
+            }),
+          ),
+          effectiveLoteamentoObraIdProvider((
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+          )).overrideWithValue(const AsyncValue.data('l1')),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+              .overrideWith(
+                (ref) => Stream.value(
+                  ObraMember(
+                    userId: 'u1',
+                    isActive: true,
+                    isAdmin: true,
+                    modules: const [],
+                    joinedAt: DateTime(2026),
+                  ),
+                ),
+              ),
+          etapaRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: buildTestWidget(
+          const EtapasListScreen(
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+            quadraId: 'q1',
+            loteId: 'lo1',
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('Inicializar Etapas'), findsOneWidget);
   });
 }

@@ -2,6 +2,7 @@ import 'package:app/src/features/authentication/data/user_repository.dart';
 import 'package:app/src/features/equipes/presentation/equipes_list_screen.dart';
 import 'package:app/src/features/etapas/data/etapa_repository.dart';
 import 'package:app/src/features/etapas/domain/etapa.dart';
+import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/rh/data/rh_repository.dart';
 import 'package:app/src/features/rh/domain/equipe.dart';
@@ -524,4 +525,46 @@ void main() {
       expect(fakeEtapaRepo.linkedEquipeNome, 'Equipe Hidráulica Nova');
     },
   );
+
+  testWidgets('Admin do loteamento ve CTA Vincular Equipe do RH', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          watchEtapasProvider.overrideWith(
+            (ref, arg) => Stream.value([_makeEtapa()]),
+          ),
+          trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+          construtoraPermissionProvider('c1').overrideWith(
+            (ref) => Stream.value({
+              'isActive': true,
+              'isAdmin': false,
+              'modules': <String>[],
+            }),
+          ),
+          effectiveLoteamentoObraIdProvider((
+            construtoraId: 'c1',
+            loteamentoId: 'l1',
+          )).overrideWithValue(const AsyncValue.data('l1')),
+          currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+              .overrideWith(
+                (ref) => Stream.value(
+                  ObraMember(
+                    userId: 'u1',
+                    isActive: true,
+                    isAdmin: true,
+                    modules: const [],
+                    joinedAt: DateTime(2026),
+                  ),
+                ),
+              ),
+        ],
+        child: buildTestWidget(screen),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('btn_vincular_equipe_etapa')), findsOneWidget);
+  });
 }

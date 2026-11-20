@@ -18,6 +18,7 @@ List<RouteBase> get equipesRoutes => [
       final etapaId = state.pathParameters['etapaId']!;
       return AccessGuard(
         construtoraId: cId,
+        loteamentoId: loteamentoId,
         module: 'lotes',
         child: EquipesListScreen(
           construtoraId: cId,

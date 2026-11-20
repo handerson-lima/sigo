@@ -17,6 +17,7 @@ List<RouteBase> get quadrasRoutes => [
       final loteamentoId = state.pathParameters['loteamentoId']!;
       return AccessGuard(
         construtoraId: cId,
+        loteamentoId: loteamentoId,
         module: 'lotes',
         child: QuadrasListScreen(
           construtoraId: cId,

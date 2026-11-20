@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:app/src/features/construtoras/domain/construtora_member.dart';
 import 'package:app/src/features/construtoras/domain/membro.dart';
+import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
+import 'package:app/src/features/loteamentos/domain/loteamento.dart';
 import 'package:app/src/features/construtoras/presentation/member_detalhe_sheet.dart';
 import 'package:app/src/features/construtoras/presentation/membros_providers.dart';
 import 'package:app/src/features/construtoras/presentation/membros_screen.dart';
@@ -3714,6 +3716,119 @@ void main() {
           expect(find.byType(BottomSheet), findsNothing);
 
           handle.dispose();
+        },
+      );
+    });
+
+    group('Unificação obras + loteamentos para atribuição (D1)', () {
+      test(
+        'unificarObrasELoteamentos inclui loteamentos sem doc espelho, deduplica existentes e exclui obras inativas',
+        () {
+          final obras = [
+            _obra('o1', isActive: true),
+            _obra('o-inativa', isActive: false),
+          ];
+          final loteamentos = [
+            Loteamento(
+              id: 'o1',
+              construtoraId: 'c-1',
+              name: 'Loteamento Espelhado',
+              createdAt: DateTime(2026),
+              updatedAt: DateTime(2026),
+            ),
+            Loteamento(
+              id: 'l-sem-obra',
+              construtoraId: 'c-1',
+              name: 'Loteamento Novo Sem Espelho',
+              createdAt: DateTime(2026),
+              updatedAt: DateTime(2026),
+            ),
+            Loteamento(
+              id: 'l-legado',
+              construtoraId: 'c-1',
+              obraId: 'o1',
+              name: 'CAOL VIDA NOVA',
+              createdAt: DateTime(2026),
+              updatedAt: DateTime(2026),
+            ),
+            Loteamento(
+              id: 'o-inativa',
+              construtoraId: 'c-1',
+              name: 'Loteamento Inativo',
+              createdAt: DateTime(2026),
+              updatedAt: DateTime(2026),
+            ),
+          ];
+
+          final unificadas = unificarObrasELoteamentos(
+            todasObras: obras,
+            loteamentos: loteamentos,
+          );
+
+          expect(unificadas.map((o) => o.id).toSet(), {'o1', 'l-sem-obra'});
+          expect(
+            unificadas.firstWhere((o) => o.id == 'l-sem-obra').name,
+            'Loteamento Novo Sem Espelho',
+          );
+        },
+      );
+
+      testWidgets(
+        'AtribuirObraDialog lista loteamento sem doc espelho em obras e deduplica existente',
+        (tester) async {
+          final fakeRepo = FakeObraMembersRepository();
+          final membro = Membro(
+            uid: 'u1',
+            email: 'op@obra.com',
+            isAdmin: false,
+            role: 'operario',
+          );
+
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                obraMembersRepositoryProvider.overrideWithValue(fakeRepo),
+                obrasDaConstrutoraProvider('c-1')
+                    .overrideWith((ref) => Stream.value([_obra('o1')])),
+                obraMembersProvider((construtoraId: 'c-1', obraId: 'o1'))
+                    .overrideWith((ref) => Stream.value(const [])),
+                watchLoteamentosProvider((construtoraId: 'c-1')).overrideWith(
+                  (ref) => Stream.value([
+                    Loteamento(
+                      id: 'o1',
+                      construtoraId: 'c-1',
+                      name: 'Loteamento o1',
+                      createdAt: DateTime(2026),
+                      updatedAt: DateTime(2026),
+                    ),
+                    Loteamento(
+                      id: 'l-2',
+                      construtoraId: 'c-1',
+                      name: 'Residencial Jardim',
+                      createdAt: DateTime(2026),
+                      updatedAt: DateTime(2026),
+                    ),
+                  ]),
+                ),
+              ],
+              child: MaterialApp(
+                home: Scaffold(
+                  body: AtribuirObraDialog(
+                    construtoraId: 'c-1',
+                    membro: membro,
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.byKey(AtribuirObraDialog.obraDropdownKey));
+          await tester.pumpAndSettle();
+
+          expect(find.text('Obra o1'), findsWidgets);
+          expect(find.text('Residencial Jardim'), findsWidgets);
         },
       );
     });

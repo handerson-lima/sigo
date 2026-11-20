@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../sync/read_cache.dart';
+import '../../loteamentos/data/loteamento_repository.dart';
+import '../../loteamentos/domain/loteamento.dart';
 import '../../obras/data/obra_repository.dart';
 import '../../obras/domain/obra.dart';
 import '../../obras/domain/obra_member.dart';
@@ -65,6 +67,70 @@ final obrasAtivasProvider = StreamProvider.autoDispose
       final obras = ref.watch(obrasDaConstrutoraProvider(construtoraId));
       return obras.when(
         data: (lista) => Stream.value(apenasObrasAtivas(lista)),
+        loading: () => const Stream.empty(),
+        error: (e, s) => Stream.error(e, s),
+      );
+    });
+
+/// Unifica obras ativas e loteamentos em uma lista única para atribuição,
+/// evitando duplicidade quando `loteamento.effectiveObraId == obra.id` e
+/// excluindo obras explicitamente inativas (`isActive == false`).
+List<Obra> unificarObrasELoteamentos({
+  required List<Obra> todasObras,
+  required List<Loteamento> loteamentos,
+}) {
+  final inativasIds = <String>{
+    for (final o in todasObras)
+      if (!o.isActive) o.id,
+  };
+  final byId = <String, Obra>{
+    for (final o in todasObras)
+      if (o.isActive) o.id: o,
+  };
+  for (final l in loteamentos) {
+    final targetId = l.effectiveObraId;
+    if (inativasIds.contains(targetId)) continue;
+    final existing = byId[targetId];
+    if (existing == null) {
+      byId[targetId] = Obra(
+        id: targetId,
+        construtoraId: l.construtoraId,
+        name: l.name,
+        createdAt: l.createdAt,
+        isActive: true,
+      );
+    } else if (existing.name.trim().isEmpty && l.name.trim().isNotEmpty) {
+      byId[targetId] = Obra(
+        id: existing.id,
+        construtoraId: existing.construtoraId,
+        name: l.name,
+        description: existing.description,
+        createdAt: existing.createdAt,
+        isActive: existing.isActive,
+      );
+    }
+  }
+  final result = byId.values.toList()
+    ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  return result;
+}
+
+/// Lista unificada de obras ativas e loteamentos disponíveis para atribuição de membros.
+final obrasELoteamentosAtivosProvider = StreamProvider.autoDispose
+    .family<List<Obra>, String>((ref, construtoraId) {
+      final obrasAsync = ref.watch(obrasDaConstrutoraProvider(construtoraId));
+      final loteamentos =
+          ref
+              .watch(watchLoteamentosProvider((construtoraId: construtoraId)))
+              .value ??
+          const <Loteamento>[];
+      return obrasAsync.when(
+        data: (lista) => Stream.value(
+          unificarObrasELoteamentos(
+            todasObras: lista,
+            loteamentos: loteamentos,
+          ),
+        ),
         loading: () => const Stream.empty(),
         error: (e, s) => Stream.error(e, s),
       );

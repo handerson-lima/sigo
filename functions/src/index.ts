@@ -239,7 +239,17 @@ async function membership(d: any, uid: string) {
     const a = await authority(tx, uid, c, o);
     if (!(o ? a.obraAdmin : a.admin)) fail('permission-denied', 'Sem permissão para gerir vínculo');
     const parent = db.doc(o ? `construtoras/${c}/obras/${o}` : `construtoras/${c}`);
-    if (!(await tx.get(parent)).exists) fail('not-found', 'Escopo ausente');
+    const parentSnap = await tx.get(parent);
+    let mirrorLoteamentoData: admin.firestore.DocumentData | undefined;
+    if (!parentSnap.exists) {
+      if (!o) fail('not-found', 'Escopo ausente');
+      const loteamentoSnap = await tx.get(db.doc(`loteamentos/${o}`));
+      const loteamentoData = loteamentoSnap.data();
+      if (!loteamentoSnap.exists || loteamentoData?.construtoraId !== c) {
+        fail('not-found', 'Escopo ausente');
+      }
+      mirrorLoteamentoData = loteamentoData;
+    }
     const profile = (await tx.get(db.doc(`users/${target}`))).data();
     if (!profile) fail('not-found', 'Perfil ausente');
     const ref = parent.collection(o ? 'members' : 'construtora_members').doc(target);
@@ -250,6 +260,15 @@ async function membership(d: any, uid: string) {
     const willBeOwner = a.dev ? (isOwnerRequested || (d.isOwner !== false && existing?.isOwner === true && role === 'owner')) : false;
     const finalRole = willBeOwner ? 'owner' : role;
     const finalIsAdmin = finalRole === 'admin' || willBeOwner;
+    if (o && mirrorLoteamentoData) {
+      tx.set(parent, {
+        id: o,
+        construtoraId: c,
+        name: mirrorLoteamentoData.name || o,
+        createdAt: mirrorLoteamentoData.createdAt || stamp(),
+        isActive: true,
+      }, {merge: true});
+    }
     tx.set(ref, {userId: target, construtoraId: c, ...(o ? {obraId: o} : {}), email: profile!.email, displayName: profile!.displayName,
       role: finalRole, modules: [...new Set(modules)], isAdmin: finalIsAdmin, isOwner: willBeOwner,
       isActive: d.isActive !== false, joinedAt: existing?.joinedAt || stamp(), updatedAt: stamp()});

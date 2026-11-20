@@ -24,6 +24,9 @@ class _FakeDocument:
     def __init__(self, path):
         self.path = path
 
+    def collection(self, name):
+        return _FakeCollection(f'{self.path}/{name}')
+
 
 class _FakeCollection:
     def __init__(self, name):
@@ -89,6 +92,9 @@ def test_reference_dxf_consolidates_tabular_with_etapas_and_multi_batches():
     assert loteamento['construtoraId'] == 'construtora-1'
     assert loteamento['name'] == '00a-LOTEAMENTO_HR_R13A-Model_SEM_COTAS'
     assert 'geometry' not in loteamento
+    mirror_obra = documents[f'construtoras/construtora-1/obras/{DRAFT_ID}--loteamento']
+    assert mirror_obra['name'] == '00a-LOTEAMENTO_HR_R13A-Model_SEM_COTAS'
+    assert mirror_obra['isActive'] is True
 
     quadras = {p: d for p, d in documents.items() if p.startswith('quadras/')}
     lotes = {p: d for p, d in documents.items() if p.startswith('lotes/')}

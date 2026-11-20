@@ -8,7 +8,6 @@ import '../../../common_widgets/sigo_empty_state.dart';
 import '../../../common_widgets/sigo_error_state.dart';
 import '../../../common_widgets/sigo_layout.dart';
 import '../../../design_system/sigo_theme.dart';
-import '../../authentication/data/user_repository.dart';
 import '../../lotes/presentation/lote_mass_generator_section.dart';
 import '../../obras/presentation/current_permissions_provider.dart';
 import '../data/quadra_repository.dart';
@@ -31,20 +30,23 @@ class QuadrasListScreen extends ConsumerWidget {
     final params = (construtoraId: construtoraId, loteamentoId: loteamentoId);
     final quadrasAsync = ref.watch(watchQuadrasProvider(params));
     final summaryMap = ref.watch(quadraSummaryMapProvider(params)).value;
-    final cm = ref.watch(construtoraPermissionProvider(construtoraId)).value;
-    final admin =
-        ref.watch(trustedDevProvider).value == true ||
-        cm?['isActive'] == true &&
-            (cm?['isAdmin'] == true ||
-                cm?['isOwner'] == true ||
-                cm?['role'] == 'admin' ||
-                cm?['role'] == 'owner');
+    final admin = ref.watch(isLoteamentoAdminProvider(params));
+    final effectiveObraId =
+        ref.watch(effectiveLoteamentoObraIdProvider(params)).value ??
+        loteamentoId;
 
     return SigoLayout(
       title: 'Quadras',
       activeRoute:
           '/construtoras/$construtoraId/loteamentos/$loteamentoId/quadras',
       actions: [
+        IconButton(
+          key: const Key('quadras-painel-loteamento-btn'),
+          icon: const Icon(Icons.dashboard_outlined, color: Colors.black54),
+          tooltip: 'Painel do Loteamento',
+          onPressed: () =>
+              context.go('/construtoras/$construtoraId/obra/$effectiveObraId'),
+        ),
         if (admin)
           IconButton(
             icon: const Icon(Icons.add_box_outlined, color: Colors.black54),

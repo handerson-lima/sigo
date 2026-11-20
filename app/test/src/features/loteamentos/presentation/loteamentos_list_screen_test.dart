@@ -6,6 +6,7 @@ import 'package:app/src/features/loteamentos/presentation/loteamento_summary_car
 import 'package:app/src/features/loteamentos/presentation/loteamento_summary_provider.dart';
 import 'package:app/src/features/loteamentos/presentation/loteamentos_list_screen.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
+import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/quadras/domain/quadra.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import 'package:go_router/go_router.dart';
 class FakeLoteamentoRepository implements LoteamentoRepository {
   final List<Loteamento> loteamentos;
   final List<Loteamento> createdLoteamentos = [];
+  final List<Loteamento> updatedLoteamentos = [];
   final List<({Loteamento loteamento, List<Quadra> quadras, List<Lote> lotes})>
   createdEmMassa = [];
 
@@ -28,6 +30,11 @@ class FakeLoteamentoRepository implements LoteamentoRepository {
   @override
   Future<void> createLoteamento(Loteamento loteamento) async {
     createdLoteamentos.add(loteamento);
+  }
+
+  @override
+  Future<void> updateLoteamento(Loteamento loteamento) async {
+    updatedLoteamentos.add(loteamento);
   }
 
   @override
@@ -452,6 +459,96 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Quadras de l1'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Admin do loteamento edita dados do loteamento vinculado e acessa Painel, mas nao cria/importa novos',
+    (tester) async {
+      final fakeRepo = FakeLoteamentoRepository([
+        Loteamento(
+          id: 'l1',
+          construtoraId: 'c1',
+          obraId: 'o1',
+          name: 'CAOL VIDA NOVA',
+          createdAt: DateTime(2026, 1, 1),
+          updatedAt: DateTime(2026, 1, 1),
+        ),
+      ]);
+
+      final router = GoRouter(
+        initialLocation: '/construtoras/c1/loteamentos',
+        routes: [
+          GoRoute(
+            path: '/construtoras/c1/loteamentos',
+            builder: (context, state) =>
+                const LoteamentosListScreen(construtoraId: 'c1'),
+          ),
+          GoRoute(
+            path: '/construtoras/c1/obra/:oId',
+            builder: (context, state) => Scaffold(
+              body: Text('Painel obra ${state.pathParameters['oId']}'),
+            ),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+            construtoraPermissionProvider('c1').overrideWith(
+              (ref) => Stream.value({
+                'isActive': true,
+                'isAdmin': false,
+                'modules': <String>[],
+              }),
+            ),
+            userActiveObraIdsProvider('c1').overrideWith(
+              (ref) => Stream.value(ObraIdSet.fromIterable(['o1'])),
+            ),
+            currentPermissionsProvider((construtoraId: 'c1', obraId: 'o1'))
+                .overrideWith(
+                  (ref) => Stream.value(
+                    ObraMember(
+                      userId: 'u1',
+                      isActive: true,
+                      isAdmin: true,
+                      modules: const [],
+                      joinedAt: DateTime(2026),
+                    ),
+                  ),
+                ),
+            loteamentoRepositoryProvider.overrideWithValue(fakeRepo),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Não pode criar nem importar novo loteamento na construtora
+      expect(find.byTooltip('Novo Loteamento'), findsNothing);
+      expect(find.byTooltip('Importar DXF/DWF'), findsNothing);
+
+      // Pode editar o próprio loteamento
+      await tester.tap(find.byKey(const Key('loteamento_card_edit_l1')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('edit-loteamento-name-field')),
+        'CAOL VIDA NOVA II',
+      );
+      await tester.tap(find.byKey(const Key('edit-loteamento-save-btn')));
+      await tester.pumpAndSettle();
+
+      expect(fakeRepo.updatedLoteamentos.length, 1);
+      expect(fakeRepo.updatedLoteamentos.first.name, 'CAOL VIDA NOVA II');
+
+      // Pode navegar para o Painel do Loteamento (/obra/o1)
+      await tester.tap(find.byKey(const Key('loteamento_card_painel_l1')));
+      await tester.pumpAndSettle();
+      expect(find.text('Painel obra o1'), findsOneWidget);
     },
   );
 }

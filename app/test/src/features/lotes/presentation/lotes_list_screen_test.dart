@@ -10,6 +10,7 @@ import 'package:app/src/features/lotes/presentation/atribuir_lotacao_lote_sheet.
 import 'package:app/src/features/lotes/presentation/lote_detail_screen.dart';
 import 'package:app/src/features/lotes/presentation/lote_summary_card.dart';
 import 'package:app/src/features/lotes/presentation/lotes_list_screen.dart';
+import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/rh/data/rh_repository.dart';
 import 'package:app/src/features/rh/domain/equipe.dart';
@@ -404,5 +405,61 @@ void main() {
       expect(find.byKey(const Key('lote_card_atribuir_lo1')), findsNothing);
       expect(find.byType(FloatingActionButton), findsNothing);
     });
+
+    testWidgets(
+      'Admin do loteamento ve FAB Novo Lote e botao Atribuir mesmo sendo operario na construtora',
+      (tester) async {
+        final router = GoRouter(
+          initialLocation: '/construtoras/c1/loteamentos/l1/quadras/q1/lotes',
+          routes: construtoraRoutes,
+        );
+
+        final lote1 = _sampleLote('lo1', 'Lote 01');
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': <String>[],
+                }),
+              ),
+              effectiveLoteamentoObraIdProvider((
+                construtoraId: 'c1',
+                loteamentoId: 'l1',
+              )).overrideWithValue(const AsyncValue.data('l1')),
+              currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+                  .overrideWith(
+                    (ref) => Stream.value(
+                      ObraMember(
+                        userId: 'u1',
+                        isActive: true,
+                        isAdmin: true,
+                        modules: const [],
+                        joinedAt: DateTime(2026),
+                      ),
+                    ),
+                  ),
+              loteRepositoryProvider.overrideWithValue(
+                FakeLoteRepository([lote1]),
+              ),
+            ],
+            child: MaterialApp.router(
+              theme: SigoTheme.lightTheme,
+              routerConfig: router,
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(find.byType(LoteSummaryCard), findsOneWidget);
+        expect(find.byKey(const Key('lote_card_atribuir_lo1')), findsOneWidget);
+        expect(find.byType(FloatingActionButton), findsOneWidget);
+      },
+    );
   });
 }

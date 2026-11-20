@@ -9,7 +9,6 @@ import '../../../common_widgets/sigo_breadcrumbs.dart';
 import '../../../common_widgets/sigo_empty_state.dart';
 import '../../../common_widgets/sigo_error_state.dart';
 import '../../../common_widgets/sigo_layout.dart';
-import '../../authentication/data/user_repository.dart';
 import '../../obras/presentation/current_permissions_provider.dart';
 
 class LotesListScreen extends ConsumerWidget {
@@ -32,14 +31,12 @@ class LotesListScreen extends ConsumerWidget {
       quadraId: quadraId,
     );
     final lotesAsync = ref.watch(watchLotesProvider(params));
-    final dev = ref.watch(trustedDevProvider).value == true;
-    final member = ref
-        .watch(construtoraPermissionProvider(construtoraId))
-        .value;
-    final isAdmin =
-        dev ||
-        (member?['isActive'] == true &&
-            (member?['isAdmin'] == true || member?['isOwner'] == true));
+    final isAdmin = ref.watch(
+      isLoteamentoAdminProvider((
+        construtoraId: construtoraId,
+        loteamentoId: loteamentoId,
+      )),
+    );
 
     final baseRoute =
         '/construtoras/$construtoraId/loteamentos/$loteamentoId/quadras/$quadraId/lotes';

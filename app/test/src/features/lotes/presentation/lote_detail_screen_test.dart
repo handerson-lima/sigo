@@ -7,6 +7,7 @@ import 'package:app/src/features/etapas/presentation/etapas_list_screen.dart';
 import 'package:app/src/features/lotes/data/lote_repository.dart';
 import 'package:app/src/features/lotes/domain/lote.dart';
 import 'package:app/src/features/lotes/presentation/lote_detail_screen.dart';
+import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:app/src/features/rh/data/rh_repository.dart';
 import 'package:app/src/features/rh/domain/equipe.dart';
@@ -260,6 +261,70 @@ void main() {
           router.state.uri.path,
           '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo2/etapas',
         );
+      },
+    );
+
+    testWidgets(
+      'Admin do loteamento ve Editar Lote e Atribuir Equipe ou Funcionario',
+      (tester) async {
+        final firestore = FakeFirebaseFirestore();
+        final etapaRepo = EtapaRepository(firestore);
+        final loteRepo = LoteRepository(firestore, etapaRepo);
+        await _seedLoteComEtapas(firestore, _fullLote());
+
+        final router = GoRouter(
+          initialLocation:
+              '/construtoras/c1/loteamentos/l1/quadras/q1/lotes/lo1/detalhes',
+          routes: construtoraRoutes,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': <String>[],
+                }),
+              ),
+              effectiveLoteamentoObraIdProvider((
+                construtoraId: 'c1',
+                loteamentoId: 'l1',
+              )).overrideWithValue(const AsyncValue.data('l1')),
+              currentPermissionsProvider((construtoraId: 'c1', obraId: 'l1'))
+                  .overrideWith(
+                    (ref) => Stream.value(
+                      ObraMember(
+                        userId: 'u1',
+                        isActive: true,
+                        isAdmin: true,
+                        modules: const [],
+                        joinedAt: DateTime(2026),
+                      ),
+                    ),
+                  ),
+              etapaRepositoryProvider.overrideWithValue(etapaRepo),
+              loteRepositoryProvider.overrideWithValue(loteRepo),
+              equipesStreamProvider(
+                'c1',
+              ).overrideWith((ref) => Stream.value(const <Equipe>[])),
+              funcionariosStreamProvider(
+                'c1',
+              ).overrideWith((ref) => Stream.value(const <Funcionario>[])),
+            ],
+            child: MaterialApp.router(
+              theme: SigoTheme.lightTheme,
+              routerConfig: router,
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('lote_detail_editar_btn')), findsOneWidget);
+        expect(find.byKey(const Key('lote_detail_atribuir_btn')), findsOneWidget);
       },
     );
   });

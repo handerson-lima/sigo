@@ -42,17 +42,12 @@ class EquipesListScreen extends ConsumerWidget {
     );
     final etapasAsync = ref.watch(watchEtapasProvider(etapaParams));
 
-    final dev = ref.watch(trustedDevProvider).value == true;
-    final member = ref
-        .watch(construtoraPermissionProvider(construtoraId))
-        .value;
-    final canEdit =
-        dev ||
-        (member?['isActive'] == true &&
-            (member?['isAdmin'] == true ||
-                member?['isOwner'] == true ||
-                member?['role'] == 'admin' ||
-                member?['role'] == 'owner'));
+    final canEdit = ref.watch(
+      isLoteamentoAdminProvider((
+        construtoraId: construtoraId,
+        loteamentoId: loteamentoId,
+      )),
+    );
 
     return SigoLayout(
       title: 'Equipe da Etapa',

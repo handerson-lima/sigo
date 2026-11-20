@@ -31,12 +31,16 @@ class LoteamentoSummaryCard extends StatelessWidget {
   final Loteamento loteamento;
   final LoteamentoSummary? summary;
   final VoidCallback? onTap;
+  final VoidCallback? onPainelTap;
+  final VoidCallback? onEditTap;
 
   const LoteamentoSummaryCard({
     super.key,
     required this.loteamento,
     this.summary,
     this.onTap,
+    this.onPainelTap,
+    this.onEditTap,
   });
 
   static String _pluralize(int count, String singular, String plural) =>
@@ -340,6 +344,48 @@ class LoteamentoSummaryCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (onEditTap != null) ...[
+                      const SizedBox(width: 4),
+                      IconButton(
+                        key: Key('loteamento_card_edit_${loteamento.id}'),
+                        tooltip: 'Editar loteamento',
+                        onPressed: onEditTap,
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          size: 18,
+                          color: sigo.inkSecondary,
+                        ),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                    if (onPainelTap != null) ...[
+                      const SizedBox(width: 4),
+                      TextButton.icon(
+                        key: Key('loteamento_card_painel_${loteamento.id}'),
+                        onPressed: onPainelTap,
+                        icon: Icon(
+                          Icons.dashboard_outlined,
+                          size: 16,
+                          color: sigo.actionBlue,
+                        ),
+                        label: Text(
+                          'Painel',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: sigo.actionBlue,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          minimumSize: const Size(0, 32),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
                     const SizedBox(width: 8),
                     Icon(
                       Icons.chevron_right,

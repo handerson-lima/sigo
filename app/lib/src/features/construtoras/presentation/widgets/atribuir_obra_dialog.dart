@@ -132,6 +132,7 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
       final oid = _selectedObraId!;
 
       ref.invalidate(membrosProvider(cid));
+      ref.invalidate(obrasDaConstrutoraProvider(cid));
       ref.invalidate(contagemObrasPorMembroProvider(cid));
       ref.invalidate(contagemObrasMetaProvider(cid));
       ref.invalidate(memberDetalheProvider((construtoraId: cid, uid: uid)));
@@ -157,7 +158,9 @@ class _AtribuirObraDialogState extends ConsumerState<AtribuirObraDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final obrasAsync = ref.watch(obrasAtivasProvider(widget.construtoraId));
+    final obrasAsync = ref.watch(
+      obrasELoteamentosAtivosProvider(widget.construtoraId),
+    );
     final key = (construtoraId: widget.construtoraId, uid: widget.membro.uid);
     final obrasVinculadas = ref.watch(obrasVinculadasProvider(key));
 

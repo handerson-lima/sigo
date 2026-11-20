@@ -503,6 +503,20 @@ def consolidate_approved_draft(draft_id: str, draft: dict, db=None) -> None:
             db.collection('loteamentos').document(loteamento_id),
             loteamento_doc,
         ))
+        obra_doc: dict[str, Any] = {
+            'id': loteamento_id,
+            'construtoraId': construtora_id,
+            'name': loteamento_name,
+            'createdAt': now,
+            'isActive': True,
+        }
+        writes.append((
+            db.collection('construtoras')
+            .document(construtora_id)
+            .collection('obras')
+            .document(loteamento_id),
+            obra_doc,
+        ))
 
     for quadra_id in quadra_order:
         writes.append((

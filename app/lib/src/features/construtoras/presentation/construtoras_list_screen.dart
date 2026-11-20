@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'user_construtoras_provider.dart';
 import '../../../common_widgets/sigo_layout.dart';
 import '../../obras/presentation/current_permissions_provider.dart';
-import '../../../core/contracts.dart';
 
 class ConstrutorasListScreen extends ConsumerWidget {
   const ConstrutorasListScreen({super.key});
@@ -69,20 +68,15 @@ class ConstrutorasListScreen extends ConsumerWidget {
                   final cm = ref
                       .watch(construtoraPermissionProvider(construtora.id))
                       .value;
-                  final canViewLoteamentos =
-                      isDev ||
-                      (cm?['isActive'] == true &&
-                          normalizeRawModules(
-                            cm?['modules'],
-                            cm?['allowedModules'],
-                          ).contains('lotes'));
+                  final canEnterLoteamentos =
+                      isDev || cm?['isActive'] == true;
 
                   return Card(
                     elevation: 4,
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
                       onTap: () {
-                        if (canViewLoteamentos) {
+                        if (canEnterLoteamentos) {
                           context.go(
                             '/construtoras/${construtora.id}/loteamentos',
                           );

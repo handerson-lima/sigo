@@ -10,7 +10,7 @@ const {
 } = require('@firebase/rules-unit-testing');
 const {
   doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch,
-  collectionGroup, query, where, getDocs, collection
+  collectionGroup, query, where, getDocs, collection, documentId
 } = require('firebase/firestore');
 const {
   ref, uploadBytes, getBytes, deleteObject
@@ -924,4 +924,412 @@ test('10.2 Ausência de users/{uid} ou de isActive é tratada como ativa e clien
     globalRole: 'user',
     isActive: true
   }));
+});
+
+// ==========================================
+// 11. ACESSO E GESTÃO POR LOTEAMENTO / OBRA (hierarquia top-level)
+// ==========================================
+test('11.1 Setup de cenário de hierarquia por loteamento, legado obraId e papéis', async () => {
+  const b = db.batch();
+
+  // Usuários específicos da matriz I/O
+  for (const [uid, email] of [
+    ['admin_l1_user', 'admin.l1@construtora.test'],
+    ['member_l1_user', 'member.l1@construtora.test'],
+    ['legacy_obra_admin', 'legacy.obra@construtora.test'],
+    ['operario_sem_vinculo', 'sem.vinculo@construtora.test']
+  ]) {
+    b.set(db.doc(`users/${uid}`), {
+      id: uid,
+      email,
+      displayName: uid,
+      globalRole: 'user',
+      isActive: true
+    });
+    b.set(db.doc(`construtoras/const_a/construtora_members/${uid}`), {
+      userId: uid,
+      isActive: true,
+      isAdmin: false,
+      isOwner: false,
+      modules: []
+    });
+  }
+
+  // Obras espelho L1, L2 e obra_1 (legado já existente)
+  b.set(db.doc('construtoras/const_a/obras/L1'), {
+    id: 'L1',
+    construtoraId: 'const_a',
+    name: 'Loteamento L1'
+  });
+  b.set(db.doc('construtoras/const_a/obras/L2'), {
+    id: 'L2',
+    construtoraId: 'const_a',
+    name: 'Loteamento L2'
+  });
+
+  // Vínculos em obras/*/members
+  b.set(db.doc('construtoras/const_a/obras/L1/members/admin_l1_user'), {
+    userId: 'admin_l1_user',
+    isActive: true,
+    isAdmin: true,
+    modules: ['lotes']
+  });
+  b.set(db.doc('construtoras/const_a/obras/L1/members/member_l1_user'), {
+    userId: 'member_l1_user',
+    isActive: true,
+    isAdmin: false,
+    modules: ['lotes']
+  });
+  b.set(db.doc('construtoras/const_a/obras/obra_1/members/legacy_obra_admin'), {
+    userId: 'legacy_obra_admin',
+    isActive: true,
+    isAdmin: true,
+    modules: ['lotes']
+  });
+
+  // Loteamentos L1, L2 e L_legado (obraId: 'obra_1')
+  b.set(db.doc('loteamentos/L1'), {
+    id: 'L1',
+    construtoraId: 'const_a',
+    name: 'Loteamento 1'
+  });
+  b.set(db.doc('loteamentos/L2'), {
+    id: 'L2',
+    construtoraId: 'const_a',
+    name: 'Loteamento 2'
+  });
+  b.set(db.doc('loteamentos/L_legado'), {
+    id: 'L_legado',
+    construtoraId: 'const_a',
+    obraId: 'obra_1',
+    name: 'Loteamento Legado'
+  });
+
+  // Hierarquia inicial em L1, L2 e L_legado
+  for (const [lotId, prefix] of [['L1', 'l1'], ['L2', 'l2'], ['L_legado', 'leg']]) {
+    b.set(db.doc(`quadras/q_${prefix}`), {
+      id: `q_${prefix}`,
+      construtoraId: 'const_a',
+      loteamentoId: lotId,
+      name: `Quadra ${prefix}`
+    });
+    b.set(db.doc(`lotes/lo_${prefix}`), {
+      id: `lo_${prefix}`,
+      construtoraId: 'const_a',
+      loteamentoId: lotId,
+      quadraId: `q_${prefix}`,
+      name: `Lote ${prefix}`
+    });
+    b.set(db.doc(`etapas/et_${prefix}`), {
+      id: `et_${prefix}`,
+      construtoraId: 'const_a',
+      loteamentoId: lotId,
+      quadraId: `q_${prefix}`,
+      loteId: `lo_${prefix}`,
+      nome: 'Muro',
+      ordem: 1
+    });
+    b.set(db.doc(`equipes/eq_${prefix}`), {
+      id: `eq_${prefix}`,
+      construtoraId: 'const_a',
+      loteamentoId: lotId,
+      quadraId: `q_${prefix}`,
+      loteId: `lo_${prefix}`,
+      etapaId: `et_${prefix}`,
+      name: `Equipe ${prefix}`
+    });
+  }
+
+  await b.commit();
+});
+
+test('11.2 ADMIN_LOTEAMENTO: lê e edita L1 e gerencia quadras/lotes/etapas/equipes em L1, mas não cria/deleta loteamentos', async () => {
+  const adminL1Fs = testEnv.authenticatedContext('admin_l1_user').firestore();
+
+  // Leitura direta e via query filtrada por documentId() in [L1]
+  await assertSucceeds(getDoc(doc(adminL1Fs, 'loteamentos/L1')));
+  const lotSnap = await assertSucceeds(getDocs(query(
+    collection(adminL1Fs, 'loteamentos'),
+    where('construtoraId', '==', 'const_a'),
+    where(documentId(), 'in', ['L1'])
+  )));
+  assert.equal(lotSnap.docs.length, 1);
+  assert.equal(lotSnap.docs[0].id, 'L1');
+
+  // Queries filtradas de quadras, lotes e etapas
+  const qEqSnap = await assertSucceeds(getDocs(query(
+    collection(adminL1Fs, 'quadras'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', '==', 'L1')
+  )));
+  assert.ok(qEqSnap.docs.length >= 1);
+
+  await assertSucceeds(getDocs(query(
+    collection(adminL1Fs, 'quadras'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', 'in', ['L1'])
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(adminL1Fs, 'lotes'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', '==', 'L1')
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(adminL1Fs, 'lotes'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', 'in', ['L1'])
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(adminL1Fs, 'etapas'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', '==', 'L1'),
+    where('quadraId', '==', 'q_l1'),
+    where('loteId', '==', 'lo_l1')
+  )));
+  await assertSucceeds(getDoc(doc(adminL1Fs, 'equipes/eq_l1')));
+
+  // Atualiza dados do próprio loteamento L1
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    name: 'Loteamento 1 Atualizado',
+    cidade: 'Campinas'
+  }));
+
+  // Não pode alterar construtoraId, obraId, nem criar/deletar loteamentos
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    construtoraId: 'const_b'
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L1'), {
+    obraId: 'obra_hack'
+  }));
+  await assertFails(setDoc(doc(adminL1Fs, 'loteamentos/L_novo_admin_l1'), {
+    id: 'L_novo_admin_l1',
+    construtoraId: 'const_a',
+    name: 'Não Permitido'
+  }));
+  await assertFails(deleteDoc(doc(adminL1Fs, 'loteamentos/L1')));
+
+  // Cria, atualiza e deleta quadra, lote, etapa e equipe em L1 (inclusive batch atômico)
+  const batchL1 = writeBatch(adminL1Fs);
+  batchL1.set(doc(adminL1Fs, 'quadras/q_l1_new'), {
+    id: 'q_l1_new',
+    construtoraId: 'const_a',
+    loteamentoId: 'L1',
+    name: 'Quadra Nova'
+  });
+  batchL1.set(doc(adminL1Fs, 'lotes/lo_l1_new'), {
+    id: 'lo_l1_new',
+    construtoraId: 'const_a',
+    loteamentoId: 'L1',
+    quadraId: 'q_l1_new',
+    name: 'Lote Novo'
+  });
+  batchL1.set(doc(adminL1Fs, 'etapas/et_l1_new'), {
+    id: 'et_l1_new',
+    construtoraId: 'const_a',
+    loteamentoId: 'L1',
+    quadraId: 'q_l1_new',
+    loteId: 'lo_l1_new',
+    nome: 'Fundação'
+  });
+  await assertSucceeds(batchL1.commit());
+
+  await assertSucceeds(setDoc(doc(adminL1Fs, 'equipes/eq_l1_new'), {
+    id: 'eq_l1_new',
+    construtoraId: 'const_a',
+    loteamentoId: 'L1',
+    quadraId: 'q_l1_new',
+    loteId: 'lo_l1_new',
+    etapaId: 'et_l1_new',
+    name: 'Equipe Nova'
+  }));
+
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'quadras/q_l1_new'), { name: 'Quadra Editada' }));
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'lotes/lo_l1_new'), { name: 'Lote Editado' }));
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'etapas/et_l1_new'), { nome: 'Cinza 1' }));
+  await assertSucceeds(updateDoc(doc(adminL1Fs, 'equipes/eq_l1_new'), { name: 'Equipe Editada' }));
+
+  await assertSucceeds(deleteDoc(doc(adminL1Fs, 'equipes/eq_l1_new')));
+  await assertSucceeds(deleteDoc(doc(adminL1Fs, 'etapas/et_l1_new')));
+  await assertSucceeds(deleteDoc(doc(adminL1Fs, 'lotes/lo_l1_new')));
+  await assertSucceeds(deleteDoc(doc(adminL1Fs, 'quadras/q_l1_new')));
+});
+
+test('11.3 CROSS_LOTEAMENTO: admin de L1 não lê, consulta globalmente nem escreve em L2', async () => {
+  const adminL1Fs = testEnv.authenticatedContext('admin_l1_user').firestore();
+
+  // Leitura direta em L2 e seus filhos negada
+  await assertFails(getDoc(doc(adminL1Fs, 'loteamentos/L2')));
+  await assertFails(getDoc(doc(adminL1Fs, 'quadras/q_l2')));
+  await assertFails(getDoc(doc(adminL1Fs, 'lotes/lo_l2')));
+  await assertFails(getDoc(doc(adminL1Fs, 'etapas/et_l2')));
+  await assertFails(getDoc(doc(adminL1Fs, 'equipes/eq_l2')));
+
+  // Queries globais sem filtro de loteamento falham com permission-denied
+  await assertFails(getDocs(query(
+    collection(adminL1Fs, 'loteamentos'),
+    where('construtoraId', '==', 'const_a')
+  )));
+  await assertFails(getDocs(query(
+    collection(adminL1Fs, 'quadras'),
+    where('construtoraId', '==', 'const_a')
+  )));
+  await assertFails(getDocs(query(
+    collection(adminL1Fs, 'lotes'),
+    where('construtoraId', '==', 'const_a')
+  )));
+  await assertFails(getDocs(query(
+    collection(adminL1Fs, 'quadras'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', '==', 'L2')
+  )));
+
+  // Escrita direta ou cruzada por FK em L2 negada
+  await assertFails(updateDoc(doc(adminL1Fs, 'loteamentos/L2'), { name: 'Invadido' }));
+  await assertFails(setDoc(doc(adminL1Fs, 'quadras/q_l2_hack'), {
+    id: 'q_l2_hack',
+    construtoraId: 'const_a',
+    loteamentoId: 'L2',
+    name: 'Quadra Invasora'
+  }));
+  await assertFails(updateDoc(doc(adminL1Fs, 'quadras/q_l2'), { name: 'Hack' }));
+  await assertFails(deleteDoc(doc(adminL1Fs, 'lotes/lo_l2')));
+
+  // Tentativa de forjar loteamentoId=L1 apontando quadraId de L2 é bloqueada por integridade de FK
+  await assertFails(setDoc(doc(adminL1Fs, 'lotes/lo_cross_fk'), {
+    id: 'lo_cross_fk',
+    construtoraId: 'const_a',
+    loteamentoId: 'L1',
+    quadraId: 'q_l2',
+    name: 'Lote Cross FK'
+  }));
+});
+
+test('11.4 LEGADO_OBRA_ID: loteamento com obraId explícito (L_legado -> obra_1) libera acesso e escrita ao admin de obra_1', async () => {
+  const legacyAdminFs = testEnv.authenticatedContext('legacy_obra_admin').firestore();
+
+  // Lê L_legado via getDoc e query .where('obraId', 'in', ['obra_1'])
+  await assertSucceeds(getDoc(doc(legacyAdminFs, 'loteamentos/L_legado')));
+  const legSnap = await assertSucceeds(getDocs(query(
+    collection(legacyAdminFs, 'loteamentos'),
+    where('construtoraId', '==', 'const_a'),
+    where('obraId', 'in', ['obra_1'])
+  )));
+  assert.equal(legSnap.docs.length, 1);
+  assert.equal(legSnap.docs[0].id, 'L_legado');
+
+  // Atualiza dados permitidos de L_legado, mas não pode alterar obraId
+  await assertSucceeds(updateDoc(doc(legacyAdminFs, 'loteamentos/L_legado'), {
+    name: 'Loteamento Legado Atualizado'
+  }));
+  await assertFails(updateDoc(doc(legacyAdminFs, 'loteamentos/L_legado'), {
+    obraId: 'obra_outra'
+  }));
+  await assertFails(updateDoc(doc(legacyAdminFs, 'loteamentos/L_legado'), {
+    obraId: null
+  }));
+
+  // Lê e escreve quadras/lotes/etapas/equipes de L_legado
+  await assertSucceeds(getDocs(query(
+    collection(legacyAdminFs, 'quadras'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', '==', 'L_legado')
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(legacyAdminFs, 'lotes'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', 'in', ['L_legado'])
+  )));
+
+  await assertSucceeds(setDoc(doc(legacyAdminFs, 'quadras/q_leg_new'), {
+    id: 'q_leg_new',
+    construtoraId: 'const_a',
+    loteamentoId: 'L_legado',
+    name: 'Quadra Legada Nova'
+  }));
+  await assertSucceeds(setDoc(doc(legacyAdminFs, 'lotes/lo_leg_new'), {
+    id: 'lo_leg_new',
+    construtoraId: 'const_a',
+    loteamentoId: 'L_legado',
+    quadraId: 'q_leg_new',
+    name: 'Lote Legado Novo'
+  }));
+  await assertSucceeds(updateDoc(doc(legacyAdminFs, 'lotes/lo_leg_new'), { name: 'Lote Legado Editado' }));
+  await assertSucceeds(deleteDoc(doc(legacyAdminFs, 'lotes/lo_leg_new')));
+  await assertSucceeds(deleteDoc(doc(legacyAdminFs, 'quadras/q_leg_new')));
+
+  // Não lê outro loteamento
+  await assertFails(getDoc(doc(legacyAdminFs, 'loteamentos/L2')));
+  await assertFails(getDoc(doc(legacyAdminFs, 'quadras/q_l2')));
+});
+
+test('11.5 OPERARIO_SEM_VINCULO: operário sem vínculo em obras/*/members tem acesso negado à hierarquia', async () => {
+  const semVinculoFs = testEnv.authenticatedContext('operario_sem_vinculo').firestore();
+
+  await assertFails(getDoc(doc(semVinculoFs, 'loteamentos/L1')));
+  await assertFails(getDoc(doc(semVinculoFs, 'quadras/q_l1')));
+  await assertFails(getDoc(doc(semVinculoFs, 'lotes/lo_l1')));
+  await assertFails(getDoc(doc(semVinculoFs, 'etapas/et_l1')));
+  await assertFails(getDoc(doc(semVinculoFs, 'equipes/eq_l1')));
+
+  await assertFails(getDocs(query(
+    collection(semVinculoFs, 'loteamentos'),
+    where('construtoraId', '==', 'const_a')
+  )));
+  await assertFails(getDocs(query(
+    collection(semVinculoFs, 'quadras'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', '==', 'L1')
+  )));
+  await assertFails(getDocs(query(
+    collection(semVinculoFs, 'lotes'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', '==', 'L1')
+  )));
+});
+
+test('11.6 Membro comum da obra (isAdmin: false, modules: [lotes]): apenas lê L1 e sua hierarquia; não cria/edita/deleta', async () => {
+  const memberL1Fs = testEnv.authenticatedContext('member_l1_user').firestore();
+
+  // Leitura permitida em L1
+  await assertSucceeds(getDoc(doc(memberL1Fs, 'loteamentos/L1')));
+  await assertSucceeds(getDocs(query(
+    collection(memberL1Fs, 'loteamentos'),
+    where('construtoraId', '==', 'const_a'),
+    where(documentId(), 'in', ['L1'])
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(memberL1Fs, 'quadras'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', '==', 'L1')
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(memberL1Fs, 'lotes'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', '==', 'L1')
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(memberL1Fs, 'etapas'),
+    where('construtoraId', '==', 'const_a'),
+    where('loteamentoId', '==', 'L1'),
+    where('quadraId', '==', 'q_l1'),
+    where('loteId', '==', 'lo_l1')
+  )));
+  await assertSucceeds(getDoc(doc(memberL1Fs, 'equipes/eq_l1')));
+
+  // Escritas negadas em L1
+  await assertFails(updateDoc(doc(memberL1Fs, 'loteamentos/L1'), { name: 'Sem Permissão' }));
+  await assertFails(setDoc(doc(memberL1Fs, 'quadras/q_l1_member'), {
+    id: 'q_l1_member',
+    construtoraId: 'const_a',
+    loteamentoId: 'L1',
+    name: 'Negada'
+  }));
+  await assertFails(updateDoc(doc(memberL1Fs, 'quadras/q_l1'), { name: 'Negada' }));
+  await assertFails(deleteDoc(doc(memberL1Fs, 'quadras/q_l1')));
+  await assertFails(updateDoc(doc(memberL1Fs, 'lotes/lo_l1'), { name: 'Negada' }));
+  await assertFails(updateDoc(doc(memberL1Fs, 'etapas/et_l1'), { nome: 'Negada' }));
+  await assertFails(updateDoc(doc(memberL1Fs, 'equipes/eq_l1'), { name: 'Negada' }));
+
+  // Leitura em L2 negada
+  await assertFails(getDoc(doc(memberL1Fs, 'loteamentos/L2')));
 });

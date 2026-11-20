@@ -1,5 +1,7 @@
 import 'package:app/src/common_widgets/access_guard.dart';
 import 'package:app/src/features/authentication/data/user_repository.dart';
+import 'package:app/src/features/loteamentos/data/loteamento_repository.dart';
+import 'package:app/src/features/loteamentos/domain/loteamento.dart';
 import 'package:app/src/features/obras/domain/obra_member.dart';
 import 'package:app/src/features/obras/presentation/current_permissions_provider.dart';
 import 'package:flutter/material.dart';
@@ -453,5 +455,202 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('novo lote'), findsOneWidget);
+  });
+
+  group('Acesso por escopo de loteamento', () {
+    testWidgets(
+      'ADMIN_LOTEAMENTO: operario da construtora + admin na obra L1 acessa L1 com adminOnly',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': <String>[],
+                }),
+              ),
+              watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+                (ref) => Stream.value([
+                  Loteamento(
+                    id: 'L1',
+                    construtoraId: 'c1',
+                    name: 'Loteamento L1',
+                    createdAt: DateTime(2026),
+                    updatedAt: DateTime(2026),
+                  ),
+                ]),
+              ),
+              currentPermissionsProvider((construtoraId: 'c1', obraId: 'L1'))
+                  .overrideWith(
+                    (ref) => Stream.value(
+                      ObraMember(
+                        userId: 'u1',
+                        isActive: true,
+                        isAdmin: true,
+                        modules: const [],
+                        joinedAt: DateTime(2026),
+                      ),
+                    ),
+                  ),
+            ],
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                loteamentoId: 'L1',
+                module: 'lotes',
+                adminOnly: true,
+                child: Text('gestao L1'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('gestao L1'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'CROSS_LOTEAMENTO: admin de L1 recebe Acesso Negado ao tentar L2',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': <String>[],
+                }),
+              ),
+              watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+                (ref) => Stream.value([
+                  Loteamento(
+                    id: 'L1',
+                    construtoraId: 'c1',
+                    name: 'Loteamento L1',
+                    createdAt: DateTime(2026),
+                    updatedAt: DateTime(2026),
+                  ),
+                ]),
+              ),
+              currentPermissionsProvider((construtoraId: 'c1', obraId: 'L1'))
+                  .overrideWith(
+                    (ref) => Stream.value(
+                      ObraMember(
+                        userId: 'u1',
+                        isActive: true,
+                        isAdmin: true,
+                        modules: const ['lotes'],
+                        joinedAt: DateTime(2026),
+                      ),
+                    ),
+                  ),
+              currentPermissionsProvider((construtoraId: 'c1', obraId: 'L2'))
+                  .overrideWith((ref) => Stream.value(null)),
+            ],
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                loteamentoId: 'L2',
+                module: 'lotes',
+                child: Text('area L2'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('area L2'), findsNothing);
+        expect(find.text('Acesso Negado'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'LEGADO_OBRA_ID: loteamento L1 com obraId O1 resolve permissao em O1',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': <String>[],
+                }),
+              ),
+              watchLoteamentosProvider((construtoraId: 'c1')).overrideWith(
+                (ref) => Stream.value([
+                  Loteamento(
+                    id: 'L1',
+                    construtoraId: 'c1',
+                    obraId: 'O1',
+                    name: 'CAOL VIDA NOVA',
+                    createdAt: DateTime(2026),
+                    updatedAt: DateTime(2026),
+                  ),
+                ]),
+              ),
+              currentPermissionsProvider((construtoraId: 'c1', obraId: 'O1'))
+                  .overrideWith(
+                    (ref) => Stream.value(
+                      ObraMember(
+                        userId: 'u1',
+                        isActive: true,
+                        isAdmin: true,
+                        modules: const [],
+                        joinedAt: DateTime(2026),
+                      ),
+                    ),
+                  ),
+              currentPermissionsProvider((construtoraId: 'c1', obraId: 'L1'))
+                  .overrideWith((ref) => Stream.value(null)),
+            ],
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                loteamentoId: 'L1',
+                module: 'lotes',
+                adminOnly: true,
+                child: Text('legado L1 via O1'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('legado L1 via O1'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'OPERARIO_SEM_VINCULO: acessa raiz /loteamentos (sem module/loteamentoId) quando ativo na construtora',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': <String>[],
+                }),
+              ),
+            ],
+            child: const MaterialApp(
+              home: AccessGuard(
+                construtoraId: 'c1',
+                child: Text('lista loteamentos'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('lista loteamentos'), findsOneWidget);
+      },
+    );
   });
 }

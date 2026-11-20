@@ -122,5 +122,50 @@ void main() {
 
       expect(lastPushed, '/construtoras/c1/loteamentos');
     });
+
+    testWidgets(
+      'card navega para Loteamentos para operario ativo mesmo sem modulo global',
+      (tester) async {
+        String? lastPushed;
+        final router = GoRouter(
+          initialLocation: '/',
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const ConstrutorasListScreen(),
+            ),
+          ],
+          redirect: (context, state) {
+            if (state.uri.path != '/') {
+              lastPushed = state.uri.path;
+            }
+            return null;
+          },
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              trustedDevProvider.overrideWith((ref) => Stream.value(false)),
+              userConstrutorasProvider.overrideWith((ref) async => [_c('c1')]),
+              construtoraPermissionProvider('c1').overrideWith(
+                (ref) => Stream.value({
+                  'isActive': true,
+                  'isAdmin': false,
+                  'modules': <String>[],
+                }),
+              ),
+            ],
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Construtora c1'));
+        await tester.pumpAndSettle();
+
+        expect(lastPushed, '/construtoras/c1/loteamentos');
+      },
+    );
   });
 }

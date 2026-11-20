@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/authentication/data/auth_repository.dart';
 import '../features/notifications/presentation/notifications_button.dart';
 import '../features/loteamentos/data/loteamento_repository.dart';
+import '../features/obras/presentation/current_permissions_provider.dart';
 import '../sync/sync_indicator.dart';
 import '../design_system/sigo_theme.dart';
 import 'sidebar_state.dart';
@@ -65,14 +66,31 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
     final route = _resolveRoute(context);
     String? cId;
     String? oId;
+    String? switcherScopeId;
+    var isObraContext = false;
     if (route != null) {
       final uri = Uri.tryParse(route);
       final segments = uri?.pathSegments ?? [];
       if (segments.length >= 2 && segments[0] == 'construtoras') {
         cId = segments[1];
-        if (segments.length >= 4 &&
-            (segments[2] == 'obra' || segments[2] == 'loteamentos')) {
+        if (segments.length >= 4 && segments[2] == 'obra') {
+          isObraContext = true;
           oId = segments[3];
+          switcherScopeId = oId;
+        } else if (segments.length >= 4 &&
+            segments[2] == 'loteamentos' &&
+            segments[3] != 'import' &&
+            segments[3] != 'draft') {
+          switcherScopeId = segments[3];
+          oId = ref
+                  .watch(
+                    effectiveLoteamentoObraIdProvider((
+                      construtoraId: cId,
+                      loteamentoId: switcherScopeId,
+                    )),
+                  )
+                  .value ??
+              switcherScopeId;
         }
       }
     }
@@ -133,7 +151,7 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
         ],
       ),
-      title: cId != null && oId != null
+      title: cId != null && switcherScopeId != null
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -165,10 +183,14 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
                     maxLines: 1,
                   ),
                 ),
-                const SizedBox(width: 12),
-                LoteamentoSwitcher(
-                  construtoraId: cId,
-                  currentLoteamentoId: oId,
+                const SizedBox(width: 8),
+                Flexible(
+                  flex: 2,
+                  child: LoteamentoSwitcher(
+                    construtoraId: cId,
+                    currentLoteamentoId: switcherScopeId,
+                    isObraContext: isObraContext,
+                  ),
                 ),
               ],
             )
@@ -262,11 +284,13 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
 class LoteamentoSwitcher extends ConsumerWidget {
   final String construtoraId;
   final String currentLoteamentoId;
+  final bool isObraContext;
 
   const LoteamentoSwitcher({
     super.key,
     required this.construtoraId,
     required this.currentLoteamentoId,
+    this.isObraContext = false,
   });
 
   @override
@@ -277,12 +301,20 @@ class LoteamentoSwitcher extends ConsumerWidget {
     return loteamentosAsync.maybeWhen(
       data: (loteamentos) {
         if (loteamentos.isEmpty) return const SizedBox.shrink();
-        final isSelectedPresent = loteamentos.any(
-          (l) => l.id == currentLoteamentoId,
-        );
-        final selectedValue = isSelectedPresent ? currentLoteamentoId : null;
+        String? selectedValue;
+        for (final l in loteamentos) {
+          if (l.id == currentLoteamentoId) {
+            selectedValue = l.id;
+            break;
+          }
+        }
+        selectedValue ??= loteamentos
+            .where((l) => l.effectiveObraId == currentLoteamentoId)
+            .map((l) => l.id)
+            .firstOrNull;
 
         return Container(
+          constraints: const BoxConstraints(maxWidth: 210),
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
@@ -293,9 +325,11 @@ class LoteamentoSwitcher extends ConsumerWidget {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               key: const Key('loteamento-switcher-dropdown'),
+              isExpanded: true,
               value: selectedValue,
               hint: const Text(
                 'Selecionar Loteamento',
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
               icon: const Icon(Icons.swap_horiz, size: 18, color: Colors.amber),
@@ -314,22 +348,33 @@ class LoteamentoSwitcher extends ConsumerWidget {
                       Icon(
                         Icons.business,
                         size: 14,
-                        color: l.id == currentLoteamentoId
+                        color: l.id == selectedValue
                             ? Colors.amber[900]
                             : Colors.black45,
                       ),
                       const SizedBox(width: 6),
-                      Text(l.name, overflow: TextOverflow.ellipsis),
+                      Flexible(
+                        child: Text(l.name, overflow: TextOverflow.ellipsis),
+                      ),
                     ],
                   ),
                 );
               }).toList(),
               onChanged: (newLoteamentoId) {
                 if (newLoteamentoId != null &&
-                    newLoteamentoId != currentLoteamentoId) {
-                  context.go(
-                    '/construtoras/$construtoraId/loteamentos/$newLoteamentoId',
-                  );
+                    newLoteamentoId != selectedValue) {
+                  if (isObraContext) {
+                    final target = loteamentos
+                        .where((l) => l.id == newLoteamentoId)
+                        .firstOrNull;
+                    final targetObraId =
+                        target?.effectiveObraId ?? newLoteamentoId;
+                    context.go('/construtoras/$construtoraId/obra/$targetObraId');
+                  } else {
+                    context.go(
+                      '/construtoras/$construtoraId/loteamentos/$newLoteamentoId',
+                    );
+                  }
                 }
               },
             ),

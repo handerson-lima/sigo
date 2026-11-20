@@ -47,8 +47,17 @@ class _FakeTransaction:
 
 
 class _FakeDocument:
-    def __init__(self, path):
+    def __init__(self, path, store=None, set_side_effect=None):
         self.path = path
+        self._store = store if store is not None else {}
+        self._set_side_effect = set_side_effect
+
+    def collection(self, name):
+        return _FakeCollection(
+            f'{self.path}/{name}',
+            self._store,
+            set_side_effect=self._set_side_effect,
+        )
 
 
 class _FakeCollection:
@@ -61,7 +70,7 @@ class _FakeCollection:
         path = f'{self.name}/{identifier}'
         if self.name == 'loteamentos_drafts':
             return _FakeDraftDocRef(self._store, path, set_side_effect=self._set_side_effect)
-        return _FakeDocument(path)
+        return _FakeDocument(path, self._store, set_side_effect=self._set_side_effect)
 
 
 class _FakeBatch:
@@ -306,6 +315,12 @@ def test_consolidate_creates_loteamento_quadras_lotes_and_five_default_etapas():
     assert loteamento['responsavelTecnicoRegistro'] == '2116022975'
     assert 'geometry' not in loteamento
 
+    mirror_obra = documents[f'construtoras/construtora-1/obras/{loteamento_id}']
+    assert mirror_obra['id'] == loteamento_id
+    assert mirror_obra['construtoraId'] == 'construtora-1'
+    assert mirror_obra['name'] == 'Loteamento Jardim Botanico'
+    assert mirror_obra['isActive'] is True
+
     expected_hash = hashlib.sha256('Quadra 28'.encode('utf-8')).hexdigest()[:16]
     quadra_id = f'draft-1--quadra--ref--{expected_hash}'
     quadra = documents[f'quadras/{quadra_id}']
@@ -368,12 +383,12 @@ def test_consolidate_merges_into_existing_loteamento_when_target_loteamento_id_i
 
 def test_consolidate_splits_writes_into_batches_of_500_including_etapas():
     db = _FakeDb()
-    # 100 lotes -> 1 loteamento + 1 quadra + 100 lotes + 500 etapas = 602 operações -> 2 batches (500 + 102)
+    # 100 lotes -> 1 loteamento + 1 obra espelho + 1 quadra + 100 lotes + 500 etapas = 603 operações -> 2 batches (500 + 103)
     consolidate_approved_draft('draft-batch', _approved_tabular_draft(lote_count=100), db=db)
 
     assert len(db.commits) == 2
     assert len(db.commits[0]) == MAX_BATCH_OPERATIONS
-    assert len(db.commits[1]) == 102
+    assert len(db.commits[1]) == 103
 
 
 def test_consolidate_is_idempotent_for_duplicate_delivery():
