@@ -467,3 +467,16 @@ Recorte: delta de correções (`git diff HEAD` restrito a `functions-python/`, `
 - source_spec: `_bmad-output/implementation-artifacts/spec-importacao-e-extracao-dwf-loteamento.md`
   summary: Adicionar cobertura de teste de widget para seleção e drag-and-drop de `.dwf` em `LoteamentoImportScreen` abstraindo `DropzoneView` e `FilePicker`.
   evidence: Verificado pelo `verification-gap` (`medium`); `LoteamentoImportScreen` instancia `DropzoneView` (exclusivo Web) e invoca `FilePicker.pickFiles` estaticamente, enquanto a validação do nome e MIME já é exercitada nos testes unitários de `LoteamentosImportRepository`.
+
+- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-gestao-usuarios-dev.md`
+  summary: Implement Auth Blocking Functions or custom claims to revoke stateless Firebase JWT access immediately after permanent user deletion (currently ~1h JWT window remains for `movimentacoes` read and `users/{uid}` self-create because absent `users/{uid}` is treated as active).
+  evidence: Verified in `firestore.rules:5,37,278` — inherent to stateless Firebase JWTs while keeping compatibility for absent `users/{uid}`.
+- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-gestao-usuarios-dev.md`
+  summary: Refactor pre-existing `_LinkConstrutoraDialog` (active construtoras filter, error state, `'operario'` role) and replace per-rebuild `FutureBuilder` for construtora names in `UserDetailsScreen`.
+  evidence: Pre-existing pattern in `app/lib/src/features/developer/presentation/user_details_screen.dart` lines 430-438 and 587-623.
+- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-gestao-usuarios-dev.md`
+  summary: Keep `_CreateUserDialog` open on backend failure to preserve form inputs and route `approveAccessRequest` through `DevUsersRepository` with connectivity check.
+  evidence: Pre-existing UX/repository split in `app/lib/src/features/developer/presentation/users_list_screen.dart` and `membros_repository.dart:159-168`.
+- source_spec: `/Users/usuario/obras/_bmad-output/implementation-artifacts/spec-gestao-usuarios-dev.md`
+  summary: Replace `ListTile.trailing` `Row` badges with wrapping layout (`Wrap`) in `UsersListScreen`, avoid mutating `doc.data()` in `allUserMembershipsProvider`, and handle `auth/email-already-exists` in `adminCreateUser`.
+  evidence: Pre-existing patterns in `users_list_screen.dart:42,582,668` and `functions/src/index.ts:304`.
