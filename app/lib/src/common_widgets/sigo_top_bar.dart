@@ -82,7 +82,8 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
             segments[3] != 'import' &&
             segments[3] != 'draft') {
           switcherScopeId = segments[3];
-          oId = ref
+          oId =
+              ref
                   .watch(
                     effectiveLoteamentoObraIdProvider((
                       construtoraId: cId,
@@ -369,7 +370,9 @@ class LoteamentoSwitcher extends ConsumerWidget {
                         .firstOrNull;
                     final targetObraId =
                         target?.effectiveObraId ?? newLoteamentoId;
-                    context.go('/construtoras/$construtoraId/obra/$targetObraId');
+                    context.go(
+                      '/construtoras/$construtoraId/obra/$targetObraId',
+                    );
                   } else {
                     context.go(
                       '/construtoras/$construtoraId/loteamentos/$newLoteamentoId',
@@ -421,7 +424,9 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
     });
 
     try {
-      await ref.read(authRepositoryProvider).changePassword(
+      await ref
+          .read(authRepositoryProvider)
+          .changePassword(
             currentPassword: _currentPassCtrl.text,
             newPassword: _newPassCtrl.text,
           );

@@ -73,12 +73,9 @@ class LoteamentoRepository {
     List<String> obraIds,
   ) {
     final firestore = _firestore;
-    final cleanIds = obraIds
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final cleanIds =
+        obraIds.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
+          ..sort();
     if (firestore == null || cleanIds.isEmpty) {
       return Stream.value(const <Loteamento>[]);
     }
@@ -135,8 +132,9 @@ class LoteamentoRepository {
           subs.add(
             queries[index].snapshots().listen(
               (snap) {
-                resultsByStream[index] =
-                    snap.docs.map((doc) => doc.data()).toList();
+                resultsByStream[index] = snap.docs
+                    .map((doc) => doc.data())
+                    .toList();
                 readyStreams.add(index);
                 emitIfReady();
               },
@@ -200,7 +198,11 @@ class LoteamentoRepository {
     final quadraIds = <String>{};
     for (final quadra in quadras) {
       if (quadra.id.trim().isEmpty) {
-        throw ArgumentError.value(quadra.id, 'quadra.id', 'ID da quadra inválido');
+        throw ArgumentError.value(
+          quadra.id,
+          'quadra.id',
+          'ID da quadra inválido',
+        );
       }
       if (!quadraIds.add(quadra.id)) {
         throw ArgumentError.value(
@@ -298,14 +300,16 @@ final watchLoteamentosProvider =
           obraIds.ids,
         );
       } on NoSuchMethodError {
-        return repo.watchLoteamentos(params.construtoraId).map(
-          (items) => items
-              .where(
-                (item) =>
-                    obraIds.contains(item.id) ||
-                    obraIds.contains(item.effectiveObraId),
-              )
-              .toList(),
-        );
+        return repo
+            .watchLoteamentos(params.construtoraId)
+            .map(
+              (items) => items
+                  .where(
+                    (item) =>
+                        obraIds.contains(item.id) ||
+                        obraIds.contains(item.effectiveObraId),
+                  )
+                  .toList(),
+            );
       }
     });

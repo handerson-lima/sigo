@@ -112,8 +112,9 @@ class ObraIdSet {
   const ObraIdSet._(this.ids);
 
   factory ObraIdSet.fromIterable(Iterable<String> raw) {
-    final sorted = raw.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
-      ..sort();
+    final sorted =
+        raw.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList()
+          ..sort();
     return ObraIdSet._(List<String>.unmodifiable(sorted));
   }
 
