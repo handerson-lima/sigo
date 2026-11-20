@@ -12,6 +12,7 @@ AppUser _$AppUserFromJson(Map<String, dynamic> json) => AppUser(
   displayName: json['displayName'] as String,
   photoUrl: json['photoUrl'] as String?,
   globalRole: json['globalRole'] as String?,
+  isActive: json['isActive'] as bool? ?? true,
   createdAt: json['createdAt'] == null
       ? null
       : DateTime.parse(json['createdAt'] as String),
@@ -26,6 +27,7 @@ Map<String, dynamic> _$AppUserToJson(AppUser instance) => <String, dynamic>{
   'displayName': instance.displayName,
   'photoUrl': instance.photoUrl,
   'globalRole': instance.globalRole,
+  'isActive': instance.isActive,
   'createdAt': instance.createdAt?.toIso8601String(),
   'updatedAt': instance.updatedAt?.toIso8601String(),
 };

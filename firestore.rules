@@ -2,15 +2,16 @@ rules_version = '2';
 service cloud.firestore {
  match /databases/{database}/documents {
    function signed() { return request.auth != null; }
-   function dev() { return signed() && exists(/databases/$(database)/documents/dev_roles/$(request.auth.uid)) && get(/databases/$(database)/documents/dev_roles/$(request.auth.uid)).data.get('isActive', false) == true; }
+   function activeUser() { return !exists(/databases/$(database)/documents/users/$(request.auth.uid)) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isActive', true) == true; }
+   function dev() { return signed() && activeUser() && exists(/databases/$(database)/documents/dev_roles/$(request.auth.uid)) && get(/databases/$(database)/documents/dev_roles/$(request.auth.uid)).data.get('isActive', false) == true; }
    function cmExists(c) { return signed() && exists(/databases/$(database)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)); }
    function cm(c) { return get(/databases/$(database)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)).data; }
    function activeConstrutora(c) { return get(/databases/$(database)/documents/construtoras/$(c)).data.get('isActive', true) == true; }
-   function member(c) { return dev() || (cmExists(c) && cm(c).get('isActive', false) == true && activeConstrutora(c)); }
-   function admin(c) { return dev() || (member(c) && (cm(c).get('isAdmin', false) == true || cm(c).get('isOwner', false) == true || cm(c).get('role', '') == 'admin' || cm(c).get('role', '') == 'owner')); }
+   function member(c) { return cmExists(c) && activeUser() && cm(c).get('isActive', false) == true && activeConstrutora(c); }
+   function admin(c) { return member(c) && (cm(c).get('isAdmin', false) == true || cm(c).get('isOwner', false) == true || cm(c).get('role', '') == 'admin' || cm(c).get('role', '') == 'owner'); }
    function omExists(c,o) { return signed() && exists(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)); }
    function om(c,o) { return get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)).data; }
-   function obraMember(c,o) { return dev() || (member(c) && omExists(c,o) && om(c,o).get('isActive', false) == true); }
+   function obraMember(c,o) { return member(c) && omExists(c,o) && om(c,o).get('isActive', false) == true; }
    function obraAdmin(c,o) { return admin(c) || (obraMember(c,o) && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || om(c,o).get('role', '') == 'admin' || om(c,o).get('role', '') == 'owner')); }
    function module(c,o,m) { return obraAdmin(c,o) || (obraMember(c,o) && (m in om(c,o).get('modules',[]) || m == 'diario' && 'rdo' in om(c,o).get('modules',[]) || m == 'estoque' && 'almoxarifado' in om(c,o).get('modules',[]) || m == 'validacao' && 'qualidade' in om(c,o).get('modules',[]) || m == 'adm' && 'financeiro' in om(c,o).get('modules',[]))); }
    function stock(c) { return admin(c) || (member(c) && ('estoque' in cm(c).get('modules',[]) || 'almoxarifado' in cm(c).get('modules',[]))); }
@@ -24,8 +25,8 @@ service cloud.firestore {
      allow read, write: if dev();
    }
   match /dev_roles/{uid} {
-    allow read: if signed() && (request.auth.uid == uid || dev());
-    allow create: if signed() && request.auth.uid == uid && (
+    allow read: if signed() && activeUser() && (request.auth.uid == uid || dev());
+    allow create: if signed() && activeUser() && request.auth.uid == uid && (
       (exists(/databases/$(database)/documents/users/$(uid)) && get(/databases/$(database)/documents/users/$(uid)).data.get('globalRole', '') == 'dev') ||
       request.auth.token.email.matches('(?i).*dev.*')
     ) && request.resource.data.get('isActive', false) == true;
@@ -33,9 +34,9 @@ service cloud.firestore {
   }
   match /audit/{id} { allow read: if dev(); allow write: if dev(); }
   match /users/{uid} {
-   allow read: if signed() && (request.auth.uid == uid || dev());
-   allow create: if signed() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['id','email','displayName','photoUrl','createdAt','updatedAt','globalRole']) && request.resource.data.id == uid && request.resource.data.email == request.auth.token.email && request.resource.data.get('globalRole','user') in ['user',null];
-   allow update: if signed() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','photoUrl','updatedAt']);
+   allow read: if signed() && activeUser() && (request.auth.uid == uid || dev());
+   allow create: if signed() && activeUser() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['id','email','displayName','photoUrl','createdAt','updatedAt','globalRole','isActive']) && request.resource.data.id == uid && request.resource.data.email == request.auth.token.email && request.resource.data.get('globalRole','user') in ['user',null] && request.resource.data.get('isActive', true) == true;
+   allow update: if signed() && activeUser() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','photoUrl','updatedAt']);
    allow delete: if dev();
   }
 match /construtoras/{c} {
@@ -43,8 +44,8 @@ match /construtoras/{c} {
     allow create: if dev() && request.resource.data.id == c;
     allow update: if admin(c) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','cnpj','address','logoUrl','updatedAt']) && (!('logoUrl' in request.resource.data) || request.resource.data.logoUrl == null || request.resource.data.logoUrl is string);
     allow delete: if dev();
-    match /construtora_members/{uid} { allow read: if signed() && (request.auth.uid == uid || admin(c)); allow write: if dev(); }
-   match /commands/{id} { allow read: if dev() || (signed() && resource.data.actor == request.auth.uid); allow write: if dev(); }
+    match /construtora_members/{uid} { allow read: if signed() && activeUser() && (request.auth.uid == uid || admin(c)); allow write: if dev(); }
+   match /commands/{id} { allow read: if dev() || (signed() && activeUser() && resource.data.actor == request.auth.uid); allow write: if dev(); }
    match /funcionarios/{f} {
     allow read: if rh(c);
     allow create, update: if rh(c) && request.resource.data.id == f && request.resource.data.construtoraId == c;
@@ -97,7 +98,7 @@ match /construtoras/{c} {
     allow create: if admin(c) && request.resource.data.id == o && request.resource.data.construtoraId == c;
     allow update: if admin(c) && request.resource.data.id == resource.data.id && request.resource.data.construtoraId == resource.data.construtoraId;
     allow delete: if dev();
-    match /members/{uid} { allow read: if signed() && (request.auth.uid == uid || obraAdmin(c,o)); allow write: if dev(); }
+    match /members/{uid} { allow read: if signed() && activeUser() && (request.auth.uid == uid || obraAdmin(c,o)); allow write: if dev(); }
     match /lotes/{l} {
      allow read: if module(c,o,'lotes') || module(c,o,'adm') || module(c,o,'financeiro') || obraMember(c,o) || admin(c);
      allow create, update: if obraAdmin(c,o) && request.resource.data.id == l && request.resource.data.obraId == o;
@@ -276,18 +277,18 @@ match /construtoras/{c} {
        );
      allow create, delete: if false;
    }
-  match /{path=**}/construtora_members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
-  match /{path=**}/members/{uid} { allow read: if dev() || (signed() && resource.data.userId == request.auth.uid); }
-  match /{path=**}/movimentacoes/{id} { allow read: if dev() || signed(); }
+  match /{path=**}/construtora_members/{uid} { allow read: if dev() || (signed() && activeUser() && resource.data.userId == request.auth.uid); }
+  match /{path=**}/members/{uid} { allow read: if dev() || (signed() && activeUser() && resource.data.userId == request.auth.uid); }
+  match /{path=**}/movimentacoes/{id} { allow read: if dev() || (signed() && activeUser()); }
   // Solicitações de acesso: criadas via Cloud Function (backend); admin da construtora pode ler as suas
   match /access_requests/{reqId} {
-    allow read: if dev() || (signed() && (resource.data.requestedBy == request.auth.uid || admin(resource.data.construtoraId)));
+    allow read: if dev() || (signed() && activeUser() && (resource.data.requestedBy == request.auth.uid || admin(resource.data.construtoraId)));
     allow write: if dev();
   }
   // Notificações in-app: criadas pelo backend; usuário lê e marca como lida
   match /users/{uid}/notifications/{nId} {
-    allow read: if signed() && request.auth.uid == uid;
-    allow update: if signed() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    allow read: if signed() && activeUser() && request.auth.uid == uid;
+    allow update: if signed() && activeUser() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
     allow write: if dev();
   }
 

@@ -168,3 +168,77 @@ test('ensaio de migração é retomável e preserva pendências sem promover dev
  assert.equal((await fetch(oldLink)).status,403);
  fs.writeFileSync(root+'/docs/change-control/migration-rehearsal.json',JSON.stringify(report,null,2)+'\n');
 });
+test('gestão de usuários dev: ativar/desativar, redefinir senha e excluir preservando histórico',async()=>{
+ const email='lifecycle-user@example.test';
+ const created=await invoke('adminCreateUser','dev',{operationId:'life-1',email,password:'Initial@123',displayName:'Ciclo Vida',globalRole:'user'});
+ const uid=created.uid;
+ await invoke('setMembership','dev',{construtoraId:'a',userId:uid,role:'admin',modules:[]});
+ await invoke('setMembership','dev',{construtoraId:'a',obraId:'o',userId:uid,role:'admin',modules:['diario']});
+ await invoke('setDevRole','dev',{userId:uid,isActive:true});
+ await db.doc(`users/${uid}/notifications/n1`).set({title:'Aviso',read:false});
+
+ // Não-dev não pode gerir usuários
+ await assert.rejects(invoke('adminSetUserActive','admin',{userId:uid,isActive:false}),e=>e.code==='permission-denied');
+ await assert.rejects(invoke('adminResetUserPassword','admin',{userId:uid,password:'Nova@1234'}),e=>e.code==='permission-denied');
+ await assert.rejects(invoke('adminDeleteUser','admin',{userId:uid}),e=>e.code==='permission-denied');
+
+ // Auto-desativação e auto-exclusão bloqueadas
+ await assert.rejects(invoke('adminSetUserActive','dev',{userId:'dev',isActive:false}),e=>e.code==='failed-precondition');
+ await assert.rejects(invoke('adminDeleteUser','dev',{userId:'dev'}),e=>e.code==='failed-precondition');
+
+ // Validações e not-found
+ await assert.rejects(invoke('adminResetUserPassword','dev',{userId:uid,password:'curta'}),e=>e.code==='invalid-argument');
+ await assert.rejects(invoke('adminResetUserPassword','dev',{userId:'nao-existe',password:'Valida@1234'}),e=>e.code==='not-found');
+ await assert.rejects(invoke('adminSetUserActive','dev',{userId:'nao-existe',isActive:false}),e=>e.code==='not-found');
+ await assert.rejects(invoke('adminDeleteUser','dev',{userId:'nao-existe'}),e=>e.code==='not-found');
+
+ // Desativar conta bloqueia authority(), Firestore e preserva vínculos
+ await invoke('adminSetUserActive','dev',{userId:uid,isActive:false});
+ assert.equal((await admin.auth().getUser(uid)).disabled,true);
+ assert.equal((await db.doc(`users/${uid}`).get()).data().isActive,false);
+ assert.equal((await db.doc(`construtoras/a/construtora_members/${uid}`).get()).data().isActive,true);
+ assert.equal((await db.doc(`construtoras/a/obras/o/members/${uid}`).get()).data().isActive,true);
+ await assert.rejects(invoke('stockCommand',uid,{construtoraId:'a',materialId:'m',operationId:'disabled-stock',type:'entrada',quantity:1}),e=>e.code==='permission-denied');
+ await assert.rejects(invoke('payExpense',uid,{construtoraId:'a',despesaId:'e',operationId:'disabled-pay'}),e=>e.code==='permission-denied');
+ await assert.rejects(invoke('adminCreateUser',uid,{operationId:'disabled-dev-create',email:'x@example.test',password:'Senha@1234',displayName:'X'}),e=>e.code==='permission-denied');
+ await assertFails(getDoc(doc(env.authenticatedContext(uid).firestore(),'construtoras/a/materiais/m')));
+
+ // Reativar conta restaura acesso e mantém vínculos
+ await invoke('adminSetUserActive','dev',{userId:uid,isActive:true});
+ assert.equal((await admin.auth().getUser(uid)).disabled,false);
+ assert.equal((await db.doc(`users/${uid}`).get()).data().isActive,true);
+ await assertSucceeds(getDoc(doc(env.authenticatedContext(uid).firestore(),'construtoras/a/materiais/m')));
+
+ // Redefinir senha provisória sem expiração e autenticar no Auth Emulator
+ await invoke('adminResetUserPassword','dev',{userId:uid,password:'Provisoria@2026'});
+ const signInRes=await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key',{
+  method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({email,password:'Provisoria@2026',returnSecureToken:true})
+ });
+ assert.equal(signInRes.status,200);
+
+ // Criar registros históricos que devem ser preservados após exclusão
+ await db.doc(`construtoras/a/funcionarios/func-${uid}`).set({id:`func-${uid}`,construtoraId:'a',nome:'Operário Histórico'});
+ await db.doc(`construtoras/a/commands/cmd-${uid}`).set({actor:uid,at:new Date()});
+
+ // Excluir usuário globalmente e liberar e-mail para novo cadastro
+ await invoke('adminDeleteUser','dev',{userId:uid});
+ await assert.rejects(admin.auth().getUser(uid),e=>e.code==='auth/user-not-found');
+ assert.equal((await db.doc(`users/${uid}`).get()).exists,false);
+ assert.equal((await db.doc(`users/${uid}/notifications/n1`).get()).exists,false);
+ assert.equal((await db.doc(`dev_roles/${uid}`).get()).exists,false);
+ assert.equal((await db.doc(`construtoras/a/construtora_members/${uid}`).get()).exists,false);
+ assert.equal((await db.doc(`construtoras/a/obras/o/members/${uid}`).get()).exists,false);
+ const provAfter=await db.collection('user_provisioning').where('target','==',uid).get();
+ assert.equal(provAfter.size,0);
+
+ // Histórico preservado
+ assert.equal((await db.doc(`construtoras/a/funcionarios/func-${uid}`).get()).exists,true);
+ assert.equal((await db.doc(`construtoras/a/commands/cmd-${uid}`).get()).exists,true);
+ const auditSnap=await db.collection('audit').where('target','==',uid).get();
+ assert.ok(auditSnap.size>=3);
+
+ // E-mail liberado para novo cadastro
+ const recreated=await invoke('adminCreateUser','dev',{operationId:'life-recreate',email,password:'NovaConta@123',displayName:'Recriado',globalRole:'user'});
+ assert.notEqual(recreated.uid,uid);
+});

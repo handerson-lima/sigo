@@ -9,6 +9,8 @@ import '../sync/sync_indicator.dart';
 import '../design_system/sigo_theme.dart';
 import 'sidebar_state.dart';
 
+enum _SigoAvatarMenuAction { changePassword }
+
 class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
   final String title;
   final List<Widget>? actions;
@@ -202,13 +204,50 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
         const SizedBox(width: 6),
         const NotificationsButton(),
         const SizedBox(width: 8),
-        CircleAvatar(
-          backgroundColor: Colors.amber[100],
-          child: Text(
-            initial,
-            style: TextStyle(
-              color: Colors.amber[900],
-              fontWeight: FontWeight.bold,
+        PopupMenuButton<_SigoAvatarMenuAction>(
+          key: const Key('sigo-avatar-menu'),
+          tooltip: 'Conta',
+          enabled: user != null,
+          onSelected: (value) {
+            if (value == _SigoAvatarMenuAction.changePassword) {
+              showDialog<void>(
+                context: context,
+                builder: (_) => const _ChangePasswordDialog(),
+              );
+            }
+          },
+          itemBuilder: (ctx) => [
+            if (email.isNotEmpty)
+              PopupMenuItem<_SigoAvatarMenuAction>(
+                enabled: false,
+                child: Text(
+                  email,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            const PopupMenuDivider(),
+            const PopupMenuItem<_SigoAvatarMenuAction>(
+              value: _SigoAvatarMenuAction.changePassword,
+              child: Row(
+                children: [
+                  Icon(Icons.lock_reset, size: 18),
+                  SizedBox(width: 8),
+                  Flexible(child: Text('Alterar senha')),
+                ],
+              ),
+            ),
+          ],
+          child: CircleAvatar(
+            backgroundColor: Colors.amber[100],
+            child: Text(
+              initial,
+              style: TextStyle(
+                color: Colors.amber[900],
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),
@@ -296,6 +335,204 @@ class LoteamentoSwitcher extends ConsumerWidget {
         );
       },
       orElse: () => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _ChangePasswordDialog extends ConsumerStatefulWidget {
+  const _ChangePasswordDialog();
+
+  @override
+  ConsumerState<_ChangePasswordDialog> createState() =>
+      _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _currentPassCtrl = TextEditingController();
+  final _newPassCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
+  bool _isSaving = false;
+  bool _obscureCurrent = true;
+  bool _obscureNew = true;
+  bool _obscureConfirm = true;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _currentPassCtrl.dispose();
+    _newPassCtrl.dispose();
+    _confirmPassCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_formKey.currentState?.validate() != true) return;
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ref.read(authRepositoryProvider).changePassword(
+            currentPassword: _currentPassCtrl.text,
+            newPassword: _newPassCtrl.text,
+          );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.green.shade700,
+            content: const Text('Senha alterada com sucesso!'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().startsWith('Exception: ')
+            ? e.toString().substring(11)
+            : e.toString();
+        setState(() => _errorMessage = msg);
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Row(
+        children: [
+          Icon(Icons.lock_reset, color: Colors.orange),
+          SizedBox(width: 8),
+          Text('Alterar Senha'),
+        ],
+      ),
+      content: SizedBox(
+        width: 400,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  key: const Key('change-password-current'),
+                  controller: _currentPassCtrl,
+                  obscureText: _obscureCurrent,
+                  decoration: InputDecoration(
+                    labelText: 'Senha atual',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureCurrent
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureCurrent = !_obscureCurrent),
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.isEmpty) {
+                      return 'Informe sua senha atual.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const Key('change-password-new'),
+                  controller: _newPassCtrl,
+                  obscureText: _obscureNew,
+                  decoration: InputDecoration(
+                    labelText: 'Nova senha',
+                    helperText: 'Mínimo de 8 caracteres.',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureNew
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureNew = !_obscureNew),
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.length < 8) {
+                      return 'A nova senha deve ter no mínimo 8 caracteres.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const Key('change-password-confirm'),
+                  controller: _confirmPassCtrl,
+                  obscureText: _obscureConfirm,
+                  decoration: InputDecoration(
+                    labelText: 'Confirmar nova senha',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirm
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val != _newPassCtrl.text) {
+                      return 'As senhas não coincidem.';
+                    }
+                    return null;
+                  },
+                ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _errorMessage!,
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          key: const Key('change-password-submit'),
+          onPressed: _isSaving ? null : _submit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange.shade700,
+            foregroundColor: Colors.white,
+          ),
+          child: _isSaving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Salvar Nova Senha'),
+        ),
+      ],
     );
   }
 }

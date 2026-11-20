@@ -40,4 +40,52 @@ class AuthRepository {
       await _firebaseAuth.signOut();
     }
   }
+
+  /// Altera voluntariamente a senha do usuário autenticado após reautenticação
+  /// com a senha atual. Exige no mínimo 8 caracteres.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (newPassword.length < 8) {
+      throw Exception('A nova senha deve ter no mínimo 8 caracteres.');
+    }
+
+    final user = _firebaseAuth.currentUser;
+    final email = user?.email;
+    if (user == null || email == null || email.isEmpty) {
+      throw Exception('Usuário não autenticado.');
+    }
+
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_traduzirErroAuth(e));
+    }
+  }
+
+  static String _traduzirErroAuth(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Senha atual incorreta.';
+      case 'weak-password':
+        return 'A nova senha é muito fraca. Utilize pelo menos 8 caracteres.';
+      case 'requires-recent-login':
+        return 'Sessão expirada. Entre novamente para alterar a senha.';
+      case 'too-many-requests':
+        return 'Muitas tentativas. Aguarde alguns instantes e tente novamente.';
+      case 'network-request-failed':
+        return 'Sem conexão. Verifique sua internet e tente novamente.';
+      default:
+        return (e.message?.isNotEmpty ?? false)
+            ? e.message!
+            : 'Erro ao alterar senha.';
+    }
+  }
 }

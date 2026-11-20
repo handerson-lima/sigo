@@ -8,11 +8,28 @@ const stamp = () => admin.firestore.FieldValue.serverTimestamp();
 const fail = (code: functions.https.FunctionsErrorCode, message: string): never => { throw new functions.https.HttpsError(code, message); };
 type Tx = admin.firestore.Transaction;
 async function authority(tx: Tx, uid: string, c?: string, o?: string) {
-  const dev = (await tx.get(db.doc(`dev_roles/${uid}`))).data()?.isActive === true;
-  const cm = c ? (await tx.get(db.doc(`construtoras/${c}/construtora_members/${uid}`))).data() : undefined;
-  const om = c && o ? (await tx.get(db.doc(`construtoras/${c}/obras/${o}/members/${uid}`))).data() : undefined;
+  const userActive = (await tx.get(db.doc(`users/${uid}`))).data()?.isActive !== false;
+  const dev = userActive && (await tx.get(db.doc(`dev_roles/${uid}`))).data()?.isActive === true;
+  const cm = userActive && c ? (await tx.get(db.doc(`construtoras/${c}/construtora_members/${uid}`))).data() : undefined;
+  const om = userActive && c && o ? (await tx.get(db.doc(`construtoras/${c}/obras/${o}/members/${uid}`))).data() : undefined;
   return {dev, cm, om, admin: dev || manager(cm), obraAdmin: dev || manager(cm) || (active(cm) && manager(om)),
     can: (module: string) => dev || manager(cm) || (active(cm) && (o ? active(om) && (manager(om) || (om?.modules || []).map(moduleName).includes(module)) : (cm?.modules || []).map(moduleName).includes(module)))};
+}
+function isAuthUserNotFound(e: any): boolean {
+  return (
+    e?.code === 'auth/user-not-found' ||
+    e?.errorInfo?.code === 'auth/user-not-found' ||
+    (typeof e?.message === 'string' && (e.message.includes('no user record') || e.message.includes('user-not-found')))
+  );
+}
+async function requireDevPrecheck(uid: string) {
+  const [userSnap, devSnap] = await Promise.all([
+    db.doc(`users/${uid}`).get(),
+    db.doc(`dev_roles/${uid}`).get(),
+  ]);
+  if (userSnap.data()?.isActive === false || devSnap.data()?.isActive !== true) {
+    fail('permission-denied', 'Dev confiável obrigatório');
+  }
 }
 function callable(action: string, handler: (data: any, uid: string) => Promise<any>) {
   return functions.https.onCall(async (data, context) => {
@@ -36,12 +53,130 @@ function audit(tx: Tx, actor: string, action: string, target: string, extra: any
 export const setDevRole = callable('setDevRole', async (d, uid) => {
   const target = id(d.userId); if (typeof d.isActive !== 'boolean') throw new Error('isActive obrigatório');
   if (target === uid && !d.isActive) fail('failed-precondition', 'Outro dev deve revogar seu acesso.');
-  await admin.auth().getUser(target);
+  await requireDevPrecheck(uid);
+  try {
+    await admin.auth().getUser(target);
+  } catch (e: any) {
+    if (isAuthUserNotFound(e)) fail('not-found', 'Usuário não encontrado');
+    throw e;
+  }
   return db.runTransaction(async tx => {
     if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev confiável obrigatório');
     tx.set(db.doc(`dev_roles/${target}`), {isActive: d.isActive, updatedBy: uid, updatedAt: stamp()});
     tx.update(db.doc(`users/${target}`), {globalRole: d.isActive ? 'dev' : 'user', updatedAt: stamp()});
     audit(tx, uid, 'setDevRole', target, {isActive: d.isActive}); return {ok: true};
+  });
+});
+export const adminDeleteUser = callable('adminDeleteUser', async (d, uid) => {
+  const target = id(d.userId);
+  if (target === uid) fail('failed-precondition', 'Você não pode excluir sua própria conta.');
+  await requireDevPrecheck(uid);
+  let authExists = true;
+  try {
+    await admin.auth().getUser(target);
+  } catch (e: any) {
+    if (isAuthUserNotFound(e)) authExists = false;
+    else throw e;
+  }
+  const userRef = db.doc(`users/${target}`);
+  const userSnap = await userRef.get();
+  if (!authExists && !userSnap.exists) fail('not-found', 'Usuário não encontrado');
+
+  const [notificationsSnap, cmSnap, omSnap, provSnap] = await Promise.all([
+    db.collection(`users/${target}/notifications`).get(),
+    db.collectionGroup('construtora_members').where('userId', '==', target).get(),
+    db.collectionGroup('members').where('userId', '==', target).get(),
+    db.collection('user_provisioning').where('target', '==', target).get(),
+  ]);
+
+  if (authExists) {
+    try {
+      await admin.auth().deleteUser(target);
+    } catch (e: any) {
+      if (!isAuthUserNotFound(e)) throw e;
+    }
+  }
+
+  const uniqueRefs = new Map<string, admin.firestore.DocumentReference>();
+  for (const ref of [
+    userRef,
+    db.doc(`dev_roles/${target}`),
+    ...notificationsSnap.docs.map(doc => doc.ref),
+    ...cmSnap.docs.map(doc => doc.ref),
+    ...omSnap.docs.map(doc => doc.ref),
+    ...provSnap.docs.map(doc => doc.ref),
+  ]) {
+    uniqueRefs.set(ref.path, ref);
+  }
+  const allRefs = [...uniqueRefs.values()];
+  const txBatchLimit = 450;
+  const txRefs = allRefs.slice(0, txBatchLimit);
+  const remainingRefs = allRefs.slice(txBatchLimit);
+
+  await db.runTransaction(async tx => {
+    if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev confiável obrigatório');
+    for (const ref of txRefs) tx.delete(ref);
+    audit(tx, uid, 'adminDeleteUser', target, {
+      deletedAuth: authExists,
+      deletedMemberships: cmSnap.size + omSnap.size,
+      deletedNotifications: notificationsSnap.size,
+      deletedProvisioning: provSnap.size,
+    });
+  });
+
+  for (let i = 0; i < remainingRefs.length; i += txBatchLimit) {
+    const batch = db.batch();
+    for (const ref of remainingRefs.slice(i, i + txBatchLimit)) batch.delete(ref);
+    await batch.commit();
+  }
+
+  return {ok: true};
+});
+export const adminSetUserActive = callable('adminSetUserActive', async (d, uid) => {
+  const target = id(d.userId);
+  if (typeof d.isActive !== 'boolean') throw new Error('isActive obrigatório');
+  if (target === uid && !d.isActive) fail('failed-precondition', 'Outro dev deve desativar sua conta.');
+  await requireDevPrecheck(uid);
+  const userRef = db.doc(`users/${target}`);
+  const userSnap = await userRef.get();
+  let authExists = true;
+  try {
+    await admin.auth().getUser(target);
+  } catch (e: any) {
+    if (isAuthUserNotFound(e)) authExists = false;
+    else throw e;
+  }
+  if (!authExists && !userSnap.exists) fail('not-found', 'Usuário não encontrado');
+  if (authExists) {
+    await admin.auth().updateUser(target, {disabled: !d.isActive});
+    if (!d.isActive) await admin.auth().revokeRefreshTokens(target);
+  }
+  return db.runTransaction(async tx => {
+    if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev confiável obrigatório');
+    const fresh = await tx.get(userRef);
+    if (!fresh.exists) {
+      tx.set(userRef, {id: target, isActive: d.isActive, updatedAt: stamp()}, {merge: true});
+    } else {
+      tx.update(userRef, {isActive: d.isActive, updatedAt: stamp()});
+    }
+    audit(tx, uid, 'adminSetUserActive', target, {isActive: d.isActive});
+    return {ok: true, isActive: d.isActive};
+  });
+});
+export const adminResetUserPassword = callable('adminResetUserPassword', async (d, uid) => {
+  const target = id(d.userId);
+  if (typeof d.password !== 'string' || d.password.length < 8) throw new Error('Senha deve ter no mínimo 8 caracteres');
+  await requireDevPrecheck(uid);
+  try {
+    await admin.auth().updateUser(target, {password: d.password});
+  } catch (e: any) {
+    if (isAuthUserNotFound(e)) fail('not-found', 'Usuário não encontrado');
+    throw e;
+  }
+  return db.runTransaction(async tx => {
+    if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev confiável obrigatório');
+    audit(tx, uid, 'adminResetUserPassword', target);
+    return {ok: true};
   });
 });
 async function membership(d: any, uid: string) {
@@ -57,11 +192,7 @@ async function membership(d: any, uid: string) {
   try {
     target = d.userId ? id(d.userId) : (await admin.auth().getUserByEmail(d.email)).uid;
   } catch (e: any) {
-    const isUserNotFound =
-      e.code === 'auth/user-not-found' ||
-      e.errorInfo?.code === 'auth/user-not-found' ||
-      (typeof e.message === 'string' && (e.message.includes('no user record') || e.message.includes('user-not-found')));
-    if (isUserNotFound && !d.userId && !o) {
+    if (isAuthUserNotFound(e) && !d.userId && !o) {
       // Admin requesting a new user: create access_request and return gracefully
       const displayName = typeof d.displayName === 'string' && d.displayName.trim() ? d.displayName.trim() : d.email;
       await db.runTransaction(async tx => {
@@ -118,8 +249,7 @@ export const approveAccessRequest = callable('approveAccessRequest', async (d, u
   if (req.status === 'approved') return {ok: true};
   if (req.status !== 'pending') fail('failed-precondition', 'Solicitação não está pendente');
   // Validate dev role outside transaction for Auth operations
-  const devDoc = await db.doc(`dev_roles/${uid}`).get();
-  if (devDoc.data()?.isActive !== true) fail('permission-denied', 'Dev confiável obrigatório');
+  await requireDevPrecheck(uid);
   // Deterministic UID to allow retry idempotency
   const target = hash({requestId}).slice(0, 28);
   try {
@@ -130,12 +260,12 @@ export const approveAccessRequest = callable('approveAccessRequest', async (d, u
   const sevenDays = 7 * 24 * 60 * 60 * 1000;
   const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + sevenDays);
   await db.runTransaction(async tx => {
-    if ((await tx.get(db.doc(`dev_roles/${uid}`))).data()?.isActive !== true) fail('permission-denied', 'Dev revogado');
+    if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev revogado');
     // Re-check idempotency inside transaction
     const fresh = (await tx.get(requestRef)).data();
     if (fresh?.status === 'approved') return;
     // Create user profile
-    tx.set(db.doc(`users/${target}`), {id: target, email: req.email, displayName: req.displayName, globalRole: 'user', createdAt: stamp(), updatedAt: stamp()});
+    tx.set(db.doc(`users/${target}`), {id: target, email: req.email, displayName: req.displayName, globalRole: 'user', isActive: true, createdAt: stamp(), updatedAt: stamp()});
     // Grant membership on the construtora
     const c = id(req.construtoraId);
     const role = req.role || 'member';
@@ -176,7 +306,7 @@ export const adminCreateUser = callable('adminCreateUser', async (d, uid) => {
   await db.runTransaction(async tx => {
     if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev revogado; provisionamento pendente preservado');
     const old = (await tx.get(ref)).data(); if (old?.status === 'complete') return;
-    tx.set(db.doc(`users/${target}`), {id: target, email: d.email, displayName: d.displayName, globalRole: d.globalRole || 'user', createdAt: stamp(), updatedAt: stamp()});
+    tx.set(db.doc(`users/${target}`), {id: target, email: d.email, displayName: d.displayName, globalRole: d.globalRole || 'user', isActive: true, createdAt: stamp(), updatedAt: stamp()});
     if (d.globalRole === 'dev') tx.set(db.doc(`dev_roles/${target}`), {isActive: true, updatedBy: uid, updatedAt: stamp()});
     tx.update(ref, {status: 'complete'}); audit(tx, uid, 'adminCreateUser', target);
   }); return {uid: target};

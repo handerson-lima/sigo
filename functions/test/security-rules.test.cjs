@@ -826,3 +826,77 @@ test('9.2 Criação atômica em WriteBatch de loteamento + quadra + lote + etapa
   });
   await assertFails(divergentParentBatch.commit());
 });
+
+// ==========================================
+// 10. CONTA DE USUÁRIO INATIVA E COMPATIBILIDADE (users/{uid}.isActive)
+// ==========================================
+test('10.1 Usuário com users/{uid}.isActive == false é bloqueado em todas as coleções (inclusive dev)', async () => {
+  await db.doc('users/disabled_member').set({
+    id: 'disabled_member',
+    email: 'disabled.member@sigo.test',
+    displayName: 'Desativado',
+    globalRole: 'user',
+    isActive: false
+  });
+  await db.doc('construtoras/const_a/construtora_members/disabled_member').set({
+    userId: 'disabled_member',
+    isActive: true,
+    isAdmin: true,
+    isOwner: false,
+    modules: ['rh', 'estoque']
+  });
+  await db.doc('users/disabled_member/notifications/n1').set({
+    title: 'Teste',
+    read: false
+  });
+
+  await db.doc('users/disabled_dev').set({
+    id: 'disabled_dev',
+    email: 'disabled.dev@sigo.test',
+    displayName: 'Dev Desativado',
+    globalRole: 'dev',
+    isActive: false
+  });
+  await db.doc('dev_roles/disabled_dev').set({ isActive: true });
+
+  const memberFs = testEnv.authenticatedContext('disabled_member').firestore();
+  await assertFails(getDoc(doc(memberFs, 'users/disabled_member')));
+  await assertFails(updateDoc(doc(memberFs, 'users/disabled_member'), { displayName: 'Hack' }));
+  await assertFails(getDoc(doc(memberFs, 'users/disabled_member/notifications/n1')));
+  await assertFails(getDoc(doc(memberFs, 'construtoras/const_a')));
+  await assertFails(getDoc(doc(memberFs, 'construtoras/const_a/materiais/mat_existente')));
+  await assertFails(getDocs(query(
+    collectionGroup(memberFs, 'construtora_members'),
+    where('userId', '==', 'disabled_member'),
+    where('isActive', '==', true)
+  )));
+
+  const devFs = testEnv.authenticatedContext('disabled_dev').firestore();
+  await assertFails(getDoc(doc(devFs, 'construtoras/const_a')));
+  await assertFails(getDoc(doc(devFs, 'dev_roles/disabled_dev')));
+  await assertFails(getDoc(doc(devFs, 'users/admin_user')));
+});
+
+test('10.2 Ausência de users/{uid} ou de isActive é tratada como ativa e cliente não altera isActive', async () => {
+  // stock_user foi criado sem campo isActive no before() e continua ativo
+  const stockFs = testEnv.authenticatedContext('stock_user').firestore();
+  await assertSucceeds(getDoc(doc(stockFs, 'construtoras/const_a/materiais/mat_existente')));
+  await assertFails(updateDoc(doc(stockFs, 'users/stock_user'), { isActive: false }));
+
+  // Novo usuário sem documento em users/{uid} consegue criar seu perfil com isActive: true, mas não com false
+  const newFs = testEnv.authenticatedContext('brand_new_user', { email: 'new@sigo.test' }).firestore();
+  await assertFails(setDoc(doc(newFs, 'users/brand_new_user'), {
+    id: 'brand_new_user',
+    email: 'new@sigo.test',
+    displayName: 'Novo',
+    globalRole: 'user',
+    isActive: false
+  }));
+  await assertSucceeds(setDoc(doc(newFs, 'users/brand_new_user'), {
+    id: 'brand_new_user',
+    email: 'new@sigo.test',
+    displayName: 'Novo',
+    globalRole: 'user',
+    isActive: true
+  }));
+});

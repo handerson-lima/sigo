@@ -11,6 +11,7 @@ class AppUser {
   final String displayName;
   final String? photoUrl;
   final String? globalRole;
+  final bool isActive;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -20,6 +21,7 @@ class AppUser {
     required this.displayName,
     this.photoUrl,
     this.globalRole,
+    this.isActive = true,
     this.createdAt,
     this.updatedAt,
   });

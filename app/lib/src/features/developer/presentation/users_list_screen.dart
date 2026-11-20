@@ -1,13 +1,16 @@
-import 'package:uuid/uuid.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../common_widgets/sigo_layout.dart';
+import '../../authentication/data/auth_repository.dart';
 import '../../authentication/domain/app_user.dart';
 import '../../construtoras/data/membros_repository.dart';
+import '../data/dev_users_repository.dart';
+import 'user_admin_dialogs.dart';
 
 final allConstrutorasMapProvider =
     StreamProvider.autoDispose<Map<String, String>>((ref) {
@@ -52,6 +55,7 @@ final allUsersStreamProvider = StreamProvider.autoDispose<List<AppUser>>((ref) {
   ) {
     return snapshot.docs.map((doc) {
       final data = Map<String, dynamic>.from(doc.data());
+      data['id'] ??= doc.id;
       if (data['createdAt'] is Timestamp) {
         data['createdAt'] = (data['createdAt'] as Timestamp)
             .toDate()
@@ -84,6 +88,27 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
   String _searchQuery = '';
   String? _selectedConstrutoraId;
   String? _selectedRole;
+  String _statusFilter = 'Todos';
+
+  void _showError(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(formatarErroDevUsers(error)),
+        backgroundColor: Colors.red.shade700,
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green.shade700,
+      ),
+    );
+  }
 
   List<Widget> _buildUserBadges(
     AppUser user,
@@ -91,6 +116,27 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
     Map<String, String> construtorasMap,
   ) {
     final list = <Widget>[];
+
+    if (!user.isActive) {
+      list.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(
+            color: Colors.red.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            'INATIVO',
+            style: TextStyle(
+              color: Colors.red.shade900,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      );
+    }
 
     if (user.globalRole == 'dev') {
       list.add(
@@ -222,7 +268,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
       }
     }
 
-    if (list.isEmpty) {
+    if (user.globalRole != 'dev' && memberships.isEmpty) {
       list.add(
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -247,79 +293,95 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
   }
 
   Future<void> _createUser() async {
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
-
     final result = await showDialog<Map<String, String>>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Novo Usuário (Nuvem)'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'Nome'),
-            ),
-            TextField(
-              controller: emailCtrl,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            TextField(
-              controller: passCtrl,
-              decoration: const InputDecoration(labelText: 'Senha'),
-              obscureText: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, {
-              'email': emailCtrl.text.trim(),
-              'password': passCtrl.text,
-              'name': nameCtrl.text.trim(),
-            }),
-            child: const Text('Criar'),
-          ),
-        ],
-      ),
+      builder: (ctx) => const _CreateUserDialog(),
     );
 
-    if (result == null ||
-        result['email']!.isEmpty ||
-        result['password']!.isEmpty) {
-      return;
-    }
+    if (result == null) return;
 
     setState(() => _isLoading = true);
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable(
-        'adminCreateUser',
-      );
-      await callable.call({
-        'email': result['email'],
-        'password': result['password'],
-        'displayName': result['name'],
-        'operationId': const Uuid().v4(),
-        'globalRole': 'user', // Creates as common user by default
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Usuário criado com sucesso via Cloud Function!'),
-          ),
-        );
-      }
+      await ref.read(devUsersRepositoryProvider).adminCreateUser(
+            email: result['email']!,
+            password: result['password']!,
+            displayName: result['name']!,
+            operationId: const Uuid().v4(),
+            globalRole: 'user',
+          );
+      _showSuccess('Usuário criado com sucesso via Cloud Function!');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erro: $e')));
-      }
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleUserActive(AppUser user, bool isSelf) async {
+    if (isSelf && user.isActive) {
+      _showError('Você não pode desativar sua própria conta.');
+      return;
+    }
+
+    final confirm = await showConfirmToggleUserActiveDialog(
+      context,
+      user: user,
+    );
+    if (confirm != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final targetActive = !user.isActive;
+      await ref
+          .read(devUsersRepositoryProvider)
+          .adminSetUserActive(user.id, targetActive);
+      _showSuccess(
+        targetActive
+            ? 'Usuário ativado com sucesso.'
+            : 'Usuário desativado com sucesso.',
+      );
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _resetUserPassword(AppUser user) async {
+    final password = await showResetPasswordDialog(
+      context,
+      userLabel: '${user.displayName} (${user.email})',
+    );
+    if (password == null || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await ref
+          .read(devUsersRepositoryProvider)
+          .adminResetUserPassword(user.id, password);
+      _showSuccess('Senha provisória redefinida com sucesso.');
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteUser(AppUser user, bool isSelf) async {
+    if (isSelf) {
+      _showError('Você não pode excluir sua própria conta.');
+      return;
+    }
+
+    final confirm = await showConfirmDeleteUserDialog(context, user: user);
+    if (confirm != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(devUsersRepositoryProvider).adminDeleteUser(user.id);
+      _showSuccess('Usuário excluído com sucesso.');
+    } catch (e) {
+      _showError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -329,6 +391,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
   Widget build(BuildContext context) {
     final pendingRequests = ref.watch(allPendingRequestsProvider).value ?? [];
     final construtorasMap = ref.watch(allConstrutorasMapProvider).value ?? {};
+    final currentUid = ref.watch(authStateChangesProvider).value?.uid;
 
     return SigoLayout(
       activeRoute: '/dev/users',
@@ -368,105 +431,111 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            Builder(
-              builder: (context) {
-                final construtorasMap =
-                    ref.watch(allConstrutorasMapProvider).value ?? {};
-                return Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 300,
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Buscar por nome ou e-mail...',
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        onChanged: (val) => setState(
-                          () => _searchQuery = val.trim().toLowerCase(),
-                        ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SizedBox(
+                  width: 280,
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por nome ou e-mail...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
                     ),
-                    DropdownButtonHideUnderline(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownButton<String>(
-                          value: _selectedConstrutoraId,
-                          hint: const Text('Construtora'),
-                          items: [
-                            const DropdownMenuItem(
-                              value: null,
-                              child: Text('Todas as construtoras'),
-                            ),
-                            ...construtorasMap.entries.map(
-                              (e) => DropdownMenuItem(
-                                value: e.key,
-                                child: Text(e.value),
-                              ),
-                            ),
-                          ],
-                          onChanged: (val) =>
-                              setState(() => _selectedConstrutoraId = val),
-                        ),
-                      ),
+                    onChanged: (val) => setState(
+                      () => _searchQuery = val.trim().toLowerCase(),
                     ),
-                    DropdownButtonHideUnderline(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownButton<String>(
-                          value: _selectedRole,
-                          hint: const Text('Tipo de Usuário'),
-                          items: const [
-                            DropdownMenuItem(
-                              value: null,
-                              child: Text('Todos os tipos'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'dev',
-                              child: Text('Dev Global'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'owner',
-                              child: Text('Proprietário'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'admin',
-                              child: Text('Admin'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'member',
-                              child: Text('Membro comum'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'none',
-                              child: Text('Sem vínculo'),
-                            ),
-                          ],
-                          onChanged: (val) =>
-                              setState(() => _selectedRole = val),
-                        ),
-                      ),
-                    ),
+                  ),
+                ),
+                SegmentedButton<String>(
+                  key: const Key('users-status-filter'),
+                  segments: const [
+                    ButtonSegment(value: 'Todos', label: Text('Todos')),
+                    ButtonSegment(value: 'Ativos', label: Text('Ativos')),
+                    ButtonSegment(value: 'Inativos', label: Text('Inativos')),
                   ],
-                );
-              },
+                  selected: {_statusFilter},
+                  onSelectionChanged: (newSelection) {
+                    setState(() => _statusFilter = newSelection.first);
+                  },
+                ),
+                DropdownButtonHideUnderline(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _selectedConstrutoraId,
+                      hint: const Text('Construtora'),
+                      items: [
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('Todas as construtoras'),
+                        ),
+                        ...construtorasMap.entries.map(
+                          (e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) =>
+                          setState(() => _selectedConstrutoraId = val),
+                    ),
+                  ),
+                ),
+                DropdownButtonHideUnderline(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _selectedRole,
+                      hint: const Text('Tipo de Usuário'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text('Todos os tipos'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'dev',
+                          child: Text('Dev Global'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'owner',
+                          child: Text('Proprietário'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'admin',
+                          child: Text('Admin'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'member',
+                          child: Text('Membro comum'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'none',
+                          child: Text('Sem vínculo'),
+                        ),
+                      ],
+                      onChanged: (val) =>
+                          setState(() => _selectedRole = val),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -490,6 +559,13 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                       }
 
                       var filteredUsers = users.where((u) {
+                        if (_statusFilter == 'Ativos' && !u.isActive) {
+                          return false;
+                        }
+                        if (_statusFilter == 'Inativos' && u.isActive) {
+                          return false;
+                        }
+
                         if (_searchQuery.isNotEmpty) {
                           final matchName = u.displayName
                               .toLowerCase()
@@ -570,18 +646,24 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                             memberships,
                             construtorasMap2,
                           );
+                          final isSelf =
+                              currentUid != null && currentUid == user.id;
 
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor: Colors.orange.shade100,
+                                backgroundColor: user.isActive
+                                    ? Colors.orange.shade100
+                                    : Colors.grey.shade200,
                                 child: Text(
                                   user.displayName.isNotEmpty
                                       ? user.displayName[0].toUpperCase()
                                       : '?',
-                                  style: const TextStyle(
-                                    color: Colors.orange,
+                                  style: TextStyle(
+                                    color: user.isActive
+                                        ? Colors.orange
+                                        : Colors.grey.shade600,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -597,9 +679,105 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                                       Icons.edit,
                                       color: Colors.grey,
                                     ),
+                                    tooltip: 'Editar detalhes',
                                     onPressed: () {
                                       context.push('/dev/users/${user.id}');
                                     },
+                                  ),
+                                  PopupMenuButton<String>(
+                                    key: Key('user-actions-menu-${user.id}'),
+                                    tooltip: 'Ações do usuário',
+                                    enabled: !_isLoading,
+                                    onSelected: (action) {
+                                      switch (action) {
+                                        case 'details':
+                                          context.push('/dev/users/${user.id}');
+                                          break;
+                                        case 'toggle_active':
+                                          _toggleUserActive(user, isSelf);
+                                          break;
+                                        case 'reset_password':
+                                          _resetUserPassword(user);
+                                          break;
+                                        case 'delete':
+                                          _deleteUser(user, isSelf);
+                                          break;
+                                      }
+                                    },
+                                    itemBuilder: (ctx) => [
+                                      const PopupMenuItem(
+                                        value: 'details',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.manage_accounts, size: 18),
+                                            SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text('Detalhes e Vínculos'),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'toggle_active',
+                                        enabled: !(isSelf && user.isActive),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              user.isActive
+                                                  ? Icons.person_off_outlined
+                                                  : Icons.person_outline,
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                user.isActive
+                                                    ? 'Desativar conta'
+                                                    : 'Ativar conta',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'reset_password',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.lock_reset, size: 18),
+                                            SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text('Redefinir senha'),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        enabled: !isSelf,
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.delete_forever,
+                                              size: 18,
+                                              color: isSelf
+                                                  ? Colors.grey
+                                                  : Colors.red.shade700,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                'Excluir usuário',
+                                                style: TextStyle(
+                                                  color: isSelf
+                                                      ? Colors.grey
+                                                      : Colors.red.shade700,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -615,6 +793,123 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _CreateUserDialog extends StatefulWidget {
+  const _CreateUserDialog();
+
+  @override
+  State<_CreateUserDialog> createState() => _CreateUserDialogState();
+}
+
+class _CreateUserDialogState extends State<_CreateUserDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController(text: defaultProvisionalPassword);
+  bool _copied = false;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _copyPassword() async {
+    await Clipboard.setData(ClipboardData(text: _passCtrl.text));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Senha provisória copiada para a área de transferência.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Novo Usuário (Nuvem)'),
+      content: SizedBox(
+        width: 400,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  key: const Key('create-user-name'),
+                  controller: _nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Nome'),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Informe o nome do usuário.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  key: const Key('create-user-email'),
+                  controller: _emailCtrl,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Informe o e-mail.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  key: const Key('create-user-password'),
+                  controller: _passCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Senha Provisória',
+                    helperText: 'Mínimo de 8 caracteres.',
+                    suffixIcon: IconButton(
+                      icon: Icon(_copied ? Icons.check : Icons.copy),
+                      tooltip: 'Copiar senha',
+                      onPressed: _copyPassword,
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.length < 8) {
+                      return 'A senha deve ter no mínimo 8 caracteres.';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          key: const Key('create-user-submit'),
+          onPressed: () {
+            if (_formKey.currentState?.validate() == true) {
+              Navigator.pop(context, {
+                'email': _emailCtrl.text.trim(),
+                'password': _passCtrl.text,
+                'name': _nameCtrl.text.trim(),
+              });
+            }
+          },
+          child: const Text('Criar'),
+        ),
+      ],
     );
   }
 }
@@ -796,12 +1091,13 @@ class _ApproveRequestDialog extends ConsumerStatefulWidget {
 class _ApproveRequestDialogState extends ConsumerState<_ApproveRequestDialog> {
   final _passCtrl = TextEditingController();
   bool _loading = false;
+  bool _copied = false;
 
   @override
   void initState() {
     super.initState();
     // Sugere uma senha padrão temporária
-    _passCtrl.text = 'Mudar@1234';
+    _passCtrl.text = defaultProvisionalPassword;
   }
 
   @override
@@ -810,12 +1106,24 @@ class _ApproveRequestDialogState extends ConsumerState<_ApproveRequestDialog> {
     super.dispose();
   }
 
+  Future<void> _copyPassword() async {
+    await Clipboard.setData(ClipboardData(text: _passCtrl.text));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Senha provisória copiada para a área de transferência.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _approve() async {
     final pass = _passCtrl.text.trim();
-    if (pass.length < 6) {
+    if (pass.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('A senha deve ter pelo menos 6 caracteres'),
+          content: Text('A senha deve ter pelo menos 8 caracteres'),
         ),
       );
       return;
@@ -883,11 +1191,17 @@ class _ApproveRequestDialogState extends ConsumerState<_ApproveRequestDialog> {
             const SizedBox(height: 16),
             TextField(
               controller: _passCtrl,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Senha Provisória',
-                border: OutlineInputBorder(),
-                helperText: 'O administrador da construtora receberá esta senha na notificação.',
-                prefixIcon: Icon(Icons.password),
+                border: const OutlineInputBorder(),
+                helperText:
+                    'Mínimo de 8 caracteres. O administrador da construtora receberá esta senha na notificação.',
+                prefixIcon: const Icon(Icons.password),
+                suffixIcon: IconButton(
+                  icon: Icon(_copied ? Icons.check : Icons.copy),
+                  tooltip: 'Copiar senha',
+                  onPressed: _copyPassword,
+                ),
               ),
             ),
           ],
