@@ -212,12 +212,13 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
             if (value == _SigoAvatarMenuAction.changePassword) {
               showDialog<void>(
                 context: context,
+                barrierDismissible: false,
                 builder: (_) => const _ChangePasswordDialog(),
               );
             }
           },
           itemBuilder: (ctx) => [
-            if (email.isNotEmpty)
+            if (email.isNotEmpty) ...[
               PopupMenuItem<_SigoAvatarMenuAction>(
                 enabled: false,
                 child: Text(
@@ -228,7 +229,8 @@ class SigoTopBar extends ConsumerWidget implements PreferredSizeWidget {
                   ),
                 ),
               ),
-            const PopupMenuDivider(),
+              const PopupMenuDivider(),
+            ],
             const PopupMenuItem<_SigoAvatarMenuAction>(
               value: _SigoAvatarMenuAction.changePassword,
               child: Row(

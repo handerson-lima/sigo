@@ -2,7 +2,7 @@
 title: 'Gestão Completa de Usuários pelo Perfil Dev'
 type: 'feature'
 created: '2026-11-20'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 baseline_commit: 'fe2b8170e11a43afd7e82dac173c697bb497173c'
 review_loop_iteration: 0
@@ -83,6 +83,11 @@ context:
 - Given senha redefinida pelo dev, when o usuário faz login com a senha provisória a qualquer tempo, then acessa sem expiração.
 
 ## Implementation Notes
+
+- Backend (`functions/src/index.ts`): implementadas `adminDeleteUser`, `adminSetUserActive` e `adminResetUserPassword` com validação transacional `authority(tx, uid).dev` antes das mutações no Firebase Auth, bloqueio de auto-ação, `users/{uid}.isActive !== false` em `authority()` e `requireDevPrecheck()`, além de criação completa de `users/{target}` a partir do `UserRecord` quando ausente.
+- Regras (`firestore.rules` via `firestore-rules-author` e `storage.rules`): adicionado helper `activeUser()` bloqueando leitura/escrita e Storage de contas com `users/{uid}.isActive == false` (compatível com ausência de doc/campo).
+- App (`app/`): atualizado `AppUser.isActive` (com `build_runner`), criado `DevUsersRepository` (incluindo tradução de `internal`), atualizadas `UsersListScreen` e `UserDetailsScreen` (ações globais, filtro Ativos/Inativos, preservação de `owner`/`isAdmin` e fallback de navegação), adicionado menu **"Alterar senha"** em `SigoTopBar` + `AuthRepository.changePassword` e logout automático em `MyApp` quando `isActive == false`.
+- Diagnóstico adicional (`internal [0]` em produção `sigo-c2eb2`): `firebase functions:list` confirmou que `adminDeleteUser`, `adminSetUserActive` e `adminResetUserPassword` ainda não foram implantadas na nuvem, causando `404`/CORS na web.
 
 ## Spec Change Log
 

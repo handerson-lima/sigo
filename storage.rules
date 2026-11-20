@@ -2,12 +2,13 @@ rules_version = '2';
 service firebase.storage {
  match /b/{bucket}/o {
   function signed() { return request.auth != null; }
-  function dev() { return signed() && firestore.exists(/databases/(default)/documents/dev_roles/$(request.auth.uid)) && firestore.get(/databases/(default)/documents/dev_roles/$(request.auth.uid)).data.get('isActive', false) == true; }
+  function activeUser() { return !firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('isActive', true) == true; }
+  function dev() { return signed() && activeUser() && firestore.exists(/databases/(default)/documents/dev_roles/$(request.auth.uid)) && firestore.get(/databases/(default)/documents/dev_roles/$(request.auth.uid)).data.get('isActive', false) == true; }
   function cm(c) { return firestore.get(/databases/(default)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)).data; }
   function cmExists(c) { return signed() && firestore.exists(/databases/(default)/documents/construtoras/$(c)/construtora_members/$(request.auth.uid)); }
   function om(c,o) { return firestore.get(/databases/(default)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid)).data; }
-  function admin(c) { return dev() || (cmExists(c) && cm(c).get('isActive',false) == true && (cm(c).get('isAdmin',false) == true || cm(c).get('isOwner',false) == true || cm(c).get('role', '') == 'admin' || cm(c).get('role', '') == 'owner')); }
-  function access(c,o) { return dev() || (cmExists(c) && cm(c).get('isActive',false) == true && (cm(c).get('isAdmin',false) == true || cm(c).get('isOwner',false) == true || (om(c,o).get('isActive',false) == true && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || 'diario' in om(c,o).get('modules',[]) || 'rdo' in om(c,o).get('modules',[]) || 'validacao' in om(c,o).get('modules',[]) || 'qualidade' in om(c,o).get('modules',[]) || 'epi' in om(c,o).get('modules',[]) || 'adm' in om(c,o).get('modules',[]) || 'financeiro' in om(c,o).get('modules',[]) || 'compras' in om(c,o).get('modules',[]) || 'almoxarifado' in om(c,o).get('modules',[]))))); }
+  function admin(c) { return dev() || (cmExists(c) && activeUser() && cm(c).get('isActive',false) == true && (cm(c).get('isAdmin',false) == true || cm(c).get('isOwner',false) == true || cm(c).get('role', '') == 'admin' || cm(c).get('role', '') == 'owner')); }
+  function access(c,o) { return dev() || (cmExists(c) && activeUser() && cm(c).get('isActive',false) == true && (cm(c).get('isAdmin',false) == true || cm(c).get('isOwner',false) == true || (om(c,o).get('isActive',false) == true && (om(c,o).get('isAdmin',false) == true || om(c,o).get('isOwner',false) == true || 'diario' in om(c,o).get('modules',[]) || 'rdo' in om(c,o).get('modules',[]) || 'validacao' in om(c,o).get('modules',[]) || 'qualidade' in om(c,o).get('modules',[]) || 'epi' in om(c,o).get('modules',[]) || 'adm' in om(c,o).get('modules',[]) || 'financeiro' in om(c,o).get('modules',[]) || 'compras' in om(c,o).get('modules',[]) || 'almoxarifado' in om(c,o).get('modules',[]))))); }
   match /construtoras/{c}/logos/{filename} {
    allow read: if true;
    allow create, update: if admin(c) && request.resource.size > 0 && request.resource.size <= 2 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)') && (request.resource.metadata == null || request.resource.metadata.keys().hasOnly([]));
@@ -42,8 +43,8 @@ service firebase.storage {
   match /construtoras/{c}/obras/{o}/diarios/{diary}/{attachment} { allow read: if access(c,o); allow write: if false; }
 
   match /loteamentos_drafts_uploads/{uid}/{filename} {
-   allow read: if signed() && request.auth.uid == uid;
-   allow create: if signed() && request.auth.uid == uid && request.resource.size > 0 && request.resource.size <= 50 * 1024 * 1024 && ((request.resource.contentType == 'application/dxf' && filename.matches('.*\\.([dD][xX][fF])$')) || (request.resource.contentType == 'application/x-dwf' && filename.matches('.*\\.([dD][wW][fF])$')) || (request.resource.contentType == 'application/pdf' && filename.matches('.*\\.([pP][dD][fF])$')));
+   allow read: if signed() && activeUser() && request.auth.uid == uid;
+   allow create: if signed() && activeUser() && request.auth.uid == uid && request.resource.size > 0 && request.resource.size <= 50 * 1024 * 1024 && ((request.resource.contentType == 'application/dxf' && filename.matches('.*\\.([dD][xX][fF])$')) || (request.resource.contentType == 'application/x-dwf' && filename.matches('.*\\.([dD][wW][fF])$')) || (request.resource.contentType == 'application/pdf' && filename.matches('.*\\.([pP][dD][fF])$')));
    allow update, delete: if false;
   }
  }

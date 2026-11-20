@@ -10,6 +10,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
+import 'src/features/authentication/data/auth_repository.dart';
+import 'src/features/authentication/data/user_repository.dart';
+import 'src/features/authentication/domain/app_user.dart';
 import 'src/routing/app_router.dart';
 import 'src/design_system/sigo_theme.dart';
 
@@ -47,6 +50,15 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<AsyncValue<AppUser?>>(currentAppUserProvider, (prev, next) {
+      final appUser = next.value;
+      if (appUser != null &&
+          !appUser.isActive &&
+          ref.read(authRepositoryProvider).currentUser != null) {
+        ref.read(authRepositoryProvider).signOut();
+      }
+    });
+
     final goRouter = ref.watch(routerProvider);
 
     return MaterialApp.router(

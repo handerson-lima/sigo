@@ -74,7 +74,7 @@ final trustedDevProvider = StreamProvider<bool>((ref) {
               .doc(user.uid)
               .get();
           final data = userDoc.data();
-          if (data?['globalRole'] == 'dev') {
+          if (data?['isActive'] != false && data?['globalRole'] == 'dev') {
             await FirebaseFirestore.instance
                 .collection('dev_roles')
                 .doc(user.uid)

@@ -875,6 +875,24 @@ test('10.1 Usuário com users/{uid}.isActive == false é bloqueado em todas as c
   await assertFails(getDoc(doc(devFs, 'construtoras/const_a')));
   await assertFails(getDoc(doc(devFs, 'dev_roles/disabled_dev')));
   await assertFails(getDoc(doc(devFs, 'users/admin_user')));
+
+  // Storage também deve bloquear disabled_member e disabled_dev
+  const imgBytes = Buffer.from([255, 216, 255, 224, 0, 16, 74, 70, 73, 70]);
+  const pdfBytes = Buffer.from('%PDF-1.4\n%%EOF\n');
+  const sha = crypto.createHash('sha256').update(imgBytes).digest('hex');
+
+  const memberStorage = testEnv.authenticatedContext('disabled_member').storage('gs://demo-sigo.appspot.com');
+  await assertFails(uploadBytes(ref(memberStorage, 'construtoras/const_a/logos/disabled_logo'), imgBytes, { contentType: 'image/jpeg' }));
+  await assertFails(uploadBytes(ref(memberStorage, 'construtoras/const_a/obras/obra_1/diarios/diario_existente/disabled_member/f1'), imgBytes, {
+    contentType: 'image/jpeg',
+    customMetadata: { owner: 'disabled_member', sha256: sha }
+  }));
+  await assertFails(getBytes(ref(memberStorage, 'construtoras/const_a/obras/obra_1/diarios/diario_existente/diary_user/foto1')));
+  await assertFails(uploadBytes(ref(memberStorage, 'loteamentos_drafts_uploads/disabled_member/blocked.pdf'), pdfBytes, { contentType: 'application/pdf' }));
+
+  const devStorage = testEnv.authenticatedContext('disabled_dev').storage('gs://demo-sigo.appspot.com');
+  await assertFails(uploadBytes(ref(devStorage, 'construtoras/const_a/logos/disabled_dev_logo'), imgBytes, { contentType: 'image/jpeg' }));
+  await assertFails(getBytes(ref(devStorage, 'construtoras/const_a/obras/obra_1/diarios/diario_existente/diary_user/foto1')));
 });
 
 test('10.2 Ausência de users/{uid} ou de isActive é tratada como ativa e cliente não altera isActive', async () => {
@@ -882,6 +900,13 @@ test('10.2 Ausência de users/{uid} ou de isActive é tratada como ativa e clien
   const stockFs = testEnv.authenticatedContext('stock_user').firestore();
   await assertSucceeds(getDoc(doc(stockFs, 'construtoras/const_a/materiais/mat_existente')));
   await assertFails(updateDoc(doc(stockFs, 'users/stock_user'), { isActive: false }));
+
+  // Storage também permite usuário sem campo isActive e usuário sem doc users/{uid}
+  const pdfBytes = Buffer.from('%PDF-1.4\n%%EOF\n');
+  const stockStorage = testEnv.authenticatedContext('stock_user').storage('gs://demo-sigo.appspot.com');
+  await assertSucceeds(uploadBytes(ref(stockStorage, 'loteamentos_drafts_uploads/stock_user/ok.pdf'), pdfBytes, { contentType: 'application/pdf' }));
+  const noDocStorage = testEnv.authenticatedContext('no_doc_storage_user').storage('gs://demo-sigo.appspot.com');
+  await assertSucceeds(uploadBytes(ref(noDocStorage, 'loteamentos_drafts_uploads/no_doc_storage_user/ok.pdf'), pdfBytes, { contentType: 'application/pdf' }));
 
   // Novo usuário sem documento em users/{uid} consegue criar seu perfil com isActive: true, mas não com false
   const newFs = testEnv.authenticatedContext('brand_new_user', { email: 'new@sigo.test' }).firestore();

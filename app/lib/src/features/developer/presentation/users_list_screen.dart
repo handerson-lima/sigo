@@ -1107,7 +1107,7 @@ class _ApproveRequestDialogState extends ConsumerState<_ApproveRequestDialog> {
   }
 
   Future<void> _copyPassword() async {
-    await Clipboard.setData(ClipboardData(text: _passCtrl.text));
+    await Clipboard.setData(ClipboardData(text: _passCtrl.text.trim()));
     if (!mounted) return;
     setState(() => _copied = true);
     ScaffoldMessenger.of(context).showSnackBar(

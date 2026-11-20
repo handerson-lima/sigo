@@ -188,9 +188,20 @@ test('gestão de usuários dev: ativar/desativar, redefinir senha e excluir pres
 
  // Validações e not-found
  await assert.rejects(invoke('adminResetUserPassword','dev',{userId:uid,password:'curta'}),e=>e.code==='invalid-argument');
+ await assert.rejects(invoke('adminSetUserActive','dev',{userId:uid,isActive:'sim'}),e=>e.code==='invalid-argument');
  await assert.rejects(invoke('adminResetUserPassword','dev',{userId:'nao-existe',password:'Valida@1234'}),e=>e.code==='not-found');
  await assert.rejects(invoke('adminSetUserActive','dev',{userId:'nao-existe',isActive:false}),e=>e.code==='not-found');
  await assert.rejects(invoke('adminDeleteUser','dev',{userId:'nao-existe'}),e=>e.code==='not-found');
+
+ // Usuário existente apenas no Auth (sem users/{target}) recebe perfil completo ao usar adminSetUserActive
+ const authOnly=await admin.auth().createUser({email:'auth-only@example.test',password:'AuthOnly@123',displayName:'Auth Only'});
+ await invoke('adminSetUserActive','dev',{userId:authOnly.uid,isActive:false});
+ const authOnlyDoc=(await db.doc(`users/${authOnly.uid}`).get()).data();
+ assert.equal(authOnlyDoc.email,'auth-only@example.test');
+ assert.equal(authOnlyDoc.displayName,'Auth Only');
+ assert.equal(authOnlyDoc.globalRole,'user');
+ assert.equal(authOnlyDoc.isActive,false);
+ await invoke('adminDeleteUser','dev',{userId:authOnly.uid});
 
  // Desativar conta bloqueia authority(), Firestore e preserva vínculos
  await invoke('adminSetUserActive','dev',{userId:uid,isActive:false});
@@ -201,7 +212,18 @@ test('gestão de usuários dev: ativar/desativar, redefinir senha e excluir pres
  await assert.rejects(invoke('stockCommand',uid,{construtoraId:'a',materialId:'m',operationId:'disabled-stock',type:'entrada',quantity:1}),e=>e.code==='permission-denied');
  await assert.rejects(invoke('payExpense',uid,{construtoraId:'a',despesaId:'e',operationId:'disabled-pay'}),e=>e.code==='permission-denied');
  await assert.rejects(invoke('adminCreateUser',uid,{operationId:'disabled-dev-create',email:'x@example.test',password:'Senha@1234',displayName:'X'}),e=>e.code==='permission-denied');
+ await db.doc('access_requests/req-blocked').set({email:'req-blocked@example.test',displayName:'Req Blocked',role:'member',construtoraId:'a',requestedBy:'admin',status:'pending'});
+ await assert.rejects(invoke('approveAccessRequest',uid,{requestId:'req-blocked',password:'Mudar@1234'}),e=>e.code==='permission-denied');
  await assertFails(getDoc(doc(env.authenticatedContext(uid).firestore(),'construtoras/a/materiais/m')));
+
+ // Dev ativo aprova solicitação pendente e cria conta ativa
+ await db.doc('access_requests/req-ok').set({email:'req-ok@example.test',displayName:'Req OK',role:'admin',construtoraId:'a',requestedBy:'admin',status:'pending'});
+ const approved=await invoke('approveAccessRequest','dev',{requestId:'req-ok',password:'Mudar@1234'});
+ assert.equal(approved.ok,true);
+ assert.equal((await db.doc(`users/${approved.uid}`).get()).data().isActive,true);
+ assert.equal((await db.doc(`construtoras/a/construtora_members/${approved.uid}`).get()).data().isAdmin,true);
+ assert.equal((await db.doc('access_requests/req-ok').get()).data().status,'approved');
+ await invoke('adminDeleteUser','dev',{userId:approved.uid});
 
  // Reativar conta restaura acesso e mantém vínculos
  await invoke('adminSetUserActive','dev',{userId:uid,isActive:true});

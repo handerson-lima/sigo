@@ -26,10 +26,14 @@ class AuthRepository {
     if (previous != null && previous.email != email) {
       await clearReadCache(previous.uid);
     }
-    await _firebaseAuth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_traduzirErroAuth(e));
+    }
   }
 
   Future<void> signOut() async {
@@ -47,6 +51,9 @@ class AuthRepository {
     required String currentPassword,
     required String newPassword,
   }) async {
+    if (currentPassword.isEmpty) {
+      throw Exception('Informe sua senha atual.');
+    }
     if (newPassword.length < 8) {
       throw Exception('A nova senha deve ter no mínimo 8 caracteres.');
     }
@@ -71,9 +78,14 @@ class AuthRepository {
 
   static String _traduzirErroAuth(FirebaseAuthException e) {
     switch (e.code) {
+      case 'user-disabled':
+        return 'Esta conta foi desativada. Entre em contato com o administrador.';
+      case 'user-not-found':
       case 'wrong-password':
       case 'invalid-credential':
-        return 'Senha atual incorreta.';
+        return 'E-mail ou senha incorretos.';
+      case 'invalid-email':
+        return 'E-mail inválido.';
       case 'weak-password':
         return 'A nova senha é muito fraca. Utilize pelo menos 8 caracteres.';
       case 'requires-recent-login':
@@ -85,7 +97,7 @@ class AuthRepository {
       default:
         return (e.message?.isNotEmpty ?? false)
             ? e.message!
-            : 'Erro ao alterar senha.';
+            : 'Erro de autenticação.';
     }
   }
 }

@@ -29,6 +29,8 @@ String traduzirErroDevUsers(FirebaseFunctionsException e) {
       return 'Serviço temporariamente indisponível. Tente novamente.';
     case 'unauthenticated':
       return 'Sessão expirada. Entre novamente.';
+    case 'internal':
+      return 'Erro interno no servidor (verifique se as Cloud Functions e regras foram publicadas).';
     default:
       return (e.message?.isNotEmpty ?? false)
           ? e.message!
@@ -145,7 +147,8 @@ class DevUsersRepository {
   Future<bool> _temConectividade() async {
     try {
       final results = await _checkConnectivity();
-      return results.any((r) => r != ConnectivityResult.none);
+      return results.isEmpty ||
+          results.any((r) => r != ConnectivityResult.none);
     } catch (_) {
       return true;
     }

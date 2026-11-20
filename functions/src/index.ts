@@ -89,29 +89,34 @@ export const adminDeleteUser = callable('adminDeleteUser', async (d, uid) => {
     db.collection('user_provisioning').where('target', '==', target).get(),
   ]);
 
-  if (authExists) {
-    try {
-      await admin.auth().deleteUser(target);
-    } catch (e: any) {
-      if (!isAuthUserNotFound(e)) throw e;
-    }
-  }
-
-  const uniqueRefs = new Map<string, admin.firestore.DocumentReference>();
+  const coreRefs = [userRef, db.doc(`dev_roles/${target}`)];
+  const secondaryUnique = new Map<string, admin.firestore.DocumentReference>();
   for (const ref of [
-    userRef,
-    db.doc(`dev_roles/${target}`),
     ...notificationsSnap.docs.map(doc => doc.ref),
     ...cmSnap.docs.map(doc => doc.ref),
     ...omSnap.docs.map(doc => doc.ref),
     ...provSnap.docs.map(doc => doc.ref),
   ]) {
-    uniqueRefs.set(ref.path, ref);
+    if (ref.path !== coreRefs[0].path && ref.path !== coreRefs[1].path) {
+      secondaryUnique.set(ref.path, ref);
+    }
   }
-  const allRefs = [...uniqueRefs.values()];
+  const secondaryRefs = [...secondaryUnique.values()];
   const txBatchLimit = 450;
-  const txRefs = allRefs.slice(0, txBatchLimit);
-  const remainingRefs = allRefs.slice(txBatchLimit);
+  const secondaryCapacity = txBatchLimit - coreRefs.length;
+  const txRefs = [...coreRefs, ...secondaryRefs.slice(0, secondaryCapacity)];
+  const remainingRefs = secondaryRefs.slice(secondaryCapacity);
+
+  if (remainingRefs.length > 0) {
+    await db.runTransaction(async tx => {
+      if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev confiável obrigatório');
+    });
+    for (let i = 0; i < remainingRefs.length; i += txBatchLimit) {
+      const batch = db.batch();
+      for (const ref of remainingRefs.slice(i, i + txBatchLimit)) batch.delete(ref);
+      await batch.commit();
+    }
+  }
 
   await db.runTransaction(async tx => {
     if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev confiável obrigatório');
@@ -124,10 +129,12 @@ export const adminDeleteUser = callable('adminDeleteUser', async (d, uid) => {
     });
   });
 
-  for (let i = 0; i < remainingRefs.length; i += txBatchLimit) {
-    const batch = db.batch();
-    for (const ref of remainingRefs.slice(i, i + txBatchLimit)) batch.delete(ref);
-    await batch.commit();
+  if (authExists) {
+    try {
+      await admin.auth().deleteUser(target);
+    } catch (e: any) {
+      if (!isAuthUserNotFound(e)) throw e;
+    }
   }
 
   return {ok: true};
@@ -139,45 +146,58 @@ export const adminSetUserActive = callable('adminSetUserActive', async (d, uid) 
   await requireDevPrecheck(uid);
   const userRef = db.doc(`users/${target}`);
   const userSnap = await userRef.get();
-  let authExists = true;
+  let authUser: admin.auth.UserRecord | undefined;
   try {
-    await admin.auth().getUser(target);
+    authUser = await admin.auth().getUser(target);
   } catch (e: any) {
-    if (isAuthUserNotFound(e)) authExists = false;
-    else throw e;
+    if (!isAuthUserNotFound(e)) throw e;
   }
-  if (!authExists && !userSnap.exists) fail('not-found', 'Usuário não encontrado');
-  if (authExists) {
-    await admin.auth().updateUser(target, {disabled: !d.isActive});
-    if (!d.isActive) await admin.auth().revokeRefreshTokens(target);
-  }
-  return db.runTransaction(async tx => {
+  if (!authUser && !userSnap.exists) fail('not-found', 'Usuário não encontrado');
+  await db.runTransaction(async tx => {
     if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev confiável obrigatório');
     const fresh = await tx.get(userRef);
     if (!fresh.exists) {
-      tx.set(userRef, {id: target, isActive: d.isActive, updatedAt: stamp()}, {merge: true});
+      tx.set(userRef, {
+        id: target,
+        email: authUser?.email || '',
+        displayName: authUser?.displayName || authUser?.email || target,
+        globalRole: 'user',
+        isActive: d.isActive,
+        createdAt: stamp(),
+        updatedAt: stamp(),
+      });
     } else {
       tx.update(userRef, {isActive: d.isActive, updatedAt: stamp()});
     }
     audit(tx, uid, 'adminSetUserActive', target, {isActive: d.isActive});
-    return {ok: true, isActive: d.isActive};
   });
+  if (authUser) {
+    await admin.auth().updateUser(target, {disabled: !d.isActive});
+    if (!d.isActive) await admin.auth().revokeRefreshTokens(target);
+  }
+  return {ok: true, isActive: d.isActive};
 });
 export const adminResetUserPassword = callable('adminResetUserPassword', async (d, uid) => {
   const target = id(d.userId);
   if (typeof d.password !== 'string' || d.password.length < 8) throw new Error('Senha deve ter no mínimo 8 caracteres');
   await requireDevPrecheck(uid);
   try {
+    await admin.auth().getUser(target);
+  } catch (e: any) {
+    if (isAuthUserNotFound(e)) fail('not-found', 'Usuário não encontrado');
+    throw e;
+  }
+  await db.runTransaction(async tx => {
+    if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev confiável obrigatório');
+    audit(tx, uid, 'adminResetUserPassword', target);
+  });
+  try {
     await admin.auth().updateUser(target, {password: d.password});
   } catch (e: any) {
     if (isAuthUserNotFound(e)) fail('not-found', 'Usuário não encontrado');
     throw e;
   }
-  return db.runTransaction(async tx => {
-    if (!(await authority(tx, uid)).dev) fail('permission-denied', 'Dev confiável obrigatório');
-    audit(tx, uid, 'adminResetUserPassword', target);
-    return {ok: true};
-  });
+  return {ok: true};
 });
 async function membership(d: any, uid: string) {
   const c = id(d.construtoraId), o = d.obraId ? id(d.obraId) : undefined;

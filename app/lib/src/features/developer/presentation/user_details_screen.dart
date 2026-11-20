@@ -113,6 +113,14 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
     }
   }
 
+  void _navigateBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/dev/users');
+    }
+  }
+
   Future<void> _deleteUser(AppUser user, bool isSelf) async {
     if (isSelf) {
       _showError('Você não pode excluir sua própria conta.');
@@ -127,7 +135,7 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
       await ref.read(devUsersRepositoryProvider).adminDeleteUser(widget.userId);
       if (mounted) {
         _showSuccess('Usuário excluído com sucesso.');
-        context.pop();
+        _navigateBack();
       }
     } catch (e) {
       _showError(e);
@@ -140,6 +148,7 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
     required String construtoraId,
     required String role,
     required bool isOwner,
+    required bool isAdmin,
     required List<String> modules,
   }) async {
     final confirm = await showDialog<bool>(
@@ -165,7 +174,9 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
     try {
       final preservedRole = isOwner
           ? 'owner'
-          : (['admin', 'operario', 'member'].contains(role) ? role : 'member');
+          : (isAdmin
+              ? 'admin'
+              : (['operario', 'member'].contains(role) ? role : 'member'));
       final validModules = modules
           .where((m) => ['estoque', 'almoxarifado'].contains(m))
           .toList();
@@ -233,7 +244,7 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      onPressed: () => context.pop(),
+                      onPressed: _navigateBack,
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,8 +307,9 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                             'Concede acesso ao painel de desenvolvedor. Cuidado.',
                           ),
                           value: isDev,
-                          onChanged:
-                              _isLoading ? null : (val) => _updateGlobalRole(val),
+                          onChanged: (_isLoading || isSelf)
+                              ? null
+                              : (val) => _updateGlobalRole(val),
                         ),
                         const Divider(),
                         const SizedBox(height: 8),
@@ -440,7 +452,9 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                                     final isOwner =
                                         role == 'owner' ||
                                         memberData['isOwner'] == true;
-                                    final isAdmin = !isOwner && role == 'admin';
+                                    final isAdmin = !isOwner &&
+                                        (memberData['isAdmin'] == true ||
+                                            role == 'admin');
 
                                     return ListTile(
                                       leading: CircleAvatar(
@@ -479,6 +493,7 @@ class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
                                                   construtoraId: cId,
                                                   role: role,
                                                   isOwner: isOwner,
+                                                  isAdmin: isAdmin,
                                                   modules: modules,
                                                 ),
                                       ),
