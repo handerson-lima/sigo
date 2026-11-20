@@ -1,3 +1,4 @@
+// ignore_for_file: subtype_of_sealed_class
 import 'package:app/src/design_system/sigo_theme.dart';
 import 'package:app/src/features/etapas/domain/etapa.dart';
 import 'package:app/src/features/loteamentos/domain/loteamento.dart';

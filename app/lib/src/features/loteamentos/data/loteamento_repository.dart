@@ -89,19 +89,54 @@ class LoteamentoRepository {
         ),
     ];
 
-    final queries = <Query<Loteamento>>[
-      for (final chunk in chunks) ...[
+    // Fontes: (a) leitura direta loteamentos/{obraId}; (b) fallback obras/{obraId}
+    // (obras legadas sem doc em /loteamentos); (c) query por obraId (legado id != obraId).
+    final queries = <Stream<List<Loteamento>>>[
+      for (final obraId in cleanIds)
+        _loteamentosRef().doc(obraId).snapshots().map((snap) {
+          final data = snap.data();
+          if (!snap.exists || data == null) return const <Loteamento>[];
+          if (data.construtoraId != construtoraId) return const <Loteamento>[];
+          return <Loteamento>[data];
+        }),
+      for (final obraId in cleanIds)
+        firestore
+            .collection('construtoras')
+            .doc(construtoraId)
+            .collection('obras')
+            .doc(obraId)
+            .snapshots()
+            .map((snap) {
+              final raw = snap.data();
+              if (!snap.exists || raw == null) return const <Loteamento>[];
+              if (raw['isActive'] == false) return const <Loteamento>[];
+              final created = raw['createdAt'] is Timestamp
+                  ? (raw['createdAt'] as Timestamp).toDate()
+                  : DateTime.tryParse('${raw['createdAt']}') ?? DateTime.now();
+              return <Loteamento>[
+                Loteamento(
+                  id: obraId,
+                  construtoraId: construtoraId,
+                  obraId: obraId,
+                  name: (raw['name'] as String?)?.trim().isNotEmpty == true
+                      ? raw['name'] as String
+                      : 'Loteamento $obraId',
+                  createdAt: created,
+                  updatedAt: created,
+                ),
+              ];
+            }),
+      for (final chunk in chunks)
         _loteamentosRef()
             .where('construtoraId', isEqualTo: construtoraId)
-            .where(FieldPath.documentId, whereIn: chunk),
-        _loteamentosRef()
-            .where('construtoraId', isEqualTo: construtoraId)
-            .where('obraId', whereIn: chunk),
-      ],
+            .where('obraId', whereIn: chunk)
+            .snapshots()
+            .map((snap) => snap.docs.map((doc) => doc.data()).toList()),
     ];
+    final primaryCount = cleanIds.length;
 
     late final StreamController<List<Loteamento>> controller;
-    final subs = <StreamSubscription<QuerySnapshot<Loteamento>>>[];
+    final subs = <StreamSubscription<List<Loteamento>>>[];
     final resultsByStream = <int, List<Loteamento>>{};
     final errorsByStream = <int, (Object, StackTrace)>{};
     final readyStreams = <int>{};
@@ -109,15 +144,22 @@ class LoteamentoRepository {
     void emitIfReady() {
       if (controller.isClosed) return;
       if (readyStreams.length < queries.length) return;
-      if (errorsByStream.isNotEmpty) {
+      // Só propaga erro se nenhuma fonte teve sucesso.
+      if (resultsByStream.isEmpty && errorsByStream.isNotEmpty) {
         final firstErr = errorsByStream.values.first;
         controller.addError(firstErr.$1, firstErr.$2);
         return;
       }
       final merged = <String, Loteamento>{};
-      for (final list in resultsByStream.values) {
-        for (final item in list) {
-          merged[item.id] = item;
+      // Docs reais de /loteamentos têm precedência sobre os sintetizados da obra.
+      final order = [
+        ...List<int>.generate(primaryCount, (i) => i),
+        ...List<int>.generate(queries.length - 2 * primaryCount, (i) => 2 * primaryCount + i),
+        ...List<int>.generate(primaryCount, (i) => primaryCount + i),
+      ];
+      for (final idx in order) {
+        for (final item in resultsByStream[idx] ?? const <Loteamento>[]) {
+          merged.putIfAbsent(item.id, () => item);
         }
       }
       final sorted = merged.values.toList()
@@ -130,16 +172,14 @@ class LoteamentoRepository {
         for (var i = 0; i < queries.length; i++) {
           final index = i;
           subs.add(
-            queries[index].snapshots().listen(
-              (snap) {
+            queries[index].listen(
+              (items) {
                 errorsByStream.remove(index);
-                resultsByStream[index] = snap.docs
-                    .map((doc) => doc.data())
-                    .toList();
+                resultsByStream[index] = items;
                 readyStreams.add(index);
                 emitIfReady();
               },
-              onError: (err, stack) {
+              onError: (Object err, StackTrace stack) {
                 errorsByStream[index] = (err, stack);
                 readyStreams.add(index);
                 emitIfReady();

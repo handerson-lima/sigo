@@ -224,24 +224,26 @@ match /construtoras/{c} {
        ? lot.data.obraId
        : l;
    }
+   function obraIsActive(c, o) {
+     let obraDoc = get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o));
+     return obraDoc == null || obraDoc.data.get('isActive', true) == true;
+   }
    function obraMemberActive(c, o) {
      let memberDoc = get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid));
-     let obraDoc = get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o));
      return member(c)
        && memberDoc != null
        && memberDoc.data.get('isActive', false) == true
-       && (obraDoc == null || obraDoc.data.get('isActive', true) == true);
+       && obraIsActive(c, o);
    }
    function obraOnlyAdmin(c, o) {
      let memberDoc = get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o)/members/$(request.auth.uid));
-     let obraDoc = get(/databases/$(database)/documents/construtoras/$(c)/obras/$(o));
      return member(c)
        && memberDoc != null
        && memberDoc.data.get('isActive', false) == true
-       && (obraDoc == null || obraDoc.data.get('isActive', true) == true)
        && (memberDoc.data.get('isAdmin', false) == true
            || memberDoc.data.get('isOwner', false) == true
-           || memberDoc.data.get('role', '') in ['admin', 'owner']);
+           || memberDoc.data.get('role', '') in ['admin', 'owner'])
+       && obraIsActive(c, o);
    }
    function hierarchyObraMember(c, l) {
      return c is string && c.size() > 0 && l is string && l.size() > 0
@@ -390,8 +392,14 @@ match /construtoras/{c} {
    }
 
    match /loteamentos/{id} {
-     allow read: if hierarchyRead(resource.data.construtoraId)
-       || obraMember(resource.data.construtoraId, loteamentoObraId(resource.data, id));
+     allow get: if (resource == null && signed() && activeUser())
+       || hierarchyRead(resource.data.construtoraId)
+       || obraMember(resource.data.construtoraId, id)
+       || (hasExplicitObraId(resource.data) && obraMember(resource.data.construtoraId, resource.data.obraId));
+     allow list: if
+       hierarchyRead(resource.data.construtoraId)
+       || obraMember(resource.data.construtoraId, id)
+       || (hasExplicitObraId(resource.data) && obraMember(resource.data.construtoraId, resource.data.obraId));
      allow create: if isValidLoteamento(request.resource.data, id)
        && admin(request.resource.data.construtoraId);
      allow update: if isValidLoteamento(request.resource.data, id)

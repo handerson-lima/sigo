@@ -9,20 +9,6 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "__name__",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "loteamentos",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "construtoraId",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "obraId",
           "order": "ASCENDING"
         }

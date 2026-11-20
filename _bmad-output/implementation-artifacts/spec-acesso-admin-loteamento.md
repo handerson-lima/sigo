@@ -2,7 +2,7 @@
 title: 'Acesso de membros e administradores de loteamento ao fluxo da construtora e hierarquia'
 type: 'bugfix'
 created: '2026-11-20'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: 'd9de413668729ab6d9b7c8dfe68e473f9dda7e05'
@@ -75,6 +75,10 @@ context: []
 - Given Operário sem nenhum vínculo de loteamento, when entra em `/loteamentos`, then vê estado vazio sem erro de permissão.
 
 ## Implementation Notes
+
+- Implementação concluída com unificação `obras` ↔ `/loteamentos`, escopo por loteamento no `AccessGuard`, gates nas telas da hierarquia, índices compostos em `firestore.indexes.json` e regras atualizadas em `firestore.rules`.
+- Ajuste final pós-revisão em produção: `watchLoteamentosByObraIds` usa leitura direta `doc(obraId)` + fallback em `construtoras/{c}/obras/{obraId}` (para obras legadas sem doc em `/loteamentos`) e `firestore.rules` separa `allow get`/`allow list` em `/loteamentos/{id}` com curto-circuito em `hierarchyObraMember`/`hierarchyObraAdmin`.
+- Publicado no Firebase (`sigo-c2eb2`) via `firebase deploy --only firestore:rules,firestore:indexes`.
 
 ## Spec Change Log
 

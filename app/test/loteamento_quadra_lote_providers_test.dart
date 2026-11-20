@@ -1,3 +1,4 @@
+// ignore_for_file: subtype_of_sealed_class
 import 'dart:async';
 
 import 'package:app/src/features/authentication/data/user_repository.dart';
@@ -253,17 +254,27 @@ void main() {
     );
 
     test(
-      'watchLoteamentosByObraIds propaga erro parcial mesmo quando outro stream emite lista vazia',
+      'watchLoteamentosByObraIds tolera falha da query por obraId e usa leitura direta/fallback da obra',
       () async {
-        final firestore = _PartialErrorLoteamentosFirestore(
-          FakeFirebaseFirestore(),
-        );
+        final fake = FakeFirebaseFirestore();
+        await fake
+            .collection('construtoras')
+            .doc('c1')
+            .collection('obras')
+            .doc('o1')
+            .set({
+              'id': 'o1',
+              'construtoraId': 'c1',
+              'name': 'CAOL VIDA NOVA',
+              'isActive': true,
+              'createdAt': DateTime(2026, 1, 1).toIso8601String(),
+            });
+        final firestore = _PartialErrorLoteamentosFirestore(fake);
         final repo = LoteamentoRepository(firestore);
 
-        await expectLater(
-          repo.watchLoteamentosByObraIds('c1', ['o1']).first,
-          throwsA(isA<FirebaseException>()),
-        );
+        final result = await repo.watchLoteamentosByObraIds('c1', ['o1']).first;
+        expect(result.map((l) => l.id), ['o1']);
+        expect(result.first.name, 'CAOL VIDA NOVA');
       },
     );
 
@@ -309,7 +320,7 @@ class _PartialErrorLoteamentosFirestore implements FirebaseFirestore {
     if (collectionPath == 'loteamentos') {
       return _PartialErrorCollection(_delegate.collection(collectionPath), () {
         _whereInCall++;
-        return _whereInCall == 2;
+        return _whereInCall == 1;
       });
     }
     return _delegate.collection(collectionPath);
@@ -348,6 +359,9 @@ class _PartialErrorConvertedCollection<R> implements CollectionReference<R> {
   final bool Function() _shouldError;
 
   _PartialErrorConvertedCollection(this._delegate, this._shouldError);
+
+  @override
+  DocumentReference<R> doc([String? path]) => _delegate.doc(path);
 
   @override
   Query<R> where(

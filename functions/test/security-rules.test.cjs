@@ -1576,3 +1576,45 @@ test('11.11 construtoras/{c}/equipes/{e} permite leitura por member(c), mantendo
   // Outsider não lê equipes de const_a
   await assertFails(getDoc(doc(outsiderFs, 'construtoras/const_a/equipes/eq_1')));
 });
+
+test('11.9 loteamentos: get de doc inexistente, queries por documentId()/obraId e loteamento só em obras/{l}', async () => {
+  const adminL1Fs = testEnv.authenticatedContext('admin_l1_user').firestore();
+  const memberL1Fs = testEnv.authenticatedContext('member_l1_user').firestore();
+  const legacyFs = testEnv.authenticatedContext('legacy_obra_admin').firestore();
+  const semVinculoFs = testEnv.authenticatedContext('operario_sem_vinculo').firestore();
+  const anonFs = testEnv.unauthenticatedContext().firestore();
+
+  // getDoc em loteamento inexistente: autenticado ativo permitido; anônimo negado
+  await assertSucceeds(getDoc(doc(adminL1Fs, 'loteamentos/obra_so_em_obras')));
+  await assertSucceeds(getDoc(doc(semVinculoFs, 'loteamentos/inexistente_xyz')));
+  await assertFails(getDoc(doc(anonFs, 'loteamentos/inexistente_xyz')));
+
+  // Query por documentId() in [L1] com construtoraId
+  const byId = await assertSucceeds(getDocs(query(
+    collection(memberL1Fs, 'loteamentos'),
+    where('construtoraId', '==', 'const_a'),
+    where(documentId(), 'in', ['L1'])
+  )));
+  assert.equal(byId.docs.length, 1);
+
+  // Query por obraId in [obra_1] com construtoraId (legado)
+  const byObra = await assertSucceeds(getDocs(query(
+    collection(legacyFs, 'loteamentos'),
+    where('construtoraId', '==', 'const_a'),
+    where('obraId', 'in', ['obra_1'])
+  )));
+  assert.equal(byObra.docs.length, 1);
+  assert.equal(byObra.docs[0].id, 'L_legado');
+
+  // Sem vínculo: queries negadas
+  await assertFails(getDocs(query(
+    collection(semVinculoFs, 'loteamentos'),
+    where('construtoraId', '==', 'const_a'),
+    where(documentId(), 'in', ['L1'])
+  )));
+  await assertFails(getDocs(query(
+    collection(semVinculoFs, 'loteamentos'),
+    where('construtoraId', '==', 'const_a'),
+    where('obraId', 'in', ['obra_1'])
+  )));
+});
